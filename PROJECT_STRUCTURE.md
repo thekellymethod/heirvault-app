@@ -1,162 +1,365 @@
-# Project Structure Analysis
+# HeirVault Project Structure
 
-Based on [Next.js project structure conventions](https://nextjs.org/docs/app/getting-started/project-structure), here's the current structure and recommendations.
+Complete project structure documentation for the HeirVault application.
 
-## Current Structure
+## Overview
+
+HeirVault is a Next.js 16 application built with the App Router, using TypeScript, Prisma, Clerk authentication, and Tailwind CSS. The application provides a secure registry for attorneys and clients to manage life insurance and beneficiary information.
+
+## Root Directory Structure
 
 ```
-heir-registry/
-├── src/
-│   ├── app/                    # App Router (routing)
-│   │   ├── api/                # API routes
-│   │   │   ├── clients/
-│   │   │   └── invites/
-│   │   ├── auth/               # ⚠️ Old auth pages (should use Clerk)
-│   │   ├── dashboard/
-│   │   ├── invite/
-│   │   ├── layout.tsx
-│   │   └── page.tsx
-│   ├── lib/                    # Shared utilities
-│   │   ├── supabase/           # ⚠️ Old Supabase code (can be removed)
-│   │   └── utils/
-│   ├── types/
-│   └── middleware.ts
-├── prisma/
-└── public/
+heir-vault/
+├── .env.local                 # Environment variables (not in git)
+├── .gitignore
+├── next.config.mjs            # Next.js configuration with Sentry & security headers
+├── package.json               # Dependencies and scripts
+├── package-lock.json
+├── prisma/                    # Database schema and migrations
+├── public/                    # Static assets
+├── README.md                  # Project documentation
+├── SETUP.md                   # Setup instructions
+├── NEXT_STEPS.md              # Development roadmap
+├── PROJECT_STRUCTURE.md       # This file
+├── sentry.client.config.ts    # Sentry client configuration
+├── sentry.edge.config.ts      # Sentry edge configuration
+├── sentry.server.config.ts    # Sentry server configuration
+├── src/                       # Source code
+└── supabase/                  # Supabase schema (legacy reference)
 ```
 
-## Recommended Improvements
+## Source Code Structure (`src/`)
 
-### 1. Clean Up Old Code
-
-**Remove Supabase files** (no longer needed):
-- `src/lib/supabase/` - Entire directory
-- `src/lib/utils/auth.ts` - Old Supabase auth
-- `src/app/auth/` - Replace with Clerk components
-
-### 2. Use Route Groups for Organization
-
-According to Next.js docs, route groups `(folderName)` help organize routes without affecting URLs:
+### Application Routes (`src/app/`)
 
 ```
 src/app/
-├── (auth)/              # Route group for auth-related pages
-│   └── sign-in/         # Clerk's sign-in (or custom)
-│   └── sign-up/         # Clerk's sign-up (or custom)
-├── (dashboard)/         # Route group for dashboard
-│   ├── layout.tsx       # Dashboard-specific layout
-│   ├── dashboard/
-│   │   ├── clients/
-│   │   ├── policies/
-│   │   └── beneficiaries/
-│   └── invite/
-└── (marketing)/         # Route group for public pages
-    └── page.tsx         # Landing page
-```
-
-### 3. Use Private Folders for Non-Routable Code
-
-Use `_folder` prefix for internal utilities that shouldn't be routes:
-
-```
-src/app/
-├── (dashboard)/
-│   ├── _components/     # Private: dashboard-specific components
-│   ├── _lib/            # Private: dashboard utilities
-│   └── dashboard/
-```
-
-### 4. Colocate Route-Specific Code
-
-Next.js allows colocating files in route segments:
-
-```
-src/app/(dashboard)/dashboard/clients/
-├── _components/         # Client-specific components
-│   ├── ClientForm.tsx
-│   └── ClientList.tsx
-├── [id]/
-│   ├── page.tsx
-│   └── _components/
-│       └── ClientDetails.tsx
-└── page.tsx
-```
-
-## Recommended Structure
-
-```
-heir-registry/
-├── src/
-│   ├── app/
-│   │   ├── (auth)/              # Route group: auth pages
-│   │   │   ├── sign-in/
-│   │   │   │   └── page.tsx     # Clerk SignIn component
-│   │   │   └── sign-up/
-│   │   │       └── page.tsx     # Clerk SignUp component
-│   │   │
-│   │   ├── (dashboard)/         # Route group: protected routes
-│   │   │   ├── layout.tsx       # Dashboard layout with nav
-│   │   │   ├── dashboard/
-│   │   │   │   ├── clients/
-│   │   │   │   │   ├── [id]/
-│   │   │   │   │   │   └── page.tsx
-│   │   │   │   │   └── page.tsx
-│   │   │   │   ├── policies/
-│   │   │   │   └── beneficiaries/
-│   │   │   └── invite/
-│   │   │       └── [token]/
-│   │   │           └── page.tsx
-│   │   │
-│   │   ├── (marketing)/         # Route group: public pages
-│   │   │   └── page.tsx         # Landing page
-│   │   │
-│   │   ├── api/                 # API routes (not in route groups)
-│   │   │   ├── clients/
-│   │   │   └── invites/
-│   │   │
-│   │   ├── layout.tsx          # Root layout
-│   │   ├── globals.css
-│   │   └── favicon.ico
-│   │
-│   ├── lib/                    # Shared utilities (outside app)
-│   │   ├── prisma.ts
-│   │   ├── audit.ts
-│   │   └── utils/
-│   │       ├── clerk.ts
-│   │       └── invites.ts
-│   │
-│   ├── types/
-│   │   └── index.ts
-│   │
-│   └── middleware.ts
+├── api/                       # API routes (REST endpoints)
+│   ├── beneficiaries/
+│   │   └── route.ts          # POST: Create beneficiary
+│   ├── billing/
+│   │   └── checkout/
+│   │       └── route.ts      # POST: Create Stripe checkout session
+│   ├── clients/
+│   │   ├── [id]/
+│   │   │   ├── invite/
+│   │   │   │   └── route.ts  # POST: Send client invitation
+│   │   │   ├── route.ts      # GET, PUT: Client CRUD
+│   │   │   └── summary-pdf/
+│   │   │       └── route.ts # GET: Generate client summary PDF
+│   │   └── route.ts          # GET, POST: List/create clients
+│   ├── invites/
+│   │   ├── [token]/
+│   │   │   ├── accept/
+│   │   │   │   └── route.ts  # POST: Accept invitation
+│   │   │   └── route.ts      # GET: Get invite details
+│   │   ├── accept/
+│   │   │   └── route.ts      # POST: Accept invitation (alternative)
+│   │   └── route.ts          # GET, POST: List/create invites
+│   ├── org/
+│   │   └── team/
+│   │       └── invite/
+│   │           └── route.ts  # POST: Invite team member
+│   ├── organizations/
+│   │   └── [id]/
+│   │       └── route.ts      # GET, PUT: Organization CRUD
+│   ├── policies/
+│   │   ├── [id]/
+│   │   │   ├── beneficiaries/
+│   │   │   │   └── route.ts  # POST, DELETE: Link/unlink beneficiaries
+│   │   │   └── route.ts      # GET, PUT, DELETE: Policy CRUD
+│   │   └── route.ts          # GET, POST: List/create policies
+│   ├── search/
+│   │   └── route.ts          # GET: Global search (clients, policies)
+│   ├── subscriptions/
+│   │   └── create-checkout/
+│   │       └── route.ts      # POST: Create subscription checkout
+│   ├── team/
+│   │   └── [id]/
+│   │       └── route.ts      # PUT: Update team member role
+│   └── webhooks/
+│       └── stripe/
+│           └── route.ts      # POST: Stripe webhook handler
 │
-├── prisma/
-│   ├── schema.prisma
-│   └── migrations/
+├── client-portal/            # Client-facing portal
+│   ├── layout.tsx            # Client portal layout with navigation
+│   ├── page.tsx              # Client overview page
+│   └── policies/
+│       ├── NewClientPolicyForm.tsx  # Client-side policy form
+│       └── page.tsx          # Client policies list
 │
-└── public/
+├── dashboard/                # Attorney dashboard
+│   ├── _components/          # Private: Dashboard components
+│   │   └── SidebarNav.tsx    # Sidebar navigation component
+│   ├── analytics/
+│   │   └── page.tsx          # Firm analytics dashboard
+│   ├── billing/
+│   │   ├── BillingActions.tsx # Billing plan selection component
+│   │   └── page.tsx          # Billing & subscription page
+│   ├── clients/
+│   │   ├── [id]/
+│   │   │   ├── _components/  # Private: Client-specific components
+│   │   │   │   └── InviteClientButton.tsx
+│   │   │   ├── ClientActivityFeed.tsx  # Client activity log component
+│   │   │   ├── edit/
+│   │   │   │   └── page.tsx  # Edit client form
+│   │   │   ├── page.tsx      # Client detail page (Overview/Activity tabs)
+│   │   │   └── policies/
+│   │   │       └── new/
+│   │   │           └── page.tsx  # Add policy form
+│   │   └── page.tsx          # Clients list page
+│   ├── GlobalSearch.tsx      # Global search component
+│   ├── layout.tsx            # Dashboard layout (sidebar + top bar)
+│   ├── page.tsx              # Dashboard home page
+│   ├── settings/
+│   │   └── org/
+│   │       ├── OrgSettingsForm.tsx  # Organization settings form
+│   │       └── page.tsx      # Organization settings page
+│   └── team/
+│       ├── TeamManagement.tsx  # Team management component
+│       └── page.tsx          # Team management page
+│
+├── invite/                   # Client invitation flow
+│   └── [token]/
+│       ├── InvitePortal.tsx  # Invite acceptance portal (client component)
+│       └── page.tsx          # Invite acceptance page
+│
+├── sign-in/                  # Clerk sign-in page
+│   └── [[...sign-in]]/
+│       └── page.tsx          # Clerk SignIn component
+│
+├── sign-up/                  # Clerk sign-up page
+│   └── [[...sign-up]]/
+│       └── page.tsx          # Clerk SignUp component
+│
+├── favicon.ico               # Site favicon
+├── global-error.tsx          # Global error boundary
+├── globals.css               # Global styles (Tailwind)
+├── layout.tsx                # Root layout (ClerkProvider, fonts)
+└── page.tsx                  # Landing page (marketing)
 ```
 
-## Benefits of This Structure
+### Library Utilities (`src/lib/`)
 
-1. **Route Groups**: Organize routes logically without affecting URLs
-2. **Private Folders**: Clearly mark non-routable code with `_` prefix
-3. **Colocation**: Keep related code together (components, utils near routes)
-4. **Clear Separation**: Marketing, auth, and dashboard are clearly separated
+```
+src/lib/
+├── audit.ts                  # Audit logging utilities
+├── authz.ts                  # Authorization helpers (requireOrgRole, requireAttorneyOrOwner)
+├── client-limits.ts          # Plan-based client limit enforcement
+├── db.ts                     # Prisma client export (alias for prisma.ts)
+├── email.ts                  # Email sending (Resend integration)
+├── http.ts                   # HTTP response helpers (jsonOk, jsonError)
+├── logger.ts                 # Structured logging utilities
+├── plan.ts                   # Billing plan utilities (getClientLimitForPlan)
+├── prisma.ts                 # Prisma client instance
+├── rate-limit.ts             # Rate limiting utility
+├── stripe.ts                 # Stripe client initialization
+└── utils/                    # Additional utilities
+    ├── clerk.ts              # Clerk-specific utilities
+    └── invites.ts            # Invite management utilities
+```
 
-## Next Steps
+### PDF Generation (`src/pdfs/`)
 
-1. ✅ Keep current structure working
-2. Create route groups for better organization
-3. Remove old Supabase code
-4. Replace `/auth/*` pages with Clerk components
-5. Add dashboard layout with navigation
-6. Colocate route-specific components
+```
+src/pdfs/
+└── ClientRegistrySummary.tsx  # React-PDF component for client summary PDFs
+```
 
-## References
+### Types (`src/types/`)
 
-- [Next.js Project Structure](https://nextjs.org/docs/app/getting-started/project-structure)
-- [Route Groups](https://nextjs.org/docs/app/api-reference/file-conventions/route-groups)
-- [Private Folders](https://nextjs.org/docs/app/getting-started/project-structure#private-folders)
-- [Colocation](https://nextjs.org/docs/app/getting-started/project-structure#colocation)
+```
+src/types/
+└── index.ts                  # TypeScript type definitions
+```
 
+### Configuration Files
+
+```
+src/
+├── instrumentation.ts        # Sentry instrumentation (server)
+├── instrumentation-client.ts  # Sentry instrumentation (client)
+└── proxy.ts                  # Next.js proxy for Clerk authentication
+```
+
+## Database Structure (`prisma/`)
+
+```
+prisma/
+├── schema.prisma             # Prisma schema definition
+└── migrations/               # Database migrations
+    ├── 20251206003916_init/
+    ├── 20251206054415_add_client_invite/
+    ├── 20251206054848_access_grant_unique/
+    ├── 20251206060000_org_contact_fields/
+    ├── 20251206060234_add_billing_fields/
+    ├── 20251206060320_org_billing_fields/
+    ├── 20251206064201_make_slug_required/
+    ├── 20251206070000_audit_log_and_org_role/
+    ├── 20251206095202_audit_read_actions/
+    └── migration_lock.toml
+```
+
+## Key Models (from `schema.prisma`)
+
+- **User**: User accounts synced with Clerk
+- **Organization**: Law firms with billing plans and contact info
+- **OrgMember**: Links users to organizations with roles (OWNER, ATTORNEY, STAFF)
+- **Client**: Individual clients scoped to organizations
+- **Policy**: Insurance policies (no amounts stored)
+- **Insurer**: Insurance company information
+- **Beneficiary**: Policy beneficiaries
+- **PolicyBeneficiary**: Links beneficiaries to policies
+- **AccessGrant**: Organization-level client access control
+- **ClientInvite**: Secure invitation system
+- **AuditLog**: Complete audit trail
+
+## Route Organization
+
+### Public Routes
+- `/` - Landing page
+- `/sign-in` - Sign in page
+- `/sign-up` - Sign up page
+- `/invite/[token]` - Client invitation acceptance
+
+### Protected Routes (Require Authentication)
+
+#### Client Portal
+- `/client-portal` - Client overview
+- `/client-portal/policies` - Client's policies
+
+#### Attorney Dashboard
+- `/dashboard` - Dashboard home
+- `/dashboard/clients` - Client list
+- `/dashboard/clients/[id]` - Client detail (Overview/Activity tabs)
+- `/dashboard/clients/[id]/edit` - Edit client
+- `/dashboard/clients/[id]/policies/new` - Add policy
+- `/dashboard/analytics` - Firm analytics
+- `/dashboard/billing` - Billing & subscriptions
+- `/dashboard/team` - Team management
+- `/dashboard/settings/org` - Organization settings
+
+## API Endpoints
+
+### Clients
+- `GET /api/clients` - List clients (filtered by organization)
+- `POST /api/clients` - Create client
+- `GET /api/clients/[id]` - Get client details
+- `PUT /api/clients/[id]` - Update client
+- `POST /api/clients/[id]/invite` - Send client invitation
+- `GET /api/clients/[id]/summary-pdf` - Download client summary PDF
+
+### Policies
+- `GET /api/policies` - List policies (filtered by clientId)
+- `POST /api/policies` - Create policy
+- `GET /api/policies/[id]` - Get policy details
+- `PUT /api/policies/[id]` - Update policy
+- `DELETE /api/policies/[id]` - Delete policy
+- `POST /api/policies/[id]/beneficiaries` - Link beneficiary to policy
+- `DELETE /api/policies/[id]/beneficiaries` - Unlink beneficiary from policy
+
+### Beneficiaries
+- `POST /api/beneficiaries` - Create beneficiary
+
+### Invites
+- `GET /api/invites` - List invites
+- `POST /api/invites` - Create invite
+- `GET /api/invites/[token]` - Get invite details
+- `POST /api/invites/accept` - Accept invitation
+
+### Search
+- `GET /api/search?q=...` - Global search (clients, policies)
+
+### Billing
+- `POST /api/billing/checkout` - Create Stripe checkout session
+- `POST /api/webhooks/stripe` - Stripe webhook handler
+
+### Team Management
+- `POST /api/org/team/invite` - Invite team member
+- `PUT /api/team/[id]` - Update team member role
+
+## Key Features by Directory
+
+### Authentication & Authorization
+- **Clerk Integration**: `src/app/layout.tsx`, `src/proxy.ts`
+- **Authorization Helpers**: `src/lib/authz.ts`
+- **Role-Based Access**: OWNER, ATTORNEY, STAFF roles
+
+### Client Management
+- **Client CRUD**: `src/app/api/clients/`
+- **Client UI**: `src/app/dashboard/clients/`
+- **Client Portal**: `src/app/client-portal/`
+
+### Policy Management
+- **Policy CRUD**: `src/app/api/policies/`
+- **Policy Forms**: `src/app/dashboard/clients/[id]/policies/new/`
+
+### Invitation System
+- **Invite Creation**: `src/app/api/clients/[id]/invite/`
+- **Invite Acceptance**: `src/app/invite/[token]/`
+- **Email Sending**: `src/lib/email.ts`
+
+### Billing & Subscriptions
+- **Stripe Integration**: `src/lib/stripe.ts`
+- **Checkout**: `src/app/api/billing/checkout/`
+- **Webhooks**: `src/app/api/webhooks/stripe/`
+- **Plan Limits**: `src/lib/plan.ts`, `src/lib/client-limits.ts`
+
+### Audit & Logging
+- **Audit Logging**: `src/lib/audit.ts`
+- **Activity Feeds**: `src/app/dashboard/clients/[id]/ClientActivityFeed.tsx`
+- **Structured Logging**: `src/lib/logger.ts`
+
+### PDF Generation
+- **PDF Component**: `src/pdfs/ClientRegistrySummary.tsx`
+- **PDF Route**: `src/app/api/clients/[id]/summary-pdf/`
+
+### Security
+- **Rate Limiting**: `src/lib/rate-limit.ts`
+- **Security Headers**: `next.config.mjs`
+- **Error Monitoring**: Sentry integration
+
+## Environment Variables
+
+Required environment variables (see `.env.local`):
+- `DATABASE_URL` - PostgreSQL connection string
+- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` - Clerk publishable key
+- `CLERK_SECRET_KEY` - Clerk secret key
+- `NEXT_PUBLIC_APP_URL` - Application URL
+- `RESEND_API_KEY` - Resend API key for emails
+- `RESEND_FROM_EMAIL` - Email sender address
+- `STRIPE_SECRET_KEY` - Stripe secret key
+- `STRIPE_PRICE_SOLO` - Stripe price ID for Solo plan
+- `STRIPE_PRICE_SMALL_FIRM` - Stripe price ID for Small Firm plan
+- `STRIPE_WEBHOOK_SECRET` - Stripe webhook secret
+
+## Development Scripts
+
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm run start` - Start production server
+- `npm run lint` - Run ESLint
+- `npx prisma migrate dev` - Run database migrations
+- `npx prisma studio` - Open Prisma Studio
+
+## Technology Stack
+
+- **Framework**: Next.js 16 (App Router)
+- **Language**: TypeScript
+- **Database**: Neon (PostgreSQL) with Prisma ORM
+- **Authentication**: Clerk
+- **Styling**: Tailwind CSS
+- **PDF Generation**: @react-pdf/renderer
+- **Email**: Resend
+- **Payments**: Stripe
+- **Error Monitoring**: Sentry
+- **Validation**: Zod
+
+## Notes
+
+- All API routes use server-side authentication via Clerk
+- Authorization is enforced using `requireOrgRole()` and `requireAttorneyOrOwner()` helpers
+- Client limits are enforced based on billing plans
+- All actions are logged to the audit trail
+- PDF exports are generated server-side using React-PDF
+- Rate limiting is available for API routes via `rateLimit()` utility
