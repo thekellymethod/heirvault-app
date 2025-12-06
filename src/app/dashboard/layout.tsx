@@ -16,7 +16,7 @@ export default function DashboardLayout({
           </div>
           <div className="flex flex-col">
             <span className="text-xs font-semibold tracking-tight">
-              HeirRegistry
+              HeirVault
             </span>
             <span className="text-[10px] text-slate-400">
               Life Insurance Registry

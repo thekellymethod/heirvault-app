@@ -1,4 +1,4 @@
-# HeirRegistry
+# HeirVault
 
 > Locate your clients' life insurance relationships in one place.
 

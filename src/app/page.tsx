@@ -15,7 +15,7 @@ export default function LandingPage() {
             </div>
             <div className="flex flex-col">
               <span className="text-sm font-semibold tracking-tight">
-                HeirRegistry
+                HeirVault
               </span>
               <span className="text-xs text-slate-400">
                 Life Insurance & Beneficiary Registry
@@ -72,7 +72,7 @@ export default function LandingPage() {
             </h1>
 
             <p className="mt-4 max-w-xl text-sm leading-relaxed text-slate-300 sm:text-base">
-              HeirRegistry is a secure registry where your clients record
+              HeirVault is a secure registry where your clients record
               which life insurance companies they use and who their
               beneficiaries are—without exposing policy amounts—so you can
               move faster in probate, estate planning, and wrongful death
@@ -194,7 +194,7 @@ export default function LandingPage() {
         >
           <h2 className="text-xl font-semibold">How it works</h2>
           <p className="mt-2 max-w-2xl text-sm text-slate-300">
-            HeirRegistry is intentionally simple. It is not a claims platform or
+            HeirVault is intentionally simple. It is not a claims platform or
             carrier portal. It is a clean registry that captures the essentials
             you actually need in practice.
           </p>
@@ -248,7 +248,7 @@ export default function LandingPage() {
               <p>
                 Most life insurance ends up in your files as fragmented
                 intake notes, email screenshots, or client recollection.
-                HeirRegistry turns that into a structured, durable dataset
+                HeirVault turns that into a structured, durable dataset
                 you can actually rely on.
               </p>
               <ul className="space-y-2 text-xs text-slate-300">
@@ -385,7 +385,7 @@ export default function LandingPage() {
         {/* Footer */}
         <footer className="mt-16 border-t border-slate-900 pt-6 text-xs text-slate-500">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <p>© {new Date().getFullYear()} HeirRegistry. All rights reserved.</p>
+            <p>© {new Date().getFullYear()} HeirVault. All rights reserved.</p>
             <div className="flex gap-4">
               <Link href="/legal/terms" className="hover:text-emerald-300">
                 Terms

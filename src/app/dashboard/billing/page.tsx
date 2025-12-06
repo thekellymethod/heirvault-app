@@ -30,7 +30,7 @@ export default async function BillingPage() {
           Billing & subscription
         </h1>
         <p className="mt-1 text-sm text-slate-400">
-          Manage your firm&apos;s subscription to HeirRegistry.
+          Manage your firm&apos;s subscription to HeirVault.
         </p>
       </section>
 

@@ -1,4 +1,4 @@
--- HeirRegistry Database Schema
+-- HeirVault Database Schema
 -- PostgreSQL schema for Supabase
 
 -- Enable UUID extension

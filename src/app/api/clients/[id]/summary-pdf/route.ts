@@ -65,7 +65,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
   headers.set("Content-Type", "application/pdf")
   headers.set(
     "Content-Disposition",
-    `attachment; filename="heirregistry-${client.lastName}-${client.firstName}.pdf"`,
+    `attachment; filename="heirvault-${client.lastName}-${client.firstName}.pdf"`,
   )
 
   return new NextResponse(pdfStream as any, {

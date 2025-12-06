@@ -52,7 +52,7 @@ export default async function ClientPortalLayout({
       <header className="border-b border-slate-800">
         <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-3">
           <div>
-            <div className="text-sm font-semibold">HeirRegistry</div>
+            <div className="text-sm font-semibold">HeirVault</div>
             <div className="text-xs text-slate-400">
               Client Registry Portal
             </div>

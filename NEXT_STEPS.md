@@ -1,4 +1,4 @@
-# Next Steps for HeirRegistry
+# Next Steps for HeirVault
 
 ## 🎯 Immediate Priorities
 

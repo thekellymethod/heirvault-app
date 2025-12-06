@@ -1,4 +1,4 @@
-# HeirRegistry Setup Guide
+# HeirVault Setup Guide
 
 ## Quick Start
 

@@ -24,7 +24,7 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'HeirRegistry - Life Insurance Relationship Registry',
+  title: 'HeirVault - Life Insurance Relationship Registry',
   description: 'A secure registry where clients record who insures them and who their beneficiaries are—without exposing policy amounts.',
 }
 

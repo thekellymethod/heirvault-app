@@ -16,7 +16,7 @@ export async function sendClientInviteEmail(opts: {
   }
 
   await resend.emails.send({
-    from: process.env.RESEND_FROM_EMAIL || "HeirRegistry <no-reply@yourdomain.com>",
+    from: process.env.RESEND_FROM_EMAIL || "HeirVault <no-reply@yourdomain.com>",
     to,
     subject: "Complete your Life Insurance & Beneficiary Registry",
     html: `
