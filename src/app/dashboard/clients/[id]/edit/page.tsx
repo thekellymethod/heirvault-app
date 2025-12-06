@@ -1,0 +1,229 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { useRouter, useParams } from 'next/navigation'
+import Link from 'next/link'
+import { ArrowLeft } from 'lucide-react'
+
+interface Client {
+  id: string
+  email: string
+  firstName: string
+  lastName: string
+  phone?: string
+  dateOfBirth?: string
+}
+
+export default function EditClientPage() {
+  const router = useRouter()
+  const params = useParams()
+  const id = params.id as string
+
+  const [formData, setFormData] = useState<Client>({
+    id: '',
+    email: '',
+    firstName: '',
+    lastName: '',
+    phone: '',
+    dateOfBirth: '',
+  })
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  // Fetch client data
+  useEffect(() => {
+    async function fetchClient() {
+      try {
+        const response = await fetch(`/api/clients/${id}`)
+        if (!response.ok) {
+          throw new Error('Failed to fetch client')
+        }
+        const data = await response.json()
+        
+        // Format dateOfBirth for input field (YYYY-MM-DD)
+        const formattedDate = data.dateOfBirth
+          ? new Date(data.dateOfBirth).toISOString().split('T')[0]
+          : ''
+
+        setFormData({
+          id: data.id,
+          email: data.email || '',
+          firstName: data.firstName || '',
+          lastName: data.lastName || '',
+          phone: data.phone || '',
+          dateOfBirth: formattedDate,
+        })
+      } catch (err: any) {
+        setError(err.message || 'Failed to load client data')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    if (id) {
+      fetchClient()
+    }
+  }, [id])
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    setSaving(true)
+
+    try {
+      const response = await fetch(`/api/clients/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          phone: formData.phone || undefined,
+          dateOfBirth: formData.dateOfBirth || undefined,
+        }),
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to update client')
+      }
+
+      // Redirect back to client detail page
+      router.push(`/dashboard/clients/${id}`)
+    } catch (err: any) {
+      setError(err.message || 'Failed to update client')
+      setSaving(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <main className="p-8 max-w-2xl mx-auto">
+        <div className="text-slate-400">Loading client data...</div>
+      </main>
+    )
+  }
+
+  return (
+    <main className="p-8 max-w-2xl mx-auto space-y-6">
+      {/* Header */}
+      <div className="flex items-center gap-4">
+        <Link
+          href={`/dashboard/clients/${id}`}
+          className="text-slate-400 hover:text-slate-200"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </Link>
+        <div>
+          <h1 className="text-2xl font-semibold text-slate-50">Edit Client</h1>
+          <p className="text-sm text-slate-400">Update client information</p>
+        </div>
+      </div>
+
+      {/* Form */}
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {error && (
+          <div className="rounded-lg bg-red-500/10 border border-red-500/50 p-4 text-sm text-red-400">
+            {error}
+          </div>
+        )}
+
+        <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-6 space-y-4">
+          <div>
+            <label htmlFor="email" className="block text-sm font-medium text-slate-300 mb-1">
+              Email <span className="text-red-400">*</span>
+            </label>
+            <input
+              type="email"
+              id="email"
+              required
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-50 placeholder:text-slate-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              placeholder="client@example.com"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="firstName" className="block text-sm font-medium text-slate-300 mb-1">
+                First Name <span className="text-red-400">*</span>
+              </label>
+              <input
+                type="text"
+                id="firstName"
+                required
+                value={formData.firstName}
+                onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-50 placeholder:text-slate-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                placeholder="John"
+              />
+            </div>
+            <div>
+              <label htmlFor="lastName" className="block text-sm font-medium text-slate-300 mb-1">
+                Last Name <span className="text-red-400">*</span>
+              </label>
+              <input
+                type="text"
+                id="lastName"
+                required
+                value={formData.lastName}
+                onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-50 placeholder:text-slate-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                placeholder="Doe"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label htmlFor="phone" className="block text-sm font-medium text-slate-300 mb-1">
+              Phone
+            </label>
+            <input
+              type="tel"
+              id="phone"
+              value={formData.phone}
+              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-50 placeholder:text-slate-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              placeholder="(555) 123-4567"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="dateOfBirth" className="block text-sm font-medium text-slate-300 mb-1">
+              Date of Birth
+            </label>
+            <input
+              type="date"
+              id="dateOfBirth"
+              value={formData.dateOfBirth}
+              onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
+              className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-50 placeholder:text-slate-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            />
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex gap-3 justify-end">
+          <Link
+            href={`/dashboard/clients/${id}`}
+            className="rounded-lg border border-slate-800 bg-slate-950 px-4 py-2 text-sm font-medium text-slate-300 hover:bg-slate-900"
+          >
+            Cancel
+          </Link>
+          <button
+            type="submit"
+            disabled={saving}
+            className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {saving ? 'Saving...' : 'Save Changes'}
+          </button>
+        </div>
+      </form>
+    </main>
+  )
+}
+
