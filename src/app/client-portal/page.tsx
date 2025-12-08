@@ -10,7 +10,7 @@ export default async function ClientPortalOverviewPage() {
   const user = await prisma.user.findUnique({
     where: { clerkId: userId },
     include: {
-      primaryClients: {
+      clientRecord: {
         include: {
           policies: {
             include: {
@@ -28,7 +28,7 @@ export default async function ClientPortalOverviewPage() {
     },
   })
 
-  const client = user?.primaryClients[0]
+  const client = user?.clientRecord
   if (!client) {
     return (
       <div className="text-sm text-slate-300">

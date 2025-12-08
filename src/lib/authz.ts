@@ -14,7 +14,7 @@ export async function getCurrentUserWithOrg() {
           organization: true,
         },
       },
-      primaryClients: true,
+      clientRecord: true,
     },
   });
 
