@@ -1,75 +1,67 @@
-import { auth, currentUser } from '@clerk/nextjs/server'
-import { prisma } from '@/lib/prisma'
+import { auth, currentUser } from "@clerk/nextjs/server";
+import { prisma } from "@/lib/prisma";
+
+type Role = "attorney" | "client" | "admin";
+
+function normalizeRole(r?: string | null): Role | null {
+  if (!r) return null;
+  const v = r.toLowerCase();
+  if (v === "attorney" || v === "client" || v === "admin") return v;
+  return null;
+}
 
 export async function getCurrentUser() {
-  const { userId } = await auth()
-  
-  if (!userId) {
-    return null
-  }
+  const { userId } = auth();
+  if (!userId) return null;
 
-  // Get or create user in database
-  const clerkUser = await currentUser()
-  if (!clerkUser) {
-    return null
-  }
+  const cu = await currentUser();
+  if (!cu) return null;
 
-  let user = await prisma.user.findUnique({
+  const email = cu.emailAddresses?.[0]?.emailAddress ?? null;
+  const firstName = cu.firstName ?? null;
+  const lastName = cu.lastName ?? null;
+
+  if (!email) return null;
+
+  // If you store role in Clerk public metadata: cu.publicMetadata.role
+  // Otherwise this will keep DB role as source of truth.
+  const clerkRole = normalizeRole((cu.publicMetadata as any)?.role ?? null);
+
+  const dbUser = await prisma.user.upsert({
     where: { clerkId: userId },
-    include: {
-      orgMemberships: {
-        include: {
-          organization: true,
-        },
-      },
+    update: {
+      email,
+      firstName,
+      lastName,
+      ...(clerkRole ? { role: clerkRole } : {}),
     },
-  })
-
-  // Create user if doesn't exist
-  if (!user) {
-    user = await prisma.user.create({
-      data: {
-        clerkId: userId,
-        email: clerkUser.emailAddresses[0]?.emailAddress || '',
-        firstName: clerkUser.firstName || null,
-        lastName: clerkUser.lastName || null,
-        role: 'client', // Default role
-      },
-      include: {
-        orgMemberships: {
-          include: {
-            organization: true,
-          },
-        },
-      },
-    })
-  }
-
-  return user
-}
-
-export async function requireAuth(requiredRole?: 'attorney' | 'client' | 'admin') {
-  const user = await getCurrentUser()
-  
-  if (!user) {
-    throw new Error('Unauthorized')
-  }
-
-  if (requiredRole && user.role !== requiredRole && user.role !== 'admin') {
-    throw new Error('Forbidden')
-  }
-
-  return user
-}
-
-export async function getOrganizationMembership(userId: string) {
-  const membership = await prisma.orgMember.findFirst({
-    where: { userId },
-    include: {
-      organization: true,
+    create: {
+      clerkId: userId,
+      email,
+      firstName,
+      lastName,
+      role: clerkRole ?? "client",
     },
-  })
+    select: {
+      id: true,
+      clerkId: true,
+      email: true,
+      firstName: true,
+      lastName: true,
+      role: true,
+    },
+  });
 
-  return membership
+  return dbUser;
 }
 
+export async function requireAuth(requiredRole?: Role) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  if (requiredRole && user.role !== requiredRole) {
+    throw new Error("Forbidden");
+  }
+
+  return user;
+}

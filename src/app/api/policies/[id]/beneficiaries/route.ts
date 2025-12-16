@@ -1,173 +1,204 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
-import { requireAuth } from '@/lib/utils/clerk'
-import { logAuditEvent } from '@/lib/audit'
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { requireAuth } from "@/lib/utils/clerk";
 
-interface Params {
-  params: Promise<{ id: string }>
-}
-
-// Attach a beneficiary to this policy
-export async function POST(req: NextRequest, { params }: Params) {
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
-    const user = await requireAuth()
-    const { id } = await params
-    const body = await req.json()
+    const user = await requireAuth("attorney");
+    const policyId = params.id;
 
-    const { beneficiaryId } = body
-
-    if (!beneficiaryId) {
-      return NextResponse.json(
-        { error: 'beneficiaryId required' },
-        { status: 400 }
-      )
-    }
-
-    // Check if policy exists and get clientId for access check
     const policy = await prisma.policy.findUnique({
-      where: { id },
-      include: { client: true },
-    })
+      where: { id: policyId },
+      select: {
+        id: true,
+        clientId: true,
+        beneficiaries: {
+          orderBy: { createdAt: "desc" },
+          select: {
+            id: true,
+            createdAt: true,
+            beneficiary: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                relationship: true,
+                email: true,
+                phone: true,
+                dateOfBirth: true,
+              },
+            },
+          },
+        },
+      },
+    });
 
     if (!policy) {
-      return NextResponse.json({ error: 'Policy not found' }, { status: 404 })
+      return NextResponse.json({ error: "Policy not found" }, { status: 404 });
     }
 
-    // Check access
-    if (user.role === 'attorney') {
-      const access = await prisma.attorneyClientAccess.findFirst({
-        where: {
-          attorneyId: user.id,
-          clientId: policy.clientId,
-          isActive: true,
-        },
-      })
-
-      if (!access) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-      }
-    } else {
-      if (policy.client.userId !== user.id) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-      }
-    }
-
-    // Verify beneficiary belongs to same client
-    const beneficiary = await prisma.beneficiary.findUnique({
-      where: { id: beneficiaryId },
-    })
-
-    if (!beneficiary || beneficiary.clientId !== policy.clientId) {
-      return NextResponse.json(
-        { error: 'Beneficiary not found or does not belong to this client' },
-        { status: 400 }
-      )
-    }
-
-    const link = await prisma.policyBeneficiary.create({
-      data: {
-        policyId: id,
-        beneficiaryId,
+    const access = await prisma.attorneyClientAccess.findFirst({
+      where: {
+        attorneyId: user.id,
+        clientId: policy.clientId,
+        isActive: true,
       },
-    })
+      select: { id: true },
+    });
 
-    await logAuditEvent({
-      action: 'create',
-      resourceType: 'policy_beneficiary',
-      resourceId: link.id,
-      details: { policyId: id, beneficiaryId },
-      userId: user.id,
-    })
-
-    return NextResponse.json(link, { status: 201 })
-  } catch (error: any) {
-    // Handle unique constraint violation (already linked)
-    if (error.code === 'P2002') {
-      return NextResponse.json(
-        { error: 'Beneficiary is already linked to this policy' },
-        { status: 400 }
-      )
+    if (!access) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
+
+    const allClientBeneficiaries = await prisma.beneficiary.findMany({
+      where: { clientId: policy.clientId },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        relationship: true,
+        email: true,
+        phone: true,
+        dateOfBirth: true,
+        createdAt: true,
+      },
+    });
+
+    const attachedIds = new Set(
+      policy.beneficiaries.map((pb) => pb.beneficiary.id)
+    );
+
+    return NextResponse.json({
+      attached: policy.beneficiaries.map((pb) => ({
+        linkId: pb.id,
+        attachedAt: pb.createdAt,
+        beneficiaryId: pb.beneficiary.id,
+        ...pb.beneficiary,
+      })),
+      available: allClientBeneficiaries.filter(
+        (b) => !attachedIds.has(b.id)
+      ),
+    });
+  } catch {
     return NextResponse.json(
-      { error: error.message },
-      { status: error.message === 'Unauthorized' || error.message === 'Forbidden' ? 401 : 400 }
-    )
+      { error: "Unable to fetch beneficiaries" },
+      { status: 400 }
+    );
   }
 }
 
-// Detach a beneficiary
-export async function DELETE(req: NextRequest, { params }: Params) {
+export async function POST(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
-    const user = await requireAuth()
-    const { id } = await params
-    const { searchParams } = new URL(req.url)
-    const beneficiaryId = searchParams.get('beneficiaryId')
+    const user = await requireAuth("attorney");
+    const policyId = params.id;
+    const { beneficiaryId } = await req.json();
 
     if (!beneficiaryId) {
       return NextResponse.json(
-        { error: 'beneficiaryId required' },
+        { error: "beneficiaryId is required" },
         { status: 400 }
-      )
+      );
     }
 
-    // Check if policy exists and get clientId for access check
     const policy = await prisma.policy.findUnique({
-      where: { id },
-      include: { client: true },
-    })
+      where: { id: policyId },
+      select: { clientId: true },
+    });
 
     if (!policy) {
-      return NextResponse.json({ error: 'Policy not found' }, { status: 404 })
+      return NextResponse.json({ error: "Policy not found" }, { status: 404 });
     }
 
-    // Check access
-    if (user.role === 'attorney') {
-      const access = await prisma.attorneyClientAccess.findFirst({
-        where: {
-          attorneyId: user.id,
-          clientId: policy.clientId,
-          isActive: true,
-        },
-      })
+    const access = await prisma.attorneyClientAccess.findFirst({
+      where: {
+        attorneyId: user.id,
+        clientId: policy.clientId,
+        isActive: true,
+      },
+      select: { id: true },
+    });
 
-      if (!access) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-      }
-    } else {
-      if (policy.client.userId !== user.id) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-      }
+    if (!access) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    await prisma.policyBeneficiary.delete({
+    await prisma.policyBeneficiary.upsert({
       where: {
         policyId_beneficiaryId: {
-          policyId: id,
+          policyId,
           beneficiaryId,
         },
       },
-    })
+      update: {},
+      create: {
+        policyId,
+        beneficiaryId,
+      },
+    });
 
-    await logAuditEvent({
-      action: 'delete',
-      resourceType: 'policy_beneficiary',
-      resourceId: `${id}-${beneficiaryId}`,
-      details: { policyId: id, beneficiaryId },
-      userId: user.id,
-    })
-
-    return new NextResponse(null, { status: 204 })
-  } catch (error: any) {
-    if (error.code === 'P2025') {
-      return NextResponse.json(
-        { error: 'Link not found' },
-        { status: 404 }
-      )
-    }
+    return NextResponse.json({ ok: true });
+  } catch {
     return NextResponse.json(
-      { error: error.message },
-      { status: error.message === 'Unauthorized' || error.message === 'Forbidden' ? 401 : 400 }
-    )
+      { error: "Unable to attach beneficiary" },
+      { status: 400 }
+    );
   }
 }
 
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const user = await requireAuth("attorney");
+    const policyId = params.id;
+    const { beneficiaryId } = await req.json();
+
+    if (!beneficiaryId) {
+      return NextResponse.json(
+        { error: "beneficiaryId is required" },
+        { status: 400 }
+      );
+    }
+
+    const policy = await prisma.policy.findUnique({
+      where: { id: policyId },
+      select: { clientId: true },
+    });
+
+    if (!policy) {
+      return NextResponse.json({ error: "Policy not found" }, { status: 404 });
+    }
+
+    const access = await prisma.attorneyClientAccess.findFirst({
+      where: {
+        attorneyId: user.id,
+        clientId: policy.clientId,
+        isActive: true,
+      },
+      select: { id: true },
+    });
+
+    if (!access) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    await prisma.policyBeneficiary.deleteMany({
+      where: { policyId, beneficiaryId },
+    });
+
+    return NextResponse.json({ ok: true });
+  } catch {
+    return NextResponse.json(
+      { error: "Unable to detach beneficiary" },
+      { status: 400 }
+    );
+  }
+}
