@@ -11,32 +11,53 @@
   "dependencies": {
     "@clerk/nextjs": "^6.36.0",
     "@prisma/adapter-pg": "^7.1.0",
-    "@prisma/client": "^7.1.0",
+    "@prisma/client": "^7.2.0",
     "@radix-ui/react-slot": "^1.2.4",
     "@react-pdf/renderer": "^4.3.1",
     "@sentry/nextjs": "^10.29.0",
     "clsx": "^2.1.1",
+    "dotenv": "^17.2.3",
     "jspdf": "^3.0.4",
     "lucide-react": "^0.556.0",
     "next": "16.0.7",
+    "pdf-parse": "^2.4.5",
     "pg": "^8.16.3",
+    "qrcode.react": "^4.2.0",
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "react-pdf": "^10.2.0",
     "resend": "^6.5.2",
     "stripe": "^20.0.0",
     "tailwind-merge": "^3.4.0",
+    "tesseract.js": "^7.0.0",
     "zod": "^4.1.13"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
+    "@types/node": "^20.19.27",
+    "@types/pg": "^8.16.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "autoprefixer": "^10.4.23",
     "eslint": "^9",
     "eslint-config-next": "16.0.7",
     "prisma": "^7.1.0",
     "tailwindcss": "^4",
-    "typescript": "^5"
-  }
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  },
+  "description": "> Locate your clients' life insurance relationships in one place.",
+  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/thekellymethod/heirvault-app.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/thekellymethod/heirvault-app/issues"
+  },
+  "homepage": "https://github.com/thekellymethod/heirvault-app#readme"
 }

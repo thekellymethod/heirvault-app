@@ -4,7 +4,7 @@ import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/db";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
-  apiVersion: "2024-06-20",
+  apiVersion: "2025-11-17.clover" as any,
 });
 
 export async function POST(req: Request) {
@@ -45,7 +45,7 @@ export async function POST(req: Request) {
     return new NextResponse("No organization found", { status: 400 });
   }
 
-  const org = orgMember.organization;
+  const org = orgMember.organization as any;
 
   // Ensure Stripe customer
   let customerId = org.stripeCustomerId;

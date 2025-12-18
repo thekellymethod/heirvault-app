@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 interface SearchResult {
   clients: {
@@ -62,37 +63,46 @@ export function GlobalSearch() {
 
   return (
     <div className="relative w-full max-w-sm">
-      <input
-        placeholder="Search clients or policies…"
-        className="w-full rounded-full border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-slate-50 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-      />
+      <div className="flex items-center gap-2">
+        <input
+          placeholder="Search your clients or policies..."
+          className="flex-1 rounded-xl border border-slateui-200 bg-white px-3 py-2 text-sm text-ink-900 placeholder-slateui-400 focus:outline-none focus:ring-2 focus:border-gold-400 focus:ring-gold-400/20"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+        />
+        <Link
+          href="/dashboard/policy-locator"
+          className="text-xs font-medium text-slateui-600 hover:text-ink-900 whitespace-nowrap transition"
+          title="Policy Locator & Global Search"
+        >
+          Search
+        </Link>
+      </div>
       {open && results && (
-        <div className="absolute z-20 mt-1 w-full rounded-xl border border-slate-800 bg-slate-950/95 p-2 text-xs text-slate-50 shadow-xl">
+        <div className="absolute z-20 mt-2 w-full rounded-xl border border-slateui-200 bg-white p-2 text-xs text-ink-900 shadow-lift">
           {loading && (
-            <div className="px-2 py-1 text-slate-400">Searching…</div>
+            <div className="px-3 py-2 text-slateui-600">Searching…</div>
           )}
           {!loading && results.clients.length === 0 && results.policies.length === 0 && (
-            <div className="px-2 py-1 text-slate-400">
+            <div className="px-3 py-2 text-slateui-600">
               No results for &quot;{q}&quot;
             </div>
           )}
           {results.clients.length > 0 && (
             <div className="mb-1">
-              <div className="px-2 py-1 text-[10px] uppercase text-slate-500">
+              <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-slateui-500">
                 Clients
               </div>
               {results.clients.map((c) => (
                 <button
                   key={c.id}
                   onClick={() => goToClient(c.id)}
-                  className="flex w-full items-center justify-between rounded-md px-2 py-1 text-left hover:bg-slate-800/80"
+                  className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left hover:bg-paper-100 transition"
                 >
-                  <span>
+                  <span className="font-medium">
                     {c.firstName} {c.lastName}
                   </span>
-                  <span className="text-[10px] text-slate-400">
+                  <span className="text-[10px] text-slateui-500">
                     {c.email}
                   </span>
                 </button>
@@ -101,20 +111,20 @@ export function GlobalSearch() {
           )}
           {results.policies.length > 0 && (
             <div>
-              <div className="px-2 py-1 text-[10px] uppercase text-slate-500">
+              <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-slateui-500">
                 Policies
               </div>
               {results.policies.map((p) => (
                 <button
                   key={p.id}
                   onClick={() => goToClient(p.client.id)}
-                  className="flex w-full items-center justify-between rounded-md px-2 py-1 text-left hover:bg-slate-800/80"
+                  className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left hover:bg-paper-100 transition"
                 >
-                  <span>
+                  <span className="font-medium">
                     {p.insurerName}{" "}
                     {p.policyNumber ? `(${p.policyNumber})` : ""}
                   </span>
-                  <span className="text-[10px] text-slate-400">
+                  <span className="text-[10px] text-slateui-500">
                     {p.client.firstName} {p.client.lastName}
                   </span>
                 </button>

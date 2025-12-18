@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -9,17 +6,254 @@ datasource db {
   provider = "postgresql"
 }
 
-enum UserRole {
-  attorney
-  client
-  admin
+model access_grants {
+  id                 String            @id
+  client_id          String
+  org_id             String?
+  attorney_user_id   String?
+  status             AccessGrantStatus
+  granted_by_user_id String?
+  granted_at         DateTime          @default(now())
+  revoked_at         DateTime?
+  users              User?             @relation("AttorneyAccess", fields: [attorney_user_id], references: [id], onDelete: Cascade)
+  clients            clients           @relation(fields: [client_id], references: [id], onDelete: Cascade)
+  organizations      organizations?    @relation(fields: [org_id], references: [id], onDelete: Cascade)
+
+  @@unique([client_id, org_id])
+  @@index([attorney_user_id])
+  @@index([client_id])
+  @@index([org_id])
 }
 
-enum InviteStatus {
-  pending
-  accepted
-  expired
-  revoked
+model attorney_client_access {
+  id              String         @id
+  attorney_id     String
+  client_id       String
+  organization_id String?
+  granted_at      DateTime       @default(now())
+  revoked_at      DateTime?
+  is_active       Boolean        @default(true)
+  users           User           @relation("AttorneyAccess", fields: [attorney_id], references: [id], onDelete: Cascade)
+  clients         clients        @relation(fields: [client_id], references: [id], onDelete: Cascade)
+  organizations   organizations? @relation(fields: [organization_id], references: [id], onDelete: Cascade)
+
+  @@unique([attorney_id, client_id])
+}
+
+model audit_logs {
+  id            String         @id
+  user_id       String?
+  org_id        String?
+  client_id     String?
+  policy_id     String?
+  action        AuditAction
+  message       String
+  created_at    DateTime       @default(now())
+  clients       clients?       @relation(fields: [client_id], references: [id])
+  organizations organizations? @relation(fields: [org_id], references: [id])
+  policies      policies?      @relation(fields: [policy_id], references: [id])
+  users         User?          @relation(fields: [user_id], references: [id])
+
+  @@index([client_id])
+  @@index([created_at])
+  @@index([org_id])
+  @@index([policy_id])
+  @@index([user_id])
+}
+
+model beneficiaries {
+  id                   String                 @id
+  client_id            String
+  first_name           String
+  last_name            String
+  relationship         String?
+  email                String?
+  phone                String?
+  date_of_birth        DateTime?              @db.Date
+  created_at           DateTime               @default(now())
+  updated_at           DateTime
+  clients              clients                @relation(fields: [client_id], references: [id], onDelete: Cascade)
+  policy_beneficiaries policy_beneficiaries[]
+}
+
+model client_invites {
+  id                 String    @id
+  client_id          String
+  token              String    @unique
+  email              String
+  expires_at         DateTime
+  used_at            DateTime?
+  created_at         DateTime  @default(now())
+  updated_at         DateTime
+  invited_by_user_id String?
+  clients            clients   @relation(fields: [client_id], references: [id], onDelete: Cascade)
+  users              User?     @relation("ClientInviteInviter", fields: [invited_by_user_id], references: [id])
+}
+
+model clients {
+  id                     String                   @id
+  email                  String
+  first_name             String
+  last_name              String
+  phone                  String?
+  date_of_birth          DateTime?                @db.Date
+  created_at             DateTime                 @default(now())
+  updated_at             DateTime
+  user_id                String?                  @unique
+  org_id                 String?
+  drivers_license        String?
+  maiden_name            String?
+  passport_number        String?
+  ssn_last_4             String?
+  access_grants          access_grants[]
+  attorney_client_access attorney_client_access[]
+  audit_logs             audit_logs[]
+  beneficiaries          beneficiaries[]
+  client_invites         client_invites[]
+  organizations          organizations?           @relation(fields: [org_id], references: [id])
+  users                  User?                    @relation("UserClient", fields: [user_id], references: [id])
+  documents              documents[]
+  policies               policies[]
+}
+
+model documents {
+  id             String    @id
+  client_id      String
+  policy_id      String?
+  file_name      String
+  file_type      String
+  file_size      Int
+  file_path      String
+  mime_type      String
+  uploaded_via   String?
+  extracted_data Json?
+  ocr_confidence Float?
+  created_at     DateTime  @default(now())
+  updated_at     DateTime
+  clients        clients   @relation(fields: [client_id], references: [id], onDelete: Cascade)
+  policies       policies? @relation(fields: [policy_id], references: [id])
+
+  @@index([client_id])
+  @@index([created_at])
+  @@index([policy_id])
+}
+
+model insurers {
+  id            String     @id
+  name          String
+  contact_phone String?
+  contact_email String?
+  website       String?
+  created_at    DateTime   @default(now())
+  updated_at    DateTime
+  policies      policies[]
+}
+
+model invites {
+  id              String         @id
+  token           String         @unique
+  attorney_id     String
+  organization_id String?
+  client_email    String
+  status          InviteStatus   @default(pending)
+  expires_at      DateTime
+  accepted_at     DateTime?
+  created_at      DateTime       @default(now())
+  users           User           @relation("AttorneyInvites", fields: [attorney_id], references: [id], onDelete: Cascade)
+  organizations   organizations? @relation(fields: [organization_id], references: [id], onDelete: Cascade)
+}
+
+model org_members {
+  id              String        @id
+  user_id         String
+  organization_id String
+  role            OrgRole       @default(ATTORNEY)
+  created_at      DateTime      @default(now())
+  updated_at      DateTime
+  organizations   organizations @relation(fields: [organization_id], references: [id], onDelete: Cascade)
+  users           User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, organization_id])
+}
+
+model organizations {
+  id                     String                   @id
+  name                   String
+  created_at             DateTime                 @default(now())
+  updated_at             DateTime
+  slug                   String                   @unique
+  address_line1          String?
+  address_line2          String?
+  city                   String?
+  state                  String?
+  postal_code            String?
+  country                String?
+  phone                  String?
+  logo_url               String?
+  billing_plan           BillingPlan              @default(FREE)
+  billing_status         String?
+  stripe_customer_id     String?
+  stripe_subscription_id String?
+  access_grants          access_grants[]
+  attorney_client_access attorney_client_access[]
+  audit_logs             audit_logs[]
+  clients                clients[]
+  invites                invites[]
+  org_members            org_members[]
+}
+
+model policies {
+  id                   String                 @id
+  client_id            String
+  insurer_id           String
+  policy_number        String?
+  policy_type          String?
+  created_at           DateTime               @default(now())
+  updated_at           DateTime
+  audit_logs           audit_logs[]
+  documents            documents[]
+  clients              clients                @relation(fields: [client_id], references: [id], onDelete: Cascade)
+  insurers             insurers               @relation(fields: [insurer_id], references: [id], onDelete: Cascade)
+  policy_beneficiaries policy_beneficiaries[]
+}
+
+model policy_beneficiaries {
+  id             String        @id
+  policy_id      String
+  beneficiary_id String
+  created_at     DateTime      @default(now())
+  beneficiaries  beneficiaries @relation(fields: [beneficiary_id], references: [id], onDelete: Cascade)
+  policies       policies      @relation(fields: [policy_id], references: [id], onDelete: Cascade)
+
+  @@unique([policy_id, beneficiary_id])
+}
+
+model User {
+  id        String   @id @default(uuid())
+  clerkId   String   @unique
+  email     String   @unique
+  firstName String?  @map("first_name")
+  lastName  String?  @map("last_name")
+  barNumber String?  @map("bar_number")
+  role      UserRole @default(client)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  orgMemberships       org_members[]
+  attorneyClientAccess attorney_client_access[] @relation("AttorneyAccess")
+  invites              invites[]                @relation("AttorneyInvites")
+  clientInvites        client_invites[]         @relation("ClientInviteInviter")
+  accessGrants         access_grants[]          @relation("AttorneyAccess")
+  clientRecord         clients?                 @relation("UserClient")
+  auditLogs            audit_logs[]
+
+  @@map("users")
+}
+
+enum AccessGrantStatus {
+  ACTIVE
+  REVOKED
 }
 
 enum AuditAction {
@@ -33,17 +267,10 @@ enum AuditAction {
   INVITE_ACCEPTED
   CLIENT_VIEWED
   CLIENT_SUMMARY_PDF_DOWNLOADED
-}
-
-enum AccessGrantStatus {
-  ACTIVE
-  REVOKED
-}
-
-enum OrgRole {
-  OWNER
-  ATTORNEY
-  STAFF
+  POLICY_SEARCH_PERFORMED
+  GLOBAL_POLICY_SEARCH_PERFORMED
+  DOCUMENT_UPLOADED
+  DOCUMENT_PROCESSED
 }
 
 enum BillingPlan {
@@ -53,279 +280,21 @@ enum BillingPlan {
   ENTERPRISE
 }
 
-// User model - synced with Clerk
-model User {
-  id        String   @id @default(uuid())
-  clerkId   String   @unique // Clerk user ID
-  email     String   @unique
-  firstName String?  @map("first_name")
-  lastName  String?  @map("last_name")
-  role      UserRole @default(client)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  // Organization membership
-  orgMemberships OrgMember[]
-
-  // Attorney relationships
-  attorneyClientAccess AttorneyClientAccess[] @relation("AttorneyAccess")
-  invites               Invite[]              @relation("AttorneyInvites")
-  clientInvites         ClientInvite[]         @relation("ClientInviteInviter")
-  accessGrants          AccessGrant[]          @relation("AttorneyAccess")
-
-  // Client relationships (if user is a client)
-  clientRecord Client? @relation("UserClient")
-  auditLogs    AuditLog[]
-
-  @@map("users")
+enum InviteStatus {
+  pending
+  accepted
+  expired
+  revoked
 }
 
-// Organization model (Law Firms)
-model Organization {
-  id          String   @id @default(uuid())
-  name        String
-  slug        String   @unique
-  addressLine1 String? @map("address_line1")
-  addressLine2 String? @map("address_line2")
-  city         String?
-  state        String?
-  postalCode   String? @map("postal_code")
-  country      String?
-  phone        String?
-  logoUrl      String? @map("logo_url")
-
-  // Billing
-  billingPlan          BillingPlan @default(FREE) @map("billing_plan")
-  stripeCustomerId     String?     @map("stripe_customer_id")
-  stripeSubscriptionId String?     @map("stripe_subscription_id")
-  billingStatus        String?     @map("billing_status") // e.g. "active", "past_due", "canceled"
-
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-
-  // Organization members
-  members OrgMember[]
-
-  // Organization-level relationships
-  attorneyClientAccess AttorneyClientAccess[]
-  invites               Invite[]
-  accessGrants          AccessGrant[]
-  clients               Client[] @relation("OrgClients")
-  auditLogs             AuditLog[]
-
-  @@map("organizations")
+enum OrgRole {
+  OWNER
+  ATTORNEY
+  STAFF
 }
 
-// Organization Member - links Users to Organizations
-model OrgMember {
-  id             String   @id @default(uuid())
-  userId         String   @map("user_id")
-  organizationId String   @map("organization_id")
-  role           OrgRole  @default(ATTORNEY)
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
-
-  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, organizationId])
-  @@map("org_members")
-}
-
-// Clients (individuals who have insurance policies)
-model Client {
-  id          String    @id @default(uuid())
-  email       String
-  firstName   String    @map("first_name")
-  lastName    String    @map("last_name")
-  phone       String?
-  dateOfBirth DateTime? @map("date_of_birth") @db.Date
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
-
-  // Link to User if client has an account
-  userId String? @unique @map("user_id")
-  user   User?   @relation("UserClient", fields: [userId], references: [id], onDelete: SetNull)
-
-  // Link to Organization (for billing limits)
-  orgId String? @map("org_id")
-  org   Organization? @relation("OrgClients", fields: [orgId], references: [id], onDelete: SetNull)
-
-  // Relationships
-  attorneyAccess AttorneyClientAccess[]
-  policies        Policy[]
-  beneficiaries   Beneficiary[]
-  invites         ClientInvite[]
-  accessGrants    AccessGrant[]
-  auditLogs       AuditLog[]
-
-  @@map("clients")
-}
-
-// Attorney-Client relationships (access control)
-model AttorneyClientAccess {
-  id             String    @id @default(uuid())
-  attorneyId     String    @map("attorney_id")
-  clientId       String    @map("client_id")
-  organizationId String?   @map("organization_id")
-  grantedAt      DateTime  @default(now()) @map("granted_at")
-  revokedAt      DateTime? @map("revoked_at")
-  isActive       Boolean   @default(true) @map("is_active")
-
-  attorney     User     @relation("AttorneyAccess", fields: [attorneyId], references: [id], onDelete: Cascade)
-  client       Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-
-  @@unique([attorneyId, clientId])
-  @@map("attorney_client_access")
-}
-
-// Invites (Attorney → Client)
-model Invite {
-  id             String       @id @default(uuid())
-  token          String       @unique
-  attorneyId     String       @map("attorney_id")
-  organizationId String?      @map("organization_id")
-  clientEmail    String       @map("client_email")
-  status         InviteStatus @default(pending)
-  expiresAt      DateTime     @map("expires_at")
-  acceptedAt     DateTime?    @map("accepted_at")
-  createdAt      DateTime     @default(now()) @map("created_at")
-
-  attorney     User          @relation("AttorneyInvites", fields: [attorneyId], references: [id], onDelete: Cascade)
-  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-
-  @@map("invites")
-}
-
-// Insurance Companies
-model Insurer {
-  id           String    @id @default(uuid())
-  name         String
-  contactPhone String?   @map("contact_phone")
-  contactEmail String?   @map("contact_email")
-  website      String?
-  createdAt    DateTime  @default(now()) @map("created_at")
-  updatedAt    DateTime  @updatedAt @map("updated_at")
-
-  policies Policy[]
-
-  @@map("insurers")
-}
-
-// Policies (NO benefit amounts stored)
-model Policy {
-  id           String    @id @default(uuid())
-  clientId     String    @map("client_id")
-  insurerId   String    @map("insurer_id")
-  policyNumber String?   @map("policy_number")
-  policyType   String?   @map("policy_type") // e.g., 'term', 'whole', 'universal'
-  createdAt    DateTime  @default(now()) @map("created_at")
-  updatedAt    DateTime  @updatedAt @map("updated_at")
-
-  client       Client                @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  insurer      Insurer               @relation(fields: [insurerId], references: [id], onDelete: Cascade)
-  beneficiaries PolicyBeneficiary[]
-  auditLogs    AuditLog[]
-
-  @@map("policies")
-}
-
-// Beneficiaries
-model Beneficiary {
-  id          String    @id @default(uuid())
-  clientId    String    @map("client_id")
-  firstName   String    @map("first_name")
-  lastName    String    @map("last_name")
-  relationship String?  // e.g., 'spouse', 'child', 'trust'
-  email       String?
-  phone       String?
-  dateOfBirth DateTime? @map("date_of_birth") @db.Date
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
-
-  client    Client              @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  policies  PolicyBeneficiary[]
-
-  @@map("beneficiaries")
-}
-
-// Policy-Beneficiary relationships (many-to-many)
-model PolicyBeneficiary {
-  id            String   @id @default(uuid())
-  policyId      String   @map("policy_id")
-  beneficiaryId String   @map("beneficiary_id")
-  createdAt     DateTime @default(now()) @map("created_at")
-
-  policy      Policy      @relation(fields: [policyId], references: [id], onDelete: Cascade)
-  beneficiary Beneficiary @relation(fields: [beneficiaryId], references: [id], onDelete: Cascade)
-
-  @@unique([policyId, beneficiaryId])
-  @@map("policy_beneficiaries")
-}
-
-// Client Invites (for inviting clients to complete their registry)
-model ClientInvite {
-  id            String    @id @default(uuid())
-  clientId      String    @map("client_id")
-  token         String    @unique
-  email         String
-  expiresAt     DateTime  @map("expires_at")
-  usedAt        DateTime? @map("used_at")
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @updatedAt @map("updated_at")
-
-  // Optional: track who invited
-  invitedByUserId String? @map("invited_by_user_id")
-  invitedBy       User?   @relation("ClientInviteInviter", fields: [invitedByUserId], references: [id], onDelete: SetNull)
-
-  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
-
-  @@map("client_invites")
-}
-
-// Access Grants (organization-level access to clients)
-model AccessGrant {
-  id              String            @id @default(uuid())
-  clientId        String            @map("client_id")
-  orgId           String?           @map("org_id")
-  attorneyUserId  String?           @map("attorney_user_id")
-  status          AccessGrantStatus
-  grantedByUserId String?           @map("granted_by_user_id")
-  grantedAt       DateTime          @default(now()) @map("granted_at")
-  revokedAt       DateTime?         @map("revoked_at")
-
-  client   Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  org      Organization? @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  attorney User?         @relation("AttorneyAccess", fields: [attorneyUserId], references: [id], onDelete: Cascade)
-
-  @@index([clientId])
-  @@index([orgId])
-  @@index([attorneyUserId])
-  @@unique([clientId, orgId])
-  @@map("access_grants")
-}
-
-// Audit Logs
-model AuditLog {
-  id        String      @id @default(uuid())
-  userId    String?     @map("user_id")
-  orgId     String?     @map("org_id")
-  clientId  String?     @map("client_id")
-  policyId  String?     @map("policy_id")
-  action    AuditAction
-  message   String
-  createdAt DateTime    @default(now()) @map("created_at")
-
-  user     User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
-  org      Organization? @relation(fields: [orgId], references: [id], onDelete: SetNull)
-  client   Client?       @relation(fields: [clientId], references: [id], onDelete: SetNull)
-  policy   Policy?       @relation(fields: [policyId], references: [id], onDelete: SetNull)
-
-  @@index([userId])
-  @@index([orgId])
-  @@index([clientId])
-  @@index([policyId])
-  @@index([createdAt])
-  @@map("audit_logs")
+enum UserRole {
+  attorney
+  client
+  admin
 }

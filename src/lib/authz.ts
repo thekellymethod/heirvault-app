@@ -1,13 +1,19 @@
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "./db";
 import { OrgRole } from "@prisma/client";
+import { getCurrentUser } from "./utils/clerk";
 
 export async function getCurrentUserWithOrg() {
   const { userId } = await auth();
   if (!userId) return { clerkId: null, user: null, orgMember: null };
 
-  const user = await prisma.user.findUnique({
-    where: { clerkId: userId },
+  // Use getCurrentUser to ensure user exists in database
+  const user = await getCurrentUser();
+  if (!user) return { clerkId: userId, user: null, orgMember: null };
+
+  // Get user with org memberships
+  const userWithOrg = await prisma.user.findUnique({
+    where: { id: user.id },
     include: {
       orgMemberships: {
         include: {
@@ -18,9 +24,9 @@ export async function getCurrentUserWithOrg() {
     },
   });
 
-  const orgMember = user?.orgMemberships[0] || null;
+  const orgMember = userWithOrg?.orgMemberships[0] || null;
 
-  return { clerkId: userId, user, orgMember };
+  return { clerkId: userId, user: userWithOrg || user, orgMember };
 }
 
 export function hasOrgRole(orgMember: { role: OrgRole }, role: OrgRole | OrgRole[]) {
@@ -79,10 +85,17 @@ export async function assertAttorneyCanAccessClient(clientId: string) {
   const { user, orgMember } = await getCurrentUserWithOrg()
 
   if (!user || !orgMember) {
+    console.error('assertAttorneyCanAccessClient: No user or orgMember', { user: !!user, orgMember: !!orgMember })
     throw new Error("Unauthorized")
   }
 
-  // Check org-level access. Minimal v1: any member of org that holds an AccessGrant
+  console.log('assertAttorneyCanAccessClient: Checking access', {
+    clientId,
+    userId: user.id,
+    orgId: orgMember.organizationId,
+  })
+
+  // Check org-level access via AccessGrant
   const grant = await prisma.accessGrant.findFirst({
     where: {
       clientId,
@@ -91,10 +104,33 @@ export async function assertAttorneyCanAccessClient(clientId: string) {
     },
   })
 
-  if (!grant) {
+  if (grant) {
+    console.log('assertAttorneyCanAccessClient: Access granted via AccessGrant')
+    return { user, orgMember }
+  }
+
+  console.log('assertAttorneyCanAccessClient: No AccessGrant found, checking AttorneyClientAccess')
+
+  // Also check individual attorney access via AttorneyClientAccess
+  const attorneyAccess = await prisma.attorneyClientAccess.findFirst({
+    where: {
+      clientId,
+      attorneyId: user.id,
+      organizationId: orgMember.organizationId,
+      isActive: true,
+    },
+  })
+
+  if (!attorneyAccess) {
+    console.error('assertAttorneyCanAccessClient: No access found', {
+      clientId,
+      attorneyId: user.id,
+      organizationId: orgMember.organizationId,
+    })
     throw new Error("Forbidden")
   }
 
+  console.log('assertAttorneyCanAccessClient: Access granted via AttorneyClientAccess')
   return { user, orgMember }
 }
 
@@ -114,5 +150,18 @@ export async function assertClientSelfAccess(clientId: string) {
   }
 
   return { user }
+}
+
+// Require org scope - returns the org ID for the current user
+export async function requireOrgScope() {
+  const { user, orgMember } = await getCurrentUserWithOrg();
+
+  if (!user || !orgMember) {
+    const err: any = new Error("Unauthorized");
+    err.status = 401;
+    throw err;
+  }
+
+  return { scopeOrgId: orgMember.organizationId, user, orgMember };
 }
 

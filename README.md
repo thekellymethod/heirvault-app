@@ -1,12 +1,12 @@
 # HeirVault
 
-> Locate your clients' life insurance relationships in one place.
+> Private, voluntary registry for life insurance policies and beneficiaries.
 
-A secure registry where clients record who insures them and who their beneficiaries are—without exposing policy amounts.
+A secure, private registry where clients voluntarily record who insures them and who their beneficiaries are—without exposing policy amounts.
 
 ## Features
 
-- **Secure Registry**: Clients record insurance companies and beneficiaries without revealing policy amounts
+- **Private, Voluntary Registry**: Clients voluntarily record insurance companies and beneficiaries without revealing policy amounts
 - **Attorney Dashboard**: Quick access to client policy and beneficiary information with tabbed views (Overview & Activity)
 - **Client Portal**: Self-service portal for clients to manage their own registry
 - **Access Control**: Role-based access control (OWNER, ATTORNEY, STAFF) with organization-level permissions

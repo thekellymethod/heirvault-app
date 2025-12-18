@@ -1,0 +1,13 @@
+TEST INVITATION CODES FOR CLIENT PORTAL
+
+To create these codes, visit: http://localhost:3000/test/invites
+Then click "Create 5 Test Invites"
+
+This will generate 5 codes like:
+- TEST-A1B2C3D4E5F6...
+- TEST-F6E5D4C3B2A1...
+- etc.
+
+Then go to: http://localhost:3000/client/invite-code
+Enter any of the generated codes to test.
+

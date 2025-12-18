@@ -6,7 +6,12 @@ import {
   Users, 
   FileText, 
   UserCheck,
-  LayoutDashboard
+  LayoutDashboard,
+  Search,
+  SearchCheck,
+  Globe,
+  Settings,
+  User
 } from 'lucide-react'
 
 export function SidebarNav() {
@@ -33,6 +38,24 @@ export function SidebarNav() {
       href: '/dashboard/beneficiaries',
       icon: UserCheck,
     },
+    {
+      name: 'Policy Locator',
+      href: '/dashboard/policy-locator',
+      icon: SearchCheck,
+    },
+  ]
+
+  const settingsItems = [
+    {
+      name: 'Profile',
+      href: '/dashboard/settings/profile',
+      icon: User,
+    },
+    {
+      name: 'Firm Settings',
+      href: '/dashboard/settings/org',
+      icon: Settings,
+    },
   ]
 
   return (
@@ -47,11 +70,11 @@ export function SidebarNav() {
             key={item.href}
             href={item.href}
             className={`
-              flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors
+              flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all
               ${
                 isActive
-                  ? 'bg-emerald-500/10 text-emerald-400'
-                  : 'text-slate-300 hover:bg-slate-800 hover:text-slate-50'
+                  ? 'bg-gold-500/10 text-ink-900 border border-gold-500/20 shadow-sm'
+                  : 'text-slateui-600 hover:bg-paper-100 hover:text-ink-900'
               }
             `}
           >
@@ -60,6 +83,35 @@ export function SidebarNav() {
           </Link>
         )
       })}
+
+      <div className="pt-4 mt-4 border-t border-slateui-200">
+        <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slateui-500 mb-1">
+          Settings
+        </div>
+        {settingsItems.map((item) => {
+          const Icon = item.icon
+          const isActive = pathname === item.href || 
+            (item.href !== '/dashboard' && pathname?.startsWith(item.href))
+          
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`
+                flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all
+                ${
+                  isActive
+                    ? 'bg-gold-500/10 text-ink-900 border border-gold-500/20 shadow-sm'
+                    : 'text-slateui-600 hover:bg-paper-100 hover:text-ink-900'
+                }
+              `}
+            >
+              <Icon className="h-5 w-5" />
+              {item.name}
+            </Link>
+          )
+        })}
+      </div>
     </nav>
   )
 }

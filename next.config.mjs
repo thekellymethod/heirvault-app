@@ -12,6 +12,10 @@ const nextConfig = {
   turbopack: {
     root: process.cwd(),
   },
+  images: {
+    remotePatterns: [],
+    unoptimized: false,
+  },
   async headers() {
     return [
       {

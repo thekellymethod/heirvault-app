@@ -13,45 +13,56 @@ const styles = StyleSheet.create({
     paddingHorizontal: 40,
     fontSize: 10,
     fontFamily: "Helvetica",
+    backgroundColor: "#FFFFFF",
   },
   header: {
-    marginBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#cccccc",
-    paddingBottom: 6,
+    marginBottom: 16,
+    borderBottomWidth: 2,
+    borderBottomColor: "#C8942D",
+    paddingBottom: 8,
   },
   title: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 700,
+    color: "#111C33",
+    marginBottom: 4,
   },
   subtitle: {
     fontSize: 9,
     marginTop: 2,
-    color: "#666666",
+    color: "#6B7280",
   },
   sectionTitle: {
-    fontSize: 11,
-    marginTop: 12,
-    marginBottom: 4,
+    fontSize: 12,
+    marginTop: 14,
+    marginBottom: 6,
     fontWeight: 700,
+    color: "#111C33",
+    borderLeftWidth: 3,
+    borderLeftColor: "#C8942D",
+    paddingLeft: 6,
   },
   fieldRow: {
     flexDirection: "row",
-    marginBottom: 2,
+    marginBottom: 3,
+    paddingVertical: 2,
   },
   fieldLabel: {
-    width: 110,
-    color: "#666666",
+    width: 120,
+    color: "#6B7280",
+    fontWeight: 600,
   },
   fieldValue: {
     flex: 1,
+    color: "#111C33",
   },
   card: {
     borderWidth: 1,
-    borderColor: "#dddddd",
-    borderRadius: 4,
-    padding: 6,
-    marginBottom: 4,
+    borderColor: "#D9E2EE",
+    borderRadius: 6,
+    padding: 8,
+    marginBottom: 6,
+    backgroundColor: "#F7F9FC",
   },
   footer: {
     position: "absolute",
@@ -59,10 +70,11 @@ const styles = StyleSheet.create({
     left: 40,
     right: 40,
     fontSize: 8,
-    color: "#777777",
+    color: "#6B7280",
     borderTopWidth: 1,
-    borderTopColor: "#dddddd",
-    paddingTop: 4,
+    borderTopColor: "#D9E2EE",
+    paddingTop: 6,
+    textAlign: "center",
   },
 });
 
@@ -210,9 +222,10 @@ export function ClientRegistrySummaryPDF({
                   </Text>
                   {p.beneficiaries.map((pb, idx) => (
                     <Text key={idx}>
-                      • {pb.beneficiary.firstName} {pb.beneficiary.lastName} ({pb.beneficiary.relationship}
+                      • {pb.beneficiary.firstName} {pb.beneficiary.lastName}
+                      {pb.beneficiary.relationship ? ` (${pb.beneficiary.relationship}` : ""}
                       {pb.sharePercent != null ? ` — ${pb.sharePercent}%` : ""}
-                      )
+                      {pb.beneficiary.relationship ? ")" : ""}
                     </Text>
                   ))}
                 </>
@@ -232,10 +245,12 @@ export function ClientRegistrySummaryPDF({
                 <Text style={{ fontWeight: 700 }}>Name: </Text>
                 {b.firstName} {b.lastName}
               </Text>
-              <Text>
-                <Text style={{ fontWeight: 700 }}>Relationship: </Text>
-                {b.relationship}
-              </Text>
+              {b.relationship && (
+                <Text>
+                  <Text style={{ fontWeight: 700 }}>Relationship: </Text>
+                  {b.relationship}
+                </Text>
+              )}
               {(b.email || b.phone) && (
                 <Text>
                   {b.email && <>Email: {b.email} </>}

@@ -10,20 +10,33 @@ interface Params {
 export async function GET(req: NextRequest, { params }: Params) {
   try {
     const { id } = await params
+    console.log('GET /api/clients/[id] - Client ID:', id)
+    
     const { user } = await getCurrentUserWithOrg()
+    console.log('GET /api/clients/[id] - User:', user ? `${user.email} (${user.role})` : 'null')
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     // Check access based on role
-    if (user.role === 'attorney') {
-      await assertAttorneyCanAccessClient(id)
-    } else {
-      await assertClientSelfAccess(id)
+    try {
+      if (user.role === 'attorney') {
+        console.log('GET /api/clients/[id] - Checking attorney access for client:', id)
+        await assertAttorneyCanAccessClient(id)
+        console.log('GET /api/clients/[id] - Attorney access granted')
+      } else {
+        console.log('GET /api/clients/[id] - Checking client self-access for client:', id)
+        await assertClientSelfAccess(id)
+        console.log('GET /api/clients/[id] - Client self-access granted')
+      }
+    } catch (accessError: any) {
+      console.error('GET /api/clients/[id] - Access check failed:', accessError)
+      throw accessError
     }
 
     // Get client with relationships
+    console.log('GET /api/clients/[id] - Fetching client from database')
     const client = await prisma.client.findUnique({
       where: { id },
       include: {
@@ -38,26 +51,54 @@ export async function GET(req: NextRequest, { params }: Params) {
           },
         },
         beneficiaries: true,
+        attorneyAccess: {
+          where: { isActive: true },
+          include: {
+            attorney: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
+            },
+          },
+          orderBy: {
+            grantedAt: 'asc', // First attorney granted access is likely the creator
+          },
+          take: 1, // Get the first one
+        },
       },
     })
 
     if (!client) {
+      console.log('GET /api/clients/[id] - Client not found in database')
       return NextResponse.json({ error: 'Not found' }, { status: 404 })
     }
 
-    await logAuditEvent({
-      action: 'read',
-      resourceType: 'client',
-      resourceId: id,
-      userId: user.id,
-    })
+    console.log('GET /api/clients/[id] - Client found, logging audit event')
+    try {
+      await logAuditEvent({
+        action: 'CLIENT_VIEWED',
+        message: `Read client ${id}`,
+        userId: user.id,
+        clientId: id,
+      })
+      console.log('GET /api/clients/[id] - Audit event logged successfully')
+    } catch (auditError: any) {
+      console.error('GET /api/clients/[id] - Audit logging failed (non-fatal):', auditError)
+      // Continue even if audit logging fails
+    }
 
+    console.log('GET /api/clients/[id] - Returning client data')
     return NextResponse.json(client)
   } catch (e: any) {
-    const msg = e.message || 'Unauthorized'
+    console.error('Error in GET /api/clients/[id]:', e)
+    const msg = e.message || 'Internal server error'
+    const status = msg === 'Unauthorized' ? 401 : msg === 'Forbidden' ? 403 : 500
     return NextResponse.json(
       { error: msg },
-      { status: msg === 'Unauthorized' ? 401 : 403 }
+      { status }
     )
   }
 }
@@ -98,6 +139,14 @@ export async function PUT(req: NextRequest, { params }: Params) {
     }
 
     // Update client
+    // Parse dateOfBirth as local date to avoid timezone issues
+    let parsedDateOfBirth: Date | undefined = undefined;
+    if (dateOfBirth) {
+      // Parse YYYY-MM-DD as local date (not UTC)
+      const [year, month, day] = dateOfBirth.split('-').map(Number);
+      parsedDateOfBirth = new Date(year, month - 1, day);
+    }
+
     const client = await prisma.client.update({
       where: { id },
       data: {
@@ -105,23 +154,25 @@ export async function PUT(req: NextRequest, { params }: Params) {
         lastName,
         email,
         phone: phone ?? null,
-        dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : undefined,
+        dateOfBirth: parsedDateOfBirth,
       },
     })
 
     await logAuditEvent({
-      action: 'update',
-      resourceType: 'client',
-      resourceId: id,
-      details: { firstName, lastName, email },
+      action: 'CLIENT_UPDATED',
+      message: `Updated client ${id}: ${firstName} ${lastName}`,
       userId: user.id,
+      clientId: id,
     })
 
     return NextResponse.json(client)
   } catch (error: any) {
+    console.error('Error in PUT /api/clients/[id]:', error)
+    const msg = error.message || 'Internal server error'
+    const status = msg === 'Unauthorized' ? 401 : msg === 'Forbidden' ? 403 : 500
     return NextResponse.json(
-      { error: error.message },
-      { status: error.message === 'Unauthorized' || error.message === 'Forbidden' ? 401 : 400 }
+      { error: msg },
+      { status }
     )
   }
 }

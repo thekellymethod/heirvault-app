@@ -1,0 +1,40 @@
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
+import { requireAuth } from "@/lib/utils/clerk";
+
+export async function GET() {
+  try {
+    // client-only
+    const user = await requireAuth("client");
+
+    // Find the Client record linked to this User (by user.id in your DB)
+    const client = await prisma.client.findFirst({
+      where: { userId: user.id },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        phone: true,
+        dateOfBirth: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    if (!client) {
+      return NextResponse.json(
+        { error: "Client record not found for this user" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({ client }, { status: 200 });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "An unknown error occurred";
+    return NextResponse.json(
+      { error: message },
+      { status: message === "Unauthorized" || message === "Forbidden" ? 401 : 400 }
+    );
+  }
+}

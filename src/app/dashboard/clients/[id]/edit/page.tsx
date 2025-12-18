@@ -42,8 +42,16 @@ export default function EditClientPage() {
         const data = await response.json()
         
         // Format dateOfBirth for input field (YYYY-MM-DD)
+        // Use local date formatting to avoid timezone issues
         const formattedDate = data.dateOfBirth
-          ? new Date(data.dateOfBirth).toISOString().split('T')[0]
+          ? (() => {
+              const date = new Date(data.dateOfBirth);
+              // Get local date components to avoid timezone shift
+              const year = date.getFullYear();
+              const month = String(date.getMonth() + 1).padStart(2, '0');
+              const day = String(date.getDate()).padStart(2, '0');
+              return `${year}-${month}-${day}`;
+            })()
           : ''
 
         setFormData({

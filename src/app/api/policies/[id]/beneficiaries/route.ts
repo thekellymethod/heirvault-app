@@ -4,11 +4,11 @@ import { requireAuth } from "@/lib/utils/clerk";
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await requireAuth("attorney");
-    const policyId = params.id;
+    const { id: policyId } = await params;
 
     const policy = await prisma.policy.findUnique({
       where: { id: policyId },
@@ -93,11 +93,11 @@ export async function GET(
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await requireAuth("attorney");
-    const policyId = params.id;
+    const { id: policyId } = await params;
     const { beneficiaryId } = await req.json();
 
     if (!beneficiaryId) {
@@ -154,11 +154,11 @@ export async function POST(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await requireAuth("attorney");
-    const policyId = params.id;
+    const { id: policyId } = await params;
     const { beneficiaryId } = await req.json();
 
     if (!beneficiaryId) {

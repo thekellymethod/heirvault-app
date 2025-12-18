@@ -109,13 +109,17 @@ export default function NewPolicyPage() {
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1">
+            <label htmlFor="policy-type" className="block text-xs font-medium text-slate-300 mb-1">
               Policy type
             </label>
             <select
+              id="policy-type"
+              name="policy-type"
+              title="Policy type"
+              aria-label="Policy type"
               className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-50 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
               value={policyType}
-              onChange={(e) => setPolicyType(e.target.value as any)}
+              onChange={(e) => setPolicyType(e.target.value as "TERM" | "WHOLE" | "GROUP" | "OTHER" | "")}
             >
               <option value="">Select</option>
               <option value="TERM">Term</option>

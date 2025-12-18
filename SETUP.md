@@ -36,8 +36,20 @@ DATABASE_URL="postgresql://user:password@host/database?sslmode=require"
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
 CLERK_SECRET_KEY=your_clerk_secret_key
 
+# Clerk Redirect URLs (Important for fixing redirect issues)
+# These tell Clerk where your custom auth pages are located
+NEXT_PUBLIC_CLERK_SIGN_IN_URL=/attorney/sign-in
+NEXT_PUBLIC_CLERK_SIGN_UP_URL=/attorney/sign-up
+NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL=/attorney/sign-in/complete
+NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL=/attorney/sign-up/complete
+
 # App URL
 NEXT_PUBLIC_APP_URL=http://localhost:3000
+
+# Email (Resend) - For client invites
+# Note: Clerk authentication emails are configured in Clerk Dashboard, not here
+RESEND_API_KEY=your_resend_api_key
+RESEND_FROM_EMAIL=noreply@yourdomain.com
 ```
 
 ### 5. Run the Development Server

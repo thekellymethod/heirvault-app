@@ -82,25 +82,25 @@ export function OrgSettingsForm({ org }: Props) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="space-y-4 rounded-xl border border-slate-800 bg-slate-950/50 p-6"
+      className="card p-6 space-y-4"
     >
       {error && (
-        <p className="text-xs text-red-400 bg-red-950/40 border border-red-800 rounded px-3 py-2">
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           {error}
-        </p>
+        </div>
       )}
       {success && (
-        <p className="text-xs text-emerald-300 bg-emerald-950/40 border border-emerald-800 rounded px-3 py-2">
+        <div className="rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-700">
           Settings saved successfully.
-        </p>
+        </div>
       )}
 
       <div>
-        <label className="block text-xs font-medium text-slate-300 mb-1">
-          Organization name <span className="text-red-400">*</span>
+        <label className="label">
+          Organization name <span className="text-red-500">*</span>
         </label>
         <input
-          className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-50 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+          className="input"
           value={name}
           onChange={(e) => setName(e.target.value)}
           required
@@ -108,22 +108,22 @@ export function OrgSettingsForm({ org }: Props) {
       </div>
 
       <div>
-        <label className="block text-xs font-medium text-slate-300 mb-1">
+        <label className="label">
           Address line 1
         </label>
         <input
-          className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-50 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+          className="input"
           value={addressLine1}
           onChange={(e) => setAddressLine1(e.target.value)}
         />
       </div>
 
       <div>
-        <label className="block text-xs font-medium text-slate-300 mb-1">
+        <label className="label">
           Address line 2
         </label>
         <input
-          className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-50 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+          className="input"
           value={addressLine2}
           onChange={(e) => setAddressLine2(e.target.value)}
         />
@@ -131,21 +131,21 @@ export function OrgSettingsForm({ org }: Props) {
 
       <div className="grid gap-4 md:grid-cols-2">
         <div>
-          <label className="block text-xs font-medium text-slate-300 mb-1">
+          <label className="label">
             City
           </label>
           <input
-            className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-50 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            className="input"
             value={city}
             onChange={(e) => setCity(e.target.value)}
           />
         </div>
         <div>
-          <label className="block text-xs font-medium text-slate-300 mb-1">
+          <label className="label">
             State
           </label>
           <input
-            className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-50 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            className="input"
             value={state}
             onChange={(e) => setState(e.target.value)}
           />
@@ -154,21 +154,21 @@ export function OrgSettingsForm({ org }: Props) {
 
       <div className="grid gap-4 md:grid-cols-2">
         <div>
-          <label className="block text-xs font-medium text-slate-300 mb-1">
+          <label className="label">
             Postal code
           </label>
           <input
-            className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-50 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            className="input"
             value={postalCode}
             onChange={(e) => setPostalCode(e.target.value)}
           />
         </div>
         <div>
-          <label className="block text-xs font-medium text-slate-300 mb-1">
+          <label className="label">
             Country
           </label>
           <input
-            className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-50 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            className="input"
             value={country}
             onChange={(e) => setCountry(e.target.value)}
           />
@@ -176,24 +176,24 @@ export function OrgSettingsForm({ org }: Props) {
       </div>
 
       <div>
-        <label className="block text-xs font-medium text-slate-300 mb-1">
+        <label className="label">
           Phone
         </label>
         <input
           type="tel"
-          className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-50 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+          className="input"
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
         />
       </div>
 
       <div>
-        <label className="block text-xs font-medium text-slate-300 mb-1">
+        <label className="label">
           Logo URL
         </label>
         <input
           type="url"
-          className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-50 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+          className="input"
           value={logoUrl}
           onChange={(e) => setLogoUrl(e.target.value)}
           placeholder="https://example.com/logo.png"
@@ -204,9 +204,9 @@ export function OrgSettingsForm({ org }: Props) {
         <button
           type="submit"
           disabled={submitting}
-          className="rounded-full bg-emerald-500 px-4 py-2 text-xs font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-60"
+          className="btn-primary"
         >
-          {submitting ? "Saving..." : "Save settings"}
+          {submitting ? "Saving..." : "Save Settings"}
         </button>
       </div>
     </form>

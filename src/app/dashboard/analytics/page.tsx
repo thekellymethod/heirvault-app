@@ -5,7 +5,7 @@ import { getCurrentUserWithOrg } from "@/lib/authz";
 
 export default async function AnalyticsPage() {
   const { userId } = await auth();
-  if (!userId) redirect("/sign-in");
+  if (!userId) redirect("/attorney/sign-in");
 
   const { user, orgMember } = await getCurrentUserWithOrg();
   if (!user || !orgMember) redirect("/dashboard");
@@ -40,75 +40,75 @@ export default async function AnalyticsPage() {
   return (
     <main className="p-8 mx-auto max-w-5xl space-y-6">
       <section>
-        <h1 className="text-xl font-semibold text-slate-50">
+        <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
           Firm analytics
         </h1>
-        <p className="mt-1 text-sm text-slate-400">
+        <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
           Overview of registries managed under your firm.
         </p>
       </section>
 
       <section className="grid gap-4 md:grid-cols-4">
-        <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
-          <div className="text-[11px] text-slate-400">Clients</div>
-          <div className="mt-1 text-2xl font-semibold text-slate-50">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
+          <div className="text-[11px] text-slate-600 dark:text-slate-400">Clients</div>
+          <div className="mt-1 text-2xl font-semibold text-slate-900 dark:text-slate-100">
             {clientCount}
           </div>
         </div>
-        <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
-          <div className="text-[11px] text-slate-400">Policies</div>
-          <div className="mt-1 text-2xl font-semibold text-slate-50">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
+          <div className="text-[11px] text-slate-600 dark:text-slate-400">Policies</div>
+          <div className="mt-1 text-2xl font-semibold text-slate-900 dark:text-slate-100">
             {policyCount}
           </div>
-          <div className="mt-1 text-[11px] text-slate-400">
+          <div className="mt-1 text-[11px] text-slate-600 dark:text-slate-400">
             Active:{" "}
-            <span className="text-emerald-300">{activePolicyCount}</span>
+            <span style={{ color: "#d4af37" }}>{activePolicyCount}</span>
           </div>
         </div>
-        <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
-          <div className="text-[11px] text-slate-400">Beneficiaries</div>
-          <div className="mt-1 text-2xl font-semibold text-slate-50">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
+          <div className="text-[11px] text-slate-600 dark:text-slate-400">Beneficiaries</div>
+          <div className="mt-1 text-2xl font-semibold text-slate-900 dark:text-slate-100">
             {beneficiaryCount}
           </div>
         </div>
-        <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
-          <div className="text-[11px] text-slate-400">Completion</div>
-          <div className="mt-1 text-xl font-semibold text-emerald-300">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
+          <div className="text-[11px] text-slate-600 dark:text-slate-400">Completion</div>
+          <div className="mt-1 text-xl font-semibold" style={{ color: "#d4af37" }}>
             {clientCount === 0
               ? "—"
               : `${Math.round(
                   (activePolicyCount / Math.max(clientCount, 1)) * 100,
                 )}%`}
           </div>
-          <div className="mt-1 text-[11px] text-slate-400">
+          <div className="mt-1 text-[11px] text-slate-600 dark:text-slate-400">
             Approx. active policies per client
           </div>
         </div>
       </section>
 
       <section>
-        <h2 className="text-sm font-semibold text-slate-100 mb-2">
+        <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-2">
           Recent client invitations
         </h2>
-        <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4 text-xs">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 text-xs">
           {recentInvites.length === 0 ? (
-            <p className="text-slate-400">No invitations sent yet.</p>
+            <p className="text-slate-600 dark:text-slate-400">No invitations sent yet.</p>
           ) : (
             <ul className="space-y-1">
               {recentInvites.map((inv) => (
                 <li
                   key={inv.id}
-                  className="flex items-center justify-between border-b border-slate-800/60 pb-1 last:border-b-0 last:pb-0"
+                  className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 pb-1 last:border-b-0 last:pb-0"
                 >
                   <div>
-                    <div className="text-slate-100">
+                    <div className="text-slate-900 dark:text-slate-100">
                       {inv.client.firstName} {inv.client.lastName}
                     </div>
-                    <div className="text-slate-500">
+                    <div className="text-slate-600 dark:text-slate-400">
                       {inv.email} · {inv.token.slice(0, 8)}…
                     </div>
                   </div>
-                  <div className="text-[11px] text-slate-500">
+                  <div className="text-[11px] text-slate-600 dark:text-slate-400">
                     {inv.createdAt.toLocaleString("en-US", {
                       year: "numeric",
                       month: "short",
@@ -117,7 +117,7 @@ export default async function AnalyticsPage() {
                       minute: "2-digit",
                     })}
                     {inv.usedAt && (
-                      <span className="ml-1 text-emerald-300">
+                      <span className="ml-1" style={{ color: "#d4af37" }}>
                         · accepted
                       </span>
                     )}

@@ -40,6 +40,16 @@ export function NewClientPolicyForm({ clientId }: { clientId: string }) {
       })
 
       if (!res.ok) {
+        // Check content-type before parsing JSON
+        const contentType = res.headers.get("content-type")
+        if (!contentType || !contentType.includes("application/json")) {
+          const text = await res.text()
+          throw new Error(
+            res.status === 500
+              ? "Server error. Please try again later."
+              : `Unexpected response format. Status: ${res.status}`
+          )
+        }
         const data = await res.json()
         throw new Error(data.error || "Failed to save policy.")
       }
