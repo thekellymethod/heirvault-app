@@ -1,7 +1,7 @@
 import { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/utils/clerk";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/db";
 import { currentUser } from "@clerk/nextjs/server";
 
 export default async function OnboardLayout({ children }: { children: ReactNode }) {

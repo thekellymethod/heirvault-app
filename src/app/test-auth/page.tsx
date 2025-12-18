@@ -1,6 +1,6 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { getCurrentUser } from "@/lib/utils/clerk";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/db";
 
 export default async function TestAuthPage() {
   const { userId } = await auth();
