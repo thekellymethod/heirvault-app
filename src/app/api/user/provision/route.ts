@@ -8,7 +8,7 @@ export async function POST() {
   try {
     const { userId } = await auth();
     if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
     }
 
     const cu = await currentUser();
@@ -36,7 +36,7 @@ export async function POST() {
         lastName,
         role: "attorney",
       },
-      select: { id: true, clerkId: true, role: true },
+      select: { id: true, clerkId: true, role: true, email: true },
     });
 
     return NextResponse.json(
