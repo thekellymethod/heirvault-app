@@ -1,222 +1,360 @@
 # HeirVault
 
-> Private, voluntary registry for life insurance policies and beneficiaries.
+> Locate your clients' life insurance relationships in one place.
 
-A secure, private registry where clients voluntarily record who insures them and who their beneficiaries are—without exposing policy amounts.
+A secure, private registry where attorneys can manage client life insurance policies and beneficiaries. Clients upload information via secure invitation links without needing accounts.
 
-## Features
+## 🎯 Key Features
 
-- **Private, Voluntary Registry**: Clients voluntarily record insurance companies and beneficiaries without revealing policy amounts
-- **Attorney Dashboard**: Quick access to client policy and beneficiary information with tabbed views (Overview & Activity)
-- **Client Portal**: Self-service portal for clients to manage their own registry
-- **Access Control**: Role-based access control (OWNER, ATTORNEY, STAFF) with organization-level permissions
-- **Team Management**: Invite team members, manage roles, and control access
-- **Client Invites**: Secure email-based invitation system for linking clients to their registry
-- **PDF Export**: Generate professional reports for probate filings, estate planning, and settlements
-- **Global Search**: Search across clients and policies from anywhere in the dashboard
-- **Analytics Dashboard**: Firm-level analytics showing client counts, policies, beneficiaries, and completion rates
-- **Billing Integration**: Stripe integration for subscription management (FREE, SOLO, SMALL_FIRM, ENTERPRISE plans)
-- **Client Limits**: Plan-based client limits enforced automatically
-- **Audit Logging**: Complete audit trail of all access, changes, and views with activity feeds
+### For Attorneys
+- **Attorney-Only Accounts**: Only verified attorneys can create accounts
+- **Global Client Access**: All attorneys can view and manage all clients globally
+- **Client Invitation System**: Invite clients via secure email links with customizable tokens
+- **Test Code System**: Automatic test code generation (any code starting with `TEST-`)
+- **Client Management**: Complete CRUD operations for clients, policies, and beneficiaries
+- **QR Code Updates**: Clients can update information by scanning QR codes from receipts
+- **Receipt Generation**: Automatic receipt generation with PDF download and print
+- **Email Notifications**: Confirmation emails sent to both clients and attorneys
+- **Global Search**: Search across all clients and policies from anywhere
+- **Analytics Dashboard**: Firm-level analytics and insights
+- **PDF Export**: Generate professional client summary PDFs
+- **Audit Logging**: Complete audit trail of all actions
 
-## Tech Stack
+### For Clients
+- **No Account Required**: Clients access via secure invitation links
+- **Policy Upload**: Upload policy documents via invitation portal
+- **Information Updates**: Update information via QR code scan or receipt number
+- **Confirmation Codes**: Email/phone verification for secure updates
+- **Receipt Access**: View and download receipts after submission
 
-- **Framework**: Next.js 16 (App Router)
-- **Database**: Neon (PostgreSQL) with Prisma ORM
-- **Authentication**: Clerk
+## 🛠️ Tech Stack
+
+- **Framework**: Next.js 16 (App Router) with Turbopack
+- **Database**: PostgreSQL with Prisma ORM
+- **Authentication**: Clerk (attorney-only)
 - **Styling**: Tailwind CSS
 - **TypeScript**: Full type safety
 - **PDF Generation**: @react-pdf/renderer
 - **Email**: Resend
-- **Payments**: Stripe
+- **QR Code Scanning**: jsQR
+- **OCR**: Tesseract.js for document extraction
+- **Payments**: Stripe (optional)
 
-## Getting Started
+## 🚀 Getting Started
 
 ### Prerequisites
 
-- Node.js 18+ 
+- Node.js 18+
 - npm or yarn
-- Neon database (or any PostgreSQL database)
+- PostgreSQL database (Neon, Supabase, or self-hosted)
 - Clerk account for authentication
+- Resend account for email (optional)
 
-### Setup
+### Installation
 
-1. **Clone and install dependencies**:
+1. **Clone the repository**:
+```bash
+git clone https://github.com/thekellymethod/heirvault-app.git
+cd heir-vault
+```
+
+2. **Install dependencies**:
 ```bash
 npm install
 ```
 
-2. **Set up Database**:
-   - Create a Neon database at [neon.tech](https://neon.tech) or use any PostgreSQL database
+3. **Set up Database**:
+   - Create a PostgreSQL database
    - Run Prisma migrations:
    ```bash
    npx prisma migrate dev
    ```
+   - Generate Prisma client:
+   ```bash
+   npx prisma generate
+   ```
 
-3. **Set up Clerk Authentication**:
+4. **Set up Clerk Authentication**:
    - Create a Clerk account at [clerk.com](https://clerk.com)
    - Create a new application
    - Get your publishable key and secret key
 
-4. **Configure environment variables**:
-   - Copy `.env.local.example` to `.env.local`
-   - Fill in your credentials:
-     - `DATABASE_URL`: Your Neon/PostgreSQL connection string
-     - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`: Your Clerk publishable key
-     - `CLERK_SECRET_KEY`: Your Clerk secret key
-     - `NEXT_PUBLIC_APP_URL`: Your app URL (e.g., `http://localhost:3000`)
-     - `RESEND_API_KEY`: Your Resend API key for email sending
-     - `RESEND_FROM_EMAIL`: Email address for sending invites
-     - `STRIPE_SECRET_KEY`: Your Stripe secret key (for billing)
-     - `STRIPE_PRICE_SOLO`: Stripe Price ID for Solo plan
-     - `STRIPE_PRICE_SMALL_FIRM`: Stripe Price ID for Small Firm plan
-     - `STRIPE_WEBHOOK_SECRET`: Stripe webhook secret for subscription updates
+5. **Configure environment variables**:
+   Create a `.env.local` file with:
+   ```env
+   # Database
+   DATABASE_URL="postgresql://user:password@host:port/database"
+   
+   # Clerk Authentication
+   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY="pk_test_..."
+   CLERK_SECRET_KEY="sk_test_..."
+   NEXT_PUBLIC_CLERK_SIGN_IN_URL="/attorney/sign-in"
+   NEXT_PUBLIC_CLERK_SIGN_UP_URL="/attorney/sign-up"
+   NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL="/dashboard"
+   NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL="/attorney/onboard"
+   
+   # Application
+   NEXT_PUBLIC_APP_URL="http://localhost:3000"
+   
+   # Email (Resend)
+   RESEND_API_KEY="re_..."
+   RESEND_FROM_EMAIL="noreply@yourdomain.com"
+   
+   # Stripe (optional, for billing)
+   STRIPE_SECRET_KEY="sk_test_..."
+   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY="pk_test_..."
+   STRIPE_WEBHOOK_SECRET="whsec_..."
+   ```
 
-5. **Run the development server**:
+6. **Run the development server**:
 ```bash
 npm run dev
 ```
 
-6. **Open [http://localhost:3000](http://localhost:3000)** in your browser
+7. **Open [http://localhost:3000](http://localhost:3000)** in your browser
 
-## Database Schema
-
-The application uses the following main entities:
-
-- **Users**: User accounts synced with Clerk (attorney or client role)
-- **Organizations**: Law firms with billing plans and contact information
-- **OrgMembers**: Links users to organizations with roles (OWNER, ATTORNEY, STAFF)
-- **Clients**: Individual clients with insurance policies, scoped to organizations
-- **Policies**: Insurance policies linked to insurers (no benefit amounts stored)
-- **Insurers**: Insurance company information
-- **Beneficiaries**: Policy beneficiaries with relationships
-- **PolicyBeneficiaries**: Links beneficiaries to policies with share percentages
-- **AccessGrants**: Organization-level access control to clients
-- **AttorneyClientAccess**: Legacy attorney-client access relationships
-- **ClientInvites**: Secure invitation system with tokens and expiry
-- **AuditLogs**: Complete audit trail with actions, users, organizations, clients, and policies
-
-See `prisma/schema.prisma` for the complete schema.
-
-## Project Structure
+## 📁 Project Structure
 
 ```
 src/
 ├── app/
-│   ├── api/                    # API routes
-│   │   ├── clients/            # Client CRUD operations
-│   │   ├── policies/           # Policy management
-│   │   ├── beneficiaries/     # Beneficiary management
-│   │   ├── invites/           # Invite acceptance
-│   │   ├── search/             # Global search
-│   │   ├── billing/           # Stripe checkout
-│   │   ├── org/               # Organization management
-│   │   └── webhooks/          # Stripe webhooks
-│   ├── dashboard/              # Attorney dashboard
-│   │   ├── clients/           # Client management
-│   │   ├── policies/          # Policy views
-│   │   ├── beneficiaries/    # Beneficiary views
-│   │   ├── team/             # Team management
-│   │   ├── billing/          # Billing & subscriptions
-│   │   ├── settings/         # Organization settings
-│   │   └── analytics/        # Firm analytics
-│   ├── client-portal/          # Client-facing portal
-│   ├── invite/                # Invite acceptance flow
-│   └── page.tsx               # Landing page
+│   ├── api/                          # API routes
+│   │   ├── clients/                  # Client CRUD operations
+│   │   │   ├── [id]/                 # Individual client operations
+│   │   │   │   ├── route.ts          # GET, PUT, DELETE
+│   │   │   │   ├── policies/         # Client policies
+│   │   │   │   └── summary-pdf/      # PDF generation
+│   │   │   └── invite/               # Client invitation creation
+│   │   ├── invite/[token]/           # Invitation portal routes
+│   │   │   ├── upload-policy/         # Policy upload
+│   │   │   ├── update-client/        # Client updates
+│   │   │   ├── receipt/              # Receipt viewing
+│   │   │   └── receipt-pdf/           # Receipt PDF
+│   │   ├── policies/                 # Policy management
+│   │   ├── beneficiaries/           # Beneficiary management
+│   │   ├── insurers/                # Insurer management
+│   │   ├── search/                    # Global search
+│   │   ├── user/profile/             # User profile updates
+│   │   └── organizations/           # Organization management
+│   ├── dashboard/                    # Attorney dashboard
+│   │   ├── clients/                  # Client management
+│   │   │   ├── [id]/                 # Client detail pages
+│   │   │   │   └── policies/         # Client policies view
+│   │   │   └── invite/               # Client invitation page
+│   │   ├── beneficiaries/           # Beneficiaries view
+│   │   ├── team/                     # Team management
+│   │   ├── analytics/                # Analytics dashboard
+│   │   ├── billing/                 # Billing & subscriptions
+│   │   └── settings/                 # Settings pages
+│   ├── invite/[token]/               # Client invitation portal
+│   │   ├── page.tsx                  # Initial policy upload
+│   │   └── update/                   # Update portal
+│   ├── update-policy/                 # Policy update flow
+│   │   └── [token]/                  # Update by token
+│   │       └── receipt/              # Receipt display
+│   └── attorney/                     # Attorney onboarding
 ├── lib/
-│   ├── db.ts                  # Prisma client
-│   ├── authz.ts               # Authorization helpers
-│   ├── audit.ts               # Audit logging
-│   ├── client-limits.ts       # Plan-based client limits
-│   ├── plan.ts                # Billing plan utilities
-│   ├── email.ts               # Email sending (Resend)
-│   └── stripe.ts              # Stripe client
-├── pdfs/                      # PDF generation components
-└── components/                # Shared React components
+│   ├── db.ts                         # Prisma client export
+│   ├── prisma.ts                     # Prisma client instance
+│   ├── utils/
+│   │   └── clerk.ts                  # Clerk utilities & auth
+│   ├── authz.ts                      # Authorization helpers
+│   ├── audit.ts                      # Audit logging
+│   ├── email.ts                      # Email sending
+│   ├── ocr.ts                        # OCR extraction
+│   ├── test-invites.ts               # Test code system
+│   ├── invite-lookup.ts              # Invite lookup helpers
+│   └── client-fingerprint.ts         # Client deduplication
+├── components/
+│   ├── ui/                           # UI components
+│   └── QRScanner.tsx                 # QR code scanner
+└── pdfs/                             # PDF generation components
 ```
 
-## Development Roadmap
+## 🗄️ Database Schema
+
+### Key Models
+
+- **User**: Attorney accounts (attorney-only role)
+- **Organizations**: Law firms with billing plans
+- **OrgMembers**: Links users to organizations
+- **Clients**: Client records with fingerprinting for deduplication
+- **Policies**: Insurance policies linked to insurers
+- **Beneficiaries**: Policy beneficiaries with relationships
+- **PolicyBeneficiaries**: Links beneficiaries to policies
+- **ClientInvites**: Secure invitation system with tokens
+- **Insurers**: Insurance company information
+- **AuditLogs**: Complete audit trail
+
+### Key Features
+
+- **Client Fingerprinting**: SHA-256 hash prevents duplicate clients
+- **Unique Constraints**: Email, fingerprint, and composite indexes
+- **Cascade Deletes**: Automatic cleanup of related records
+- **Address Fields**: Separate address fields for clients, beneficiaries, and attorneys
+- **Composite Indexes**: Optimized for name/DOB and address searches
+
+See `prisma/schema.prisma` for the complete schema.
+
+## 🔐 Security & Data Protection
+
+- **Attorney-Only Accounts**: Only verified attorneys can create accounts
+- **No Client Accounts**: Clients access via secure invitation links only
+- **Client Fingerprinting**: Prevents duplicate client records
+- **Secure Invites**: Time-limited tokens with expiration
+- **Confirmation Codes**: Email/phone verification for updates
+- **Global Access Control**: All attorneys can view all clients (by design)
+- **Audit Logging**: Complete audit trail of all actions
+- **HTTPS-only** in production
+- **Encrypted data at rest** (PostgreSQL)
+- **Clerk authentication** with MFA support
+
+## 📋 CRUD Operations
+
+### ✅ Complete CRUD Support
+
+- **Clients**: CREATE, READ, UPDATE, DELETE
+- **Policies**: CREATE, READ, UPDATE, DELETE
+- **Beneficiaries**: CREATE, READ, DELETE (UPDATE via recreation)
+- **Insurers**: CREATE, READ, UPDATE, DELETE
+- **Users**: CREATE, READ, UPDATE (DELETE via Clerk)
+- **Organizations**: CREATE, READ, UPDATE
+
+All operations use **raw SQL first with Prisma fallback** for maximum reliability.
+
+## 🎫 Client Invitation System
+
+### Features
+
+- **Secure Token-Based**: Each invite has a unique, time-limited token
+- **Test Code Support**: Any code starting with `TEST-` is automatically created
+- **Email Integration**: Automatic email sending via Resend
+- **QR Code Support**: Receipts include QR codes for easy updates
+- **Confirmation Codes**: Email/phone verification for secure updates
+- **Receipt Generation**: Automatic receipt generation with PDF download
+
+### Test Codes
+
+Test codes are automatically created when accessed. Format:
+- `TEST-001`, `TEST-002`, etc. (numbered)
+- `TEST-JOHN-DOE` (name-based)
+- `TEST-CODE-001` (custom format)
+
+No pre-population needed - the system handles it automatically.
+
+## 🔍 Global Search
+
+- **Global Client Search**: Search across all clients in the system
+- **Global Policy Search**: Search across all policies
+- **Name/DOB Matching**: Composite index optimization
+- **Address Matching**: Address-based searches
+- **Fast Queries**: Optimized with database indexes
+
+## 📊 Analytics & Reporting
+
+- **Firm Analytics**: Client counts, policies, beneficiaries
+- **Activity Feeds**: Audit logs on client detail pages
+- **PDF Export**: Professional client summary PDFs
+- **Receipt Generation**: Automatic receipts for all submissions
+
+## 🚢 Deployment
+
+See `DEPLOYMENT.md` for detailed deployment instructions.
+
+### Quick Deploy Checklist
+
+1. ✅ Set up PostgreSQL database
+2. ✅ Configure environment variables
+3. ✅ Run Prisma migrations: `npx prisma migrate deploy`
+4. ✅ Generate Prisma client: `npx prisma generate`
+5. ✅ Build the application: `npm run build`
+6. ✅ Deploy to your hosting platform (Vercel, Railway, etc.)
+
+### Important Notes
+
+- **DO NOT run `prisma db pull`** - it overwrites the schema (see `DO_NOT_RUN_DB_PULL.md`)
+- **Prisma Client**: Automatically generated in `postinstall` and `build` scripts
+- **Database Migrations**: Use `prisma migrate deploy` in production
+
+## 📚 Documentation
+
+- **`DEPLOYMENT.md`**: Deployment instructions
+- **`DEPLOYMENT_CHECKLIST.md`**: Deployment checklist
+- **`DATABASE_SEPARATION.md`**: Database architecture and conflict prevention
+- **`SYSTEM_VERIFICATION.md`**: Complete system verification report
+- **`DO_NOT_RUN_DB_PULL.md`**: Important warning about schema management
+
+## 🧪 Development
+
+### Scripts
+
+```bash
+npm run dev          # Start development server
+npm run build        # Build for production (includes prisma generate)
+npm run start        # Start production server
+npm run lint         # Run ESLint
+```
+
+### Database Management
+
+```bash
+npx prisma migrate dev        # Create and apply migration
+npx prisma generate           # Generate Prisma client
+npx prisma studio              # Open Prisma Studio (database GUI)
+```
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+1. **Prisma Client Errors**: Run `npx prisma generate`
+2. **Schema Mismatches**: Check `prisma/schema.prisma` matches database
+3. **Build Errors**: Clear `.next` folder and rebuild
+4. **Database Connection**: Verify `DATABASE_URL` in `.env.local`
+
+### Error Handling
+
+The system uses **raw SQL first with Prisma fallback** for maximum reliability. If you encounter Prisma errors:
+
+1. Check database connection
+2. Verify schema matches database
+3. Regenerate Prisma client: `npx prisma generate`
+4. Check error logs for specific issues
+
+## 🎯 Roadmap
 
 ### ✅ Completed
 
-- [x] Database schema design and migrations
-- [x] Neon + Prisma setup and configuration
-- [x] Clerk authentication system
-- [x] Attorney dashboard with sidebar navigation
-- [x] Client management (CRUD operations)
-- [x] Policy management (CRUD operations)
-- [x] Beneficiary management (CRUD operations)
-- [x] Client invite flow with email integration
-- [x] Client portal for self-service
-- [x] PDF export for client summaries
-- [x] Audit logging with activity feeds
-- [x] Organization settings and contact information
-- [x] Team management with role-based access
-- [x] Billing integration with Stripe
-- [x] Plan-based client limits
-- [x] Global search functionality
-- [x] Analytics dashboard
-- [x] Role-based authorization (OWNER, ATTORNEY, STAFF)
+- [x] Attorney-only account system
+- [x] Client invitation system with test codes
+- [x] QR code scanning for updates
+- [x] Complete CRUD operations
+- [x] Global client access
+- [x] Client fingerprinting (deduplication)
+- [x] Receipt generation with PDF
+- [x] Email notifications
+- [x] Confirmation codes
+- [x] Audit logging
+- [x] Database separation and conflict prevention
 
-### 🚧 In Progress / Planned
+### 🚧 Planned
 
-- [ ] Enhanced error handling and validation
-- [ ] Email templates customization
-- [ ] Advanced search and filtering
+- [ ] Enhanced beneficiary update endpoint
 - [ ] Bulk operations
+- [ ] Advanced filtering
 - [ ] Export functionality (CSV, Excel)
-- [ ] Mobile app or responsive improvements
+- [ ] Mobile app
 - [ ] API documentation
 - [ ] Unit and integration tests
 
-## Security & Compliance
-
-- **HTTPS-only** in production
-- **Encrypted data at rest** (Neon/PostgreSQL)
-- **Clerk authentication** with MFA support
-- **Strong password policy** enforced by Clerk
-- **Role-based access control** (OWNER, ATTORNEY, STAFF)
-- **Organization-level permissions** via AccessGrants
-- **Complete audit logging** of all actions, views, and changes
-- **Client-controlled access** - clients grant/revoke attorney access
-- **Secure invite system** with time-limited tokens
-- **No policy amounts stored** - privacy by design
-
-## Billing Plans
-
-- **FREE**: Evaluation plan (3 clients)
-- **SOLO**: $19/month (1 attorney, up to 100 clients)
-- **SMALL_FIRM**: $69/month (up to 5 attorneys, up to 500 clients)
-- **ENTERPRISE**: Custom pricing (unlimited, SSO, dedicated support)
-
-## Key Features in Detail
-
-### Client Management
-- Create, view, edit, and search clients
-- Client detail pages with Overview and Activity tabs
-- Activity feed showing all audit events
-- Invite clients via secure email links
-- PDF export of client registry summaries
-
-### Policy Management
-- Link policies to insurers (auto-create if needed)
-- Track policy types (TERM, WHOLE, GROUP, OTHER)
-- Track policy status (ACTIVE, LAPSED, UNKNOWN)
-- Link beneficiaries to policies with share percentages
-- Employer group policy tracking
-
-### Team Management
-- Invite team members by email
-- Role-based permissions (OWNER, ATTORNEY, STAFF)
-- Only OWNERs can invite and manage team
-- ATTORNEYs and OWNERs can manage clients
-- STAFF have limited access
-
-### Audit & Compliance
-- All actions logged with user, organization, client, and policy context
-- Activity feeds on client detail pages
-- Audit actions include: CLIENT_CREATED, CLIENT_UPDATED, CLIENT_VIEWED, POLICY_CREATED, POLICY_UPDATED, BENEFICIARY_CREATED, BENEFICIARY_UPDATED, INVITE_CREATED, INVITE_ACCEPTED, CLIENT_SUMMARY_PDF_DOWNLOADED
-
-## License
+## 📄 License
 
 Private - All rights reserved
+
+## 🤝 Support
+
+For issues and questions, please open an issue on GitHub or contact support.
+
+---
+
+**Built with ❤️ for attorneys managing client life insurance relationships**
