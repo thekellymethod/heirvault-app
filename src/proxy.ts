@@ -10,9 +10,8 @@ const isPublicRoute = createRouteMatcher([
   "/attorney/onboard",
   "/invite(.*)",
   "/api/invite(.*)",
-  "/api/user/provision", // ✅ REQUIRED
-  // optional debug endpoints:
-  "/api/user/check-role",
+  "/api/user/provision(.*)", // ✅ must be public
+  "/api/user/check-role(.*)", // optional debug
 ]);
 
 export default clerkMiddleware(async (auth, req) => {
