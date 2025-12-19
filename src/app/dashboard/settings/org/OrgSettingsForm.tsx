@@ -82,7 +82,7 @@ export function OrgSettingsForm({ org }: Props) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="card p-6 space-y-4"
+      className="card p-4 sm:p-6 space-y-4 overflow-y-auto"
     >
       {error && (
         <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">

@@ -24,12 +24,12 @@ function StarsRow({ rating = 4.5, reviews = 121 }: { rating?: number; reviews?: 
 
 export default function LandingPage() {
   return (
-    <main className="min-h-screen bg-paper-50 text-slateui-800">
+    <main className="min-h-screen bg-paper-50 text-slateui-800 overflow-x-hidden">
       {/* Header */}
       <header className="sticky top-0 z-50 border-b border-slateui-200 bg-paper-50/85 backdrop-blur">
-        <div className="mx-auto max-w-7xl px-6 py-4">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 py-3 sm:py-4">
           <div className="flex items-center justify-between gap-6">
-            <Logo size="sm" showTagline={false} className="flex-row gap-3" />
+            <Logo size="lg" showTagline={false} className="flex-row gap-4" />
 
             <nav className="hidden md:flex items-center gap-7">
               <Link href="#home" className="text-sm font-medium text-slateui-800 hover:text-ink-900 transition">
@@ -78,18 +78,18 @@ export default function LandingPage() {
             alt="World map background"
             fill
             priority
-            className="object-cover opacity-25"
+            className="object-cover opacity-60"
             sizes="100vw"
           />
         </div>
 
         {/* overlay */}
-        <div className="absolute inset-0 bg-gradient-to-b from-ink-950/70 via-ink-900/80 to-ink-950/75" />
+        <div className="absolute inset-0 bg-gradient-to-b from-ink-950/50 via-ink-900/60 to-ink-950/65" />
 
-        <div className="relative mx-auto max-w-7xl px-6 py-20 md:py-28">
-          <div className="grid items-center gap-12 md:grid-cols-2">
+        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 py-12 sm:py-20 md:py-28">
+          <div className="grid items-center gap-8 md:gap-12 md:grid-cols-2">
             {/* Copy */}
-            <div className="text-center md:text-left">
+            <div className="text-center md:text-left order-2 md:order-1">
               <p className="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-paper-100/90">
                 Secure policy discovery for families & estate professionals
               </p>
@@ -133,7 +133,22 @@ export default function LandingPage() {
             </div>
 
             {/* Visual */}
-            <div className="relative">
+            <div className="relative order-1 md:order-2">
+              {/* Family Image */}
+              <div className="mb-6 rounded-3xl border border-gold-500/30 bg-white/10 shadow-lift backdrop-blur overflow-hidden">
+                <div className="relative aspect-[4/3] w-full">
+                  <Image
+                    src="/family-hv.png"
+                    alt="Family protecting their legacy"
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 768px) 100vw, 50vw"
+                    priority
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-ink-950/30 to-transparent" />
+                </div>
+              </div>
+
               <div className="rounded-3xl border border-gold-500/25 bg-white/5 shadow-lift backdrop-blur">
                 <div className="p-6 md:p-8">
                   <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl bg-ink-950/40">
@@ -173,7 +188,7 @@ export default function LandingPage() {
 
       {/* How It Works */}
       <section id="how-it-works" className="bg-paper-50 py-16 md:py-20">
-        <div className="mx-auto max-w-7xl px-6">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <div className="text-center">
             <h2 className="font-display text-3xl md:text-4xl text-ink-900">
               How HeirVault Works
@@ -222,7 +237,7 @@ export default function LandingPage() {
 
       {/* Trusted */}
       <section className="bg-paper-100 py-16 md:py-20">
-        <div className="mx-auto max-w-7xl px-6">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <div className="text-center">
             <h2 className="font-display text-3xl md:text-4xl text-ink-900">
               Trusted by Families & Estate Planners Nationwide
@@ -282,7 +297,7 @@ export default function LandingPage() {
 
       {/* Why Choose */}
       <section className="bg-paper-50 py-16 md:py-20">
-        <div className="mx-auto max-w-7xl px-6">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <div className="text-center">
             <h2 className="font-display text-3xl md:text-4xl text-ink-900">Why Choose HeirVault?</h2>
             <p className="mt-4 text-base md:text-lg text-slateui-600 max-w-2xl mx-auto">

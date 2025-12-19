@@ -640,8 +640,8 @@ export function InvitePortal(props: Props) {
 
   // Form step
   return (
-    <main className="min-h-screen bg-paper-50 py-12">
-      <div className="mx-auto max-w-2xl px-6">
+    <main className="min-h-screen bg-paper-50 py-6 sm:py-12 overflow-x-hidden">
+      <div className="mx-auto w-full max-w-2xl px-4 sm:px-6">
         {/* Header */}
         <div className="mb-8 flex items-center justify-between">
           <Logo size="sm" showTagline={false} className="flex-row gap-3" href="/" />
@@ -664,7 +664,7 @@ export function InvitePortal(props: Props) {
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6 overflow-y-auto max-h-[calc(100vh-12rem)]">
             {error && (
               <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
                 {error}

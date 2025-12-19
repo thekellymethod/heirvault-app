@@ -35,7 +35,7 @@ export default function ClientInviteCodePage() {
     <main className="min-h-screen bg-paper-50">
       {/* Header */}
       <header className="border-b border-slateui-200 bg-paper-50">
-        <div className="mx-auto max-w-7xl px-6 py-4">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 py-3 sm:py-4">
           <div className="flex items-center justify-between">
             <Logo size="sm" showTagline={false} className="flex-row gap-3" href="/" />
             <Link
@@ -49,9 +49,9 @@ export default function ClientInviteCodePage() {
       </header>
 
       {/* Main Content */}
-      <div className="flex min-h-[calc(100vh-80px)] items-center justify-center px-4 py-12">
+      <div className="flex min-h-[calc(100vh-80px)] items-center justify-center px-4 py-6 sm:py-12 overflow-y-auto">
         <div className="w-full max-w-md">
-          <div className="card p-8">
+          <div className="card p-6 sm:p-8">
             <div className="text-center mb-6">
               <h1 className="font-display text-2xl md:text-3xl font-bold text-ink-900">
                 Enter Your Invitation Code

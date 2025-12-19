@@ -101,7 +101,7 @@ export default async function InvitePage({ params }: Props) {
 
   if (!invite) {
     return (
-      <main className="min-h-screen flex items-center justify-center bg-paper-50 px-4">
+      <main className="min-h-screen flex items-center justify-center bg-paper-50 px-4 py-8 overflow-y-auto">
         <div className="w-full max-w-md">
           <div className="card p-8 text-center">
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
@@ -126,7 +126,7 @@ export default async function InvitePage({ params }: Props) {
   const daysSinceExpiration = (now.getTime() - invite.expiresAt.getTime()) / (1000 * 60 * 60 * 24);
   if (daysSinceExpiration > 30) {
     return (
-      <main className="min-h-screen flex items-center justify-center bg-paper-50 px-4">
+      <main className="min-h-screen flex items-center justify-center bg-paper-50 px-4 py-8 overflow-y-auto">
         <div className="w-full max-w-md">
           <div className="card p-8 text-center">
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-amber-100">

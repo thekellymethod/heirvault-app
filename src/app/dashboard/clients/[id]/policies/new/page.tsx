@@ -173,7 +173,7 @@ export default function NewPolicyPage() {
           <button
             type="button"
             onClick={() => router.back()}
-            className="rounded-lg border border-slate-700 px-4 py-2 text-sm text-slate-200 hover:border-slate-500 hover:bg-slate-900"
+            className="btn-secondary"
             disabled={submitting}
           >
             Cancel
@@ -181,7 +181,7 @@ export default function NewPolicyPage() {
           <button
             type="submit"
             disabled={submitting}
-            className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-60"
+            className="btn-primary"
           >
             {submitting ? "Saving..." : "Save policy"}
           </button>

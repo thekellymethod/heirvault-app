@@ -194,7 +194,7 @@ export default function UpdatePolicyPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-4xl px-6 py-12">
+      <main className="mx-auto w-full max-w-4xl px-4 sm:px-6 py-6 sm:py-12 overflow-x-hidden">
         <div className="mb-8">
           <h1 className="font-display text-3xl text-ink-900 mb-2">Update Your Information</h1>
           <p className="text-slateui-600">
@@ -212,7 +212,7 @@ export default function UpdatePolicyPage() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-8">
+        <form onSubmit={handleSubmit} className="space-y-6 sm:space-y-8 overflow-y-auto">
           {/* Policies Section */}
           <div className="card p-6">
             <div className="flex items-center justify-between mb-4">

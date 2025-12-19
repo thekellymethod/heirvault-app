@@ -106,7 +106,7 @@ export function InviteUpdateForm({ token, clientName }: Props) {
   }
 
   return (
-    <div className="card p-8">
+    <div className="card p-4 sm:p-6 lg:p-8 overflow-y-auto max-h-[calc(100vh-12rem)]">
       <div className="mb-6 text-center">
         <h1 className="font-display text-2xl md:text-3xl font-bold text-ink-900">
           Update Your Information

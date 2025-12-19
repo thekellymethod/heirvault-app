@@ -73,14 +73,14 @@ export default function UpdatePolicyPage() {
     <div className="min-h-screen bg-paper-50">
       {/* Header */}
       <header className="sticky top-0 z-50 border-b border-slateui-200 bg-paper-50/85 backdrop-blur">
-        <div className="mx-auto max-w-7xl px-6 py-4">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 py-3 sm:py-4">
           <div className="flex items-center justify-between gap-6">
             <Logo size="sm" showTagline={false} className="flex-row gap-3" href="/" />
           </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-4xl px-6 py-12">
+      <main className="mx-auto w-full max-w-4xl px-4 sm:px-6 py-6 sm:py-12 overflow-y-auto">
         <div className="text-center mb-8">
           <h1 className="font-display text-3xl md:text-4xl text-ink-900 mb-4">
             Update Life Insurance Policy

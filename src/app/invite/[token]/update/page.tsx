@@ -101,7 +101,7 @@ export default async function InviteUpdatePage({ params }: Props) {
 
   if (!invite) {
     return (
-      <main className="min-h-screen flex items-center justify-center bg-paper-50 px-4">
+      <main className="min-h-screen flex items-center justify-center bg-paper-50 px-4 py-8 overflow-y-auto">
         <div className="w-full max-w-md">
           <div className="card p-8 text-center">
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
@@ -124,7 +124,7 @@ export default async function InviteUpdatePage({ params }: Props) {
   const daysSinceExpiration = (now.getTime() - invite.expiresAt.getTime()) / (1000 * 60 * 60 * 24);
   if (daysSinceExpiration > 30) {
     return (
-      <main className="min-h-screen flex items-center justify-center bg-paper-50 px-4">
+      <main className="min-h-screen flex items-center justify-center bg-paper-50 px-4 py-8 overflow-y-auto">
         <div className="w-full max-w-md">
           <div className="card p-8 text-center">
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-amber-100">
@@ -144,8 +144,8 @@ export default async function InviteUpdatePage({ params }: Props) {
   }
 
   return (
-    <main className="min-h-screen bg-paper-50 py-12">
-      <div className="mx-auto max-w-2xl px-6">
+    <main className="min-h-screen bg-paper-50 py-6 sm:py-12 overflow-x-hidden">
+      <div className="mx-auto w-full max-w-2xl px-4 sm:px-6">
         <div className="mb-8 flex items-center justify-between">
           <Logo size="sm" showTagline={false} className="flex-row gap-3" href="/" />
           <Link

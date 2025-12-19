@@ -18,10 +18,10 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         className={cn(
           "inline-flex items-center justify-center text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none",
           !hasCustomButtonClass && {
-            "rounded-md transition-colors": true,
-            "text-white shadow-lg":
+            "rounded-md transition-all": true,
+            "text-white shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 active:translate-y-0":
               variant === "default",
-            "border border-slateui-200 bg-transparent text-ink-900 hover:bg-paper-100":
+            "border border-slateui-200 bg-transparent text-ink-900 hover:bg-paper-100 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 active:translate-y-0":
               variant === "outline",
             "text-ink-900 hover:bg-paper-100": variant === "ghost",
             "underline-offset-4 hover:underline text-ink-900": variant === "link",

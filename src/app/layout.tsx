@@ -19,6 +19,11 @@ export const metadata: Metadata = {
   title: "HeirVault - Life Insurance Relationship Registry",
   description:
     "A secure registry where clients record who insures them and who their beneficiaries are—without exposing policy amounts.",
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 5,
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

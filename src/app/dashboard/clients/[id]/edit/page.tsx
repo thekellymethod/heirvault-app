@@ -116,7 +116,7 @@ export default function EditClientPage() {
   }
 
   return (
-    <main className="p-8 max-w-2xl mx-auto space-y-6">
+    <main className="p-4 sm:p-8 max-w-2xl mx-auto space-y-6 w-full overflow-x-hidden">
       {/* Header */}
       <div className="flex items-center gap-4">
         <Link
@@ -218,14 +218,14 @@ export default function EditClientPage() {
         <div className="flex gap-3 justify-end">
           <Link
             href={`/dashboard/clients/${id}`}
-            className="rounded-lg border border-slate-800 bg-slate-950 px-4 py-2 text-sm font-medium text-slate-300 hover:bg-slate-900"
+            className="btn-secondary"
           >
             Cancel
           </Link>
           <button
             type="submit"
             disabled={saving}
-            className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="btn-primary"
           >
             {saving ? 'Saving...' : 'Save Changes'}
           </button>

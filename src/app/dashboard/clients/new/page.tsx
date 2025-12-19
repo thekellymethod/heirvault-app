@@ -446,7 +446,7 @@ export default function NewClientPage() {
         )}
       </div>
 
-      <form onSubmit={onSubmit} className="space-y-6">
+      <form onSubmit={onSubmit} className="space-y-6 overflow-y-auto max-h-[calc(100vh-16rem)]">
         {/* Client Information Section */}
         <div className="card p-6">
           <h2 className="text-lg font-semibold text-ink-900 mb-4">Client Information</h2>
