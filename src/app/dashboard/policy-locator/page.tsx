@@ -736,7 +736,9 @@ export default function PolicyLocatorPage() {
                     }
                     setExporting(true);
                     try {
-                      // TODO: Implement PDF export endpoint
+                      // Future enhancement: Export policy locator search results as PDF
+                      // This would generate a report of all matching policies found in the search
+                      // For now, individual client summaries can be exported via /api/clients/[id]/summary-pdf
                       alert("Export functionality will be implemented. Death certificate verified.");
                       setShowExportForm(false);
                     } catch (e) {
