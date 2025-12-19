@@ -30,17 +30,8 @@ export default function AttorneySignInCompletePage() {
       if (checkRes.ok) {
         const checkData = await checkRes.json();
         
-        if (checkData.hasAttorneyRole) {
-          // User has attorney or admin role, go to attorney dashboard
-          window.location.href = "/dashboard";
-        } else if (checkData.dbRole === "client") {
-          // User is a client, go to client portal
-          window.location.href = "/client-portal";
-        } else {
-          // User doesn't have a role set yet, stay on complete page
-          setError("Please complete the sign-in process to set your role.");
-          setTryingDashboard(false);
-        }
+        // All accounts are attorney accounts - go to dashboard
+        window.location.href = "/dashboard";
       } else {
         // If check fails, try dashboard anyway
         window.location.href = "/dashboard";

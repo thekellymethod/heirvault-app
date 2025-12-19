@@ -8,12 +8,7 @@ const isPublicRoute = createRouteMatcher([
     "/attorney/sign-in/complete",
     "/attorney/sign-up/complete",
     "/attorney/onboard",
-    "/client/login(.*)",
-    "/client/enter-invite",
-    "/client/invite-code",
-    "/invite(.*)",
-    "/sign-in(.*)",
-    "/sign-up(.*)",
+    "/invite(.*)", // Client invitation portal (no account needed)
     "/test(.*)", // Test pages
     "/api/user/set-role",
     "/api/user/check-role",

@@ -6,6 +6,7 @@ import { audit, logAuditEvent } from '@/lib/audit'
 import { AuditAction } from '@prisma/client'
 import { z } from 'zod'
 import { jsonError, jsonOk } from '@/lib/http'
+import { generateClientFingerprint, findClientByFingerprint } from '@/lib/client-fingerprint'
 
 const createClientSchema = z.object({
   firstName: z.string().min(1).max(100),
@@ -77,6 +78,53 @@ export async function POST(req: Request) {
       parsedDateOfBirth = new Date(year, month - 1, day);
     }
 
+    // Generate client fingerprint to check for duplicates
+    const fingerprint = generateClientFingerprint({
+      email,
+      firstName,
+      lastName,
+      dateOfBirth: parsedDateOfBirth,
+    });
+
+    // Check if client with same fingerprint already exists
+    const existingClientId = await findClientByFingerprint(fingerprint, prisma);
+    if (existingClientId) {
+      // Return existing client instead of creating duplicate
+      const existingClient = await prisma.client.findUnique({
+        where: { id: existingClientId },
+      });
+      
+      if (existingClient) {
+        // Grant attorney access to existing client if not already granted
+        const existingAccess = await prisma.attorneyClientAccess.findFirst({
+          where: {
+            attorneyId: orgInfo.user.id,
+            clientId: existingClientId,
+            organizationId: org.id,
+          },
+        });
+
+        if (!existingAccess) {
+          await prisma.attorneyClientAccess.create({
+            data: {
+              attorneyId: orgInfo.user.id,
+              clientId: existingClientId,
+              organizationId: org.id,
+              isActive: true,
+            },
+          });
+        }
+
+        await audit(AuditAction.CLIENT_CREATED, {
+          clientId: existingClient.id,
+          message: `Client access granted to existing client: ${existingClient.firstName} ${existingClient.lastName} (${existingClient.email})`,
+        });
+
+        return jsonOk(existingClient, { status: 200 });
+      }
+    }
+
+    // Create new client with fingerprint
     const client = await prisma.client.create({
       data: {
         firstName,
@@ -85,6 +133,7 @@ export async function POST(req: Request) {
         dateOfBirth: parsedDateOfBirth,
         phone: phone ?? null,
         orgId: org.id,
+        clientFingerprint: fingerprint,
       },
     });
 
@@ -141,46 +190,69 @@ export async function GET(req: NextRequest) {
     const { requireAuth } = await import("@/lib/utils/clerk");
     const user = await requireAuth();
 
-    if (user.role === 'attorney') {
-      // Get clients for attorney
-      const access = await prisma.attorneyClientAccess.findMany({
-        where: {
-          attorneyId: user.id,
-          isActive: true,
-        },
-        include: {
-          client: true,
-        },
-      })
+    // Only attorneys can access this endpoint - clients don't have accounts
+    // They access their data via invitation links at /invite/[token]
+    
+    // Get ALL clients globally - all attorneys can see all clients
+    // Use raw SQL first for reliability
+    let clients: any[] = [];
+    try {
+      const rawResult = await prisma.$queryRaw<Array<{
+        id: string;
+        first_name: string;
+        last_name: string;
+        email: string;
+        phone: string | null;
+        date_of_birth: Date | null;
+        created_at: Date;
+        updated_at: Date;
+      }>>`
+        SELECT 
+          id,
+          first_name,
+          last_name,
+          email,
+          phone,
+          date_of_birth,
+          created_at,
+          updated_at
+        FROM clients
+        ORDER BY created_at DESC
+      `;
 
-      const clients = access.map(a => a.client)
-
-      await logAuditEvent({
-        action: 'CLIENT_VIEWED',
-        message: 'Listed clients',
-        userId: user.id,
-      })
-
-      return NextResponse.json(clients)
-    } else {
-      // Client viewing their own data
-      const client = await prisma.client.findUnique({
-        where: { userId: user.id },
-      })
-
-      if (!client) {
-        return NextResponse.json({ error: 'Client record not found' }, { status: 404 })
+      clients = rawResult.map(row => ({
+        id: row.id,
+        firstName: row.first_name,
+        lastName: row.last_name,
+        email: row.email,
+        phone: row.phone,
+        dateOfBirth: row.date_of_birth,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      }));
+    } catch (sqlError: any) {
+      console.error("Client list: Raw SQL failed, trying Prisma:", sqlError.message);
+      // Fallback to Prisma
+      try {
+        const prismaClients = await prisma.client.findMany({
+          orderBy: {
+            createdAt: "desc",
+          },
+        });
+        clients = prismaClients;
+      } catch (prismaError: any) {
+        console.error("Client list: Prisma also failed:", prismaError.message);
+        throw prismaError;
       }
-
-      await logAuditEvent({
-        action: 'CLIENT_VIEWED',
-        message: `Viewed client ${client.id}`,
-        userId: user.id,
-        clientId: client.id,
-      })
-
-      return NextResponse.json(client)
     }
+
+    await logAuditEvent({
+      action: 'CLIENT_VIEWED',
+      message: 'Listed all clients (global access)',
+      userId: user.id,
+    })
+
+    return NextResponse.json(clients)
   } catch (error: any) {
     return NextResponse.json(
       { error: error.message },

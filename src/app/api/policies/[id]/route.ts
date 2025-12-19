@@ -30,18 +30,9 @@ export async function GET(req: NextRequest, { params }: Params) {
     }
 
     // Check access via client
+    // All attorneys have global access to all policies
     if (user.role === 'attorney') {
-      const access = await prisma.attorneyClientAccess.findFirst({
-        where: {
-          attorneyId: user.id,
-          clientId: policy.clientId,
-          isActive: true,
-        },
-      })
-
-      if (!access) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-      }
+      // Global access granted - no need to check specific access
     } else {
       // Client can only view their own policies
       const client = await prisma.client.findUnique({
@@ -86,18 +77,9 @@ export async function PUT(req: NextRequest, { params }: Params) {
     }
 
     // Check access
+    // All attorneys have global access to all policies
     if (user.role === 'attorney') {
-      const access = await prisma.attorneyClientAccess.findFirst({
-        where: {
-          attorneyId: user.id,
-          clientId: existingPolicy.clientId,
-          isActive: true,
-        },
-      })
-
-      if (!access) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-      }
+      // Global access granted - no need to check specific access
     } else {
       if (existingPolicy.client.userId !== user.id) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -184,18 +166,9 @@ export async function DELETE(req: NextRequest, { params }: Params) {
     }
 
     // Check access
+    // All attorneys have global access to all policies
     if (user.role === 'attorney') {
-      const access = await prisma.attorneyClientAccess.findFirst({
-        where: {
-          attorneyId: user.id,
-          clientId: existingPolicy.clientId,
-          isActive: true,
-        },
-      })
-
-      if (!access) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-      }
+      // Global access granted - no need to check specific access
     } else {
       if (existingPolicy.client.userId !== user.id) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 })

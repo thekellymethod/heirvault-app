@@ -4,6 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { Mail } from "lucide-react";
 import { DashboardLayout } from "../_components/DashboardLayout";
 
 type Client = {
@@ -77,9 +78,17 @@ export default function ClientsIndexPage() {
             <p className="mt-2 text-base text-slateui-600">Search, create, and manage client registries.</p>
           </div>
 
-          <Link href="/dashboard/clients/new">
-            <Button className="btn-primary">New Client</Button>
-          </Link>
+          <div className="flex gap-3">
+            <Link href="/dashboard/clients/invite">
+              <Button className="btn-primary">
+                <Mail className="h-4 w-4 mr-2" />
+                Invite Client
+              </Button>
+            </Link>
+            <Link href="/dashboard/clients/new">
+              <Button variant="outline" className="btn-secondary">New Client</Button>
+            </Link>
+          </div>
         </div>
 
         {/* Search */}

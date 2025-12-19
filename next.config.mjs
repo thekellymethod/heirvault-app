@@ -9,8 +9,10 @@ const nextConfig = {
     },
   },
   // Set workspace root to silence lockfile warning
+  // Disable persistent caching to prevent Prisma client caching issues
   turbopack: {
     root: process.cwd(),
+    persistentCaching: false,
   },
   images: {
     remotePatterns: [],

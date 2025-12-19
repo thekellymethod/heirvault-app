@@ -78,7 +78,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       await sendClientInviteEmail({
         to: email,
         clientName: `${client.firstName} ${client.lastName}`,
-        firmName: orgMember?.organization.name,
+        firmName: orgMember?.organizations.name,
         inviteUrl,
       })
     } catch (emailError: any) {

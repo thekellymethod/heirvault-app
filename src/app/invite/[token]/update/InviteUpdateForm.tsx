@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { FileText, QrCode, CheckCircle } from "lucide-react";
 
@@ -10,6 +11,7 @@ interface Props {
 }
 
 export function InviteUpdateForm({ token, clientName }: Props) {
+  const router = useRouter();
   const [updateForm, setUpdateForm] = useState({
     changes: "",
     newFile: null as File | null,
@@ -62,9 +64,20 @@ export function InviteUpdateForm({ token, clientName }: Props) {
         throw new Error(data.error || "Failed to submit update");
       }
 
-      setSuccess(true);
-      setUpdateForm({ changes: "", newFile: null });
-      setTimeout(() => setSuccess(false), 5000);
+      const data = await res.json();
+      
+      // If receipt data is returned, redirect to receipt page
+      if (data.receiptId) {
+        // Store receipt data temporarily
+        if (data.receiptData) {
+          sessionStorage.setItem(`receipt_${data.receiptId}`, JSON.stringify(data.receiptData));
+        }
+        router.push(`/update-policy/${token}/receipt?receiptId=${data.receiptId}&token=${token}`);
+      } else {
+        setSuccess(true);
+        setUpdateForm({ changes: "", newFile: null });
+        setTimeout(() => setSuccess(false), 5000);
+      }
     } catch (e: any) {
       setError(e.message || "Failed to submit update");
     } finally {

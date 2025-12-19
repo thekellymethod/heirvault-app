@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
       include: {
         orgMemberships: {
           include: {
-            organization: true,
+            organizations: true,
           },
         },
       },
@@ -133,7 +133,7 @@ export async function GET(req: NextRequest) {
           action: "GLOBAL_POLICY_SEARCH_PERFORMED",
           message: `Global policy search: ${firstName} ${lastName}${dateOfBirth ? ` (DOB: ${dateOfBirth})` : ""}${proofOfDeathCertNumber ? ` | Death Cert: ${proofOfDeathCertNumber}` : ""} | Results: ${results.length} policy(ies)`,
           userId: user.id,
-          orgId: userWithOrg?.orgMemberships?.[0]?.organizationId || null,
+          orgId: userWithOrg?.orgMemberships?.[0]?.organizations?.id || userWithOrg?.orgMemberships?.[0]?.organization_id || null,
         },
       });
     } catch (auditError) {

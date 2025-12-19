@@ -21,6 +21,14 @@ type Beneficiary = {
     lastName: string;
     email: string;
   };
+  policies: Array<{
+    id: string;
+    policyNumber: string | null;
+    policyType: string | null;
+    insurer: {
+      name: string;
+    };
+  }>;
 };
 
 export default function BeneficiariesPage() {
@@ -159,6 +167,24 @@ export default function BeneficiariesPage() {
                           </>
                         )}
                       </div>
+                      
+                      {/* Policies list */}
+                      {beneficiary.policies && beneficiary.policies.length > 0 && (
+                        <div className="mt-3 pl-4 border-l-2 border-gold-200">
+                          <div className="text-xs font-medium text-slateui-500 mb-2">
+                            Policies ({beneficiary.policies.length}):
+                          </div>
+                          <div className="space-y-1">
+                            {beneficiary.policies.map((policy) => (
+                              <div key={policy.id} className="text-xs text-slateui-600">
+                                <span className="font-medium">{policy.insurer.name}</span>
+                                {policy.policyNumber && <span> • {policy.policyNumber}</span>}
+                                {policy.policyType && <span> • {policy.policyType}</span>}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                     <div className="flex-shrink-0">
                       <svg

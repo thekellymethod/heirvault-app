@@ -44,7 +44,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
     const memberToUpdate = await prisma.orgMember.findUnique({
       where: { id },
       include: {
-        organization: true,
+        organizations: true,
       },
     });
 

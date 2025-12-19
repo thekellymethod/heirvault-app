@@ -23,14 +23,10 @@ export default function AttorneySignInPage() {
       if (checkRes.ok) {
         const checkData = await checkRes.json();
         
+        // All accounts are attorney accounts - go to dashboard or complete signin
         if (checkData.hasAttorneyRole) {
-          // User has attorney or admin role, go to attorney dashboard
           router.push("/dashboard");
-        } else if (checkData.dbRole === "client") {
-          // User is a client, go to client portal
-          router.push("/client-portal");
         } else {
-          // User doesn't have a role set yet, complete the attorney sign-in flow
           router.push("/attorney/sign-in/complete");
         }
       } else {

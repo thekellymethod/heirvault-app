@@ -4,12 +4,22 @@ import * as React from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
+type Beneficiary = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  relationship: string | null;
+  email: string | null;
+  phone: string | null;
+  dateOfBirth: Date | null;
+};
+
 type Policy = {
   id: string;
   policyNumber: string | null;
   policyType: string | null;
-  insurer?: { id: string; name: string } | null;
-  beneficiaryCount?: number;
+  insurer?: { id: string; name: string; website?: string | null } | null;
+  beneficiaries: Beneficiary[];
   createdAt?: string;
 };
 
@@ -191,18 +201,58 @@ export default function ClientPoliciesPage() {
             <div className="px-6 py-8 text-slate-600">No policies yet.</div>
           )}
           {policies.map((p) => (
-            <div key={p.id} className="px-6 py-4 flex items-center justify-between gap-4">
-              <div>
-                <div className="text-sm font-semibold text-slate-900">
-                  {p.policyType || "Policy"} {p.policyNumber ? `• ${p.policyNumber}` : ""}
+            <div key={p.id} className="px-6 py-4">
+              <div className="flex items-start justify-between gap-4 mb-3">
+                <div className="flex-1">
+                  <div className="text-sm font-semibold text-slate-900">
+                    {p.policyType || "Policy"} {p.policyNumber ? `• ${p.policyNumber}` : ""}
+                  </div>
+                  <div className="text-xs text-slate-600 mt-1">
+                    {p.insurer?.name ? `Insurer: ${p.insurer.name}` : "Insurer: —"}
+                  </div>
                 </div>
-                <div className="text-xs text-slate-600">
-                  {p.insurer?.name ? `Insurer: ${p.insurer.name}` : "Insurer: —"} • Beneficiaries: {p.beneficiaryCount ?? "—"}
-                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => {
+                    // Open beneficiary management modal or navigate
+                    const modal = document.getElementById(`beneficiary-modal-${p.id}`);
+                    if (modal) {
+                      (modal as HTMLDialogElement).showModal();
+                    }
+                  }}
+                >
+                  {p.beneficiaries.length > 0 ? `Manage (${p.beneficiaries.length})` : "Add beneficiaries"}
+                </Button>
               </div>
-              <Button variant="outline" onClick={() => router.push(`/dashboard/policies/${p.id}`)}>
-                Manage beneficiaries
-              </Button>
+              
+              {/* Beneficiaries list */}
+              {p.beneficiaries.length > 0 && (
+                <div className="mt-3 pl-4 border-l-2 border-slate-200">
+                  <div className="text-xs font-medium text-slate-500 mb-2">
+                    Beneficiaries ({p.beneficiaries.length}):
+                  </div>
+                  <div className="space-y-2">
+                    {p.beneficiaries.map((b) => (
+                      <div key={b.id} className="text-sm text-slate-700 bg-slate-50 rounded px-3 py-2">
+                        <div className="font-medium">
+                          {b.firstName} {b.lastName}
+                          {b.relationship && (
+                            <span className="text-xs text-slate-500 ml-2">({b.relationship})</span>
+                          )}
+                        </div>
+                        <div className="text-xs text-slate-500 mt-1 flex gap-3">
+                          {b.email && <span>Email: {b.email}</span>}
+                          {b.phone && <span>Phone: {b.phone}</span>}
+                          {b.dateOfBirth && (
+                            <span>DOB: {new Date(b.dateOfBirth).toLocaleDateString()}</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>

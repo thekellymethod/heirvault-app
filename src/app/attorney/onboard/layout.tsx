@@ -24,27 +24,19 @@ export default async function OnboardLayout({ children }: { children: ReactNode 
   const clerkRoleRaw = (clerkUser?.publicMetadata as any)?.role;
   const clerkRoleNormalized = clerkRoleRaw?.toLowerCase?.();
   
-  // Normalize Clerk role - handle all valid roles
-  let clerkRole: "attorney" | "admin" | "client" | null = null;
-  if (clerkRoleNormalized === "attorney" || clerkRoleNormalized === "admin" || clerkRoleNormalized === "client") {
-    clerkRole = clerkRoleNormalized as "attorney" | "admin" | "client";
-  }
-  
-  // Determine the actual role (Clerk metadata takes precedence, then DB)
-  const actualRole = clerkRole || user.role || null;
-  
-  // If Clerk has a role but DB doesn't match, sync it
-  if (clerkRole && user.role !== clerkRole) {
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { role: clerkRole },
-    });
-    user.role = clerkRole;
-  }
-  
-  // If user doesn't have attorney role, redirect to complete page
-  if (actualRole !== "attorney" && actualRole !== "admin") {
-    redirect("/attorney/sign-in/complete");
+  // All accounts are attorney accounts - ensure role is set to attorney
+  if (user.role !== "attorney") {
+    try {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { role: "attorney" },
+      });
+      user.role = "attorney";
+    } catch (updateError: any) {
+      // If Prisma fails, just set the role locally - don't block access
+      console.warn("Onboard layout: Could not update role in DB, setting locally:", updateError.message);
+      user.role = "attorney";
+    }
   }
   
   // Check if user already has an organization - if so, redirect to dashboard
@@ -55,14 +47,34 @@ export default async function OnboardLayout({ children }: { children: ReactNode 
       include: {
         orgMemberships: {
           include: {
-            organization: true,
+            organizations: true,
           },
         },
       },
     });
-  } catch (error) {
-    console.error("Error fetching user with org in onboard layout:", error);
-    // Continue to show onboard page if there's an error
+  } catch (error: any) {
+    console.error("Error fetching user with org in onboard layout:", error.message);
+    // If Prisma fails, try raw SQL as fallback
+    try {
+      const rawResult = await prisma.$queryRaw<Array<{ user_id: string; organization_id: string; role: string }>>`
+        SELECT user_id, organization_id, role 
+        FROM org_members 
+        WHERE user_id = ${user.id} 
+        LIMIT 1
+      `;
+      if (rawResult && rawResult.length > 0) {
+        // User has org membership - redirect to dashboard
+        console.log("Onboard layout: Found org membership via raw SQL, redirecting to dashboard");
+        redirect("/dashboard");
+      } else {
+        // No org membership - continue to show onboard page
+        console.log("Onboard layout: No organization found via raw SQL, showing onboard page");
+      }
+    } catch (sqlError: any) {
+      console.error("Onboard layout: Raw SQL also failed:", sqlError.message);
+      // Continue to show onboard page if both fail - user can create org
+      console.log("Onboard layout: Continuing to show onboard page despite errors");
+    }
   }
 
   if (userWithOrg?.orgMemberships && userWithOrg.orgMemberships.length > 0) {

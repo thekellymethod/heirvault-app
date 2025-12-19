@@ -18,10 +18,13 @@ export async function GET(req: NextRequest) {
       select: { role: true },
     });
 
+    // All accounts are attorney accounts
+    const isAttorney = clerkRole === "attorney" || dbUser?.role === "attorney" || !dbUser; // Default to attorney if no role set
+    
     return NextResponse.json({
       clerkRole: clerkRole || null,
-      dbRole: dbUser?.role || null,
-      hasAttorneyRole: clerkRole === "attorney" || clerkRole === "admin" || dbUser?.role === "attorney" || dbUser?.role === "admin",
+      dbRole: dbUser?.role || "attorney", // Default to attorney
+      hasAttorneyRole: isAttorney, // All accounts are attorney accounts
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Unknown error";

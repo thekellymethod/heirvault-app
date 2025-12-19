@@ -19,19 +19,77 @@ export async function GET(
 
     const clientId = match[1];
 
-    // Find the most recent invite for this client
-    const invite = await prisma.clientInvite.findFirst({
-      where: {
-        clientId,
-        usedAt: { not: null }, // Only used invites
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-      include: {
-        client: true,
-      },
-    });
+    // Find the most recent invite for this client - use raw SQL first
+    let invite: any = null;
+    try {
+      const rawResult = await prisma.$queryRaw<Array<{
+        id: string;
+        client_id: string;
+        email: string;
+        token: string;
+        expires_at: Date;
+        used_at: Date | null;
+        created_at: Date;
+        first_name: string;
+        last_name: string;
+      }>>`
+        SELECT 
+          ci.id,
+          ci.client_id,
+          ci.email,
+          ci.token,
+          ci.expires_at,
+          ci.used_at,
+          ci.created_at,
+          c.first_name,
+          c.last_name
+        FROM client_invites ci
+        INNER JOIN clients c ON c.id = ci.client_id
+        WHERE ci.client_id = ${clientId} AND ci.used_at IS NOT NULL
+        ORDER BY ci.created_at DESC
+        LIMIT 1
+      `;
+
+      if (rawResult && rawResult.length > 0) {
+        const row = rawResult[0];
+        invite = {
+          id: row.id,
+          clientId: row.client_id,
+          email: row.email,
+          token: row.token,
+          expiresAt: row.expires_at,
+          usedAt: row.used_at,
+          createdAt: row.created_at,
+          client: {
+            firstName: row.first_name,
+            lastName: row.last_name,
+          },
+        };
+      }
+    } catch (sqlError: any) {
+      console.error("Receipt lookup: Raw SQL failed, trying Prisma:", sqlError.message);
+      // Fallback to Prisma
+      try {
+        if ((prisma as any).client_invites) {
+          const prismaInvite = await (prisma as any).client_invites.findFirst({
+            where: {
+              client_id: clientId,
+              used_at: { not: null },
+            },
+            orderBy: { created_at: "desc" },
+            include: { clients: true },
+          });
+          if (prismaInvite) {
+            invite = {
+              ...prismaInvite,
+              client: prismaInvite.clients,
+            };
+          }
+        }
+      } catch (prismaError: any) {
+        console.error("Receipt lookup: Prisma also failed:", prismaError.message);
+      }
+    }
 
     if (!invite) {
       return NextResponse.json(

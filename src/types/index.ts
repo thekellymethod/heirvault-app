@@ -1,6 +1,6 @@
 // Application-level types
 
-export type UserRole = 'attorney' | 'client' | 'admin'
+export type UserRole = 'attorney'
 export type InviteStatus = 'pending' | 'accepted' | 'expired' | 'revoked'
 
 export interface User {

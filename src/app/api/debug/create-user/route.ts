@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
           email,
           firstName,
           lastName,
-          role: clerkRole || existing.role || "client",
+          role: clerkRole || existing.role || "attorney",
         },
       });
       return NextResponse.json({ 
@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
           email,
           firstName,
           lastName,
-          role: clerkRole || "client",
+          role: clerkRole || "attorney",
         },
       });
       return NextResponse.json({ 

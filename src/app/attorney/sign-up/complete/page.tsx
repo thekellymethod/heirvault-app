@@ -29,17 +29,8 @@ export default function AttorneySignUpCompletePage() {
       if (checkRes.ok) {
         const checkData = await checkRes.json();
         
-        if (checkData.hasAttorneyRole) {
-          // User has attorney or admin role, go to attorney dashboard
-          router.push("/dashboard");
-        } else if (checkData.dbRole === "client") {
-          // User is a client, go to client portal
-          router.push("/client-portal");
-        } else {
-          // User doesn't have a role set yet, stay on complete page
-          setError("Please complete the sign-up process to set your role.");
-          setTryingDashboard(false);
-        }
+        // All accounts are attorney accounts - go to dashboard
+        router.push("/dashboard");
       } else {
         // If check fails, try dashboard anyway
         router.push("/dashboard");
@@ -59,16 +50,8 @@ export default function AttorneySignUpCompletePage() {
         // Wait a moment to ensure Clerk auth state is fully propagated
         await new Promise(resolve => setTimeout(resolve, 200));
 
-        // First check if user already has the role
-        const role = (user?.publicMetadata as any)?.role;
-        
-        if (role === "attorney" || role === "admin") {
-          // User already has the role, redirect immediately
-          setTimeout(() => {
-            router.push("/dashboard");
-          }, 100);
-          return;
-        }
+        // All accounts are attorney accounts - set role and redirect
+        // No need to check existing role since all accounts are attorney accounts
 
         // User doesn't have the role, set it
         setChecking(false);

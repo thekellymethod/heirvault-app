@@ -1,10 +1,7 @@
-import { SignUp } from "@clerk/nextjs";
+import { redirect } from "next/navigation";
 
+// Only attorneys can create accounts - redirect to attorney sign-up
 export default function SignUpPage() {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-950">
-      <SignUp />
-    </div>
-  );
+  redirect("/attorney/sign-up");
 }
 

@@ -3,11 +3,8 @@ import { getCurrentUser } from "@/lib/utils/clerk";
 
 export default async function RoleRouterPage() {
   const user = await getCurrentUser();
-  if (!user) redirect("/sign-in");
+  if (!user) redirect("/attorney/sign-in");
 
-  if (user.role === "attorney" || user.role === "admin") {
-    redirect("/dashboard");
-  }
-
-  redirect("/client-portal");
+  // All accounts are attorney accounts - go to dashboard
+  redirect("/dashboard");
 }

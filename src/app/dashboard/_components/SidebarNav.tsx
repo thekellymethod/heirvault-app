@@ -29,11 +29,6 @@ export function SidebarNav() {
       icon: Users,
     },
     {
-      name: 'Policies',
-      href: '/dashboard/policies',
-      icon: FileText,
-    },
-    {
       name: 'Beneficiaries',
       href: '/dashboard/beneficiaries',
       icon: UserCheck,

@@ -12,7 +12,7 @@ export default async function TestAuthPage() {
     include: {
       orgMemberships: {
         include: {
-          organization: true,
+          organizations: true,
         },
       },
     },
@@ -61,7 +61,7 @@ export default async function TestAuthPage() {
           <pre className="text-sm overflow-auto text-slate-800">
             {JSON.stringify({
               hasOrg: !!(userWithOrg?.orgMemberships && userWithOrg.orgMemberships.length > 0),
-              orgName: userWithOrg?.orgMemberships?.[0]?.organization?.name,
+              orgName: userWithOrg?.orgMemberships?.[0]?.organizations?.name,
             }, null, 2)}
           </pre>
         </div>
@@ -69,10 +69,10 @@ export default async function TestAuthPage() {
         <div className="bg-blue-100 p-4 rounded">
           <h2 className="font-semibold mb-2 text-slate-900">What Should Happen:</h2>
           <ul className="list-disc list-inside space-y-1 text-sm text-slate-800">
-            <li>If role is "attorney" or "admin" → Should access /dashboard</li>
-            <li>If role is "client" → Should access /client-portal</li>
+            <li>All accounts are attorney accounts → Should access /dashboard</li>
             <li>If no role → Should go to /attorney/sign-in/complete</li>
             <li>If attorney but no org → Should go to /attorney/onboard</li>
+            <li>Clients don't need accounts - they use invitation links at /invite/[token]</li>
           </ul>
         </div>
 
@@ -84,10 +84,10 @@ export default async function TestAuthPage() {
             Try Dashboard
           </a>
           <a 
-            href="/client-portal" 
+            href="/attorney/sign-up" 
             className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
           >
-            Try Client Portal
+            Attorney Sign Up
           </a>
           <a 
             href="/api/debug/user-info" 

@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server"
 import { prisma } from "@/lib/db"
 import { redirect } from "next/navigation"
+import { getCurrentUser } from "@/lib/utils/clerk"
 import { DashboardLayout } from "../../_components/DashboardLayout"
 import { OrgSettingsForm } from "./OrgSettingsForm"
 
@@ -8,18 +9,95 @@ export default async function OrgSettingsPage() {
   const { userId } = await auth()
   if (!userId) redirect("/sign-in")
 
-  const user = await prisma.user.findUnique({
-    where: { clerkId: userId },
-    include: {
-      orgMemberships: {
-        include: {
-          organization: true,
-        },
-      },
-    },
-  })
+  // Use getCurrentUser to ensure user exists in database
+  const currentUser = await getCurrentUser()
+  if (!currentUser) redirect("/dashboard")
 
-  const orgMember = user?.orgMemberships?.[0]
+  // Use raw SQL first for reliability to get org membership
+  let user: any = currentUser
+  let orgMember: any = null
+  
+  try {
+    // Try raw SQL first - it's more reliable when Prisma client is broken
+    const rawResult = await prisma.$queryRaw<Array<{
+      organization_id: string
+      org_name: string
+      org_role: string
+      org_slug: string
+      org_address_line1: string | null
+      org_address_line2: string | null
+      org_city: string | null
+      org_state: string | null
+      org_postal_code: string | null
+      org_country: string | null
+      org_phone: string | null
+      org_logo_url: string | null
+      org_created_at: Date
+      org_updated_at: Date
+    }>>`
+      SELECT 
+        om.organization_id,
+        o.name as org_name,
+        om.role as org_role,
+        o.slug as org_slug,
+        o.address_line1 as org_address_line1,
+        o.address_line2 as org_address_line2,
+        o.city as org_city,
+        o.state as org_state,
+        o.postal_code as org_postal_code,
+        o.country as org_country,
+        o.phone as org_phone,
+        o.logo_url as org_logo_url,
+        o.created_at as org_created_at,
+        o.updated_at as org_updated_at
+      FROM org_members om
+      INNER JOIN organizations o ON o.id = om.organization_id
+      WHERE om.user_id = ${currentUser.id}
+      LIMIT 1
+    `
+    
+    if (rawResult && rawResult.length > 0) {
+      const row = rawResult[0]
+      orgMember = {
+        organizations: {
+          id: row.organization_id,
+          name: row.org_name,
+          slug: row.org_slug,
+          addressLine1: row.org_address_line1,
+          addressLine2: row.org_address_line2,
+          city: row.org_city,
+          state: row.org_state,
+          postalCode: row.org_postal_code,
+          country: row.org_country,
+          phone: row.org_phone,
+          logoUrl: row.org_logo_url,
+          createdAt: row.org_created_at,
+          updatedAt: row.org_updated_at,
+        },
+      }
+    }
+  } catch (sqlError: any) {
+    console.error("Org settings page: Raw SQL failed, trying Prisma:", sqlError.message)
+    // If raw SQL fails, try Prisma as fallback
+    try {
+      const userWithOrg = await prisma.user.findUnique({
+        where: { id: currentUser.id },
+        include: {
+          orgMemberships: {
+            include: {
+              organizations: true,
+            },
+          },
+        },
+      })
+      orgMember = userWithOrg?.orgMemberships?.[0]
+    } catch (prismaError: any) {
+      console.error("Org settings page: Prisma also failed:", prismaError.message)
+      // If both fail, redirect to dashboard
+      redirect("/dashboard")
+    }
+  }
+
   if (!user || !orgMember) redirect("/dashboard")
 
   return (
@@ -42,7 +120,7 @@ export default async function OrgSettingsPage() {
             Return to Dashboard
           </a>
         </div>
-        <OrgSettingsForm org={orgMember.organization} />
+        <OrgSettingsForm org={orgMember.organizations} />
       </div>
     </DashboardLayout>
   )

@@ -20,11 +20,12 @@ export async function GET(req: NextRequest, { params }: Params) {
     }
 
     // Check access based on role
+    // All attorneys have global access to all clients
     try {
       if (user.role === 'attorney') {
         console.log('GET /api/clients/[id] - Checking attorney access for client:', id)
         await assertAttorneyCanAccessClient(id)
-        console.log('GET /api/clients/[id] - Attorney access granted')
+        console.log('GET /api/clients/[id] - Attorney access granted (global)')
       } else {
         console.log('GET /api/clients/[id] - Checking client self-access for client:', id)
         await assertClientSelfAccess(id)
@@ -170,6 +171,84 @@ export async function PUT(req: NextRequest, { params }: Params) {
     console.error('Error in PUT /api/clients/[id]:', error)
     const msg = error.message || 'Internal server error'
     const status = msg === 'Unauthorized' ? 401 : msg === 'Forbidden' ? 403 : 500
+    return NextResponse.json(
+      { error: msg },
+      { status }
+    )
+  }
+}
+
+export async function DELETE(req: NextRequest, { params }: Params) {
+  try {
+    const { id } = await params
+    const { user } = await getCurrentUserWithOrg()
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Check access - all attorneys have global access
+    if (user.role === 'attorney') {
+      await assertAttorneyCanAccessClient(id)
+    } else {
+      await assertClientSelfAccess(id)
+    }
+
+    // Check if client exists - use raw SQL first
+    let clientExists = false;
+    try {
+      const existsResult = await prisma.$queryRaw<Array<{ id: string }>>`
+        SELECT id FROM clients WHERE id = ${id} LIMIT 1
+      `;
+      clientExists = existsResult && existsResult.length > 0;
+    } catch (sqlError: any) {
+      console.error("Client DELETE: Raw SQL check failed, trying Prisma:", sqlError.message);
+      // Fallback to Prisma
+      try {
+        const existingClient = await prisma.client.findUnique({
+          where: { id },
+          select: { id: true },
+        });
+        clientExists = !!existingClient;
+      } catch (prismaError: any) {
+        console.error("Client DELETE: Prisma check also failed:", prismaError.message);
+        throw prismaError;
+      }
+    }
+
+    if (!clientExists) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    }
+
+    // Delete client - cascade deletes will handle related records (policies, beneficiaries, invites, etc.)
+    // Use raw SQL first
+    try {
+      await prisma.$executeRaw`DELETE FROM clients WHERE id = ${id}`;
+    } catch (sqlError: any) {
+      console.error("Client DELETE: Raw SQL failed, trying Prisma:", sqlError.message);
+      // Fallback to Prisma
+      try {
+        await prisma.client.delete({
+          where: { id },
+        });
+      } catch (prismaError: any) {
+        console.error("Client DELETE: Prisma also failed:", prismaError.message);
+        throw prismaError;
+      }
+    }
+
+    await logAuditEvent({
+      action: 'CLIENT_UPDATED', // Using CLIENT_UPDATED as there's no CLIENT_DELETED action
+      message: `Deleted client ${id}`,
+      userId: user.id,
+      clientId: id,
+    })
+
+    return new NextResponse(null, { status: 204 })
+  } catch (error: any) {
+    console.error('Error in DELETE /api/clients/[id]:', error)
+    const msg = error.message || 'Internal server error'
+    const status = msg === 'Unauthorized' ? 401 : msg === 'Forbidden' ? 403 : msg === 'Not found' ? 404 : 500
     return NextResponse.json(
       { error: msg },
       { status }

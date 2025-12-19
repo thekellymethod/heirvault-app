@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const org = orgMember.organization;
+    const org = orgMember.organizations;
 
     // Get or create Stripe customer
     let customerId = org.stripeCustomerId;

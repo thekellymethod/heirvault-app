@@ -7,6 +7,7 @@ import { ClientReceiptPDF } from "@/pdfs/ClientReceiptPDF";
 import { sendClientReceiptEmail, sendAttorneyNotificationEmail } from "@/lib/email";
 import { AuditAction } from "@prisma/client";
 import { getOrCreateTestInvite } from "@/lib/test-invites";
+import { lookupClientInvite } from "@/lib/invite-lookup";
 
 export async function POST(
   req: NextRequest,
@@ -16,14 +17,12 @@ export async function POST(
     const { token } = await params;
 
     // Try to get or create test invite first
-    let invite = await getOrCreateTestInvite(token);
+    let invite: any = await getOrCreateTestInvite(token);
 
     // If not a test code, do normal lookup
     if (!invite) {
-      invite = await prisma.clientInvite.findUnique({
-      where: { token },
-      include: { client: true },
-    });
+      invite = await lookupClientInvite(token);
+    }
 
     if (!invite) {
       return NextResponse.json(
@@ -177,7 +176,7 @@ export async function POST(
           include: {
             orgMemberships: {
               include: {
-                organization: true,
+                organizations: true,
               },
             },
           },
@@ -185,7 +184,7 @@ export async function POST(
       },
     });
 
-    const organization = access?.attorney?.orgMemberships?.[0]?.organization;
+    const organization = access?.attorney?.orgMemberships?.[0]?.organizations;
     const attorney = access?.attorney;
 
     // Get updated policies for receipt

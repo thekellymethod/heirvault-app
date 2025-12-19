@@ -72,8 +72,22 @@ model beneficiaries {
   date_of_birth        DateTime?              @db.Date
   created_at           DateTime               @default(now())
   updated_at           DateTime
+  // Address fields for beneficiary separation
+  address_line1        String?
+  address_line2        String?
+  city                 String?
+  state                String?
+  postal_code          String?
+  country              String?
   clients              clients                @relation(fields: [client_id], references: [id], onDelete: Cascade)
   policy_beneficiaries policy_beneficiaries[]
+
+  // Index for beneficiary searches by name and DOB
+  @@index([first_name, last_name, date_of_birth])
+  // Index for beneficiary address searches
+  @@index([address_line1, city, state, postal_code])
+  // Index for client relationship
+  @@index([client_id])
 }
 
 model client_invites {
@@ -105,6 +119,15 @@ model clients {
   maiden_name            String?
   passport_number        String?
   ssn_last_4             String?
+  // Client fingerprint - hash of identifying information to prevent duplicates
+  client_fingerprint     String?                  @unique
+  // Address fields for separation
+  address_line1          String?
+  address_line2          String?
+  city                   String?
+  state                  String?
+  postal_code            String?
+  country                String?
   access_grants          access_grants[]
   attorney_client_access attorney_client_access[]
   audit_logs             audit_logs[]
@@ -114,6 +137,17 @@ model clients {
   users                  User?                    @relation("UserClient", fields: [user_id], references: [id])
   documents              documents[]
   policies               policies[]
+
+  // Composite unique constraint: email must be unique per client
+  @@unique([email])
+  // Index for searching by name and DOB combination
+  @@index([first_name, last_name, date_of_birth])
+  // Index for searching by address (to identify potential duplicates)
+  @@index([address_line1, city, state, postal_code])
+  // Index for client fingerprint lookups
+  @@index([client_fingerprint])
+  // Index for organization separation
+  @@index([org_id])
 }
 
 model documents {
@@ -229,15 +263,23 @@ model policy_beneficiaries {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  clerkId   String   @unique
-  email     String   @unique
-  firstName String?  @map("first_name")
-  lastName  String?  @map("last_name")
-  role      UserRole @default(client)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-  barNumber String?  @map("bar_number")
+  id            String   @id @default(uuid())
+  clerkId       String   @unique @map("clerkId")
+  email         String   @unique
+  firstName     String?  @map("first_name")
+  lastName      String?  @map("last_name")
+  role          UserRole @default(attorney)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  barNumber     String?  @map("bar_number")
+  // Attorney-specific address fields for separation
+  address_line1 String?  @map("address_line1")
+  address_line2 String?  @map("address_line2")
+  city          String?  @map("city")
+  state         String?  @map("state")
+  postal_code   String?  @map("postal_code")
+  country       String?  @map("country")
+  phone         String?  @map("phone")
 
   // Relations
   orgMemberships       org_members[]
@@ -248,6 +290,10 @@ model User {
   clientRecord         clients?                 @relation("UserClient")
   auditLogs            audit_logs[]
 
+  // Index for attorney name searches
+  @@index([firstName, lastName])
+  // Index for attorney address searches
+  @@index([address_line1, city, state, postal_code])
   @@map("users")
 }
 
@@ -295,6 +341,4 @@ enum OrgRole {
 
 enum UserRole {
   attorney
-  client
-  admin
 }

@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAuth } from "@/lib/utils/clerk";
 
+// Clients don't have accounts - they access via invitation links
+// This endpoint is disabled - clients should use /invite/[token] routes instead
 export async function GET() {
-  try {
-    const user = await requireAuth("client");
+  return NextResponse.json(
+    { error: "Client accounts are not available. Please use your invitation link to access your information." },
+    { status: 403 }
+  );
 
     const client = await prisma.client.findFirst({
       where: { userId: user.id },
@@ -51,8 +54,10 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  try {
-    const user = await requireAuth("client");
+  return NextResponse.json(
+    { error: "Client accounts are not available. Please use your invitation link to submit information." },
+    { status: 403 }
+  );
     const body = await req.json();
 
     const client = await prisma.client.findFirst({

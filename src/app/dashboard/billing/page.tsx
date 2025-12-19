@@ -12,7 +12,7 @@ export default async function BillingPage() {
     include: {
       orgMemberships: {
         include: {
-          organization: true,
+          organizations: true,
         },
       },
     },
@@ -21,7 +21,7 @@ export default async function BillingPage() {
   const orgMember = user?.orgMemberships?.[0];
   if (!user || !orgMember) redirect("/dashboard");
 
-  const org = orgMember.organization;
+  const org = orgMember.organizations;
 
   return (
     <main className="p-8 max-w-3xl mx-auto space-y-6">

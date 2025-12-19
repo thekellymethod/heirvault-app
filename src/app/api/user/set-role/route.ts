@@ -9,12 +9,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized. Please sign in first." }, { status: 401 });
     }
 
-    const body = await req.json();
-    const { role } = body;
-
-    if (!role || !["attorney", "client", "admin"].includes(role)) {
-      return NextResponse.json({ error: "Invalid role" }, { status: 400 });
-    }
+    // All accounts are attorney accounts - role is always attorney
+    const role = "attorney";
 
     // Get user info from Clerk for database upsert
     const clerkUser = await currentUser();

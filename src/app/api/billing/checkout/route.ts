@@ -34,7 +34,7 @@ export async function POST(req: Request) {
     include: {
       orgMemberships: {
         include: {
-          organization: true,
+          organizations: true,
         },
       },
     },
@@ -45,7 +45,7 @@ export async function POST(req: Request) {
     return new NextResponse("No organization found", { status: 400 });
   }
 
-  const org = orgMember.organization as any;
+  const org = orgMember.organizations as any;
 
   // Ensure Stripe customer
   let customerId = org.stripeCustomerId;

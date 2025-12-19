@@ -144,10 +144,14 @@ export default function UpdatePolicyPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to save updates");
 
-      setSuccess(true);
-      setTimeout(() => {
-        router.push(`/update-policy/${token}/success`);
-      }, 2000);
+      // Redirect to receipt page with receipt data
+      if (data.receiptId && data.receiptData) {
+        // Store receipt data temporarily
+        sessionStorage.setItem(`receipt_${data.receiptId}`, JSON.stringify(data.receiptData));
+        router.push(`/update-policy/${token}/receipt?receiptId=${data.receiptId}&token=${token}`);
+      } else {
+        setSuccess(true);
+      }
     } catch (e: any) {
       setError(e.message);
     } finally {

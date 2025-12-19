@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
       include: {
         orgMemberships: {
           include: {
-            organization: true,
+            organizations: true,
           },
         },
       },
@@ -32,9 +32,9 @@ export async function GET(req: NextRequest) {
         email: dbUser.email,
         role: dbUser.role,
       } : null,
-      organization: userWithOrg?.orgMemberships?.[0]?.organization ? {
-        id: userWithOrg.orgMemberships[0].organization.id,
-        name: userWithOrg.orgMemberships[0].organization.name,
+      organization: userWithOrg?.orgMemberships?.[0]?.organizations ? {
+        id: userWithOrg.orgMemberships[0].organizations.id,
+        name: userWithOrg.orgMemberships[0].organizations.name,
       } : null,
       hasOrg: !!(userWithOrg?.orgMemberships && userWithOrg.orgMemberships.length > 0),
     });

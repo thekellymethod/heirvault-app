@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
 import { renderToStream } from "@react-pdf/renderer";
 import { UpdateFormPDF } from "@/pdfs/UpdateFormPDF";
 import { getOrCreateTestInvite } from "@/lib/test-invites";
+import { lookupClientInvite } from "@/lib/invite-lookup";
 
 export async function GET(
   req: NextRequest,
@@ -12,24 +12,12 @@ export async function GET(
     const { token } = await params;
 
     // Try to get or create test invite first
-    let invite = await getOrCreateTestInvite(token);
+    let invite: any = await getOrCreateTestInvite(token);
 
     // If not a test code, do normal lookup
     if (!invite) {
-      invite = await prisma.clientInvite.findUnique({
-      where: { token },
-      include: {
-        client: {
-          include: {
-            policies: {
-              include: {
-                insurer: true,
-              },
-            },
-          },
-        },
-      },
-    });
+      invite = await lookupClientInvite(token);
+    }
 
     if (!invite) {
       return NextResponse.json(
@@ -71,4 +59,3 @@ export async function GET(
     );
   }
 }
-

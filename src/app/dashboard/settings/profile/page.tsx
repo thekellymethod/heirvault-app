@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/db";
 import { redirect } from "next/navigation";
+import { getCurrentUser } from "@/lib/utils/clerk";
 import { DashboardLayout } from "../../_components/DashboardLayout";
 import { ProfileForm } from "./ProfileForm";
 
@@ -8,18 +9,62 @@ export default async function ProfilePage() {
   const { userId } = await auth();
   if (!userId) redirect("/sign-in");
 
-  const user = await prisma.user.findUnique({
-    where: { clerkId: userId },
-    include: {
-      orgMemberships: {
-        include: {
-          organization: true,
-        },
-      },
-    },
-  });
+  // Use getCurrentUser to ensure user exists in database
+  const currentUser = await getCurrentUser();
+  if (!currentUser) redirect("/dashboard");
 
-  const orgMember = user?.orgMemberships?.[0];
+  // Use raw SQL first for reliability to get org membership
+  let user: any = currentUser;
+  let orgMember: any = null;
+  
+  try {
+    // Try raw SQL first - it's more reliable when Prisma client is broken
+    const rawResult = await prisma.$queryRaw<Array<{
+      organization_id: string;
+      org_name: string;
+      org_role: string;
+    }>>`
+      SELECT 
+        om.organization_id,
+        o.name as org_name,
+        om.role as org_role
+      FROM org_members om
+      INNER JOIN organizations o ON o.id = om.organization_id
+      WHERE om.user_id = ${currentUser.id}
+      LIMIT 1
+    `;
+    
+    if (rawResult && rawResult.length > 0) {
+      const row = rawResult[0];
+      orgMember = {
+        organizations: {
+          id: row.organization_id,
+          name: row.org_name,
+        },
+      };
+    }
+  } catch (sqlError: any) {
+    console.error("Profile page: Raw SQL failed, trying Prisma:", sqlError.message);
+    // If raw SQL fails, try Prisma as fallback
+    try {
+      const userWithOrg = await prisma.user.findUnique({
+        where: { id: currentUser.id },
+        include: {
+          orgMemberships: {
+            include: {
+              organizations: true,
+            },
+          },
+        },
+      });
+      orgMember = userWithOrg?.orgMemberships?.[0];
+    } catch (prismaError: any) {
+      console.error("Profile page: Prisma also failed:", prismaError.message);
+      // If both fail, redirect to dashboard
+      redirect("/dashboard");
+    }
+  }
+
   if (!user || !orgMember) redirect("/dashboard");
 
   return (
@@ -43,7 +88,7 @@ export default async function ProfilePage() {
           </a>
         </div>
 
-        <ProfileForm user={user} organization={orgMember.organization} />
+        <ProfileForm user={user} organization={orgMember.organizations} />
       </div>
     </DashboardLayout>
   );

@@ -63,7 +63,7 @@ export async function POST(req: NextRequest, { params }: Params) {
           dateOfBirth: client.dateOfBirth,
           createdAt: client.createdAt,
         },
-        firmName: orgMember?.organization.name,
+        firmName: orgMember?.organizations.name,
         generatedAt: new Date(),
       })
     );

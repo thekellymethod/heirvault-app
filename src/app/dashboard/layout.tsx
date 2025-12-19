@@ -26,7 +26,27 @@ export default async function DashboardLayout({
   } catch (error) {
     console.error("Error in getCurrentUser in dashboard layout:", error);
     console.error("Error stack:", error instanceof Error ? error.stack : "No stack");
-    redirect("/attorney/sign-in");
+    // If it's a Prisma schema error, try to continue with Clerk user info
+    if (error instanceof Error && (error.message.includes('does not exist') || error.message.includes('P2021'))) {
+      console.warn("Dashboard layout - Prisma schema error detected, attempting to continue with Clerk user");
+      const clerkUser = await currentUser();
+      if (clerkUser) {
+        // Create a minimal user object from Clerk data to allow dashboard access
+        user = {
+          id: clerkUser.id,
+          clerkId: clerkUser.id,
+          email: clerkUser.emailAddresses?.[0]?.emailAddress || '',
+          firstName: clerkUser.firstName || null,
+          lastName: clerkUser.lastName || null,
+          role: 'attorney' as const,
+        };
+        console.log("Dashboard layout - Using Clerk user data as fallback");
+      } else {
+        redirect("/attorney/sign-in");
+      }
+    } else {
+      redirect("/attorney/sign-in");
+    }
   }
   
   if (!user) {
@@ -40,51 +60,81 @@ export default async function DashboardLayout({
   const clerkRoleRaw = (clerkUser?.publicMetadata as any)?.role;
   const clerkRoleNormalized = clerkRoleRaw?.toLowerCase?.();
   
-  // Normalize Clerk role - handle all valid roles
-  let clerkRole: "attorney" | "admin" | "client" | null = null;
-  if (clerkRoleNormalized === "attorney" || clerkRoleNormalized === "admin" || clerkRoleNormalized === "client") {
-    clerkRole = clerkRoleNormalized as "attorney" | "admin" | "client";
-  }
-  
-  // Determine the actual role (Clerk metadata takes precedence, then DB)
-  const actualRole = clerkRole || user.role || null;
-  
-  // If Clerk has a role but DB doesn't match, sync it
-  if (clerkRole && user.role !== clerkRole) {
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { role: clerkRole },
-    });
-    user.role = clerkRole;
-  }
-  
-  // If user doesn't have attorney role, handle accordingly
-  if (actualRole !== "attorney" && actualRole !== "admin") {
-    if (user.role === "client") {
-      // User is a client, redirect to client portal
-      redirect("/client-portal");
-    } else {
-      // User doesn't have attorney role - redirect to complete page to set it
-      redirect("/attorney/sign-in/complete");
+  // All accounts are attorney accounts - ensure role is set to attorney
+  if (user.role !== "attorney") {
+    try {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { role: "attorney" },
+      });
+      user.role = "attorney";
+    } catch (updateError: any) {
+      // If Prisma fails, just set the role locally - don't block access
+      console.warn("Dashboard layout: Could not update role in DB, setting locally:", updateError.message);
+      user.role = "attorney";
     }
   }
   
   // User has attorney role - check if they have an organization
+  // Use raw SQL first since Prisma client may be out of sync
   let userWithOrg;
   try {
-    userWithOrg = await prisma.user.findUnique({
-      where: { id: user.id },
-      include: {
-        orgMemberships: {
-          include: {
-            organization: true,
+    // Try raw SQL first - it's more reliable when Prisma client is broken
+    const rawResult = await prisma.$queryRaw<Array<{ 
+      user_id: string; 
+      organization_id: string; 
+      role: string;
+      org_name: string;
+    }>>`
+      SELECT 
+        om.user_id, 
+        om.organization_id, 
+        om.role,
+        o.name as org_name
+      FROM org_members om
+      INNER JOIN organizations o ON o.id = om.organization_id
+      WHERE om.user_id = ${user.id} 
+      LIMIT 1
+    `;
+    
+    if (rawResult && rawResult.length > 0) {
+      // User has org membership - allow access
+      console.log("Dashboard layout: Found org membership via raw SQL");
+      // Create a minimal userWithOrg object with correct structure
+      userWithOrg = {
+        id: user.id,
+        orgMemberships: [{
+          organizations: {
+            id: rawResult[0].organization_id,
+            name: rawResult[0].org_name || "Organization",
+          },
+        }],
+      };
+    } else {
+      // No org membership found - redirect to onboarding
+      console.log("Dashboard layout: No organization found, redirecting to onboard");
+      redirect("/attorney/onboard");
+    }
+  } catch (sqlError: any) {
+    console.error("Dashboard layout: Raw SQL failed, trying Prisma:", sqlError.message);
+    // If raw SQL fails, try Prisma as fallback
+    try {
+      userWithOrg = await prisma.user.findUnique({
+        where: { id: user.id },
+        include: {
+          orgMemberships: {
+            include: {
+              organizations: true,
+            },
           },
         },
-      },
-    });
-  } catch (error) {
-    console.error("Error fetching user with org in dashboard layout:", error);
-    redirect("/attorney/sign-in");
+      });
+    } catch (prismaError: any) {
+      console.error("Dashboard layout: Prisma also failed:", prismaError.message);
+      // If both fail, redirect to onboard so user can create org
+      console.warn("Dashboard layout: All database queries failed, redirecting to onboard");
+      redirect("/attorney/onboard");
+    }
   }
 
   // If user doesn't have an organization, redirect to onboarding

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { QRCodeSVG } from "qrcode.react";
 import { QrCode, FileText, Search, AlertCircle } from "lucide-react";
+import { QRScanner } from "@/components/QRScanner";
 
 export default function UpdatePolicyPage() {
   const router = useRouter();
@@ -15,6 +16,7 @@ export default function UpdatePolicyPage() {
   const [qrCode, setQrCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
 
   const handleReceiptSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,7 +33,7 @@ export default function UpdatePolicyPage() {
       }
 
       // Redirect to update page with token
-      router.push(`/update-policy/${data.token}`);
+      router.push(`/invite/${data.token}/update`);
     } catch (e: any) {
       setError(e.message || "Failed to lookup receipt");
     } finally {
@@ -41,10 +43,27 @@ export default function UpdatePolicyPage() {
 
   const handleQRScan = (scannedData: string) => {
     setQrCode(scannedData);
+    setShowScanner(false);
+    setError(null);
+    
     // Extract token from QR code URL
-    const match = scannedData.match(/\/invite\/([^\/]+)/);
-    if (match) {
-      router.push(`/update-policy/${match[1]}`);
+    // QR code might be a full URL or just the token
+    let token = null;
+    
+    // Try to match full URL pattern
+    const urlMatch = scannedData.match(/\/invite\/([^\/\?]+)/);
+    if (urlMatch) {
+      token = urlMatch[1];
+    } else {
+      // Try to match just the token (hex string)
+      const tokenMatch = scannedData.match(/^[a-f0-9]{48,}$/i);
+      if (tokenMatch) {
+        token = tokenMatch[0];
+      }
+    }
+    
+    if (token) {
+      router.push(`/invite/${token}/update`);
     } else {
       setError("Invalid QR code. Please scan a valid HeirVault receipt QR code.");
     }
@@ -182,16 +201,11 @@ export default function UpdatePolicyPage() {
                 </p>
                 <div className="flex justify-center mb-4">
                   <div className="bg-white p-4 rounded-lg border-2 border-dashed border-slateui-300">
-                    <QRCodeSVG
-                      value=""
-                      size={200}
-                      level="H"
-                      includeMargin={true}
-                    />
+                    <QrCode className="h-32 w-32 text-slateui-300" />
                   </div>
                 </div>
                 <p className="text-xs text-slateui-500 text-center">
-                  Camera access required. Please allow camera permissions.
+                  Camera access required. Please allow camera permissions when prompted.
                 </p>
               </div>
               <div className="flex gap-3">
@@ -208,18 +222,22 @@ export default function UpdatePolicyPage() {
                 </Button>
                 <Button
                   type="button"
-                  onClick={() => {
-                    // In production, this would open camera for QR scanning
-                    // For now, show a message
-                    alert("QR code scanning will be implemented with camera access. For now, please use the receipt number option.");
-                  }}
+                  onClick={() => setShowScanner(true)}
                   className="btn-primary flex-1"
                 >
+                  <Camera className="h-4 w-4 mr-2" />
                   Open Camera
                 </Button>
               </div>
             </div>
           </div>
+        )}
+
+        {showScanner && (
+          <QRScanner
+            onScan={handleQRScan}
+            onClose={() => setShowScanner(false)}
+          />
         )}
 
         <div className="mt-8 text-center">

@@ -116,18 +116,8 @@ export async function POST(
       return NextResponse.json({ error: "Policy not found" }, { status: 404 });
     }
 
-    const access = await prisma.attorneyClientAccess.findFirst({
-      where: {
-        attorneyId: user.id,
-        clientId: policy.clientId,
-        isActive: true,
-      },
-      select: { id: true },
-    });
-
-    if (!access) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    // All attorneys have global access - just verify policy exists
+    // (already checked above)
 
     await prisma.policyBeneficiary.upsert({
       where: {
@@ -177,18 +167,8 @@ export async function DELETE(
       return NextResponse.json({ error: "Policy not found" }, { status: 404 });
     }
 
-    const access = await prisma.attorneyClientAccess.findFirst({
-      where: {
-        attorneyId: user.id,
-        clientId: policy.clientId,
-        isActive: true,
-      },
-      select: { id: true },
-    });
-
-    if (!access) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    // All attorneys have global access - just verify policy exists
+    // (already checked above)
 
     await prisma.policyBeneficiary.deleteMany({
       where: { policyId, beneficiaryId },
