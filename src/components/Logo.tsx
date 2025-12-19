@@ -34,9 +34,10 @@ export function Logo({ className = "", showTagline = false, size = "md", href = 
       
       {/* HeirVault text next to logo */}
       <span
-        className={`font-bold text-ink-900 ${
+        className={`font-serif font-bold text-gold-500 ${
           size === "sm" ? "text-lg" : size === "md" ? "text-2xl" : "text-3xl"
         } tracking-tight`}
+        style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
       >
         HeirVault
       </span>

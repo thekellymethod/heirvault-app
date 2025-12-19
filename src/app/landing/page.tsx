@@ -22,15 +22,7 @@ function StarsRow({ rating = 4.5, reviews = 121 }: { rating?: number; reviews?: 
   );
 }
 
-interface LandingPageProps {
-  params?: Promise<Record<string, string | string[]>>;
-  searchParams?: Promise<Record<string, string | string[]>>;
-}
-
-export default function LandingPage(_props: LandingPageProps = {}) {
-  // Accept props to prevent Next.js 16 enumeration errors
-  // but don't destructure params/searchParams since they're Promises
-  // and this is a static landing page that doesn't use them
+export default function LandingPage() {
   return (
     <main className="min-h-screen bg-paper-50 text-slateui-800 overflow-x-hidden">
       {/* Header */}
@@ -146,12 +138,13 @@ export default function LandingPage(_props: LandingPageProps = {}) {
               <div className="mb-6 rounded-3xl border border-gold-500/30 bg-white/10 shadow-lift backdrop-blur overflow-hidden relative z-10">
                 <div className="relative aspect-[4/3] w-full">
                   <div className="absolute inset-0 bg-gradient-to-br from-gold-500/20 via-blue-500/10 to-ink-950/40" />
-                  <div className="absolute inset-0 flex items-center justify-center -left-[2px]">
+                  <div className="absolute inset-0 flex items-center justify-center">
                     <div className="text-center p-8">
                       <div className="text-6xl mb-4">👨‍👩‍👧‍👦</div>
+                      <p className="text-paper-100/80 text-sm font-medium">Protecting Your Legacy</p>
                     </div>
                   </div>
-                  <div className="absolute inset-0 bg-gradient-to-t from-ink-950/30 to-transparent -left-[3px]" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-ink-950/30 to-transparent" />
                 </div>
               </div>
 
@@ -302,7 +295,7 @@ export default function LandingPage(_props: LandingPageProps = {}) {
 
       {/* FAQ Section */}
       <section id="faq" className="bg-paper-50 py-16 md:py-20">
-        <div className="mx-auto max-w-4xl px-6">
+        <div className="mx-auto max-w-4xl px-4 sm:px-6">
           <div className="text-center">
             <h2 className="font-display text-3xl md:text-4xl text-ink-900">Frequently Asked Questions</h2>
             <p className="mt-4 text-base md:text-lg text-slateui-600">
@@ -383,7 +376,7 @@ export default function LandingPage(_props: LandingPageProps = {}) {
 
       {/* Contact Section */}
       <section id="contact" className="bg-paper-100 py-16 md:py-20">
-        <div className="mx-auto max-w-4xl px-6 text-center">
+        <div className="mx-auto max-w-4xl px-4 sm:px-6 text-center">
           <h2 className="font-display text-3xl md:text-4xl text-ink-900">Have More Questions?</h2>
           <p className="mt-4 text-base md:text-lg text-slateui-600">
             Contact us for more information about HeirVault and how it can help your practice.
@@ -403,3 +396,4 @@ export default function LandingPage(_props: LandingPageProps = {}) {
     </main>
   );
 }
+

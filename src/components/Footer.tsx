@@ -35,13 +35,9 @@ export function Footer() {
           </div>
 
           <div>
-            <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-3">Important</h3>
             <ul className="space-y-2">
               <li className="text-xs text-slate-600 dark:text-slate-400">
                 Private, voluntary registry
-              </li>
-              <li className="text-xs text-slate-600 dark:text-slate-400">
-                Not affiliated with insurers or regulators
               </li>
               <li className="text-xs text-slate-600 dark:text-slate-400">
                 Use is voluntary, not required by law

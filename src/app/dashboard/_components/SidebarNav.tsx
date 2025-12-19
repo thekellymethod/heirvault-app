@@ -11,7 +11,9 @@ import {
   SearchCheck,
   Globe,
   Settings,
-  User
+  User,
+  Archive,
+  Key
 } from 'lucide-react'
 
 export function SidebarNav() {
@@ -37,6 +39,16 @@ export function SidebarNav() {
       name: 'Policy Locator',
       href: '/dashboard/policy-locator',
       icon: SearchCheck,
+    },
+    {
+      name: 'Receipts',
+      href: '/dashboard/admin/receipts',
+      icon: Archive,
+    },
+    {
+      name: 'Invitation Codes',
+      href: '/dashboard/admin/invites',
+      icon: Key,
     },
   ]
 
