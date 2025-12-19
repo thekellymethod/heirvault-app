@@ -9,13 +9,16 @@ const isPublicRoute = createRouteMatcher([
     "/attorney/sign-up/complete",
     "/attorney/onboard",
     "/invite(.*)", // Client invitation portal (no account needed)
-    "/test(.*)", // Test pages
     "/api/user/set-role",
     "/api/user/check-role",
-    "/api/debug(.*)",
-    "/api/test(.*)", // Test API endpoints
     "/api/invite(.*)", // Invite API endpoints (public - clients submit via invite token)
-    "/test-auth", // Debug page
+    // Debug/test routes - only public in development
+    ...(process.env.NODE_ENV === 'development' ? [
+      "/test(.*)",
+      "/api/debug(.*)",
+      "/api/test(.*)",
+      "/test-auth",
+    ] : []),
   ]);
 
 export default clerkMiddleware(async (auth, req) => {

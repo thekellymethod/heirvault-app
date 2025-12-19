@@ -21,8 +21,8 @@ export async function POST(request: NextRequest) {
       clientEmail
     )
 
-    // TODO: Send email with invite link
-    // For now, return the invite URL in the response
+    // Note: Email sending is handled in /api/clients/invite/route.ts
+    // This endpoint is kept for backward compatibility
 
     return NextResponse.json(invite, { status: 201 })
   } catch (error: any) {
