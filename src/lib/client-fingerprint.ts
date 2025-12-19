@@ -60,38 +60,26 @@ export function generateClientFingerprint(clientData: {
   return createHash('sha256').update(combined).digest('hex');
 }
 
+import { clients, eq } from "@/lib/db";
+
 /**
  * Check if a client with the same fingerprint already exists.
  * Returns the existing client ID if found, null otherwise.
  */
 export async function findClientByFingerprint(
   fingerprint: string,
-  prisma: any
+  db: any
 ): Promise<string | null> {
   try {
-    // Try raw SQL first
-    const result = await prisma.$queryRaw<Array<{ id: string }>>`
-      SELECT id FROM clients WHERE client_fingerprint = ${fingerprint} LIMIT 1
-    `;
+    const [client] = await db.select({ id: clients.id })
+      .from(clients)
+      .where(eq(clients.clientFingerprint, fingerprint))
+      .limit(1);
     
-    if (result && result.length > 0) {
-      return result[0].id;
-    }
-  } catch (sqlError: any) {
-    console.error("Client fingerprint lookup: Raw SQL failed, trying Prisma:", sqlError.message);
-    // Fallback to Prisma
-    try {
-      const client = await prisma.client.findUnique({
-        where: { client_fingerprint: fingerprint },
-        select: { id: true },
-      });
-      return client?.id || null;
-    } catch (prismaError: any) {
-      console.error("Client fingerprint lookup: Prisma also failed:", prismaError.message);
-      return null;
-    }
+    return client?.id || null;
+  } catch (error: any) {
+    console.error("Client fingerprint lookup failed:", error.message);
+    return null;
   }
-  
-  return null;
 }
 

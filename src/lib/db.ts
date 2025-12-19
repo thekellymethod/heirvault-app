@@ -1,2 +1,3 @@
-// Re-export from prisma.ts to ensure single Prisma client instance
-export { prisma } from "./prisma";
+// Re-export Drizzle database client
+export { db as prisma, db } from "./db";
+export * from "./db/schema";

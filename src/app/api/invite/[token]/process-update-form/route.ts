@@ -5,7 +5,7 @@ import { storeFile } from "@/lib/storage";
 import { renderToStream } from "@react-pdf/renderer";
 import { ClientReceiptPDF } from "@/pdfs/ClientReceiptPDF";
 import { sendClientReceiptEmail, sendAttorneyNotificationEmail } from "@/lib/email";
-import { AuditAction } from "@prisma/client";
+import { AuditAction } from "@/lib/db";
 import { getOrCreateTestInvite } from "@/lib/test-invites";
 import { lookupClientInvite } from "@/lib/invite-lookup";
 

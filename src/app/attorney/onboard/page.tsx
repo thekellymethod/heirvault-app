@@ -42,8 +42,9 @@ export default function AttorneyOnboardPage() {
       // Success - redirect to dashboard
       // Use window.location for a hard redirect to ensure fresh data
       window.location.href = "/dashboard";
-    } catch (err: any) {
-      setError(err.message || "Something went wrong");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Something went wrong";
+      setError(message);
     } finally {
       setSubmitting(false);
     }

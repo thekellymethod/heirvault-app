@@ -1,4 +1,4 @@
-import { BillingPlan } from "@prisma/client";
+import { BillingPlan } from "./db";
 
 export function getClientLimitForPlan(plan: BillingPlan): number | null {
   switch (plan) {

@@ -1,0 +1,304 @@
+import { pgTable, text, timestamp, boolean, integer, json, date, pgEnum, uuid, uniqueIndex, index } from "drizzle-orm/pg-core";
+import { relations } from "drizzle-orm";
+import { randomUUID } from "crypto";
+
+// Enums
+export const accessGrantStatusEnum = pgEnum("AccessGrantStatus", ["ACTIVE", "REVOKED"]);
+export const auditActionEnum = pgEnum("AuditAction", [
+  "CLIENT_CREATED",
+  "CLIENT_UPDATED",
+  "POLICY_CREATED",
+  "POLICY_UPDATED",
+  "BENEFICIARY_CREATED",
+  "BENEFICIARY_UPDATED",
+  "INVITE_CREATED",
+  "INVITE_ACCEPTED",
+  "CLIENT_VIEWED",
+  "CLIENT_SUMMARY_PDF_DOWNLOADED",
+  "POLICY_SEARCH_PERFORMED",
+  "GLOBAL_POLICY_SEARCH_PERFORMED",
+  "DOCUMENT_UPLOADED",
+  "DOCUMENT_PROCESSED",
+]);
+export const billingPlanEnum = pgEnum("BillingPlan", ["FREE", "SOLO", "SMALL_FIRM", "ENTERPRISE"]);
+export const inviteStatusEnum = pgEnum("InviteStatus", ["pending", "accepted", "expired", "revoked"]);
+export const orgRoleEnum = pgEnum("OrgRole", ["OWNER", "ATTORNEY", "STAFF"]);
+export const userRoleEnum = pgEnum("UserRole", ["attorney"]);
+
+// Users table
+export const users = pgTable("users", {
+  id: uuid("id").primaryKey().$defaultFn(() => randomUUID()),
+  clerkId: text("clerkId").notNull().unique(),
+  email: text("email").notNull().unique(),
+  firstName: text("first_name"),
+  lastName: text("last_name"),
+  role: userRoleEnum("role").default("attorney"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  barNumber: text("bar_number"),
+  addressLine1: text("address_line1"),
+  addressLine2: text("address_line2"),
+  city: text("city"),
+  state: text("state"),
+  postalCode: text("postal_code"),
+  country: text("country"),
+  phone: text("phone"),
+}, (table) => ({
+  nameIdx: index("users_first_name_last_name_idx").on(table.firstName, table.lastName),
+  addressIdx: index("users_address_idx").on(table.addressLine1, table.city, table.state, table.postalCode),
+}));
+
+// Organizations table
+export const organizations = pgTable("organizations", {
+  id: uuid("id").primaryKey().$defaultFn(() => randomUUID()),
+  name: text("name").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  slug: text("slug").notNull().unique(),
+  addressLine1: text("address_line1"),
+  addressLine2: text("address_line2"),
+  city: text("city"),
+  state: text("state"),
+  postalCode: text("postal_code"),
+  country: text("country"),
+  phone: text("phone"),
+  logoUrl: text("logo_url"),
+  billingPlan: billingPlanEnum("billing_plan").default("FREE"),
+  billingStatus: text("billing_status"),
+  stripeCustomerId: text("stripe_customer_id"),
+  stripeSubscriptionId: text("stripe_subscription_id"),
+});
+
+// Org members table
+export const orgMembers = pgTable("org_members", {
+  id: uuid("id").primaryKey().$defaultFn(() => randomUUID()),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  role: orgRoleEnum("role").default("ATTORNEY"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  uniqueUserOrg: uniqueIndex("org_members_user_id_organization_id_key").on(table.userId, table.organizationId),
+}));
+
+// Clients table
+export const clients = pgTable("clients", {
+  id: uuid("id").primaryKey().$defaultFn(() => randomUUID()),
+  email: text("email").notNull().unique(),
+  firstName: text("first_name").notNull(),
+  lastName: text("last_name").notNull(),
+  phone: text("phone"),
+  dateOfBirth: date("date_of_birth"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  userId: uuid("user_id").references(() => users.id),
+  orgId: uuid("org_id").references(() => organizations.id),
+  driversLicense: text("drivers_license"),
+  maidenName: text("maiden_name"),
+  passportNumber: text("passport_number"),
+  ssnLast4: text("ssn_last_4"),
+  clientFingerprint: text("client_fingerprint").unique(),
+  addressLine1: text("address_line1"),
+  addressLine2: text("address_line2"),
+  city: text("city"),
+  state: text("state"),
+  postalCode: text("postal_code"),
+  country: text("country"),
+}, (table) => ({
+  nameDobIdx: index("clients_first_name_last_name_date_of_birth_idx").on(table.firstName, table.lastName, table.dateOfBirth),
+  addressIdx: index("clients_address_idx").on(table.addressLine1, table.city, table.state, table.postalCode),
+  fingerprintIdx: index("clients_client_fingerprint_idx").on(table.clientFingerprint),
+  orgIdx: index("clients_org_id_idx").on(table.orgId),
+}));
+
+// Insurers table
+export const insurers = pgTable("insurers", {
+  id: uuid("id").primaryKey().$defaultFn(() => randomUUID()),
+  name: text("name").notNull(),
+  contactPhone: text("contact_phone"),
+  contactEmail: text("contact_email"),
+  website: text("website"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Policies table
+export const policies = pgTable("policies", {
+  id: uuid("id").primaryKey().$defaultFn(() => randomUUID()),
+  clientId: uuid("client_id").notNull().references(() => clients.id, { onDelete: "cascade" }),
+  insurerId: uuid("insurer_id").notNull().references(() => insurers.id, { onDelete: "cascade" }),
+  policyNumber: text("policy_number"),
+  policyType: text("policy_type"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Beneficiaries table
+export const beneficiaries = pgTable("beneficiaries", {
+  id: uuid("id").primaryKey().$defaultFn(() => randomUUID()),
+  clientId: uuid("client_id").notNull().references(() => clients.id, { onDelete: "cascade" }),
+  firstName: text("first_name").notNull(),
+  lastName: text("last_name").notNull(),
+  relationship: text("relationship"),
+  email: text("email"),
+  phone: text("phone"),
+  dateOfBirth: date("date_of_birth"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  addressLine1: text("address_line1"),
+  addressLine2: text("address_line2"),
+  city: text("city"),
+  state: text("state"),
+  postalCode: text("postal_code"),
+  country: text("country"),
+}, (table) => ({
+  nameDobIdx: index("beneficiaries_first_name_last_name_date_of_birth_idx").on(table.firstName, table.lastName, table.dateOfBirth),
+  addressIdx: index("beneficiaries_address_idx").on(table.addressLine1, table.city, table.state, table.postalCode),
+  clientIdx: index("beneficiaries_client_id_idx").on(table.clientId),
+}));
+
+// Policy beneficiaries junction table
+export const policyBeneficiaries = pgTable("policy_beneficiaries", {
+  id: uuid("id").primaryKey().$defaultFn(() => randomUUID()),
+  policyId: uuid("policy_id").notNull().references(() => policies.id, { onDelete: "cascade" }),
+  beneficiaryId: uuid("beneficiary_id").notNull().references(() => beneficiaries.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  uniquePolicyBeneficiary: uniqueIndex("policy_beneficiaries_policy_id_beneficiary_id_key").on(table.policyId, table.beneficiaryId),
+}));
+
+// Client invites table
+export const clientInvites = pgTable("client_invites", {
+  id: uuid("id").primaryKey().$defaultFn(() => randomUUID()),
+  clientId: uuid("client_id").notNull().references(() => clients.id, { onDelete: "cascade" }),
+  token: text("token").notNull().unique(),
+  email: text("email").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  usedAt: timestamp("used_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  invitedByUserId: uuid("invited_by_user_id").references(() => users.id),
+});
+
+// Invites table
+export const invites = pgTable("invites", {
+  id: uuid("id").primaryKey().$defaultFn(() => randomUUID()),
+  token: text("token").notNull().unique(),
+  attorneyId: uuid("attorney_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  organizationId: uuid("organization_id").references(() => organizations.id, { onDelete: "cascade" }),
+  clientEmail: text("client_email").notNull(),
+  status: inviteStatusEnum("status").default("pending"),
+  expiresAt: timestamp("expires_at").notNull(),
+  acceptedAt: timestamp("accepted_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Attorney client access table
+export const attorneyClientAccess = pgTable("attorney_client_access", {
+  id: uuid("id").primaryKey().$defaultFn(() => randomUUID()),
+  attorneyId: uuid("attorney_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  clientId: uuid("client_id").notNull().references(() => clients.id, { onDelete: "cascade" }),
+  organizationId: uuid("organization_id").references(() => organizations.id, { onDelete: "cascade" }),
+  grantedAt: timestamp("granted_at").defaultNow().notNull(),
+  revokedAt: timestamp("revoked_at"),
+  isActive: boolean("is_active").default(true),
+}, (table) => ({
+  uniqueAttorneyClient: uniqueIndex("attorney_client_access_attorney_id_client_id_key").on(table.attorneyId, table.clientId),
+}));
+
+// Access grants table
+export const accessGrants = pgTable("access_grants", {
+  id: uuid("id").primaryKey().$defaultFn(() => randomUUID()),
+  clientId: uuid("client_id").notNull().references(() => clients.id, { onDelete: "cascade" }),
+  orgId: uuid("org_id").references(() => organizations.id, { onDelete: "cascade" }),
+  attorneyUserId: uuid("attorney_user_id").references(() => users.id, { onDelete: "cascade" }),
+  status: accessGrantStatusEnum("status").notNull(),
+  grantedByUserId: uuid("granted_by_user_id"),
+  grantedAt: timestamp("granted_at").defaultNow().notNull(),
+  revokedAt: timestamp("revoked_at"),
+}, (table) => ({
+  uniqueClientOrg: uniqueIndex("access_grants_client_id_org_id_key").on(table.clientId, table.orgId),
+  attorneyIdx: index("access_grants_attorney_user_id_idx").on(table.attorneyUserId),
+  clientIdx: index("access_grants_client_id_idx").on(table.clientId),
+  orgIdx: index("access_grants_org_id_idx").on(table.orgId),
+}));
+
+// Audit logs table
+export const auditLogs = pgTable("audit_logs", {
+  id: uuid("id").primaryKey().$defaultFn(() => randomUUID()),
+  userId: uuid("user_id").references(() => users.id),
+  orgId: uuid("org_id").references(() => organizations.id),
+  clientId: uuid("client_id").references(() => clients.id),
+  policyId: uuid("policy_id").references(() => policies.id),
+  action: auditActionEnum("action").notNull(),
+  message: text("message").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  clientIdx: index("audit_logs_client_id_idx").on(table.clientId),
+  createdAtIdx: index("audit_logs_created_at_idx").on(table.createdAt),
+  orgIdx: index("audit_logs_org_id_idx").on(table.orgId),
+  policyIdx: index("audit_logs_policy_id_idx").on(table.policyId),
+  userIdx: index("audit_logs_user_id_idx").on(table.userId),
+}));
+
+// Documents table
+export const documents = pgTable("documents", {
+  id: uuid("id").primaryKey().$defaultFn(() => randomUUID()),
+  clientId: uuid("client_id").notNull().references(() => clients.id, { onDelete: "cascade" }),
+  policyId: uuid("policy_id").references(() => policies.id),
+  fileName: text("file_name").notNull(),
+  fileType: text("file_type").notNull(),
+  fileSize: integer("file_size").notNull(),
+  filePath: text("file_path").notNull(),
+  mimeType: text("mime_type").notNull(),
+  uploadedVia: text("uploaded_via"),
+  extractedData: json("extracted_data"),
+  ocrConfidence: integer("ocr_confidence"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  clientIdx: index("documents_client_id_idx").on(table.clientId),
+  createdAtIdx: index("documents_created_at_idx").on(table.createdAt),
+  policyIdx: index("documents_policy_id_idx").on(table.policyId),
+}));
+
+// Type exports for use in code
+export type User = typeof users.$inferSelect;
+export type NewUser = typeof users.$inferInsert;
+export type Client = typeof clients.$inferSelect;
+export type NewClient = typeof clients.$inferInsert;
+export type Policy = typeof policies.$inferSelect;
+export type NewPolicy = typeof policies.$inferInsert;
+export type Beneficiary = typeof beneficiaries.$inferSelect;
+export type NewBeneficiary = typeof beneficiaries.$inferInsert;
+export type Organization = typeof organizations.$inferSelect;
+export type NewOrganization = typeof organizations.$inferInsert;
+export type OrgMember = typeof orgMembers.$inferSelect;
+export type NewOrgMember = typeof orgMembers.$inferInsert;
+
+// Enum type exports (for compatibility with @prisma/client imports)
+export type AuditAction = "CLIENT_CREATED" | "CLIENT_UPDATED" | "POLICY_CREATED" | "POLICY_UPDATED" | "BENEFICIARY_CREATED" | "BENEFICIARY_UPDATED" | "INVITE_CREATED" | "INVITE_ACCEPTED" | "CLIENT_VIEWED" | "CLIENT_SUMMARY_PDF_DOWNLOADED" | "POLICY_SEARCH_PERFORMED" | "GLOBAL_POLICY_SEARCH_PERFORMED" | "DOCUMENT_UPLOADED" | "DOCUMENT_PROCESSED";
+export type OrgRole = "OWNER" | "ATTORNEY" | "STAFF";
+export type BillingPlan = "FREE" | "SOLO" | "SMALL_FIRM" | "ENTERPRISE";
+export type UserRole = "attorney";
+export type InviteStatus = "pending" | "accepted" | "expired" | "revoked";
+export type AccessGrantStatus = "ACTIVE" | "REVOKED";
+
+// Export enum values as constants for compatibility (separate namespace)
+export const AuditActionEnum = {
+  CLIENT_CREATED: "CLIENT_CREATED" as const,
+  CLIENT_UPDATED: "CLIENT_UPDATED" as const,
+  POLICY_CREATED: "POLICY_CREATED" as const,
+  POLICY_UPDATED: "POLICY_UPDATED" as const,
+  BENEFICIARY_CREATED: "BENEFICIARY_CREATED" as const,
+  BENEFICIARY_UPDATED: "BENEFICIARY_UPDATED" as const,
+  INVITE_CREATED: "INVITE_CREATED" as const,
+  INVITE_ACCEPTED: "INVITE_ACCEPTED" as const,
+  CLIENT_VIEWED: "CLIENT_VIEWED" as const,
+  CLIENT_SUMMARY_PDF_DOWNLOADED: "CLIENT_SUMMARY_PDF_DOWNLOADED" as const,
+  POLICY_SEARCH_PERFORMED: "POLICY_SEARCH_PERFORMED" as const,
+  GLOBAL_POLICY_SEARCH_PERFORMED: "GLOBAL_POLICY_SEARCH_PERFORMED" as const,
+  DOCUMENT_UPLOADED: "DOCUMENT_UPLOADED" as const,
+  DOCUMENT_PROCESSED: "DOCUMENT_PROCESSED" as const,
+} as const;
+

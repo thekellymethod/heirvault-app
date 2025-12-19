@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { randomUUID } from "crypto";
-import { AuditAction } from "@prisma/client";
+import { AuditAction } from "@/lib/db";
 import { verifyConfirmationCode } from "../send-confirmation/route";
 import { getOrCreateTestInvite } from "@/lib/test-invites";
 import { lookupClientInvite } from "@/lib/invite-lookup";

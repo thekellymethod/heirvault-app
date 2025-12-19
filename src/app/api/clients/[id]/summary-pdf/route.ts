@@ -4,7 +4,7 @@ import { ClientRegistrySummaryPDF } from "@/pdfs/ClientRegistrySummary"
 import { renderToStream } from "@react-pdf/renderer"
 import { requireAttorneyOrOwner } from "@/lib/authz"
 import { audit } from "@/lib/audit"
-import { AuditAction } from "@prisma/client"
+import { AuditAction } from "@/lib/db"
 
 interface Params {
   params: Promise<{ id: string }>

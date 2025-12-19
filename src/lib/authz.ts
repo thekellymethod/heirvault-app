@@ -1,7 +1,8 @@
 import { auth } from "@clerk/nextjs/server";
-import { prisma } from "./db";
-import { OrgRole } from "@prisma/client";
+import { db, users, orgMembers, organizations, eq } from "./db";
 import { getCurrentUser } from "./utils/clerk";
+
+type OrgRole = "OWNER" | "ATTORNEY" | "STAFF";
 
 export async function getCurrentUserWithOrg() {
   const { userId } = await auth();
@@ -11,79 +12,61 @@ export async function getCurrentUserWithOrg() {
   const user = await getCurrentUser();
   if (!user) return { clerkId: userId, user: null, orgMember: null };
 
-  // Get user with org memberships - use raw SQL first to avoid Prisma client issues
+  // Get user with org memberships
   let userWithOrg: any = null;
   let orgMember: any = null;
 
   try {
-    // Try raw SQL first
-    const rawResult = await prisma.$queryRaw<Array<{
-      user_id: string;
-      organization_id: string;
-      role: string;
-      org_name: string;
-      user_email: string;
-      user_first_name: string | null;
-      user_last_name: string | null;
-    }>>`
-      SELECT 
-        om.user_id,
-        om.organization_id,
-        om.role,
-        o.name as org_name,
-        u.email as user_email,
-        u.first_name as user_first_name,
-        u.last_name as user_last_name
-      FROM org_members om
-      INNER JOIN organizations o ON o.id = om.organization_id
-      INNER JOIN users u ON u.id = om.user_id
-      WHERE om.user_id = ${user.id}
-      LIMIT 1
-    `;
+    const result = await db
+      .select({
+        userId: users.id,
+        userEmail: users.email,
+        userFirstName: users.firstName,
+        userLastName: users.lastName,
+        userRole: users.role,
+        orgId: orgMembers.organizationId,
+        orgRole: orgMembers.role,
+        orgName: organizations.name,
+      })
+      .from(orgMembers)
+      .innerJoin(organizations, eq(orgMembers.organizationId, organizations.id))
+      .innerJoin(users, eq(orgMembers.userId, users.id))
+      .where(eq(orgMembers.userId, user.id))
+      .limit(1);
 
-    if (rawResult && rawResult.length > 0) {
-      const row = rawResult[0];
+    if (result && result.length > 0) {
+      const row = result[0];
       userWithOrg = {
-        id: user.id,
-        email: row.user_email,
-        firstName: row.user_first_name,
-        lastName: row.user_last_name,
+        id: row.userId,
+        email: row.userEmail,
+        firstName: row.userFirstName,
+        lastName: row.userLastName,
+        role: row.userRole || 'attorney',
         orgMemberships: [{
-          organizationId: row.organization_id,
-          role: row.role,
+          organizationId: row.orgId,
+          role: row.orgRole,
           organizations: {
-            id: row.organization_id,
-            name: row.org_name,
+            id: row.orgId,
+            name: row.orgName,
           },
         }],
       };
       orgMember = userWithOrg.orgMemberships[0];
     }
-  } catch (sqlError: any) {
-    console.error("getCurrentUserWithOrg: Raw SQL failed, trying Prisma:", sqlError.message);
-    // Fallback to Prisma
-    try {
-      userWithOrg = await prisma.user.findUnique({
-        where: { id: user.id },
-        include: {
-          orgMemberships: {
-            include: {
-              organizations: true,
-            },
-          },
-          clientRecord: true,
-        },
-      });
-      orgMember = userWithOrg?.orgMemberships[0] || null;
-    } catch (prismaError: any) {
-      console.error("getCurrentUserWithOrg: Prisma also failed:", prismaError.message);
-      // Return user without org if both fail
-      userWithOrg = user;
-      orgMember = null;
-    }
+  } catch (error: any) {
+    console.error("getCurrentUserWithOrg: Error fetching org membership:", error.message);
+    // Return user without org if query fails
+    userWithOrg = user;
+    orgMember = null;
   }
 
-  return { clerkId: userId, user: userWithOrg || user, orgMember };
+  // Ensure the returned user has a role set (default to attorney)
+  const finalUser = userWithOrg || user;
+  if (finalUser && !finalUser.role) {
+    finalUser.role = 'attorney';
+  }
+  
+  return { clerkId: userId, user: finalUser, orgMember };
 }
 
 export function hasOrgRole(orgMember: { role: OrgRole }, role: OrgRole | OrgRole[]) {
@@ -148,34 +131,15 @@ export async function assertAttorneyCanAccessClient(clientId: string) {
   }
 
   // Verify user is an attorney
-  if (user.role !== 'attorney') {
+  // All authenticated users are attorneys by default
+  // If role is not set, default to attorney
+  const userRole = user.role || 'attorney';
+  if (userRole !== 'attorney') {
     throw new Error("Forbidden: Only attorneys can access client data")
   }
 
-  // Verify client exists - use raw SQL first
-  try {
-    const clientResult = await prisma.$queryRaw<Array<{ id: string }>>`
-      SELECT id FROM clients WHERE id = ${clientId} LIMIT 1
-    `;
-    
-    if (!clientResult || clientResult.length === 0) {
-      // Try Prisma fallback
-      const client = await prisma.client.findUnique({
-        where: { id: clientId },
-        select: { id: true },
-      });
-      
-      if (!client) {
-        throw new Error("Client not found");
-      }
-    }
-  } catch (error: any) {
-    if (error.message === "Client not found") {
-      throw error;
-    }
-    console.error('assertAttorneyCanAccessClient: Error checking client existence:', error.message);
-    // Continue - if client doesn't exist, the API will return 404
-  }
+  // Note: We don't verify client existence here - the API route will handle that
+  // This function only verifies that the user has permission to access clients
 
   console.log('assertAttorneyCanAccessClient: Global access granted for attorney', {
     clientId,

@@ -1,5 +1,5 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
-import { prisma } from "@/lib/db";
+import { db, users, eq, sql } from "@/lib/db";
 import { randomUUID } from "crypto";
 
 type Role = "attorney";
@@ -43,30 +43,20 @@ export async function getCurrentUser() {
   console.log("getCurrentUser - Clerk role:", clerkRole, "Raw metadata:", (cu.publicMetadata as any)?.role);
 
   // Check existing user in database first to preserve their role
-  // Use raw SQL to bypass Prisma schema issues
   let existingUser = null;
   try {
-    // Try Prisma first
-    existingUser = await prisma.user.findUnique({
-      where: { clerkId: userId },
-      select: { role: true },
-    });
-    console.log("getCurrentUser - Existing DB role:", existingUser?.role);
-  } catch (prismaError: any) {
-    console.error("getCurrentUser - Prisma error checking existing user, trying raw SQL:", prismaError.message);
-    // Fallback to raw SQL if Prisma fails
-    try {
-      const rawResult = await prisma.$queryRaw<Array<{ role: string }>>`
-        SELECT role FROM users WHERE "clerkId" = ${userId} LIMIT 1
-      `;
-      if (rawResult && rawResult.length > 0) {
-        existingUser = { role: rawResult[0].role };
-        console.log("getCurrentUser - Found user via raw SQL, role:", existingUser.role);
-      }
-    } catch (sqlError: any) {
-      console.error("getCurrentUser - Raw SQL also failed:", sqlError.message);
-      // Continue without existing user - will create new one
+    const result = await db.select({ role: users.role })
+      .from(users)
+      .where(eq(users.clerkId, userId))
+      .limit(1);
+    
+    if (result && result.length > 0) {
+      existingUser = { role: result[0].role };
+      console.log("getCurrentUser - Existing DB role:", existingUser.role);
     }
+  } catch (error: any) {
+    console.error("getCurrentUser - Error checking existing user:", error.message);
+    // Continue without existing user - will create new one
   }
 
   // All accounts are attorney accounts - default to attorney if not set
@@ -75,17 +65,20 @@ export async function getCurrentUser() {
   console.log("getCurrentUser - Final role to use:", finalRole);
 
   // Check if email is already used by a different user
-  // Skip this check entirely if Prisma is having issues - database constraints will handle conflicts
   let existingUserByEmail = null;
-  // Only attempt email check if we successfully got existingUser (Prisma is working)
   if (existingUser) {
     try {
-      existingUserByEmail = await prisma.user.findUnique({
-        where: { email },
-      });
-    } catch (prismaError: any) {
-      // Silently skip email check if Prisma fails - database unique constraint will handle conflicts
-      // Don't log error here to reduce noise - it's expected when Prisma client is out of sync
+      const result = await db.select()
+        .from(users)
+        .where(eq(users.email, email))
+        .limit(1);
+      
+      if (result && result.length > 0) {
+        existingUserByEmail = result[0];
+      }
+    } catch (error: any) {
+      // Silently skip email check if it fails - database unique constraint will handle conflicts
+      console.error("getCurrentUser - Error checking email:", error.message);
     }
   }
 
@@ -96,24 +89,23 @@ export async function getCurrentUser() {
     if (existingUser) {
       // User exists by clerkId - update but don't change email
       try {
-        const dbUser = await prisma.user.update({
-          where: { clerkId: userId },
-          data: {
+        const [dbUser] = await db.update(users)
+          .set({
             firstName,
             lastName,
             role: finalRole,
-            // Don't update email - it belongs to another account
-          },
-          select: {
-            id: true,
-            clerkId: true,
-            email: true,
-            firstName: true,
-            lastName: true,
-            role: true,
-          },
-        });
-        return dbUser;
+            updatedAt: new Date(),
+          })
+          .where(eq(users.clerkId, userId))
+          .returning({
+            id: users.id,
+            clerkId: users.clerkId,
+            email: users.email,
+            firstName: users.firstName,
+            lastName: users.lastName,
+            role: users.role,
+          });
+        if (dbUser) return dbUser;
       } catch (updateError: any) {
         console.error("getCurrentUser - Error updating user (email conflict):", updateError.message);
         // Fall through to return minimal user
@@ -125,24 +117,23 @@ export async function getCurrentUser() {
       const uniqueEmail = `${userId.replace(/^user_/, '')}@clerk-${Date.now()}.temp`;
       console.warn(`Email ${email} already exists for different Clerk account. Using temporary email: ${uniqueEmail}`);
       try {
-        const dbUser = await prisma.user.create({
-          data: {
+        const [dbUser] = await db.insert(users)
+          .values({
             clerkId: userId,
             email: uniqueEmail,
             firstName,
             lastName,
             role: finalRole,
-          },
-          select: {
-            id: true,
-            clerkId: true,
-            email: true,
-            firstName: true,
-            lastName: true,
-            role: true,
-          },
-        });
-        return dbUser;
+          })
+          .returning({
+            id: users.id,
+            clerkId: users.clerkId,
+            email: users.email,
+            firstName: users.firstName,
+            lastName: users.lastName,
+            role: users.role,
+          });
+        if (dbUser) return dbUser;
       } catch (createError: any) {
         console.error("getCurrentUser - Error creating user with temp email:", createError.message);
         // Fall through to return minimal user
@@ -162,176 +153,138 @@ export async function getCurrentUser() {
 
   // Normal case: email is available or belongs to this user
   if (existingUser) {
-    // User exists - update (but skip email if it conflicts)
+    // User exists - update
     try {
-      const dbUser = await prisma.user.update({
-        where: { clerkId: userId },
-        data: {
+      const [dbUser] = await db.update(users)
+        .set({
           email,
           firstName,
           lastName,
           role: finalRole,
-        },
-        select: {
-          id: true,
-          clerkId: true,
-          email: true,
-          firstName: true,
-          lastName: true,
-          role: true,
-        },
-      });
-      console.log("getCurrentUser - Updated existing user:", dbUser.id, dbUser.role);
-      return dbUser;
+          updatedAt: new Date(),
+        })
+        .where(eq(users.clerkId, userId))
+        .returning({
+          id: users.id,
+          clerkId: users.clerkId,
+          email: users.email,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          role: users.role,
+        });
+      
+      if (dbUser) {
+        console.log("getCurrentUser - Updated existing user:", dbUser.id, dbUser.role);
+        return dbUser;
+      }
     } catch (updateError: any) {
       console.error("getCurrentUser - Error updating user:", updateError.message);
-      // If update fails due to Prisma issues, return a minimal user object to allow access
-      if (updateError.code === 'P2025' || updateError.message.includes('does not exist')) {
-        console.log("getCurrentUser - User not found in DB, will create instead");
-        // Fall through to create logic
-      } else {
-        // For other errors, return a basic user object to prevent blocking
-        console.warn("getCurrentUser - Returning minimal user object due to Prisma error");
-        return {
-          id: userId,
-          clerkId: userId,
-          email,
-          firstName,
-          lastName,
-          role: finalRole,
-        };
-      }
+      // For errors, return a basic user object to prevent blocking
+      console.warn("getCurrentUser - Returning minimal user object due to update error");
+      return {
+        id: userId,
+        clerkId: userId,
+        email,
+        firstName,
+        lastName,
+        role: finalRole,
+      };
     }
   }
   
   // User doesn't exist or update failed - create new user
   console.log("getCurrentUser - Creating new user with role:", finalRole);
   try {
-    const dbUser = await prisma.user.create({
-      data: {
+    const [dbUser] = await db.insert(users)
+      .values({
         clerkId: userId,
         email,
         firstName,
         lastName,
         role: finalRole,
-      },
-      select: {
-        id: true,
-        clerkId: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        role: true,
-      },
-    });
-    console.log("getCurrentUser - Created new user:", dbUser.id, dbUser.role);
-    return dbUser;
-  } catch (error: any) {
-    console.error("getCurrentUser - Prisma create failed, trying raw SQL:", error.message);
-    // Try raw SQL insert as fallback
-    try {
-      const userIdUuid = randomUUID();
-      await prisma.$executeRaw`
-        INSERT INTO users (id, "clerkId", email, first_name, last_name, role, created_at, updated_at)
-        VALUES (${userIdUuid}, ${userId}, ${email}, ${firstName}, ${lastName}, ${finalRole}::"UserRole", NOW(), NOW())
-        ON CONFLICT ("clerkId") DO UPDATE 
-        SET email = EXCLUDED.email,
-            first_name = EXCLUDED.first_name,
-            last_name = EXCLUDED.last_name,
-            role = EXCLUDED.role,
-            updated_at = NOW()
-      `;
-      // Fetch created user with raw SQL
-      const rawResult = await prisma.$queryRaw<Array<{ id: string; clerkId: string; email: string; first_name: string | null; last_name: string | null; role: string }>>`
-        SELECT id, "clerkId", email, first_name, last_name, role 
-        FROM users 
-        WHERE "clerkId" = ${userId} 
-        LIMIT 1
-      `;
-      if (rawResult && rawResult.length > 0) {
-        const user = rawResult[0];
-        console.log("getCurrentUser - Created/updated user via raw SQL");
-        return {
-          id: user.id,
-          clerkId: user.clerkId,
-          email: user.email,
-          firstName: user.first_name,
-          lastName: user.last_name,
-          role: user.role as Role,
-        };
-      }
-    } catch (sqlError: any) {
-      console.error("getCurrentUser - Raw SQL create also failed:", sqlError.message);
-    }
+      })
+      .returning({
+        id: users.id,
+        clerkId: users.clerkId,
+        email: users.email,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        role: users.role,
+      });
     
-    console.error("Create user error in getCurrentUser:", error);
-      console.error("Error details:", JSON.stringify(error, null, 2));
-      // Handle unique constraint violation on email
-      const isEmailConstraintError = 
-        error?.code === 'P2002' && 
-        (error?.meta?.target?.includes('email') || 
-         error?.meta?.target_name === 'users_email_key' ||
-         error?.message?.includes('email'));
-      
-      if (isEmailConstraintError) {
-        console.log("Email constraint violation during create in getCurrentUser, email was taken by another user");
-        // Email was taken between our check and create - try to find the existing user
-        const existingByEmail = await prisma.user.findUnique({
-          where: { email },
-          select: {
-            id: true,
-            clerkId: true,
-            email: true,
-            firstName: true,
-            lastName: true,
-            role: true,
-          },
-        });
-        if (existingByEmail) {
+    if (dbUser) {
+      console.log("getCurrentUser - Created new user:", dbUser.id, dbUser.role);
+      return dbUser;
+    }
+  } catch (error: any) {
+    console.error("getCurrentUser - Create failed:", error.message);
+    
+    // Handle unique constraint violation on email
+    const isEmailConstraintError = 
+      error?.code === '23505' && 
+      (error?.constraint === 'users_email_key' || error?.message?.includes('email'));
+    
+    if (isEmailConstraintError) {
+      console.log("Email constraint violation during create, email was taken by another user");
+      // Email was taken between our check and create - try to find the existing user
+      try {
+        const result = await db.select()
+          .from(users)
+          .where(eq(users.email, email))
+          .limit(1);
+        
+        if (result && result.length > 0) {
           console.log("Found existing user by email, returning it");
-          return existingByEmail;
+          return {
+            id: result[0].id,
+            clerkId: result[0].clerkId,
+            email: result[0].email,
+            firstName: result[0].firstName,
+            lastName: result[0].lastName,
+            role: result[0].role as Role,
+          };
         }
-        // If we can't find it, create with temporary email
-        const uniqueEmail = `${userId.replace(/^user_/, '')}@clerk-${Date.now()}.temp`;
-        console.warn(`Using temporary email: ${uniqueEmail}`);
-        const dbUser = await prisma.user.create({
-          data: {
+      } catch (findError: any) {
+        console.error("Error finding user by email:", findError.message);
+      }
+      
+      // If we can't find it, create with temporary email
+      const uniqueEmail = `${userId.replace(/^user_/, '')}@clerk-${Date.now()}.temp`;
+      console.warn(`Using temporary email: ${uniqueEmail}`);
+      try {
+        const [dbUser] = await db.insert(users)
+          .values({
             clerkId: userId,
             email: uniqueEmail,
             firstName,
             lastName,
             role: finalRole,
-          },
-          select: {
-            id: true,
-            clerkId: true,
-            email: true,
-            firstName: true,
-            lastName: true,
-            role: true,
-          },
-        });
-        return dbUser;
-      } else {
-        // For Prisma schema/column errors, return a minimal user object to allow access
-        // This prevents blocking authentication when Prisma client is out of sync
-        if (error.code === 'P2021' || error.code === 'P2025' || error.message.includes('does not exist')) {
-          console.error("getCurrentUser - Prisma schema error, returning minimal user object:", error.message);
-          console.warn("getCurrentUser - User will be created on next successful Prisma connection");
-          return {
-            id: userId,
-            clerkId: userId,
-            email,
-            firstName,
-            lastName,
-            role: finalRole,
-          };
-        }
-        // Re-throw other errors so we can see what's wrong
-        console.error("Unexpected error creating user:", error);
-        throw error;
+          })
+          .returning({
+            id: users.id,
+            clerkId: users.clerkId,
+            email: users.email,
+            firstName: users.firstName,
+            lastName: users.lastName,
+            role: users.role,
+          });
+        if (dbUser) return dbUser;
+      } catch (createError: any) {
+        console.error("Error creating user with temp email:", createError.message);
       }
     }
+    
+    // For other errors, return a minimal user object to allow access
+    console.warn("getCurrentUser - Returning minimal user object due to create error");
+    return {
+      id: userId,
+      clerkId: userId,
+      email,
+      firstName,
+      lastName,
+      role: finalRole,
+    };
+  }
 }
 
 export async function requireAuth(requiredRole?: Role) {
@@ -340,11 +293,16 @@ export async function requireAuth(requiredRole?: Role) {
 
   // All accounts are attorney accounts - ensure role is attorney
   if (user.role !== "attorney") {
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { role: "attorney" },
-    });
-    user.role = "attorney";
+    try {
+      await db.update(users)
+        .set({ role: "attorney", updatedAt: new Date() })
+        .where(eq(users.id, user.id));
+      user.role = "attorney";
+    } catch (error: any) {
+      console.error("Error updating user role:", error.message);
+      // Continue anyway
+      user.role = "attorney";
+    }
   }
 
   // If a role is specified, it must be attorney (only role available)

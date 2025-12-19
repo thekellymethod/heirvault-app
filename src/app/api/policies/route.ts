@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
+import { db, insurers, policies, beneficiaries, policyBeneficiaries, eq, desc, inArray, AuditAction } from '@/lib/db'
 import { getCurrentUserWithOrg, assertAttorneyCanAccessClient, assertClientSelfAccess } from '@/lib/authz'
 import { audit } from '@/lib/audit'
-import { AuditAction } from '@prisma/client'
 
 export async function POST(req: NextRequest) {
   try {
@@ -31,49 +30,59 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    if (user.role === 'attorney') {
+    // All authenticated users are attorneys and have global access to all clients
+    // Clients don't have accounts - they access via invitation tokens
+    if (user.role === 'attorney' || !user.role) {
       await assertAttorneyCanAccessClient(clientId)
     } else {
+      // This branch should rarely/never execute since clients don't have accounts
       await assertClientSelfAccess(clientId)
     }
 
     // Find or create insurer
-    let insurer = await prisma.insurer.findFirst({
-      where: { name: insurerName },
-    })
+    const [existingInsurer] = await db.select()
+      .from(insurers)
+      .where(eq(insurers.name, insurerName))
+      .limit(1);
 
-    if (!insurer) {
-      insurer = await prisma.insurer.create({
-        data: {
+    let insurer;
+    if (!existingInsurer) {
+      const [newInsurer] = await db.insert(insurers)
+        .values({
           name: insurerName,
           contactPhone: insurerPhone || null,
           contactEmail: insurerEmail || null,
           website: insurerWebsite || null,
-        },
-      })
+        })
+        .returning();
+      insurer = newInsurer;
     } else {
       // Update existing insurer if new contact info provided
       if (insurerPhone || insurerEmail || insurerWebsite) {
-        insurer = await prisma.insurer.update({
-          where: { id: insurer.id },
-          data: {
-            contactPhone: insurerPhone || insurer.contactPhone,
-            contactEmail: insurerEmail || insurer.contactEmail,
-            website: insurerWebsite || insurer.website,
-          },
-        })
+        const [updated] = await db.update(insurers)
+          .set({
+            contactPhone: insurerPhone || existingInsurer.contactPhone,
+            contactEmail: insurerEmail || existingInsurer.contactEmail,
+            website: insurerWebsite || existingInsurer.website,
+            updatedAt: new Date(),
+          })
+          .where(eq(insurers.id, existingInsurer.id))
+          .returning();
+        insurer = updated || existingInsurer;
+      } else {
+        insurer = existingInsurer;
       }
     }
 
     // Create policy
-    const policy = await prisma.policy.create({
-      data: {
+    const [policy] = await db.insert(policies)
+      .values({
         clientId,
         insurerId: insurer.id,
         policyNumber: policyNumber || null,
         policyType: policyType || null,
-      },
-    })
+      })
+      .returning();
 
     await audit(AuditAction.POLICY_CREATED, {
       clientId: policy.clientId,
@@ -108,33 +117,54 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    if (user.role === 'attorney') {
+    // All authenticated users are attorneys and have global access to all clients
+    // Clients don't have accounts - they access via invitation tokens
+    if (user.role === 'attorney' || !user.role) {
       await assertAttorneyCanAccessClient(clientId)
     } else {
+      // This branch should rarely/never execute since clients don't have accounts
       await assertClientSelfAccess(clientId)
     }
 
-    const policies = await prisma.policy.findMany({
-      where: { clientId },
-      include: {
-        insurer: true,
-        beneficiaries: {
-          include: {
-            beneficiary: true,
-          },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
+    // Get policies with insurers
+    const policiesList = await db.select({
+      policy: policies,
+      insurer: insurers,
     })
+      .from(policies)
+      .innerJoin(insurers, eq(policies.insurerId, insurers.id))
+      .where(eq(policies.clientId, clientId))
+      .orderBy(desc(policies.createdAt));
+
+    // Get policy beneficiaries
+    const policyIds = policiesList.map(p => p.policy.id);
+    const policyBeneficiaryData = policyIds.length > 0
+      ? await db.select({
+          policyId: policyBeneficiaries.policyId,
+          beneficiary: beneficiaries,
+        })
+          .from(policyBeneficiaries)
+          .innerJoin(beneficiaries, eq(policyBeneficiaries.beneficiaryId, beneficiaries.id))
+          .where(inArray(policyBeneficiaries.policyId, policyIds))
+      : [];
+
+    // Combine policies with beneficiaries
+    const policiesWithRelations = policiesList.map(p => ({
+      ...p.policy,
+      insurer: p.insurer,
+      beneficiaries: policyBeneficiaryData
+        .filter(pb => pb.policyId === p.policy.id)
+        .map(pb => ({ beneficiary: pb.beneficiary })),
+    }));
 
     await logAuditEvent({
-      action: 'read',
+      action: 'read' as any,
       resourceType: 'policy',
       resourceId: `list-${clientId}`,
       userId: user.id,
     })
 
-    return NextResponse.json(policies)
+    return NextResponse.json(policiesWithRelations)
   } catch (error: any) {
     return NextResponse.json(
       { error: error.message },
