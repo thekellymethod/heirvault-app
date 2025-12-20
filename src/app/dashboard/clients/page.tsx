@@ -1,33 +1,43 @@
 import Link from "next/link";
-import { prisma } from "@/lib/db";
+import { db, attorneyClientAccess, clients, eq, desc, and } from "@/lib/db";
 import { requireAuth } from "@/lib/utils/clerk";
 import { Button } from "@/components/ui/button";
-import { redirect } from "next/navigation";
 
 export default async function ClientsPage() {
   try {
     const user = await requireAuth();
 
-    const rows = await prisma.attorneyClientAccess.findMany({
-      where: { attorneyId: user.id, isActive: true },
-      select: {
-        grantedAt: true,
-        client: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-            phone: true,
-            updatedAt: true,
-            createdAt: true,
-          },
-        },
-      },
-      orderBy: { grantedAt: "desc" },
-    });
+    // Use Drizzle ORM to fetch clients
+    const rows = await db
+      .select({
+        grantedAt: attorneyClientAccess.grantedAt,
+        id: clients.id,
+        firstName: clients.firstName,
+        lastName: clients.lastName,
+        email: clients.email,
+        phone: clients.phone,
+        updatedAt: clients.updatedAt,
+        createdAt: clients.createdAt,
+      })
+      .from(attorneyClientAccess)
+      .innerJoin(clients, eq(attorneyClientAccess.clientId, clients.id))
+      .where(
+        and(
+          eq(attorneyClientAccess.attorneyId, user.id),
+          eq(attorneyClientAccess.isActive, true)
+        )
+      )
+      .orderBy(desc(attorneyClientAccess.grantedAt));
 
-    const clients = rows.map((r) => r.client);
+    const clientList = rows.map((r) => ({
+      id: r.id,
+      firstName: r.firstName,
+      lastName: r.lastName,
+      email: r.email,
+      phone: r.phone,
+      updatedAt: r.updatedAt,
+      createdAt: r.createdAt,
+    }));
 
   return (
     <div className="space-y-6">
@@ -52,13 +62,13 @@ export default async function ClientsPage() {
           <div className="col-span-2 text-right">Updated</div>
         </div>
 
-        {clients.length === 0 ? (
+        {clientList.length === 0 ? (
           <div className="px-4 py-8 text-sm text-slate-300">
             No clients yet. Create your first client profile.
           </div>
         ) : (
           <div className="divide-y divide-slate-800">
-            {clients.map((c) => (
+            {clientList.map((c) => (
               <Link
                 key={c.id}
                 href={`/dashboard/clients/${c.id}`}

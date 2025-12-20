@@ -199,7 +199,8 @@ export default function LandingPage() {
           <div className="mt-12 grid gap-6 md:grid-cols-3">
             <div className="card p-8 text-center transition hover:-translate-y-1 hover:shadow-lift">
               <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-paper-100 border border-slateui-200">
-                <Image src="/search-hv.png" alt="Search icon" width={44} height={44} />
+                {/* eslint-disable-next-line react/forbid-dom-props */}
+                <Image src="/search-hv.png" alt="Search icon" width={44} height={44} style={{ width: 'auto', height: 'auto' }} className="object-contain" />
               </div>
               <h3 className="mt-6 font-display text-xl text-ink-900">Search for a Policy</h3>
               <p className="mt-3 text-sm md:text-base text-slateui-600">
@@ -209,7 +210,8 @@ export default function LandingPage() {
 
             <div className="card p-8 text-center transition hover:-translate-y-1 hover:shadow-lift">
               <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-paper-100 border border-slateui-200">
-                <Image src="/vault-hv.png" alt="Secure icon" width={44} height={44} />
+                {/* eslint-disable-next-line react/forbid-dom-props */}
+                <Image src="/vault-hv.png" alt="Secure icon" width={44} height={44} style={{ width: 'auto', height: 'auto' }} className="object-contain" />
               </div>
               <h3 className="mt-6 font-display text-xl text-ink-900">Secure Your Claim</h3>
               <p className="mt-3 text-sm md:text-base text-slateui-600">
@@ -219,7 +221,8 @@ export default function LandingPage() {
 
             <div className="card p-8 text-center transition hover:-translate-y-1 hover:shadow-lift">
               <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-paper-100 border border-slateui-200">
-                <Image src="/folder-hv.png" alt="Folder icon" width={44} height={44} />
+                {/* eslint-disable-next-line react/forbid-dom-props */}
+                <Image src="/folder-hv.png" alt="Folder icon" width={44} height={44} style={{ width: 'auto', height: 'auto' }} className="object-contain" />
               </div>
               <h3 className="mt-6 font-display text-xl text-ink-900">Manage Policies</h3>
               <p className="mt-3 text-sm md:text-base text-slateui-600">

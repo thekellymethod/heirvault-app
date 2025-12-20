@@ -5,6 +5,9 @@ import { eq, and, or, inArray, sql, desc, asc } from "drizzle-orm";
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
+  connectionTimeoutMillis: 10000, // 10 second timeout
+  // Note: query_timeout and statement_timeout are PostgreSQL connection string parameters
+  // They should be set in the DATABASE_URL if needed, not here
 });
 
 // Create Drizzle instance

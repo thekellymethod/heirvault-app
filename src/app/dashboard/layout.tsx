@@ -1,6 +1,5 @@
 import * as React from "react";
 import { DashboardWrapper } from "./_components/DashboardWrapper";
-import { getCurrentUser } from "@/lib/utils/clerk";
 
 export const runtime = "nodejs";
 
@@ -9,9 +8,9 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // Clerk middleware handles authentication - ensure user exists in database
-  // This will create the user if they don't exist yet
-  await getCurrentUser();
+  // Clerk middleware handles authentication
+  // Don't block rendering with getCurrentUser() - let pages handle their own user fetching
+  // This prevents hanging if there are database connection issues
   
   return <DashboardWrapper>{children}</DashboardWrapper>;
 }

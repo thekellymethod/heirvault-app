@@ -1,18 +1,29 @@
 "use client";
 
-import { SignUp } from "@clerk/nextjs";
+import { SignUp, useAuth } from "@clerk/nextjs";
 import { Logo } from "@/components/Logo";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function SignUpPage() {
   const [mounted, setMounted] = useState(false);
+  const { isSignedIn, isLoaded } = useAuth();
+  const router = useRouter();
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  if (!mounted) {
+  // Redirect if already signed in
+  useEffect(() => {
+    if (isLoaded && isSignedIn) {
+      router.push("/dashboard");
+    }
+  }, [isLoaded, isSignedIn, router]);
+
+  // Show loading while checking auth or mounting
+  if (!mounted || (isLoaded && isSignedIn)) {
     return (
       <main className="min-h-screen bg-gradient-to-b from-slate-50 to-white flex items-center justify-center px-4 py-8">
         <div className="w-full max-w-md">
@@ -48,8 +59,6 @@ export default function SignUpPage() {
           <SignUp
             routing="path"
             path="/sign-up"
-            afterSignUpUrl="/dashboard"
-            redirectUrl="/dashboard"
             signInUrl="/sign-in"
             fallbackRedirectUrl="/dashboard"
             appearance={{

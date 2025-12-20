@@ -10,45 +10,76 @@ type Role = "attorney";
  * Creates or updates the user record as needed.
  */
 export async function getCurrentUser() {
-  const { userId } = await auth();
-  if (!userId) {
-    return null;
-  }
+  try {
+    const { userId } = await auth();
+    if (!userId) {
+      return null;
+    }
 
-  const cu = await currentUser();
-  if (!cu) {
-    return null;
-  }
+    const cu = await currentUser();
+    if (!cu) {
+      return null;
+    }
 
-  const email = cu.emailAddresses?.[0]?.emailAddress ?? null;
-  const firstName = cu.firstName ?? null;
-  const lastName = cu.lastName ?? null;
+    const email = cu.emailAddresses?.[0]?.emailAddress ?? null;
+    const firstName = cu.firstName ?? null;
+    const lastName = cu.lastName ?? null;
 
-  if (!email) {
-    return null;
-  }
+    if (!email) {
+      console.warn("getCurrentUser: No email found for user", userId);
+      return null;
+    }
 
-  // All accounts are attorney accounts
-  const role: Role = "attorney";
+    // All accounts are attorney accounts
+    const role: Role = "attorney";
 
-  // Check if user exists in database
-  const [existingUser] = await db.select()
-    .from(users)
-    .where(eq(users.clerkId, userId))
-    .limit(1);
+    // Check if user exists in database
+    const [existingUser] = await db.select()
+      .from(users)
+      .where(eq(users.clerkId, userId))
+      .limit(1);
 
-  if (existingUser) {
-    // Update existing user
+    if (existingUser) {
+      // Update existing user
+      try {
+        const [updatedUser] = await db.update(users)
+          .set({
+            email,
+            firstName,
+            lastName,
+            role,
+            updatedAt: new Date(),
+          })
+          .where(eq(users.clerkId, userId))
+          .returning({
+            id: users.id,
+            clerkId: users.clerkId,
+            email: users.email,
+            firstName: users.firstName,
+            lastName: users.lastName,
+            role: users.role,
+          });
+        
+        if (updatedUser) {
+          return updatedUser;
+        }
+      } catch (error: any) {
+        console.error("Error updating user:", error.message);
+        // Return existing user on error
+        return existingUser;
+      }
+    }
+  
+    // Create new user
     try {
-      const [updatedUser] = await db.update(users)
-        .set({
+      const [newUser] = await db.insert(users)
+        .values({
+          clerkId: userId,
           email,
           firstName,
           lastName,
           role,
-          updatedAt: new Date(),
         })
-        .where(eq(users.clerkId, userId))
         .returning({
           id: users.id,
           clerkId: users.clerkId,
@@ -58,56 +89,32 @@ export async function getCurrentUser() {
           role: users.role,
         });
       
-      if (updatedUser) {
-        return updatedUser;
+      if (newUser) {
+        return newUser;
       }
     } catch (error: any) {
-      console.error("Error updating user:", error.message);
-      // Return existing user on error
-      return existingUser;
-    }
-  }
-  
-  // Create new user
-  try {
-    const [newUser] = await db.insert(users)
-      .values({
-        clerkId: userId,
-        email,
-        firstName,
-        lastName,
-        role,
-      })
-      .returning({
-        id: users.id,
-        clerkId: users.clerkId,
-        email: users.email,
-        firstName: users.firstName,
-        lastName: users.lastName,
-        role: users.role,
-      });
-    
-    if (newUser) {
-      return newUser;
-    }
-  } catch (error: any) {
-    console.error("Error creating user:", error.message);
-    
-    // Handle unique constraint violation on email
-    if (error?.code === '23505' && error?.constraint === 'users_email_key') {
-      // Email was taken - try to find the existing user
-      const [foundUser] = await db.select()
-        .from(users)
-        .where(eq(users.email, email))
-        .limit(1);
+      console.error("Error creating user:", error.message);
       
-      if (foundUser) {
-        return foundUser;
+      // Handle unique constraint violation on email
+      if (error?.code === '23505' && error?.constraint === 'users_email_key') {
+        // Email was taken - try to find the existing user
+        const [foundUser] = await db.select()
+          .from(users)
+          .where(eq(users.email, email))
+          .limit(1);
+        
+        if (foundUser) {
+          return foundUser;
+        }
       }
     }
-  }
 
-  return null;
+    return null;
+  } catch (error: any) {
+    // Top-level error handler - log and return null to prevent blocking
+    console.error("getCurrentUser: Unexpected error:", error?.message || error);
+    return null;
+  }
 }
 
 /**
