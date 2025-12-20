@@ -108,4 +108,3 @@ export function verifyConfirmationCode(token: string, code: string, method: stri
   if (stored.method !== method) return false;
   return stored.code === code;
 }
-
