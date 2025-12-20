@@ -799,9 +799,11 @@ export default function PolicyLocatorPage() {
               <span className="font-medium">Email:</span> support@heirvault.com
             </div>
           </div>
-          <Button variant="outline" className="w-full" asChild>
-            <Link href="/dashboard/settings/org">Contact Support</Link>
-          </Button>
+          <Link href="/dashboard/settings/org">
+            <Button variant="outline" className="w-full">
+              Contact Support
+            </Button>
+          </Link>
         </div>
 
       {/* Footer Warnings */}

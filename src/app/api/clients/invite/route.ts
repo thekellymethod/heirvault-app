@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db, clients, attorneyClientAccess, clientInvites, eq } from '@/lib/db'
-import { requireAuth } from '@/lib/utils/clerk'
+import { requireAuthApi } from '@/lib/utils/clerk'
 import { logAuditEvent } from '@/lib/audit'
 import { sendClientInviteEmail } from '@/lib/email'
 import { getCurrentUserWithOrg } from '@/lib/authz'
@@ -8,8 +8,11 @@ import { generateClientFingerprint, findClientByFingerprint } from '@/lib/client
 import { randomBytes, randomUUID } from 'crypto'
 
 export async function POST(req: NextRequest) {
+  const authResult = await requireAuthApi();
+  if (authResult.response) return authResult.response;
+  const { user } = authResult;
+
   try {
-    const user = await requireAuth('attorney')
     const body = await req.json().catch(() => ({}))
     
     const {
@@ -38,7 +41,6 @@ export async function POST(req: NextRequest) {
     }
 
     // Get organization ID from orgMember
-    // orgMember has organizationId (from org_members table) and organizations (relation)
     const organizationId = (orgMember as any).organizationId || orgMember.organizations?.id
     const organizationName = orgMember.organizations?.name || 'Your Firm'
     
@@ -69,7 +71,6 @@ export async function POST(req: NextRequest) {
       // Check if client with same fingerprint already exists
       const existingClientId = await findClientByFingerprint(fingerprint, db);
       if (existingClientId) {
-        // Use existing client instead of creating duplicate
         const [existing] = await db.select()
           .from(clients)
           .where(eq(clients.id, existingClientId))
@@ -108,7 +109,6 @@ export async function POST(req: NextRequest) {
           });
       } catch (error: any) {
         console.error("Client invite: Access grant failed:", error.message);
-        // Continue - access grant is important but not critical for invite creation
       }
 
       await logAuditEvent({
@@ -158,7 +158,6 @@ export async function POST(req: NextRequest) {
         })
       } catch (emailError: any) {
         console.error('Failed to send invite email:', emailError)
-        // Continue even if email fails - we still return the URL
       }
 
       await logAuditEvent({
@@ -193,8 +192,7 @@ export async function POST(req: NextRequest) {
     console.error('Error creating client invite:', error)
     return NextResponse.json(
       { error: error.message || 'Failed to create client invite' },
-      { status: error.message === 'Unauthorized' || error.message === 'Forbidden' ? 401 : 500 }
+      { status: 500 }
     )
   }
 }
-

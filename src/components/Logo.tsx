@@ -20,10 +20,10 @@ export function Logo({ className = "", showTagline = false, size = "md", href = 
   const isHorizontal = className.includes("flex-row");
 
   const logoContent = (
-    <div className={`flex ${isHorizontal ? "flex-row items-center gap-3" : "flex-col items-center"} ${className}`}>
+    <div className={`flex ${isHorizontal ? "flex-row items-center gap-0.5" : "flex-col items-center"} ${className}`}>
       <div className="relative" style={{ width: dimensions.width, height: dimensions.height }}>
         <Image
-          src="/logo-hv.png"
+          src="/Designer.png"
           alt="HeirVault Logo"
           fill
           className="object-contain"

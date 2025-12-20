@@ -1,7 +1,6 @@
 import * as React from "react";
-import { redirect } from "next/navigation";
-import { auth } from "@clerk/nextjs/server";
-import { db, users, orgMembers, eq } from "@/lib/db";
+import { DashboardWrapper } from "./_components/DashboardWrapper";
+import { getCurrentUser } from "@/lib/utils/clerk";
 
 export const runtime = "nodejs";
 

@@ -60,7 +60,9 @@ export default function AttorneySignUpCompletePage() {
         throw new Error(!data.ok ? data.error : `Provision failed (${res.status})`);
       }
 
-      router.replace("/dashboard");
+      // Use window.location for a hard redirect to ensure fresh data
+      // The dashboard layout will check for org membership and redirect to /attorney/onboard if needed
+      window.location.href = "/dashboard";
     } catch (e) {
       // Ignore aborted requests that we initiated (ex: Strict Mode double render).
       const isAbort =
@@ -78,7 +80,7 @@ export default function AttorneySignUpCompletePage() {
         inFlightRef.current = null;
       }
     }
-  }, [router]);
+  }, []);
 
   React.useEffect(() => {
     if (!isLoaded) return;

@@ -6,8 +6,8 @@ import { DashboardLayout } from "../../_components/DashboardLayout";
 import { ProfileForm } from "./ProfileForm";
 
 export default async function ProfilePage() {
+  // Clerk middleware handles authentication - no need for manual redirects
   const { userId } = await auth();
-  if (!userId) redirect("/sign-in");
 
   // Use getCurrentUser to ensure user exists in database
   const currentUser = await getCurrentUser();

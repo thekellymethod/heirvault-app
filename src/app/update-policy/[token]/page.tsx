@@ -190,7 +190,7 @@ export default function UpdatePolicyPage() {
     <div className="min-h-screen bg-paper-50">
       <header className="sticky top-0 z-50 border-b border-slateui-200 bg-paper-50/85 backdrop-blur">
         <div className="mx-auto max-w-7xl px-6 py-4">
-          <Logo size="sm" showTagline={false} className="flex-row gap-3" href="/" />
+          <Logo size="sm" showTagline={false} className="flex-row" href="/" />
         </div>
       </header>
 

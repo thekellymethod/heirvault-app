@@ -72,7 +72,6 @@ model beneficiaries {
   date_of_birth        DateTime?              @db.Date
   created_at           DateTime               @default(now())
   updated_at           DateTime
-  // Address fields for beneficiary separation
   address_line1        String?
   address_line2        String?
   city                 String?
@@ -82,11 +81,8 @@ model beneficiaries {
   clients              clients                @relation(fields: [client_id], references: [id], onDelete: Cascade)
   policy_beneficiaries policy_beneficiaries[]
 
-  // Index for beneficiary searches by name and DOB
   @@index([first_name, last_name, date_of_birth])
-  // Index for beneficiary address searches
   @@index([address_line1, city, state, postal_code])
-  // Index for client relationship
   @@index([client_id])
 }
 
@@ -119,9 +115,7 @@ model clients {
   maiden_name            String?
   passport_number        String?
   ssn_last_4             String?
-  // Client fingerprint - hash of identifying information to prevent duplicates
   client_fingerprint     String?                  @unique
-  // Address fields for separation
   address_line1          String?
   address_line2          String?
   city                   String?
@@ -138,15 +132,10 @@ model clients {
   documents              documents[]
   policies               policies[]
 
-  // Composite unique constraint: email must be unique per client
   @@unique([email])
-  // Index for searching by name and DOB combination
   @@index([first_name, last_name, date_of_birth])
-  // Index for searching by address (to identify potential duplicates)
   @@index([address_line1, city, state, postal_code])
-  // Index for client fingerprint lookups
   @@index([client_fingerprint])
-  // Index for organization separation
   @@index([org_id])
 }
 
@@ -203,7 +192,7 @@ model org_members {
   organization_id String
   role            OrgRole       @default(ATTORNEY)
   created_at      DateTime      @default(now())
-  updated_at      DateTime
+  updated_at     DateTime
   organizations   organizations @relation(fields: [organization_id], references: [id], onDelete: Cascade)
   users           User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
@@ -272,7 +261,6 @@ model User {
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
   barNumber     String?  @map("bar_number")
-  // Attorney-specific address fields for separation
   address_line1 String?  @map("address_line1")
   address_line2 String?  @map("address_line2")
   city          String?  @map("city")
@@ -281,7 +269,6 @@ model User {
   country       String?  @map("country")
   phone         String?  @map("phone")
 
-  // Relations
   orgMemberships       org_members[]
   attorneyClientAccess attorney_client_access[] @relation("AttorneyAccess")
   invites              invites[]                @relation("AttorneyInvites")
@@ -290,9 +277,7 @@ model User {
   clientRecord         clients?                 @relation("UserClient")
   auditLogs            audit_logs[]
 
-  // Index for attorney name searches
   @@index([firstName, lastName])
-  // Index for attorney address searches
   @@index([address_line1, city, state, postal_code])
   @@map("users")
 }

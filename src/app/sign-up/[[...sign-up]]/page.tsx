@@ -1,11 +1,11 @@
 "use client";
 
-import { SignIn } from "@clerk/nextjs";
+import { SignUp } from "@clerk/nextjs";
 import { Logo } from "@/components/Logo";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-export default function SignInPage() {
+export default function SignUpPage() {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -36,21 +36,21 @@ export default function SignInPage() {
             <Logo size="lg" showTagline={false} className="flex-row" href="/" />
           </div>
           <h1 className="font-display text-3xl font-bold text-ink-900 mb-2">
-            Attorney Sign In
+            Attorney Sign Up
           </h1>
           <p className="text-sm text-slateui-600">
-            Sign in to access your HeirVault dashboard
+            Create your account to access your HeirVault dashboard
           </p>
         </div>
 
-        {/* Clerk Sign In Component */}
+        {/* Clerk Sign Up Component */}
         <div className="w-full">
-          <SignIn
+          <SignUp
             routing="path"
-            path="/sign-in"
-            afterSignInUrl="/dashboard"
+            path="/sign-up"
+            afterSignUpUrl="/dashboard"
             redirectUrl="/dashboard"
-            signUpUrl="/sign-up"
+            signInUrl="/sign-in"
             fallbackRedirectUrl="/dashboard"
             appearance={{
               elements: {
@@ -75,9 +75,9 @@ export default function SignInPage() {
         {/* Footer */}
         <div className="mt-6 text-center">
           <p className="text-xs text-slateui-500">
-            Don't have an account?{" "}
-            <Link href="/sign-up" className="text-ink-900 hover:text-ink-800 font-medium underline">
-              Sign up here
+            Already have an account?{" "}
+            <Link href="/sign-in" className="text-ink-900 hover:text-ink-800 font-medium underline">
+              Sign in here
             </Link>
           </p>
           <Link
@@ -91,3 +91,4 @@ export default function SignInPage() {
     </main>
   );
 }
+

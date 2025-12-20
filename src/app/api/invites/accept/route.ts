@@ -71,31 +71,38 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    // 1) find inviter's org via invitedByUserId
+    // Grant attorney access via AttorneyClientAccess
     if (invite.invitedByUserId) {
       const orgMember = await prisma.orgMember.findFirst({
         where: { userId: invite.invitedByUserId },
       })
 
       if (orgMember) {
-        await prisma.accessGrant.upsert({
+        // Check if access already exists
+        const existingAccess = await prisma.attorneyClientAccess.findFirst({
           where: {
-            // unique client+org combination
-            clientId_orgId: {
-              clientId: invite.clientId,
-              orgId: orgMember.organizationId,
-            },
-          },
-          create: {
+            attorneyId: invite.invitedByUserId,
             clientId: invite.clientId,
-            orgId: orgMember.organizationId,
-            status: "ACTIVE",
-            grantedByUserId: invite.invitedByUserId,
-          },
-          update: {
-            status: "ACTIVE",
+            organizationId: orgMember.organizationId,
           },
         })
+
+        if (!existingAccess) {
+          await prisma.attorneyClientAccess.create({
+            data: {
+              attorneyId: invite.invitedByUserId,
+              clientId: invite.clientId,
+              organizationId: orgMember.organizationId,
+              isActive: true,
+            },
+          })
+        } else if (!existingAccess.isActive) {
+          // Reactivate if it was revoked
+          await prisma.attorneyClientAccess.update({
+            where: { id: existingAccess.id },
+            data: { isActive: true, revokedAt: null },
+          })
+        }
       }
     }
 

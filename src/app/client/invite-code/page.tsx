@@ -37,7 +37,7 @@ export default function ClientInviteCodePage() {
       <header className="border-b border-slateui-200 bg-paper-50">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 py-3 sm:py-4">
           <div className="flex items-center justify-between">
-            <Logo size="sm" showTagline={false} className="flex-row gap-3" href="/" />
+            <Logo size="sm" showTagline={false} className="flex-row" href="/" />
             <Link
               href="/"
               className="text-sm font-medium text-slateui-600 hover:text-ink-900 transition"

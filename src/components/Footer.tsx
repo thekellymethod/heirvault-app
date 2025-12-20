@@ -7,7 +7,7 @@ export function Footer() {
       <div className="mx-auto max-w-6xl px-6 py-8">
         <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
           <div>
-            <Logo size="sm" showTagline={false} className="flex-row gap-2 mb-4" />
+            <Logo size="sm" showTagline={false} className="flex-row mb-4" />
             <p className="text-xs text-slate-600 dark:text-slate-400">
               Private, voluntary registry for life insurance policies and beneficiaries.
             </p>

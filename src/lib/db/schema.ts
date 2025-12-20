@@ -241,10 +241,52 @@ export const auditLogs = pgTable("audit_logs", {
   userIdx: index("audit_logs_user_id_idx").on(table.userId),
 }));
 
+// Submission status enum
+export const submissionStatusEnum = pgEnum("SubmissionStatus", ["PENDING", "PROCESSING", "COMPLETED", "FAILED"]);
+
+// Submissions table - tracks client submissions via invite tokens
+export const submissions = pgTable("submissions", {
+  id: uuid("id").primaryKey().$defaultFn(() => randomUUID()),
+  clientId: uuid("client_id").notNull().references(() => clients.id, { onDelete: "cascade" }),
+  inviteId: uuid("invite_id").references(() => clientInvites.id, { onDelete: "set null" }),
+  status: submissionStatusEnum("status").default("PENDING").notNull(),
+  submissionType: text("submission_type").notNull(), // "INITIAL", "UPDATE", "POLICY_UPLOAD", "FORM_SCAN"
+  submittedData: json("submitted_data"), // Stores the submitted form data
+  errorMessage: text("error_message"),
+  processedAt: timestamp("processed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  clientIdx: index("submissions_client_id_idx").on(table.clientId),
+  inviteIdx: index("submissions_invite_id_idx").on(table.inviteId),
+  statusIdx: index("submissions_status_idx").on(table.status),
+  createdAtIdx: index("submissions_created_at_idx").on(table.createdAt),
+}));
+
+// Receipts table - tracks receipts generated for client submissions
+export const receipts = pgTable("receipts", {
+  id: uuid("id").primaryKey().$defaultFn(() => randomUUID()),
+  submissionId: uuid("submission_id").references(() => submissions.id, { onDelete: "cascade" }),
+  clientId: uuid("client_id").notNull().references(() => clients.id, { onDelete: "cascade" }),
+  inviteId: uuid("invite_id").references(() => clientInvites.id, { onDelete: "set null" }),
+  receiptNumber: text("receipt_number").notNull().unique(), // Format: REC-{clientId}-{timestamp}
+  pdfPath: text("pdf_path"), // Path to generated PDF receipt
+  emailSent: boolean("email_sent").default(false),
+  emailSentAt: timestamp("email_sent_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  submissionIdx: index("receipts_submission_id_idx").on(table.submissionId),
+  clientIdx: index("receipts_client_id_idx").on(table.clientId),
+  inviteIdx: index("receipts_invite_id_idx").on(table.inviteId),
+  receiptNumberIdx: index("receipts_receipt_number_idx").on(table.receiptNumber),
+  createdAtIdx: index("receipts_created_at_idx").on(table.createdAt),
+}));
+
 // Documents table
 export const documents = pgTable("documents", {
   id: uuid("id").primaryKey().$defaultFn(() => randomUUID()),
   clientId: uuid("client_id").notNull().references(() => clients.id, { onDelete: "cascade" }),
+  submissionId: uuid("submission_id").references(() => submissions.id, { onDelete: "set null" }),
   policyId: uuid("policy_id").references(() => policies.id),
   fileName: text("file_name").notNull(),
   fileType: text("file_type").notNull(),
@@ -258,6 +300,7 @@ export const documents = pgTable("documents", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => ({
   clientIdx: index("documents_client_id_idx").on(table.clientId),
+  submissionIdx: index("documents_submission_id_idx").on(table.submissionId),
   createdAtIdx: index("documents_created_at_idx").on(table.createdAt),
   policyIdx: index("documents_policy_id_idx").on(table.policyId),
 }));
@@ -275,6 +318,12 @@ export type Organization = typeof organizations.$inferSelect;
 export type NewOrganization = typeof organizations.$inferInsert;
 export type OrgMember = typeof orgMembers.$inferSelect;
 export type NewOrgMember = typeof orgMembers.$inferInsert;
+export type Submission = typeof submissions.$inferSelect;
+export type NewSubmission = typeof submissions.$inferInsert;
+export type Receipt = typeof receipts.$inferSelect;
+export type NewReceipt = typeof receipts.$inferInsert;
+export type Document = typeof documents.$inferSelect;
+export type NewDocument = typeof documents.$inferInsert;
 
 // Enum type exports (for compatibility with @prisma/client imports)
 export type AuditAction = "CLIENT_CREATED" | "CLIENT_UPDATED" | "POLICY_CREATED" | "POLICY_UPDATED" | "BENEFICIARY_CREATED" | "BENEFICIARY_UPDATED" | "INVITE_CREATED" | "INVITE_ACCEPTED" | "CLIENT_VIEWED" | "CLIENT_SUMMARY_PDF_DOWNLOADED" | "POLICY_SEARCH_PERFORMED" | "GLOBAL_POLICY_SEARCH_PERFORMED" | "DOCUMENT_UPLOADED" | "DOCUMENT_PROCESSED";
@@ -282,7 +331,8 @@ export type OrgRole = "OWNER" | "ATTORNEY" | "STAFF";
 export type BillingPlan = "FREE" | "SOLO" | "SMALL_FIRM" | "ENTERPRISE";
 export type UserRole = "attorney";
 export type InviteStatus = "pending" | "accepted" | "expired" | "revoked";
-export type AccessGrantStatus = "ACTIVE" | "REVOKED";
+export type SubmissionStatus = "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
+export type AccessGrantStatus = "ACTIVE" | "REVOKED"; // Deprecated - use AttorneyClientAccess instead
 
 // Export enum values as constants for compatibility (separate namespace)
 export const AuditActionEnum = {
