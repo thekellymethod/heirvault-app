@@ -4,8 +4,8 @@ import { redirect } from "next/navigation";
 import { BillingActions } from "./BillingActions";
 
 export default async function BillingPage() {
+  // Clerk middleware handles authentication - no need for manual redirects
   const { userId } = await auth();
-  if (!userId) redirect("/sign-in");
 
   const user = await prisma.user.findUnique({
     where: { clerkId: userId },

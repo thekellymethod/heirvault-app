@@ -274,7 +274,7 @@ export function InvitePortal(props: Props) {
         <div className="mx-auto max-w-4xl px-6">
           {/* Header */}
           <div className="mb-8 flex items-center justify-between no-print">
-            <Logo size="sm" showTagline={false} className="flex-row gap-3" href="/" />
+            <Logo size="sm" showTagline={false} className="flex-row" href="/" />
             <div className="flex items-center gap-3">
               <Button
                 onClick={() => window.print()}

@@ -29,7 +29,12 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <ClerkProvider signInUrl="/attorney/sign-in" signUpUrl="/attorney/sign-up">
+    <ClerkProvider 
+      signInUrl="/sign-in" 
+      signUpUrl="/sign-up"
+      signOutUrl="/sign-in"
+      afterSignOutUrl="/sign-in"
+    >
       <html lang="en" className={`${inter.variable} ${playfair.variable}`}>
         <body className="bg-paper-50 font-sans text-slateui-800 antialiased">
           {children}

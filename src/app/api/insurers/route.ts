@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, insurers, eq, asc } from "@/lib/db";
-import { requireAuth } from "@/lib/utils/clerk";
+import { requireAuthApi } from "@/lib/utils/clerk";
 
 export async function GET() {
-  try {
-    await requireAuth("attorney");
+  const authResult = await requireAuthApi();
+  if (authResult.response) return authResult.response;
+  const { user } = authResult;
 
+  try {
     const insurersList = await db.select()
       .from(insurers)
       .orderBy(asc(insurers.name));
@@ -15,15 +17,17 @@ export async function GET() {
     const message = error instanceof Error ? error.message : "An unknown error occurred";
     return NextResponse.json(
       { error: message },
-      { status: message === "Unauthorized" || message === "Forbidden" ? 401 : 400 }
+      { status: 400 }
     );
   }
 }
 
 export async function POST(req: NextRequest) {
-  try {
-    await requireAuth("attorney");
+  const authResult = await requireAuthApi();
+  if (authResult.response) return authResult.response;
+  const { user } = authResult;
 
+  try {
     const body = await req.json();
     const name = (body?.name as string | undefined)?.trim();
     const contactPhone = (body?.contactPhone as string | undefined)?.trim() || null;
@@ -50,7 +54,7 @@ export async function POST(req: NextRequest) {
     const message = error instanceof Error ? error.message : "An unknown error occurred";
     return NextResponse.json(
       { error: message },
-      { status: message === "Unauthorized" || message === "Forbidden" ? 401 : 400 }
+      { status: 400 }
     );
   }
 }

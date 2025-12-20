@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
-import { auth } from '@clerk/nextjs/server'
-import { requireAuth } from '@/lib/utils/clerk'
+import { db, clients, clientInvites, attorneyClientAccess, eq } from '@/lib/db'
+import { requireAuthApi } from '@/lib/utils/clerk'
 import { logAuditEvent } from '@/lib/audit'
 import { sendClientInviteEmail } from '@/lib/email'
 import { getCurrentUserWithOrg } from '@/lib/authz'
@@ -12,8 +11,11 @@ interface Params {
 }
 
 export async function POST(req: NextRequest, { params }: Params) {
+  const authResult = await requireAuthApi();
+  if (authResult.response) return authResult.response;
+  const { user } = authResult;
+
   try {
-    const user = await requireAuth('attorney')
     const { id } = await params
     const body = await req.json().catch(() => ({}))
     const { email } = body
@@ -25,9 +27,11 @@ export async function POST(req: NextRequest, { params }: Params) {
       )
     }
 
-    const client = await prisma.client.findUnique({
-      where: { id },
-    })
+    // Verify client exists
+    const [client] = await db.select()
+      .from(clients)
+      .where(eq(clients.id, id))
+      .limit(1);
 
     if (!client) {
       return NextResponse.json(
@@ -36,34 +40,22 @@ export async function POST(req: NextRequest, { params }: Params) {
       )
     }
 
-    // Check access
-    const access = await prisma.attorneyClientAccess.findFirst({
-      where: {
-        attorneyId: user.id,
-        clientId: id,
-        isActive: true,
-      },
-    })
-
-    if (!access) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
-
+    // All attorneys have global access - no need to check access grants
     // Generate a random token
     const token = randomBytes(24).toString('hex')
 
     const expiresAt = new Date()
     expiresAt.setDate(expiresAt.getDate() + 14) // 14-day expiry
 
-    const invite = await prisma.clientInvite.create({
-      data: {
+    const [invite] = await db.insert(clientInvites)
+      .values({
         clientId: id,
         email,
         token,
         expiresAt,
         invitedByUserId: user.id,
-      },
-    })
+      })
+      .returning();
 
     const baseUrl =
       process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
@@ -72,13 +64,14 @@ export async function POST(req: NextRequest, { params }: Params) {
 
     // Get organization name for email
     const { orgMember } = await getCurrentUserWithOrg()
+    const organizationName = orgMember?.organizations?.name || 'Your Firm'
 
     // Send invite email
     try {
       await sendClientInviteEmail({
         to: email,
         clientName: `${client.firstName} ${client.lastName}`,
-        firmName: orgMember?.organizations.name,
+        firmName: organizationName,
         inviteUrl,
       })
     } catch (emailError: any) {
@@ -87,11 +80,10 @@ export async function POST(req: NextRequest, { params }: Params) {
     }
 
     await logAuditEvent({
-      action: 'create',
-      resourceType: 'client_invite',
-      resourceId: invite.id,
-      details: { clientId: id, email },
+      action: 'INVITE_CREATED',
+      message: `Created client invite for ${email}`,
       userId: user.id,
+      clientId: id,
     })
 
     return NextResponse.json(
@@ -103,10 +95,10 @@ export async function POST(req: NextRequest, { params }: Params) {
       { status: 201 }
     )
   } catch (error: any) {
+    console.error('Error creating client invite:', error)
     return NextResponse.json(
-      { error: error.message },
-      { status: error.message === 'Unauthorized' || error.message === 'Forbidden' ? 401 : 400 }
+      { error: error.message || 'Failed to create invite' },
+      { status: error.message === 'Unauthorized' || error.message === 'Forbidden' ? 401 : 500 }
     )
   }
 }
-

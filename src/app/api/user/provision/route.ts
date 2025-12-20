@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
-import { prisma } from "@/lib/db";
+import { db, users } from "@/lib/db";
+import { eq } from "drizzle-orm";
 
 export const runtime = "nodejs";
 
@@ -21,23 +22,53 @@ export async function POST() {
     const firstName = cu?.firstName ?? null;
     const lastName = cu?.lastName ?? null;
 
-    const user = await prisma.user.upsert({
-      where: { clerkId: userId },
-      update: {
-        email,
-        firstName,
-        lastName,
-        role: "attorney",
-      },
-      create: {
-        clerkId: userId,
-        email,
-        firstName,
-        lastName,
-        role: "attorney",
-      },
-      select: { id: true, clerkId: true, role: true, email: true },
-    });
+    // Check if user exists
+    const [existingUser] = await db.select()
+      .from(users)
+      .where(eq(users.clerkId, userId))
+      .limit(1);
+
+    let user;
+    if (existingUser) {
+      // Update existing user
+      const [updatedUser] = await db.update(users)
+        .set({
+          email,
+          firstName,
+          lastName,
+          role: "attorney",
+          updatedAt: new Date(),
+        })
+        .where(eq(users.clerkId, userId))
+        .returning({
+          id: users.id,
+          clerkId: users.clerkId,
+          role: users.role,
+          email: users.email,
+        });
+      user = updatedUser;
+    } else {
+      // Create new user
+      const [newUser] = await db.insert(users)
+        .values({
+          clerkId: userId,
+          email,
+          firstName,
+          lastName,
+          role: "attorney",
+        })
+        .returning({
+          id: users.id,
+          clerkId: users.clerkId,
+          role: users.role,
+          email: users.email,
+        });
+      user = newUser;
+    }
+
+    if (!user) {
+      return NextResponse.json({ ok: false, error: "Failed to create or update user" }, { status: 500 });
+    }
 
     return NextResponse.json(
       { ok: true, user },

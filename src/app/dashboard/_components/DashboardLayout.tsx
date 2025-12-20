@@ -11,7 +11,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       {/* Sidebar */}
       <aside className="hidden w-64 border-r border-slateui-200 bg-white lg:block shadow-sm">
         <div className="flex h-16 items-center gap-3 border-b border-slateui-200 px-6 bg-paper-50">
-          <Logo size="sm" showTagline={false} className="flex-row gap-2" href="/dashboard" />
+          <Logo size="sm" showTagline={false} className="flex-row" href="/dashboard" />
         </div>
         <div className="p-4">
           <SidebarNav />
@@ -26,14 +26,14 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             <div className="flex items-center gap-4">
               {/* Mobile menu button - can be added later */}
               <div className="lg:hidden">
-                <Logo size="sm" showTagline={false} className="flex-row gap-2" href="/dashboard" />
+                <Logo size="sm" showTagline={false} className="flex-row" href="/dashboard" />
               </div>
             </div>
             <div className="flex items-center gap-4">
               <div className="hidden sm:block">
                 <GlobalSearch />
               </div>
-              <UserButton afterSignOutUrl="/" />
+              <UserButton afterSignOutUrl="/sign-in" />
             </div>
           </div>
         </header>

@@ -11,7 +11,7 @@ export default function LegalDisclaimersPage() {
           <div className="flex items-center justify-between gap-6">
             <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition">
               <ArrowLeft className="h-5 w-5 text-slateui-600" />
-              <Logo size="sm" showTagline={false} className="flex-row gap-2" />
+              <Logo size="sm" showTagline={false} className="flex-row" />
             </Link>
           </div>
         </div>

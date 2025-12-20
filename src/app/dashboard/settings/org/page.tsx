@@ -6,8 +6,8 @@ import { DashboardLayout } from "../../_components/DashboardLayout"
 import { OrgSettingsForm } from "./OrgSettingsForm"
 
 export default async function OrgSettingsPage() {
+  // Clerk middleware handles authentication - no need for manual redirects
   const { userId } = await auth()
-  if (!userId) redirect("/sign-in")
 
   // Use getCurrentUser to ensure user exists in database
   const currentUser = await getCurrentUser()

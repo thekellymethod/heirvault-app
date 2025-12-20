@@ -12,7 +12,7 @@ export default function LandingPage() {
       <header className="sticky top-0 z-50 border-b border-slateui-200 bg-paper-50/85 backdrop-blur">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 py-2 sm:py-3">
           <div className="flex items-center justify-between gap-6">
-            <Logo size="lg" showTagline={false} className="flex-row gap-2" />
+            <Logo size="lg" showTagline={false} className="flex-row" />
 
             <nav className="hidden md:flex items-center gap-7">
               <Link
@@ -49,7 +49,7 @@ export default function LandingPage() {
 
             <div className="flex items-center gap-3">
               <Link
-                href="/attorney/sign-up"
+                href="/sign-in"
                 className="hidden sm:inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold border border-slateui-200 bg-white/70 text-ink-900 hover:bg-white transition"
               >
                 For Attorneys
@@ -102,7 +102,7 @@ export default function LandingPage() {
               </p>
 
               <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center md:justify-start">
-                <Link href="/attorney/sign-up" className="btn-primary text-base px-7 py-3">
+                <Link href="/sign-in" className="btn-primary text-base px-7 py-3">
                   For Attorneys
                 </Link>
                 <Link
@@ -255,7 +255,7 @@ export default function LandingPage() {
             <div className="card p-6">
               <h3 className="font-display text-xl text-ink-900">Who can use HeirVault?</h3>
               <p className="mt-3 text-slateui-600">
-                HeirVault is primarily designed for attorneys and estate planning professionals. Clients can be invited
+                HeirVault is designed for attorneys and estate planning professionals. Clients can be invited
                 by their attorney to register their policy information securely.
               </p>
             </div>
@@ -287,7 +287,7 @@ export default function LandingPage() {
             Contact us for more information about HeirVault and how it can help your practice.
           </p>
           <div className="mt-8">
-            <Link href="/attorney/sign-up" className="btn-primary px-8 py-3 text-base">
+            <Link href="/sign-in" className="btn-primary px-8 py-3 text-base">
               Get Started Today
             </Link>
           </div>

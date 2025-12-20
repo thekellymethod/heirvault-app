@@ -47,3 +47,6 @@ next-env.d.ts
 
 # Uploaded documents (archived files)
 /uploads
+
+# clerk configuration (can include secrets)
+/.clerk/

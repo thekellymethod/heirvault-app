@@ -4,8 +4,8 @@ import { redirect } from "next/navigation";
 import { getCurrentUserWithOrg } from "@/lib/authz";
 
 export default async function AnalyticsPage() {
+  // Clerk middleware handles authentication - no need for manual redirects
   const { userId } = await auth();
-  if (!userId) redirect("/attorney/sign-in");
 
   const { user, orgMember } = await getCurrentUserWithOrg();
   if (!user || !orgMember) redirect("/dashboard");

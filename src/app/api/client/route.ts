@@ -147,17 +147,6 @@ export async function POST(req: Request) {
       },
     });
 
-    // Also create AccessGrant for organization-level access
-    await prisma.accessGrant.create({
-      data: {
-        clientId: client.id,
-        orgId: org.id,
-        attorneyUserId: orgInfo.user.id,
-        status: "ACTIVE",
-        grantedByUserId: orgInfo.user.id,
-      },
-    });
-
     // Create policy if provided
     if (policy?.insurerId) {
       await prisma.policy.create({

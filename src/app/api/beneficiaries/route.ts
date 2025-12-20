@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, beneficiaries, clients, policyBeneficiaries, policies, insurers, eq, desc, sql, inArray } from "@/lib/db";
-import { requireAuth } from "@/lib/utils/clerk";
+import { requireAuthApi } from "@/lib/utils/clerk";
 import { logAuditEvent } from "@/lib/audit";
 
 export async function GET(req: NextRequest) {
-  try {
-    const user = await requireAuth("attorney");
+  const authResult = await requireAuthApi();
+  if (authResult.response) return authResult.response;
+  const { user } = authResult;
 
+  try {
     // Get ALL beneficiaries globally - all attorneys can see all beneficiaries
     const beneficiariesList = await db.select({
       beneficiary: beneficiaries,
@@ -65,14 +67,17 @@ export async function GET(req: NextRequest) {
   } catch (error: any) {
     return NextResponse.json(
       { error: error.message || "Unable to fetch beneficiaries" },
-      { status: error.message === "Unauthorized" || error.message === "Forbidden" ? 401 : 400 }
+      { status: 400 }
     );
   }
 }
 
 export async function POST(req: NextRequest) {
+  const authResult = await requireAuthApi();
+  if (authResult.response) return authResult.response;
+  const { user } = authResult;
+
   try {
-    const user = await requireAuth("attorney");
     const body = await req.json();
 
     const {
@@ -93,7 +98,6 @@ export async function POST(req: NextRequest) {
     }
 
     // All attorneys can create beneficiaries for any client (global access)
-    // Just verify the client exists
     const [clientExists] = await db.select({ id: clients.id })
       .from(clients)
       .where(eq(clients.id, clientId))
