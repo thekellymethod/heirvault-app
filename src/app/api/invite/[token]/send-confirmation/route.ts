@@ -32,9 +32,10 @@ export async function POST(
     // If not a test code, do normal lookup
     if (!invite) {
       invite = await prisma.clientInvite.findUnique({
-      where: { token },
-      include: { client: true },
-    });
+        where: { token },
+        include: { client: true },
+      });
+    }
 
     if (!invite) {
       return NextResponse.json(
@@ -87,7 +88,7 @@ export async function POST(
       success: true,
       message: `Confirmation code sent to your ${method}`,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error sending confirmation:", error);
     return NextResponse.json(
       { error: "Failed to send confirmation code" },

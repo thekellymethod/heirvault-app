@@ -15,12 +15,27 @@ export default function AttorneySignUpCompletePage() {
   const [status, setStatus] = React.useState<"working" | "error">("working");
   const [error, setError] = React.useState<string | null>(null);
 
+  const hasTriggeredRef = React.useRef(false);
+  const inFlightRef = React.useRef<AbortController | null>(null);
+
   const runProvision = React.useCallback(async () => {
+    // If this page is rendered twice in dev (React Strict Mode),
+    // avoid racing multiple provisioning requests.
+    if (inFlightRef.current) {
+      inFlightRef.current.abort();
+    }
+
     setStatus("working");
     setError(null);
 
     const controller = new AbortController();
-    const timeoutId = window.setTimeout(() => controller.abort(), 15000);
+    inFlightRef.current = controller;
+
+    let abortedByTimeout = false;
+    const timeoutId = window.setTimeout(() => {
+      abortedByTimeout = true;
+      controller.abort();
+    }, 15000);
 
     try {
       const res = await fetch("/api/user/provision", {
@@ -49,12 +64,21 @@ export default function AttorneySignUpCompletePage() {
       // The dashboard layout will check for org membership and redirect to /attorney/onboard if needed
       window.location.href = "/dashboard";
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Provision failed";
+      // Ignore aborted requests that we initiated (ex: Strict Mode double render).
+      const isAbort =
+        (e instanceof DOMException && e.name === "AbortError") ||
+        (e instanceof Error && e.name === "AbortError");
+
+      if (isAbort && !abortedByTimeout) return;
+
+      const msg = isAbort && abortedByTimeout ? "Request timed out. Please retry." : e instanceof Error ? e.message : "Provision failed";
       setError(msg);
       setStatus("error");
     } finally {
       clearTimeout(timeoutId);
-      controller.abort();
+      if (inFlightRef.current === controller) {
+        inFlightRef.current = null;
+      }
     }
   }, []);
 
@@ -66,8 +90,17 @@ export default function AttorneySignUpCompletePage() {
       return;
     }
 
+    if (hasTriggeredRef.current) return;
+    hasTriggeredRef.current = true;
+
     runProvision();
   }, [isLoaded, user, router, runProvision]);
+
+  React.useEffect(() => {
+    return () => {
+      inFlightRef.current?.abort();
+    };
+  }, []);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-slate-50 to-white">
@@ -75,7 +108,7 @@ export default function AttorneySignUpCompletePage() {
         {status === "working" && (
           <>
             <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-emerald-500" />
-            <h1 className="text-xl font-semibold text-slate-900">Setting up your attorney account...</h1>
+            <h1 className="text-xl font-semibold text-slate-900">Setting up your attorney account…</h1>
             <p className="text-sm text-slate-600">This should only take a moment.</p>
           </>
         )}

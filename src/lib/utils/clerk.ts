@@ -123,25 +123,30 @@ export async function getCurrentUser() {
  * @param role - Optional role parameter (ignored, all users are attorneys)
  */
 export async function requireAuth(role?: string): Promise<NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>> {
-  const user = await getCurrentUser();
-  if (!user) {
-    throw new Error("Unauthorized");
-  }
-
-  // Ensure role is attorney (should always be, but enforce it)
-  if (user.role !== "attorney") {
-    try {
-      await db.update(users)
-        .set({ role: "attorney", updatedAt: new Date() })
-        .where(eq(users.id, user.id));
-      user.role = "attorney";
-    } catch (error: any) {
-      console.error("Error updating user role:", error.message);
-      user.role = "attorney";
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      throw new Error("Unauthorized");
     }
-  }
 
-  return user;
+    // Ensure role is attorney (should always be, but enforce it)
+    if (user.role !== "attorney") {
+      try {
+        await db.update(users)
+          .set({ role: "attorney", updatedAt: new Date() })
+          .where(eq(users.id, user.id));
+        user.role = "attorney";
+      } catch (error: any) {
+        console.error("Error updating user role:", error.message);
+        user.role = "attorney";
+      }
+    }
+
+    return user;
+  } catch (error: any) {
+    console.error("requireAuth error:", error?.message || error);
+    throw error;
+  }
 }
 
 /**

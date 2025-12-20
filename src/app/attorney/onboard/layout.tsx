@@ -8,7 +8,7 @@ type LayoutProps = { children: ReactNode };
 export const runtime = "nodejs";
 
 export default async function AttorneyOnboardLayout({ children }: LayoutProps) {
-  const { userId } = auth();
+  const { userId } = await auth();
 
   // Must be signed in to onboard
   if (!userId) redirect("/attorney/sign-in");
