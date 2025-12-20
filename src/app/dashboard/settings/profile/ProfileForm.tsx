@@ -27,7 +27,7 @@ interface Organization {
 
 interface Props {
   user: User;
-  organization: Organization;
+  organization: Organization | null;
 }
 
 export function ProfileForm({ user, organization }: Props) {
@@ -76,7 +76,7 @@ export function ProfileForm({ user, organization }: Props) {
     }
   }
 
-  const fullAddress = [
+  const fullAddress = organization ? [
     organization.addressLine1,
     organization.addressLine2,
     organization.city,
@@ -85,7 +85,7 @@ export function ProfileForm({ user, organization }: Props) {
     organization.country,
   ]
     .filter(Boolean)
-    .join(", ");
+    .join(", ") : "";
 
   return (
     <div className="space-y-6">
@@ -151,49 +151,67 @@ export function ProfileForm({ user, organization }: Props) {
       </div>
 
       {/* Firm Information (Read-only) */}
-      <div className="card p-6">
-        <h2 className="font-display text-xl font-semibold text-ink-900 mb-4 flex items-center gap-2">
-          <Building2 className="h-5 w-5 text-gold-500" />
-          Firm Information
-        </h2>
+      {organization ? (
+        <div className="card p-6">
+          <h2 className="font-display text-xl font-semibold text-ink-900 mb-4 flex items-center gap-2">
+            <Building2 className="h-5 w-5 text-gold-500" />
+            Firm Information
+          </h2>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <InfoBox
-            label="Firm Name"
-            value={organization.name}
-            icon={<Building2 className="h-4 w-4" />}
-          />
-          <InfoBox
-            label="Email"
-            value={user.email}
-            icon={<Mail className="h-4 w-4" />}
-          />
-          {organization.phone && (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <InfoBox
-              label="Phone"
-              value={organization.phone}
-              icon={<Phone className="h-4 w-4" />}
+              label="Firm Name"
+              value={organization.name}
+              icon={<Building2 className="h-4 w-4" />}
             />
-          )}
-          {fullAddress && (
             <InfoBox
-              label="Address"
-              value={fullAddress}
-              icon={<MapPin className="h-4 w-4" />}
-              fullWidth
+              label="Email"
+              value={user.email}
+              icon={<Mail className="h-4 w-4" />}
             />
-          )}
+            {organization.phone && (
+              <InfoBox
+                label="Phone"
+                value={organization.phone}
+                icon={<Phone className="h-4 w-4" />}
+              />
+            )}
+            {fullAddress && (
+              <InfoBox
+                label="Address"
+                value={fullAddress}
+                icon={<MapPin className="h-4 w-4" />}
+                fullWidth
+              />
+            )}
+          </div>
+
+          <div className="mt-4 pt-4 border-t border-slateui-200">
+            <Button
+              onClick={() => router.push("/dashboard/settings/org")}
+              className="btn-secondary"
+            >
+              Edit Firm Settings
+            </Button>
+          </div>
         </div>
-
-        <div className="mt-4 pt-4 border-t border-slateui-200">
+      ) : (
+        <div className="card p-6">
+          <h2 className="font-display text-xl font-semibold text-ink-900 mb-4 flex items-center gap-2">
+            <Building2 className="h-5 w-5 text-gold-500" />
+            Firm Information
+          </h2>
+          <p className="text-slateui-600 mb-4">
+            You don't have an organization yet. Create one to manage team members and billing.
+          </p>
           <Button
-            onClick={() => router.push("/dashboard/settings/org")}
-            className="btn-secondary"
+            onClick={() => router.push("/attorney/onboard")}
+            className="btn-primary"
           >
-            Edit Firm Settings
+            Create Organization
           </Button>
         </div>
-      </div>
+      )}
     </div>
   );
 }

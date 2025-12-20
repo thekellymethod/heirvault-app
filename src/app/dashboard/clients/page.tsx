@@ -40,19 +40,19 @@ export default async function ClientsPage() {
     }));
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div>
+      <div className="space-y-6">
+        <div className="flex items-start justify-between gap-4">
+          <div>
           <h1 className="text-2xl font-semibold text-slate-100">Clients</h1>
           <p className="text-sm text-slate-300">
             Create and manage client registry profiles.
           </p>
-        </div>
+          </div>
 
-        <Link href="/dashboard/clients/new">
+            <Link href="/dashboard/clients/new">
           <Button size="lg">New Client</Button>
-        </Link>
-      </div>
+            </Link>
+        </div>
 
       <div className="rounded-xl border border-slate-800 bg-slate-950/40">
         <div className="grid grid-cols-12 gap-2 border-b border-slate-800 px-4 py-3 text-xs font-semibold text-slate-400">
@@ -88,20 +88,20 @@ export default async function ClientsPage() {
                   <div className="col-span-2 text-right text-xs text-slate-400">
                     {new Date(c.updatedAt).toLocaleDateString()}
                   </div>
-                </div>
+            </div>
               </Link>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+        </div>
       </div>
-    </div>
   );
   } catch (error) {
     console.error("ClientsPage error:", error);
     // Don't redirect on error - let middleware handle authentication
     // If unauthorized, middleware will redirect to sign-in
     // Otherwise show error message
-    return (
+  return (
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-semibold text-slate-100">Error</h1>
@@ -113,6 +113,6 @@ export default async function ClientsPage() {
           </p>
         </div>
       </div>
-    );
+  );
   }
 }

@@ -134,7 +134,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
     })
 
     await logAuditEvent({
-      action: 'update',
+      action: 'POLICY_UPDATED',
       resourceType: 'policy',
       resourceId: id,
       details: { policyNumber, policyType },
@@ -179,10 +179,13 @@ export async function DELETE(req: NextRequest, { params }: Params) {
       where: { id },
     })
 
+    // Note: There's no POLICY_DELETED action in the enum, so we'll use POLICY_UPDATED
+    // to track the deletion in the audit log
     await logAuditEvent({
-      action: 'delete',
+      action: 'POLICY_UPDATED',
       resourceType: 'policy',
       resourceId: id,
+      details: { deleted: true },
       userId: user.id,
     })
 

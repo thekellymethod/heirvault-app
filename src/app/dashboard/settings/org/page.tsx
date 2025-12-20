@@ -98,7 +98,34 @@ export default async function OrgSettingsPage() {
     }
   }
 
-  if (!user || !orgMember) redirect("/dashboard")
+  if (!user) redirect("/dashboard")
+
+  // If no organization, show create form
+  if (!orgMember) {
+    return (
+      <DashboardLayout>
+        <div className="space-y-6">
+          <div>
+            <h1 className="font-display text-3xl md:text-4xl font-bold text-ink-900">Create Organization</h1>
+            <p className="mt-2 text-base text-slateui-600">
+              Create an organization to manage team members and billing.
+            </p>
+          </div>
+          <div className="card p-6">
+            <p className="text-slateui-600 mb-4">
+              You don't have an organization yet. Create one to get started.
+            </p>
+            <a
+              href="/attorney/onboard"
+              className="btn-primary inline-block"
+            >
+              Create Organization
+            </a>
+          </div>
+        </div>
+      </DashboardLayout>
+    )
+  }
 
   return (
     <DashboardLayout>

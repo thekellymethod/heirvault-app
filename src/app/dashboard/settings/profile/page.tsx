@@ -65,7 +65,7 @@ export default async function ProfilePage() {
     }
   }
 
-  if (!user || !orgMember) redirect("/dashboard");
+  if (!user) redirect("/dashboard");
 
   return (
     <DashboardLayout>
@@ -88,7 +88,7 @@ export default async function ProfilePage() {
           </a>
         </div>
 
-        <ProfileForm user={user} organization={orgMember.organizations} />
+        <ProfileForm user={user} organization={orgMember?.organizations || null} />
       </div>
     </DashboardLayout>
   );

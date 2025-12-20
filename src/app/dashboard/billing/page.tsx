@@ -18,8 +18,36 @@ export default async function BillingPage() {
     },
   });
 
+  if (!user) redirect("/dashboard");
+
   const orgMember = user?.orgMemberships?.[0];
-  if (!user || !orgMember) redirect("/dashboard");
+  
+  // If no organization, show message to create one
+  if (!orgMember) {
+    return (
+      <main className="p-8 max-w-3xl mx-auto space-y-6">
+        <section>
+          <h1 className="text-xl font-semibold text-slate-50">
+            Billing & subscription
+          </h1>
+          <p className="mt-1 text-sm text-slate-400">
+            Billing is available when you create or join an organization.
+          </p>
+        </section>
+        <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-6 text-center">
+          <p className="text-slate-300 mb-4">
+            You need to create or join an organization to manage billing.
+          </p>
+          <a
+            href="/dashboard/settings/org"
+            className="btn-primary inline-block"
+          >
+            Create Organization
+          </a>
+        </div>
+      </main>
+    );
+  }
 
   const org = orgMember.organizations;
 

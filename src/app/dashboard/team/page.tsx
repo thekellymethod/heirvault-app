@@ -18,13 +18,34 @@ export default async function TeamPage() {
     },
   });
 
-  const orgMember = user?.orgMemberships?.[0];
-  if (!user || !orgMember) redirect("/dashboard");
+  if (!user) redirect("/dashboard");
 
-  // Get organization ID - handle both possible field names
-  const organizationId = (orgMember as any).organizationId || orgMember.organizations?.id;
-  if (!organizationId) {
-    redirect("/dashboard");
+  const orgMember = user?.orgMemberships?.[0];
+  const organizationId = orgMember ? ((orgMember as any).organizationId || orgMember.organizations?.id) : null;
+
+  // If no organization, show message to create one
+  if (!orgMember || !organizationId) {
+    return (
+      <main className="p-8 max-w-3xl mx-auto space-y-4">
+        <h1 className="text-xl font-semibold text-slate-50">
+          Firm team
+        </h1>
+        <p className="text-sm text-slate-400">
+          Team management is available when you create or join an organization.
+        </p>
+        <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-6 text-center">
+          <p className="text-slate-300 mb-4">
+            You need to create or join an organization to manage team members.
+          </p>
+          <a
+            href="/dashboard/settings/org"
+            className="btn-primary inline-block"
+          >
+            Create Organization
+          </a>
+        </div>
+      </main>
+    );
   }
 
   // Use raw SQL as primary method since Prisma client may have issues

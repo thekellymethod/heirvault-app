@@ -2,12 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAuthApi } from "@/lib/utils/clerk";
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireAuthApi();
   if (auth.response) return auth.response;
   const { user } = auth;
 
-  const clientId = params.id;
+  const { id: clientId } = await params;
 
   // Access check
   const access = await prisma.attorneyClientAccess.findFirst({

@@ -3,9 +3,9 @@ import { prisma } from "@/lib/db";
 import { requireAuth } from "@/lib/utils/clerk";
 import { Button } from "@/components/ui/button";
 
-export default async function ClientDetailPage({ params }: { params: { id: string } }) {
+export default async function ClientDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await requireAuth();
-  const clientId = params.id;
+  const { id: clientId } = await params;
 
   const access = await prisma.attorneyClientAccess.findFirst({
     where: { attorneyId: user.id, clientId, isActive: true },

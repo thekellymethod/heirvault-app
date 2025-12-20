@@ -802,7 +802,7 @@ export default function PolicyLocatorPage() {
           <Link href="/dashboard/settings/org">
             <Button variant="outline" className="w-full">
               Contact Support
-            </Button>
+          </Button>
           </Link>
         </div>
 

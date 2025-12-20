@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
   });
 
   await logAuditEvent({
-    action: "create",
+    action: "CLIENT_CREATED",
     resourceType: "client",
     resourceId: result.id,
     details: { firstName, lastName, email },

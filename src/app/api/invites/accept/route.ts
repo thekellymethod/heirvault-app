@@ -107,7 +107,7 @@ export async function POST(req: NextRequest) {
     }
 
     await logAuditEvent({
-      action: 'update',
+      action: 'INVITE_ACCEPTED',
       resourceType: 'client_invite',
       resourceId: invite.id,
       details: { clientId: invite.clientId, userId: user.id },

@@ -8,13 +8,10 @@ export default async function AnalyticsPage() {
   const { userId } = await auth();
 
   const { user, orgMember } = await getCurrentUserWithOrg();
-  if (!user || !orgMember) redirect("/dashboard");
+  if (!user) redirect("/dashboard");
 
-  // Get organization ID - handle both possible field names
-  const orgId = (orgMember as any).organizationId || orgMember.organizations?.id;
-  if (!orgId) {
-    redirect("/dashboard");
-  }
+  // Get organization ID - handle both possible field names (optional)
+  const orgId = orgMember ? ((orgMember as any).organizationId || orgMember.organizations?.id) : null;
 
   // Use raw SQL for queries to avoid Prisma client issues
   let clientCount = 0;
@@ -24,54 +21,108 @@ export default async function AnalyticsPage() {
   let recentInvites: any[] = [];
 
   try {
-    // Get counts using raw SQL
+    // Get counts using raw SQL - if no org, show user's own data via AttorneyClientAccess
     const [clientResult, policyResult, activePolicyResult, beneficiaryResult, invitesResult] = await Promise.all([
-      prisma.$queryRaw<Array<{ count: bigint }>>`
-        SELECT COUNT(*) as count FROM clients WHERE org_id = ${orgId}
-      `,
-      prisma.$queryRaw<Array<{ count: bigint }>>`
-        SELECT COUNT(*) as count 
-        FROM policies p
-        INNER JOIN clients c ON c.id = p.client_id
-        WHERE c.org_id = ${orgId}
-      `,
-      prisma.$queryRaw<Array<{ count: bigint }>>`
-        SELECT COUNT(*) as count 
-        FROM policies p
-        INNER JOIN clients c ON c.id = p.client_id
-        WHERE c.org_id = ${orgId} AND p.status = 'ACTIVE'
-      `,
-      prisma.$queryRaw<Array<{ count: bigint }>>`
-        SELECT COUNT(*) as count 
-        FROM beneficiaries b
-        INNER JOIN clients c ON c.id = b.client_id
-        WHERE c.org_id = ${orgId}
-      `,
-      prisma.$queryRaw<Array<{
-        id: string;
-        client_id: string;
-        email: string;
-        token: string;
-        created_at: Date;
-        used_at: Date | null;
-        first_name: string;
-        last_name: string;
-      }>>`
-        SELECT 
-          ci.id,
-          ci.client_id,
-          ci.email,
-          ci.token,
-          ci.created_at,
-          ci.used_at,
-          c.first_name,
-          c.last_name
-        FROM client_invites ci
-        INNER JOIN clients c ON c.id = ci.client_id
-        WHERE c.org_id = ${orgId}
-        ORDER BY ci.created_at DESC
-        LIMIT 10
-      `,
+      orgId 
+        ? prisma.$queryRaw<Array<{ count: bigint }>>`
+            SELECT COUNT(*) as count FROM clients WHERE org_id = ${orgId}
+          `
+        : prisma.$queryRaw<Array<{ count: bigint }>>`
+            SELECT COUNT(DISTINCT aca.client_id) as count 
+            FROM attorney_client_access aca
+            WHERE aca.attorney_id = ${user.id} AND aca.is_active = true
+          `,
+      orgId
+        ? prisma.$queryRaw<Array<{ count: bigint }>>`
+            SELECT COUNT(*) as count 
+            FROM policies p
+            INNER JOIN clients c ON c.id = p.client_id
+            WHERE c.org_id = ${orgId}
+          `
+        : prisma.$queryRaw<Array<{ count: bigint }>>`
+            SELECT COUNT(*) as count 
+            FROM policies p
+            INNER JOIN attorney_client_access aca ON aca.client_id = p.client_id
+            WHERE aca.attorney_id = ${user.id} AND aca.is_active = true
+          `,
+      orgId
+        ? prisma.$queryRaw<Array<{ count: bigint }>>`
+            SELECT COUNT(*) as count 
+            FROM policies p
+            INNER JOIN clients c ON c.id = p.client_id
+            WHERE c.org_id = ${orgId} AND p.status = 'ACTIVE'
+          `
+        : prisma.$queryRaw<Array<{ count: bigint }>>`
+            SELECT COUNT(*) as count 
+            FROM policies p
+            INNER JOIN attorney_client_access aca ON aca.client_id = p.client_id
+            WHERE aca.attorney_id = ${user.id} AND aca.is_active = true AND p.status = 'ACTIVE'
+          `,
+      orgId
+        ? prisma.$queryRaw<Array<{ count: bigint }>>`
+            SELECT COUNT(*) as count 
+            FROM beneficiaries b
+            INNER JOIN clients c ON c.id = b.client_id
+            WHERE c.org_id = ${orgId}
+          `
+        : prisma.$queryRaw<Array<{ count: bigint }>>`
+            SELECT COUNT(*) as count 
+            FROM beneficiaries b
+            INNER JOIN attorney_client_access aca ON aca.client_id = b.client_id
+            WHERE aca.attorney_id = ${user.id} AND aca.is_active = true
+          `,
+      orgId
+        ? prisma.$queryRaw<Array<{
+            id: string;
+            client_id: string;
+            email: string;
+            token: string;
+            created_at: Date;
+            used_at: Date | null;
+            first_name: string;
+            last_name: string;
+          }>>`
+            SELECT 
+              ci.id,
+              ci.client_id,
+              ci.email,
+              ci.token,
+              ci.created_at,
+              ci.used_at,
+              c.first_name,
+              c.last_name
+            FROM client_invites ci
+            INNER JOIN clients c ON c.id = ci.client_id
+            WHERE c.org_id = ${orgId}
+            ORDER BY ci.created_at DESC
+            LIMIT 10
+          `
+        : prisma.$queryRaw<Array<{
+            id: string;
+            client_id: string;
+            email: string;
+            token: string;
+            created_at: Date;
+            used_at: Date | null;
+            first_name: string;
+            last_name: string;
+          }>>`
+            SELECT 
+              ci.id,
+              ci.client_id,
+              ci.email,
+              ci.token,
+              ci.created_at,
+              ci.used_at,
+              c.first_name,
+              c.last_name
+            FROM client_invites ci
+            INNER JOIN clients c ON c.id = ci.client_id
+            INNER JOIN attorney_client_access aca ON aca.client_id = c.id
+            WHERE aca.attorney_id = ${user.id} AND aca.is_active = true
+            ORDER BY ci.created_at DESC
+            LIMIT 10
+          `,
     ]);
 
     clientCount = Number(clientResult[0]?.count || 0);
