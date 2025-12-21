@@ -89,3 +89,42 @@ export async function logAccess(input: {
     metadata: enrichedMetadata,
   });
 }
+
+/**
+ * Legacy audit function for compatibility with existing code
+ * Logs to audit_logs table (not access_logs)
+ */
+export async function audit(
+  action: string,
+  metadata: {
+    clientId?: string;
+    policyId?: string;
+    message: string;
+    userId?: string | null;
+    orgId?: string | null;
+  }
+): Promise<void> {
+  const { prisma } = await import("@/lib/db");
+  const { randomUUID } = await import("crypto");
+
+  try {
+    await prisma.$executeRawUnsafe(`
+      INSERT INTO audit_logs (id, user_id, org_id, client_id, policy_id, action, message, created_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+    `,
+      randomUUID(),
+      metadata.userId || null,
+      metadata.orgId || null,
+      metadata.clientId || null,
+      metadata.policyId || null,
+      action,
+      metadata.message
+    );
+  } catch (error) {
+    console.error("Failed to log audit event:", error);
+    // Don't throw - audit logging is non-critical
+  }
+}
+
+// Export AuditAction for compatibility
+export { AuditAction } from "@/lib/db/enums";

@@ -1,36 +1,72 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requireAuth } from "@/lib/utils/clerk";
+import { assertAttorneyCanAccessClient } from "@/lib/authz";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
 export default async function ClientDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const user = await requireAuth();
+  await requireAuth();
   const { id: clientId } = await params;
 
-  const access = await prisma.attorneyClientAccess.findFirst({
-    where: { attorneyId: user.id, clientId, isActive: true },
-    select: { id: true },
-  });
-
-  if (!access) {
+  // Verify attorney has access to this client
+  try {
+    await assertAttorneyCanAccessClient(clientId);
+  } catch {
     redirect("/error?type=forbidden");
   }
 
-  const client = await prisma.client.findUnique({
-    where: { id: clientId },
-    select: {
-      id: true,
-      firstName: true,
-      lastName: true,
-      email: true,
-      phone: true,
-      dateOfBirth: true,
-      createdAt: true,
-      updatedAt: true,
-      _count: { select: { policies: true, beneficiaries: true } },
+  // Get client data using raw SQL
+  const clientData = await prisma.$queryRawUnsafe<Array<{
+    id: string;
+    first_name: string;
+    last_name: string;
+    email: string;
+    phone: string | null;
+    date_of_birth: Date | null;
+    created_at: Date;
+    updated_at: Date;
+    policy_count: bigint;
+    beneficiary_count: bigint;
+  }>>(`
+    SELECT 
+      c.id,
+      c.first_name,
+      c.last_name,
+      c.email,
+      c.phone,
+      c.date_of_birth,
+      c.created_at,
+      c.updated_at,
+      COUNT(DISTINCT p.id)::bigint as policy_count,
+      COUNT(DISTINCT b.id)::bigint as beneficiary_count
+    FROM clients c
+    LEFT JOIN policies p ON p.client_id = c.id
+    LEFT JOIN beneficiaries b ON b.client_id = c.id
+    WHERE c.id = $1
+    GROUP BY c.id, c.first_name, c.last_name, c.email, c.phone, c.date_of_birth, c.created_at, c.updated_at
+    LIMIT 1
+  `, clientId);
+
+  if (!clientData || clientData.length === 0) {
+    redirect("/error?type=not_found");
+  }
+
+  const clientRow = clientData[0];
+  const client = {
+    id: clientRow.id,
+    firstName: clientRow.first_name,
+    lastName: clientRow.last_name,
+    email: clientRow.email,
+    phone: clientRow.phone,
+    dateOfBirth: clientRow.date_of_birth,
+    createdAt: clientRow.created_at,
+    updatedAt: clientRow.updated_at,
+    _count: {
+      policies: Number(clientRow.policy_count),
+      beneficiaries: Number(clientRow.beneficiary_count),
     },
-  });
+  };
 
   if (!client) {
     redirect("/error?type=not_found");
@@ -53,6 +89,49 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
           <Link href="/dashboard/clients">
             <Button variant="outline">Back</Button>
           </Link>
+
+          <div className="flex items-center gap-2">
+            <a
+              href={`/api/clients/${client.id}/summary-pdf`}
+              download
+              className="inline-flex items-center justify-center rounded-lg border border-slate-800 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-100 hover:bg-slate-800 transition-colors"
+            >
+              <svg
+                className="mr-2 h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+              Summary PDF
+            </a>
+            <a
+              href={`/api/clients/${client.id}/probate-summary`}
+              download
+              className="inline-flex items-center justify-center rounded-lg border border-slate-800 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-100 hover:bg-slate-800 transition-colors"
+            >
+              <svg
+                className="mr-2 h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+              Probate PDF
+            </a>
+          </div>
 
           <Link href={`/dashboard/clients/${client.id}/receipts-audit`}>
             <Button variant="outline">Receipts & Audit</Button>
