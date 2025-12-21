@@ -1,14 +1,20 @@
 import { getCurrentUser } from "@/lib/utils/clerk";
 
+type User = NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>;
+
 /**
- * Check if the current user is an admin.
+ * Check if a user is an admin.
  * Admins are determined by environment variable ADMIN_EMAILS (comma-separated list).
  * If ADMIN_EMAILS is not set, no users are admins.
+ * 
+ * @param user - Optional user object. If provided, uses this user instead of fetching current user.
+ *               This prevents race conditions when checking admin status after fetching the user.
  */
-export async function isAdmin(): Promise<boolean> {
+export async function isAdmin(user?: User): Promise<boolean> {
   try {
-    const user = await getCurrentUser();
-    if (!user) {
+    // If user is provided, use it; otherwise fetch current user
+    const userToCheck = user || await getCurrentUser();
+    if (!userToCheck) {
       return false;
     }
 
@@ -17,7 +23,7 @@ export async function isAdmin(): Promise<boolean> {
       return false;
     }
 
-    return adminEmails.includes(user.email.toLowerCase());
+    return adminEmails.includes(userToCheck.email.toLowerCase());
   } catch (error) {
     console.error("Error checking admin status:", error);
     return false;
@@ -27,14 +33,18 @@ export async function isAdmin(): Promise<boolean> {
 /**
  * Require admin access. Throws an error if user is not an admin.
  * Use this in pages and API routes that require admin privileges.
+ * 
+ * This function fetches the current user once and passes it to isAdmin() to prevent
+ * race conditions where authentication state could change between calls.
  */
-export async function requireAdmin(): Promise<NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>> {
+export async function requireAdmin(): Promise<User> {
   const user = await getCurrentUser();
   if (!user) {
     throw new Error("Unauthorized");
   }
 
-  const admin = await isAdmin();
+  // Pass the already-fetched user to isAdmin() to prevent race conditions
+  const admin = await isAdmin(user);
   if (!admin) {
     throw new Error("Forbidden: Admin access required");
   }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Shield,
   Users,
@@ -62,18 +62,55 @@ export function ComplianceDashboard() {
   const [takedownRequests, setTakedownRequests] = useState<TakedownRequest[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  
+  // Track the current request to prevent race conditions
+  const currentRequestRef = useRef<string | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    loadData();
+    // Generate a unique ID for this request
+    const requestId = `${activeTab}-${Date.now()}`;
+    currentRequestRef.current = requestId;
+    
+    // Cancel any previous request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    // Create new AbortController for this request
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+    
+    loadData(requestId, abortController.signal);
+    
+    // Cleanup: cancel request if component unmounts or tab changes
+    return () => {
+      abortController.abort();
+      // Only clear the ref if this is still the current request
+      if (currentRequestRef.current === requestId) {
+        currentRequestRef.current = null;
+        abortControllerRef.current = null;
+      }
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
-  const loadData = async () => {
+  const loadData = async (requestId: string, signal: AbortSignal) => {
+    // Only set loading if this is still the current request
+    if (currentRequestRef.current !== requestId) {
+      return;
+    }
+    
     setLoading(true);
     setError(null);
+    
     try {
       if (activeTab === "overview" || activeTab === "usage") {
-        const statsRes = await fetch("/api/admin/compliance/usage");
+        const statsRes = await fetch("/api/admin/compliance/usage", { signal });
+        // Check if request is still current before updating state
+        if (currentRequestRef.current !== requestId) {
+          return;
+        }
         if (statsRes.ok) {
           const stats = await statsRes.json();
           setUsageStats(stats);
@@ -83,7 +120,10 @@ export function ComplianceDashboard() {
       }
 
       if (activeTab === "rules") {
-        const rulesRes = await fetch("/api/admin/compliance/rules");
+        const rulesRes = await fetch("/api/admin/compliance/rules", { signal });
+        if (currentRequestRef.current !== requestId) {
+          return;
+        }
         if (rulesRes.ok) {
           const rules = await rulesRes.json();
           setComplianceRules(rules.rules || []);
@@ -93,7 +133,10 @@ export function ComplianceDashboard() {
       }
 
       if (activeTab === "credentials") {
-        const credsRes = await fetch("/api/admin/compliance/credentials");
+        const credsRes = await fetch("/api/admin/compliance/credentials", { signal });
+        if (currentRequestRef.current !== requestId) {
+          return;
+        }
         if (credsRes.ok) {
           const creds = await credsRes.json();
           setAttorneyCredentials(creds.credentials || []);
@@ -103,7 +146,10 @@ export function ComplianceDashboard() {
       }
 
       if (activeTab === "takedowns") {
-        const takedownsRes = await fetch("/api/admin/compliance/takedowns");
+        const takedownsRes = await fetch("/api/admin/compliance/takedowns", { signal });
+        if (currentRequestRef.current !== requestId) {
+          return;
+        }
         if (takedownsRes.ok) {
           const takedowns = await takedownsRes.json();
           setTakedownRequests(takedowns.requests || []);
@@ -112,10 +158,23 @@ export function ComplianceDashboard() {
         }
       }
     } catch (error) {
+      // Ignore abort errors (they're expected when switching tabs)
+      if (error instanceof Error && error.name === "AbortError") {
+        return;
+      }
+      
+      // Only set error if this is still the current request
+      if (currentRequestRef.current !== requestId) {
+        return;
+      }
+      
       console.error("Error loading compliance data:", error);
       setError("An error occurred while loading data");
     } finally {
-      setLoading(false);
+      // Only update loading state if this is still the current request
+      if (currentRequestRef.current === requestId) {
+        setLoading(false);
+      }
     }
   };
 

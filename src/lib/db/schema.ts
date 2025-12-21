@@ -305,6 +305,30 @@ export const documents = pgTable("documents", {
   policyIdx: index("documents_policy_id_idx").on(table.policyId),
 }));
 
+// Client versions table - stores versioned updates to preserve historical chain
+export const clientVersions = pgTable("client_versions", {
+  id: uuid("id").primaryKey().$defaultFn(() => randomUUID()),
+  clientId: uuid("client_id").notNull().references(() => clients.id, { onDelete: "cascade" }),
+  inviteId: uuid("invite_id").references(() => clientInvites.id, { onDelete: "set null" }),
+  versionNumber: integer("version_number").notNull(),
+  previousVersionId: uuid("previous_version_id").references(() => clientVersions.id, { onDelete: "set null" }),
+  // Store the complete state at this version
+  clientData: json("client_data").notNull(), // Full client data snapshot
+  policiesData: json("policies_data"), // Array of policies at this version
+  beneficiariesData: json("beneficiaries_data"), // Array of beneficiaries at this version
+  changes: json("changes"), // What changed from previous version
+  submittedBy: text("submitted_by"), // "CLIENT" or "ATTORNEY"
+  submissionMethod: text("submission_method"), // "QR_CODE", "EMAIL", "PORTAL", etc.
+  notes: text("notes"), // Optional notes about the update
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  clientIdx: index("client_versions_client_id_idx").on(table.clientId),
+  inviteIdx: index("client_versions_invite_id_idx").on(table.inviteId),
+  versionIdx: index("client_versions_version_number_idx").on(table.versionNumber),
+  createdAtIdx: index("client_versions_created_at_idx").on(table.createdAt),
+  previousVersionIdx: index("client_versions_previous_version_id_idx").on(table.previousVersionId),
+}));
+
 // Type exports for use in code
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;

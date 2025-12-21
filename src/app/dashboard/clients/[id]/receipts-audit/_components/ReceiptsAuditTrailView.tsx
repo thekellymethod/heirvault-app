@@ -92,8 +92,7 @@ export function ReceiptsAuditTrailView({
 
   const handleDownloadReceipt = async (receiptNumber: string) => {
     try {
-      // Find the invite token for this client to generate receipt
-      const res = await fetch(`/api/clients/${clientId}/receipt/${receiptNumber}`);
+      const res = await fetch(`/api/clients/${clientId}/receipt/${encodeURIComponent(receiptNumber)}`);
       if (res.ok) {
         const blob = await res.blob();
         const url = window.URL.createObjectURL(blob);
@@ -105,7 +104,8 @@ export function ReceiptsAuditTrailView({
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
       } else {
-        alert("Failed to download receipt");
+        const errorData = await res.json().catch(() => ({}));
+        alert(errorData.error || "Failed to download receipt");
       }
     } catch (error) {
       console.error("Error downloading receipt:", error);
