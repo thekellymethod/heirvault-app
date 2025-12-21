@@ -71,33 +71,42 @@ export async function GET(
       LIMIT 1000
     `, clientId);
 
-    // Get client policies for receipt hashing
-    const policies = await prisma.$queryRawUnsafe<Array<{
-      id: string;
-      policy_number: string | null;
-    }>>(`
-      SELECT id, policy_number
-      FROM policies
-      WHERE client_id = $1
-    `, clientId);
-
     // Generate hashes for receipts
-    const receiptsWithHashes = receipts.map(receipt => {
-      const hash = generateReceiptHash({
-        receiptId: receipt.receipt_number,
-        clientId: receipt.client_id,
-        createdAt: receipt.created_at,
-        policies: policies.map(p => ({ id: p.id, policyNumber: p.policy_number })),
-      });
-      return {
-        id: receipt.id,
-        receiptNumber: receipt.receipt_number,
-        createdAt: receipt.created_at.toISOString(),
-        emailSent: receipt.email_sent,
-        emailSentAt: receipt.email_sent_at?.toISOString() || null,
-        hash,
-      };
-    });
+    // CRITICAL: Each receipt must use only the policies that existed at the time it was created
+    // This ensures historical hash immutability for legal defensibility
+    const receiptsWithHashes = await Promise.all(
+      receipts.map(async (receipt) => {
+        // Query only policies that existed at the time this receipt was created
+        // This preserves historical accuracy - policies added/modified after receipt creation
+        // will not affect the receipt's hash
+        const policiesAtReceiptTime = await prisma.$queryRawUnsafe<Array<{
+          id: string;
+          policy_number: string | null;
+        }>>(`
+          SELECT id, policy_number
+          FROM policies
+          WHERE client_id = $1
+            AND created_at <= $2
+          ORDER BY created_at ASC
+        `, clientId, receipt.created_at);
+
+        const hash = generateReceiptHash({
+          receiptId: receipt.receipt_number,
+          clientId: receipt.client_id,
+          createdAt: receipt.created_at,
+          policies: policiesAtReceiptTime.map(p => ({ id: p.id, policyNumber: p.policy_number })),
+        });
+
+        return {
+          id: receipt.id,
+          receiptNumber: receipt.receipt_number,
+          createdAt: receipt.created_at.toISOString(),
+          emailSent: receipt.email_sent,
+          emailSentAt: receipt.email_sent_at?.toISOString() || null,
+          hash,
+        };
+      })
+    );
 
     // Generate hashes for audit logs
     const auditLogsWithHashes = auditLogs.map((log, index) => {
