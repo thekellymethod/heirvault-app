@@ -90,7 +90,6 @@ export default function LandingPage() {
 
               <h1
                 className="mt-6 font-serif text-4xl md:text-6xl leading-[1.05] tracking-tight text-white"
-                style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
               >
                 Find Unclaimed Life Insurance Policies Easily
               </h1>

@@ -3,22 +3,47 @@ import { prisma } from "@/lib/db";
 import { redirect } from "next/navigation";
 import { getCurrentUserWithOrg } from "@/lib/authz";
 
+interface InviteRow {
+  id: string;
+  client_id: string;
+  email: string;
+  token: string;
+  created_at: Date;
+  used_at: Date | null;
+  first_name: string;
+  last_name: string;
+}
+
+interface RecentInvite {
+  id: string;
+  clientId: string;
+  email: string;
+  token: string;
+  createdAt: Date;
+  usedAt: Date | null;
+  client: {
+    id: string;
+    firstName: string;
+    lastName: string;
+  };
+}
+
 export default async function AnalyticsPage() {
   // Clerk middleware handles authentication - no need for manual redirects
-  const { userId } = await auth();
+  await auth();
 
   const { user, orgMember } = await getCurrentUserWithOrg();
   if (!user) redirect("/dashboard");
 
   // Get organization ID - handle both possible field names (optional)
-  const orgId = orgMember ? ((orgMember as any).organizationId || orgMember.organizations?.id) : null;
+  const orgId = orgMember ? ((orgMember as { organizationId?: string }).organizationId || orgMember.organizations?.id) : null;
 
   // Use raw SQL for queries to avoid Prisma client issues
   let clientCount = 0;
   let policyCount = 0;
   let activePolicyCount = 0;
   let beneficiaryCount = 0;
-  let recentInvites: any[] = [];
+  let recentInvites: RecentInvite[] = [];
 
   try {
     // Get counts using raw SQL - if no org, show user's own data via AttorneyClientAccess
@@ -97,16 +122,7 @@ export default async function AnalyticsPage() {
             ORDER BY ci.created_at DESC
             LIMIT 10
           `
-        : prisma.$queryRaw<Array<{
-            id: string;
-            client_id: string;
-            email: string;
-            token: string;
-            created_at: Date;
-            used_at: Date | null;
-            first_name: string;
-            last_name: string;
-          }>>`
+        : prisma.$queryRaw<Array<InviteRow>>`
             SELECT 
               ci.id,
               ci.client_id,
@@ -130,7 +146,7 @@ export default async function AnalyticsPage() {
     activePolicyCount = Number(activePolicyResult[0]?.count || 0);
     beneficiaryCount = Number(beneficiaryResult[0]?.count || 0);
     
-    recentInvites = invitesResult.map(inv => ({
+    recentInvites = invitesResult.map((inv: InviteRow) => ({
       id: inv.id,
       clientId: inv.client_id,
       email: inv.email,
@@ -208,7 +224,7 @@ export default async function AnalyticsPage() {
           </div>
           <div className="mt-1 text-[11px] text-slate-600 dark:text-slate-400">
             Active:{" "}
-            <span style={{ color: "#d4af37" }}>{activePolicyCount}</span>
+            <span className="text-gold-500">{activePolicyCount}</span>
           </div>
         </div>
         <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
@@ -219,7 +235,7 @@ export default async function AnalyticsPage() {
         </div>
         <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
           <div className="text-[11px] text-slate-600 dark:text-slate-400">Completion</div>
-          <div className="mt-1 text-xl font-semibold" style={{ color: "#d4af37" }}>
+          <div className="mt-1 text-xl font-semibold text-gold-500">
             {clientCount === 0
               ? "—"
               : `${Math.round(
@@ -263,7 +279,7 @@ export default async function AnalyticsPage() {
                       minute: "2-digit",
                     })}
                     {inv.usedAt && (
-                      <span className="ml-1" style={{ color: "#d4af37" }}>
+                      <span className="ml-1 text-gold-500">
                         · accepted
                       </span>
                     )}

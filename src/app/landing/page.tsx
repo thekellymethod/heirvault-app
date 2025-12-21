@@ -94,7 +94,7 @@ export default function LandingPage() {
                 Secure policy discovery for families & estate professionals
               </p>
 
-              <h1 className="mt-6 font-serif text-4xl md:text-6xl leading-[1.05] tracking-tight text-white" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
+              <h1 className="mt-6 font-serif text-4xl md:text-6xl leading-[1.05] tracking-tight text-white">
                 Find Unclaimed Life Insurance Policies Easily
               </h1>
 
