@@ -191,3 +191,37 @@ export async function constrainedSearch(input: {
   if (error) throw error;
   return (data ?? []) as RegistryRecord[];
 }
+
+// New type representing a registry permission record
+export type RegistryPermission = {
+  registry_id: string;
+  user_id: string;
+  role: string;
+  created_at: string;
+};
+
+/**
+ * List registries a user is authorized to access.
+ *
+ * Attorneys should only see registries they have been granted access to via
+ * the registry_permissions table. This joins the permission table with
+ * registry_records and returns the records in reverse chronological order.
+ *
+ * @param userId - Clerk user ID of the attorney
+ * @param limit - Maximum number of registries to return (default: 50)
+ * @returns Array of registry records the user is permitted to view
+ */
+export async function listAuthorizedRegistries(userId: string, limit = 50): Promise<RegistryRecord[]> {
+  const sb = supabaseServer();
+  // Query permissions table and join with registry_records
+  const { data, error } = await sb
+    .from("registry_permissions")
+    .select("registry_records(*)")
+    .eq("user_id", userId)
+    .order("registry_records.created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) throw error;
+  // Supabase returns objects with a registry_records property
+  return (data ?? []).map((row: any) => row.registry_records as RegistryRecord);
+}

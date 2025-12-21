@@ -1,10 +1,14 @@
 import { requireAttorney } from "@/lib/auth";
+import { requireAccessRegistry } from "@/lib/permissions";
 import { getRegistryById, getRegistryVersions, getDocumentsForRegistry } from "@/lib/db";
 import { logAccess } from "@/lib/audit";
 import styles from "./page.module.css";
 
 export default async function RecordDetailPage({ params }: { params: { id: string } }) {
   const user = await requireAttorney();
+  // Ensure the user has access to this registry
+  await requireAccessRegistry({ user, registryId: params.id });
+
   const registry = await getRegistryById(params.id);
 
   if (!registry) {

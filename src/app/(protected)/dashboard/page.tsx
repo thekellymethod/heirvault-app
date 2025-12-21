@@ -1,11 +1,12 @@
 import { requireAttorney } from "@/lib/auth";
-import { listRegistries } from "@/lib/db";
+import { listAuthorizedRegistries } from "@/lib/db";
 import { logAccess } from "@/lib/audit";
 import styles from "./page.module.css";
 
 export default async function DashboardPage() {
   const user = await requireAttorney();
-  const registries = await listRegistries(50);
+  // Only load registries this user has permission to access
+  const registries = await listAuthorizedRegistries(user.id, 50);
 
   await logAccess({ userId: user.id, action: "DASHBOARD_VIEW", metadata: { count: registries.length } });
 

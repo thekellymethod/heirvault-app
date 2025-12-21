@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAttorney } from "@/lib/auth";
-import { constrainedSearch, getRegistryVersions } from "@/lib/db";
+import { listAuthorizedRegistries, getRegistryVersions } from "@/lib/db";
 import { logAccess } from "@/lib/audit";
 
 /**
@@ -82,12 +82,15 @@ export async function POST(req: NextRequest) {
     // We'll search through versions and match registries
     const searchTerm = searchString.trim().toLowerCase();
 
-    // Use constrainedSearch with the search term
-    // Note: constrainedSearch currently only supports decedentName
-    // For now, we'll search through all authorized registries and filter by version data
-    const allRegistries = await constrainedSearch({
-      userId: user.id,
-      decedentName: searchTerm, // Fallback to decedent name search
+    // Get all authorized registries for this user (respects permissions)
+    const authorizedRegistries = await listAuthorizedRegistries(user.id, 1000);
+    
+    // Filter by search term in authorized registries only
+    const allRegistries = authorizedRegistries.filter((registry) => {
+      // Basic name matching on registry record
+      const insuredName = (registry.insured_name || "").toLowerCase();
+      const carrierGuess = (registry.carrier_guess || "").toLowerCase();
+      return insuredName.includes(searchTerm) || carrierGuess.includes(searchTerm);
     });
 
     // Also search through versions for insured_name, beneficiary_name, carrier_guess
@@ -111,7 +114,7 @@ export async function POST(req: NextRequest) {
       const latestVersion = versions.length > 0 ? versions[0] : null;
 
       if (latestVersion) {
-        const data = latestVersion.dataJson as Record<string, unknown>;
+        const data = latestVersion.data_json as Record<string, unknown>;
         const insuredName = String(data.insured_name || "").toLowerCase();
         const beneficiaryName = String(data.beneficiary_name || "").toLowerCase();
         const carrierGuess = String(data.carrier_guess || "").toLowerCase();
@@ -128,9 +131,9 @@ export async function POST(req: NextRequest) {
         if (matchedField) {
           matchingRegistries.push({
             id: registry.id,
-            decedentName: registry.decedentName,
+            decedentName: registry.insured_name, // Use insured_name as decedentName for display
             status: registry.status,
-            createdAt: registry.createdAt,
+            createdAt: new Date(registry.created_at),
             matchedField,
             redactedData: {
               insuredName: data.insured_name ? String(data.insured_name) : undefined,

@@ -1,5 +1,6 @@
 import { requireAttorney } from "@/lib/auth";
-import { getAllRegistries, logAccess } from "@/lib/db";
+import { listAuthorizedRegistries, getRegistryVersions } from "@/lib/db";
+import { logAccess } from "@/lib/audit";
 import { RecordsListView } from "./_components/RecordsListView";
 
 /**
@@ -16,20 +17,38 @@ export default async function RecordsPage() {
   // Require attorney authentication
   const user = await requireAttorney();
 
-  // Fetch all authorized registries
-  // For now, all attorneys have global access (Phase 0)
-  // Future: Filter by organization or explicit access grants
-  const allRegistries = await getAllRegistries();
+  // Fetch only registries this user has permission to access
+  const authorizedRegistries = await listAuthorizedRegistries(user.id, 100);
   
-  // Filter by authorization (for now, all are authorized)
-  // Future: Use getAuthorizedRegistryIds(user.id) to filter
-  const registries = allRegistries; // All attorneys see all registries in Phase 0
+  // Transform to RegistrySummary format
+  const registries = await Promise.all(
+    authorizedRegistries.map(async (registry) => {
+      const versions = await getRegistryVersions(registry.id);
+      const latestVersion = versions.length > 0 ? versions[0] : null;
+      
+      return {
+        id: registry.id,
+        decedentName: registry.insured_name,
+        status: registry.status,
+        createdAt: new Date(registry.created_at),
+        latestVersion: latestVersion
+          ? {
+              id: latestVersion.id,
+              createdAt: new Date(latestVersion.created_at),
+              submittedBy: latestVersion.submitted_by,
+            }
+          : null,
+        versionCount: versions.length,
+        lastUpdated: latestVersion ? new Date(latestVersion.created_at) : null,
+      };
+    })
+  );
 
   // Log records list view (legal backbone - every route handler must call this)
   // Audit: DASHBOARD_VIEW (list view of records)
   await logAccess({
-    registryId: "records_list", // Special identifier for records list views
     userId: user.id,
+    registryId: null, // System-wide list view
     action: "DASHBOARD_VIEW",
     metadata: {
       source: "records_list_page",
