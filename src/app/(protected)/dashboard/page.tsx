@@ -1,13 +1,27 @@
+import { requireAttorney } from "@/lib/auth";
+import { getAllRegistries } from "@/lib/db";
+import { DashboardView } from "./_components/DashboardView";
+
 /**
  * Attorney Dashboard
  * Protected route - requires authentication
  * 
- * This file establishes the (protected) route group structure.
- * Move existing dashboard content here.
+ * Server Component
+ * Calls requireAttorney()
+ * Fetch authorized registries
+ * Display summaries only
  */
+export default async function DashboardPage() {
+  // Require attorney authentication
+  const user = await requireAttorney();
 
-export default function DashboardPage() {
-  // TODO: Move dashboard content from src/app/dashboard/page.tsx
-  return null;
+  // Fetch all authorized registries (for now, all attorneys have global access)
+  const registries = await getAllRegistries();
+
+  return (
+    <DashboardView
+      registries={registries}
+      user={user}
+    />
+  );
 }
-

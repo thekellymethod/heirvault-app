@@ -1,6 +1,4 @@
-import { getCurrentUser } from "@/lib/utils/clerk";
-
-type User = NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>;
+import { getUser, type User } from "@/lib/auth";
 
 /**
  * Check if a user is an admin.
@@ -13,7 +11,7 @@ type User = NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>;
 export async function isAdmin(user?: User): Promise<boolean> {
   try {
     // If user is provided, use it; otherwise fetch current user
-    const userToCheck = user || await getCurrentUser();
+    const userToCheck = user || await getUser();
     if (!userToCheck) {
       return false;
     }
@@ -34,21 +32,14 @@ export async function isAdmin(user?: User): Promise<boolean> {
  * Require admin access. Throws an error if user is not an admin.
  * Use this in pages and API routes that require admin privileges.
  * 
- * This function fetches the current user once and passes it to isAdmin() to prevent
- * race conditions where authentication state could change between calls.
+ * NOTE: This function is now re-exported from @/lib/auth.ts
+ * Use requireAdmin() from @/lib/auth.ts instead for consistency.
+ * 
+ * @deprecated Use requireAdmin() from @/lib/auth.ts
  */
 export async function requireAdmin(): Promise<User> {
-  const user = await getCurrentUser();
-  if (!user) {
-    throw new Error("Unauthorized");
-  }
-
-  // Pass the already-fetched user to isAdmin() to prevent race conditions
-  const admin = await isAdmin(user);
-  if (!admin) {
-    throw new Error("Forbidden: Admin access required");
-  }
-
-  return user;
+  // Re-export from auth.ts for backward compatibility
+  const { requireAdmin: requireAdminFromAuth } = await import("./auth");
+  return requireAdminFromAuth();
 }
 

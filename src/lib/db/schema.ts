@@ -1,5 +1,4 @@
 import { pgTable, text, timestamp, boolean, integer, json, date, pgEnum, uuid, uniqueIndex, index } from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
 // Enums
@@ -258,6 +257,15 @@ export const auditLogs = pgTable("audit_logs", {
 // Submission status enum
 export const submissionStatusEnum = pgEnum("SubmissionStatus", ["PENDING", "PROCESSING", "COMPLETED", "FAILED"]);
 
+// Registry status enum
+export const registryStatusEnum = pgEnum("RegistryStatus", ["ACTIVE", "ARCHIVED", "PENDING_VERIFICATION", "VERIFIED", "DISPUTED"]);
+
+// Registry submission source enum
+export const registrySubmissionSourceEnum = pgEnum("RegistrySubmissionSource", ["SYSTEM", "ATTORNEY", "INTAKE"]);
+
+// Access log action enum
+export const accessLogActionEnum = pgEnum("AccessLogAction", ["VIEWED", "CREATED", "UPDATED", "VERIFIED", "ARCHIVED", "EXPORTED", "DELETED"]);
+
 // Submissions table - tracks client submissions via invite tokens
 export const submissions = pgTable("submissions", {
   id: uuid("id").primaryKey().$defaultFn(() => randomUUID()),
@@ -302,6 +310,7 @@ export const documents = pgTable("documents", {
   clientId: uuid("client_id").notNull().references(() => clients.id, { onDelete: "cascade" }),
   submissionId: uuid("submission_id").references(() => submissions.id, { onDelete: "set null" }),
   policyId: uuid("policy_id").references(() => policies.id),
+  registryVersionId: uuid("registry_version_id").references(() => registryVersions.id, { onDelete: "set null" }), // Link to registry version
   fileName: text("file_name").notNull(),
   fileType: text("file_type").notNull(),
   fileSize: integer("file_size").notNull(),
@@ -310,7 +319,7 @@ export const documents = pgTable("documents", {
   uploadedVia: text("uploaded_via"),
   extractedData: json("extracted_data"),
   ocrConfidence: integer("ocr_confidence"),
-  documentHash: text("document_hash").notNull(), // SHA-256 hash for cryptographic integrity
+  documentHash: text("document_hash").notNull(), // SHA-256 hash for cryptographic integrity (renamed from sha256 for consistency)
   verifiedAt: timestamp("verified_at"),
   verifiedByUserId: uuid("verified_by_user_id").references(() => users.id),
   verificationNotes: text("verification_notes"),
@@ -322,6 +331,7 @@ export const documents = pgTable("documents", {
   createdAtIdx: index("documents_created_at_idx").on(table.createdAt),
   policyIdx: index("documents_policy_id_idx").on(table.policyId),
   hashIdx: index("documents_document_hash_idx").on(table.documentHash),
+  registryVersionIdx: index("documents_registry_version_id_idx").on(table.registryVersionId),
 }));
 
 // Client versions table - stores versioned updates to preserve historical chain
@@ -348,6 +358,47 @@ export const clientVersions = pgTable("client_versions", {
   previousVersionIdx: index("client_versions_previous_version_id_idx").on(table.previousVersionId),
 }));
 
+// Registry records table - main registry table (registry-first design)
+export const registryRecords = pgTable("registry_records", {
+  id: uuid("id").primaryKey().$defaultFn(() => randomUUID()),
+  decedentName: text("decedent_name").notNull(),
+  status: registryStatusEnum("status").default("PENDING_VERIFICATION").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  decedentNameIdx: index("registry_records_decedent_name_idx").on(table.decedentName),
+  statusIdx: index("registry_records_status_idx").on(table.status),
+  createdAtIdx: index("registry_records_created_at_idx").on(table.createdAt),
+}));
+
+// Registry versions table - immutable versioned data (nothing updates in place)
+export const registryVersions = pgTable("registry_versions", {
+  id: uuid("id").primaryKey().$defaultFn(() => randomUUID()),
+  registryId: uuid("registry_id").notNull().references(() => registryRecords.id, { onDelete: "cascade" }),
+  dataJson: json("data_json").notNull(), // Complete registry data snapshot at this version
+  submittedBy: registrySubmissionSourceEnum("submitted_by").notNull(), // "SYSTEM", "ATTORNEY", or "INTAKE"
+  hash: text("hash").notNull(), // SHA-256 hash of data_json for integrity
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  registryIdx: index("registry_versions_registry_id_idx").on(table.registryId),
+  hashIdx: index("registry_versions_hash_idx").on(table.hash),
+  createdAtIdx: index("registry_versions_created_at_idx").on(table.createdAt),
+  submittedByIdx: index("registry_versions_submitted_by_idx").on(table.submittedBy),
+}));
+
+// Access logs table - audit trail for registry access
+export const accessLogs = pgTable("access_logs", {
+  id: uuid("id").primaryKey().$defaultFn(() => randomUUID()),
+  registryId: uuid("registry_id").notNull().references(() => registryRecords.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }), // null for system actions
+  action: accessLogActionEnum("action").notNull(),
+  timestamp: timestamp("timestamp").defaultNow().notNull(),
+}, (table) => ({
+  registryIdx: index("access_logs_registry_id_idx").on(table.registryId),
+  userIdx: index("access_logs_user_id_idx").on(table.userId),
+  timestampIdx: index("access_logs_timestamp_idx").on(table.timestamp),
+  actionIdx: index("access_logs_action_idx").on(table.action),
+}));
+
 // Type exports for use in code
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
@@ -369,6 +420,12 @@ export type Document = typeof documents.$inferSelect;
 export type NewDocument = typeof documents.$inferInsert;
 export type ClientVersion = typeof clientVersions.$inferSelect;
 export type NewClientVersion = typeof clientVersions.$inferInsert;
+export type RegistryRecord = typeof registryRecords.$inferSelect;
+export type NewRegistryRecord = typeof registryRecords.$inferInsert;
+export type RegistryVersion = typeof registryVersions.$inferSelect;
+export type NewRegistryVersion = typeof registryVersions.$inferInsert;
+export type AccessLog = typeof accessLogs.$inferSelect;
+export type NewAccessLog = typeof accessLogs.$inferInsert;
 
 // Enum type exports (for compatibility with @prisma/client imports)
 export type AuditAction = "CLIENT_CREATED" | "CLIENT_UPDATED" | "POLICY_CREATED" | "POLICY_UPDATED" | "BENEFICIARY_CREATED" | "BENEFICIARY_UPDATED" | "INVITE_CREATED" | "INVITE_ACCEPTED" | "CLIENT_VIEWED" | "CLIENT_SUMMARY_PDF_DOWNLOADED" | "POLICY_SEARCH_PERFORMED" | "GLOBAL_POLICY_SEARCH_PERFORMED" | "DOCUMENT_UPLOADED" | "DOCUMENT_PROCESSED";
@@ -379,6 +436,9 @@ export type InviteStatus = "pending" | "accepted" | "expired" | "revoked";
 export type SubmissionStatus = "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
 export type AccessGrantStatus = "ACTIVE" | "REVOKED"; // Deprecated - use AttorneyClientAccess instead
 export type PolicyVerificationStatus = "PENDING" | "VERIFIED" | "DISCREPANCY" | "INCOMPLETE" | "REJECTED";
+export type RegistryStatus = "ACTIVE" | "ARCHIVED" | "PENDING_VERIFICATION" | "VERIFIED" | "DISPUTED";
+export type RegistrySubmissionSource = "SYSTEM" | "ATTORNEY" | "INTAKE";
+export type AccessLogAction = "VIEWED" | "CREATED" | "UPDATED" | "VERIFIED" | "ARCHIVED" | "EXPORTED" | "DELETED";
 
 // Export enum values as constants for compatibility (separate namespace)
 export const AuditActionEnum = {

@@ -1,15 +1,191 @@
+import { NextRequest, NextResponse } from "next/server";
+import { createRegistry, appendRegistryVersion, logAccess } from "@/lib/db";
+import { storeFile } from "@/lib/storage";
+import { generateDocumentHash } from "@/lib/document-hash";
+import { generateQRToken, generateQRCodeDataURL } from "@/lib/qr";
+import { createHash } from "crypto";
+import { randomUUID } from "crypto";
+import { db, documents } from "@/lib/db";
+
 /**
  * Policy Intake API
  * Public endpoint - no authentication required
  * 
- * This file establishes the API route structure.
- * Move existing policy intake API content here.
+ * This route does all the work:
+ * - Validate fields
+ * - Create registry record
+ * - Hash raw submission
+ * - Store document via /lib/storage.ts
+ * - Create registry version
+ * - Generate QR token (/lib/qr.ts)
+ * - Return receipt + QR
+ * 
+ * Important: Never returns registry ID directly. Uses signed token.
  */
-
-import { NextRequest, NextResponse } from "next/server";
-
 export async function POST(req: NextRequest) {
-  // TODO: Move policy intake API from src/app/api/policy-intake/submit/route.ts
-  return NextResponse.json({ error: "Not implemented" }, { status: 501 });
-}
+  try {
+    const formData = await req.formData();
+    
+    // Extract form data
+    const decedentName = formData.get("decedentName") as string;
+    const policyNumber = formData.get("policyNumber") as string | null;
+    const policyType = formData.get("policyType") as string | null;
+    const insurerName = formData.get("insurerName") as string | null;
+    const contactEmail = formData.get("contactEmail") as string | null;
+    const contactPhone = formData.get("contactPhone") as string | null;
+    const file = formData.get("file") as File | null;
 
+    // Validate required fields
+    if (!decedentName || decedentName.trim() === "") {
+      return NextResponse.json(
+        { error: "Decedent name is required" },
+        { status: 400 }
+      );
+    }
+
+    // Prepare raw submission data for hashing
+    const rawSubmission = {
+      decedentName: decedentName.trim(),
+      policyNumber: policyNumber?.trim() || null,
+      policyType: policyType?.trim() || null,
+      insurerName: insurerName?.trim() || null,
+      contactEmail: contactEmail?.trim() || null,
+      contactPhone: contactPhone?.trim() || null,
+      submittedAt: new Date().toISOString(),
+    };
+
+    // Hash raw submission for integrity
+    const submissionHash = createHash("sha256")
+      .update(JSON.stringify(rawSubmission))
+      .digest("hex");
+
+    // Prepare registry data
+    const registryData = {
+      ...rawSubmission,
+      submissionHash,
+      documentHash: null as string | null,
+      documentId: null as string | null,
+    };
+
+    // Handle document upload if provided
+    let documentId: string | null = null;
+    let documentHash: string | null = null;
+    let documentPath: string | null = null;
+
+    if (file) {
+      // Validate file type
+      const validTypes = ["application/pdf", "image/jpeg", "image/png", "image/jpg"];
+      if (!validTypes.includes(file.type)) {
+        return NextResponse.json(
+          { error: "Invalid file type. Please upload a PDF or image file." },
+          { status: 400 }
+        );
+      }
+
+      // Validate file size (max 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        return NextResponse.json(
+          { error: "File size must be less than 10MB" },
+          { status: 400 }
+        );
+      }
+
+      // Convert to buffer and hash
+      const arrayBuffer = await file.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      documentHash = generateDocumentHash(buffer);
+
+      // Store file (using registry ID placeholder - will update after registry creation)
+      const tempId = randomUUID();
+      const { filePath } = await storeFile(file, tempId);
+      documentPath = filePath;
+
+      // Update registry data with document hash
+      registryData.documentHash = documentHash;
+    }
+
+    // Create registry record with initial version
+    const registry = await createRegistry({
+      decedentName: decedentName.trim(),
+      status: "PENDING_VERIFICATION",
+      initialData: registryData,
+      submittedBy: "INTAKE",
+    });
+
+    // If document was uploaded, create document record and link to registry version
+    if (file && documentHash && documentPath && registry.latestVersion) {
+      documentId = randomUUID();
+      
+      // Create a placeholder client ID for registry-first design
+      // In registry-first design, documents are linked to registry versions, not clients
+      // The clientId field is required by schema but not used in registry-first flow
+      const placeholderClientId = randomUUID();
+      
+      // Store document record
+      await db.insert(documents).values({
+        id: documentId,
+        clientId: placeholderClientId, // Placeholder - registry-first design uses registryVersionId
+        registryVersionId: registry.latestVersion.id,
+        fileName: file.name,
+        fileType: file.type,
+        fileSize: file.size,
+        filePath: documentPath,
+        mimeType: file.type,
+        uploadedVia: "intake",
+        documentHash,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      // Update registry data with document ID
+      const updatedData = {
+        ...registryData,
+        documentId,
+      };
+
+      // Create a new version with document ID (immutable - nothing updates in place)
+      await appendRegistryVersion({
+        registryId: registry.id,
+        data: updatedData,
+        submittedBy: "INTAKE",
+      });
+    }
+
+    // Generate signed QR token (never return registry ID directly)
+    const qrToken = generateQRToken(registry.id, registry.latestVersion?.id);
+
+    // Generate QR code data URL
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin;
+    const qrCodeDataUrl = await generateQRCodeDataURL(registry.id, baseUrl);
+
+    // Generate receipt ID (hash of registry ID + timestamp for uniqueness)
+    const receiptId = createHash("sha256")
+      .update(`${registry.id}-${Date.now()}`)
+      .digest("hex")
+      .substring(0, 16)
+      .toUpperCase();
+
+    // Log access
+    await logAccess({
+      registryId: registry.id,
+      userId: null, // System action
+      action: "CREATED",
+    });
+
+    // Return receipt + QR (never return registry ID directly)
+    return NextResponse.json({
+      success: true,
+      receiptId,
+      qrToken, // Signed token, not registry ID
+      qrCodeDataUrl,
+      message: "Policy submitted successfully",
+    });
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    console.error("Error in intake submission:", errorMessage);
+    return NextResponse.json(
+      { error: errorMessage || "Failed to process submission" },
+      { status: 500 }
+    );
+  }
+}

@@ -1,13 +1,21 @@
+import { requireAttorney } from "@/lib/auth";
+import { SearchView } from "./_components/SearchView";
+
 /**
- * Search Page
+ * Search & Discovery Page
  * Protected route - requires authentication
  * 
- * This file establishes the (protected) route group structure.
- * Advanced search functionality for policies and clients.
+ * Server Component
+ * Server action triggered
+ * Require attorney
+ * Require search purpose input
+ * Query limited fields only
+ * 
+ * Never allow free-text global search. Ever.
  */
+export default async function SearchPage() {
+  // Require attorney authentication
+  const user = await requireAttorney();
 
-export default function SearchPage() {
-  // TODO: Move search content from src/app/dashboard/policy-locator/page.tsx
-  return null;
+  return <SearchView user={user} />;
 }
-

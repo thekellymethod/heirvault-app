@@ -1,6 +1,5 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { db, users, eq } from "@/lib/db";
-import { isAdmin } from "./admin";
 
 type Role = "attorney";
 
@@ -171,8 +170,13 @@ export async function requireAdmin(): Promise<User> {
   const user = await requireAttorney();
   
   // Then check admin status
-  const admin = await isAdmin(user);
-  if (!admin) {
+  const adminEmails = process.env.ADMIN_EMAILS?.split(",").map((e) => e.trim().toLowerCase()) || [];
+  if (adminEmails.length === 0) {
+    throw new Error("Forbidden: Admin access required");
+  }
+
+  const isAdmin = adminEmails.includes(user.email.toLowerCase());
+  if (!isAdmin) {
     throw new Error("Forbidden: Admin access required");
   }
 
