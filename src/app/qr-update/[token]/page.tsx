@@ -1,10 +1,11 @@
 import { prisma } from "@/lib/db";
 import { QRUpdateForm } from "./_components/QRUpdateForm";
 import Link from "next/link";
-import { XCircle, QrCode } from "lucide-react";
+import { QrCode } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { getOrCreateTestInvite } from "@/lib/test-invites";
 import { lookupClientInvite } from "@/lib/invite-lookup";
+import { redirect } from "next/navigation";
 
 interface Props {
   params: Promise<{ token: string }>;
@@ -31,24 +32,7 @@ export default async function QRUpdatePage({ params }: Props) {
   }
 
   if (!invite) {
-    return (
-      <main className="min-h-screen flex items-center justify-center bg-paper-50 px-4 py-8">
-        <div className="w-full max-w-md">
-          <div className="card p-8 text-center">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
-              <XCircle className="h-8 w-8 text-red-600" />
-            </div>
-            <h1 className="font-display text-xl font-bold text-ink-900 mb-2">Invalid QR Code</h1>
-            <p className="text-sm text-slateui-600 mb-6">
-              This QR code is invalid or has been revoked. Please contact your attorney for assistance.
-            </p>
-            <Link href="/" className="btn-primary inline-block">
-              Return to Home
-            </Link>
-          </div>
-        </div>
-      </main>
-    );
+    redirect("/error?type=invalid_qr");
   }
 
   // Get current client data with policies and beneficiaries

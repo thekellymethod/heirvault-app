@@ -13,19 +13,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
   });
 
   if (!access) {
-    return (
-      <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-6">
-        <h1 className="text-lg font-semibold text-slate-100">Forbidden</h1>
-        <p className="mt-2 text-sm text-slate-300">
-          You do not have access to this client.
-        </p>
-        <div className="mt-4">
-          <Link href="/dashboard/clients">
-            <Button variant="outline">Back to Clients</Button>
-          </Link>
-        </div>
-      </div>
-    );
+    redirect("/error?type=forbidden");
   }
 
   const client = await prisma.client.findUnique({
