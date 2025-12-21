@@ -264,7 +264,7 @@ export const registryStatusEnum = pgEnum("RegistryStatus", ["ACTIVE", "ARCHIVED"
 export const registrySubmissionSourceEnum = pgEnum("RegistrySubmissionSource", ["SYSTEM", "ATTORNEY", "INTAKE"]);
 
 // Access log action enum
-export const accessLogActionEnum = pgEnum("AccessLogAction", ["VIEWED", "CREATED", "UPDATED", "VERIFIED", "ARCHIVED", "EXPORTED", "DELETED"]);
+export const accessLogActionEnum = pgEnum("AccessLogAction", ["VIEWED", "CREATED", "UPDATED", "VERIFIED", "ARCHIVED", "EXPORTED", "DELETED", "INTAKE_SUBMITTED", "REGISTRY_UPDATED_BY_TOKEN", "DASHBOARD_VIEW", "REGISTRY_VIEW", "SEARCH_PERFORMED", "ACCESS_REQUESTED", "ACCESS_GRANTED"]);
 
 // Submissions table - tracks client submissions via invite tokens
 export const submissions = pgTable("submissions", {
@@ -391,6 +391,7 @@ export const accessLogs = pgTable("access_logs", {
   registryId: uuid("registry_id").notNull().references(() => registryRecords.id, { onDelete: "cascade" }),
   userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }), // null for system actions
   action: accessLogActionEnum("action").notNull(),
+  metadata: json("metadata"), // Additional metadata for audit trail (JSONB for flexibility)
   timestamp: timestamp("timestamp").defaultNow().notNull(),
 }, (table) => ({
   registryIdx: index("access_logs_registry_id_idx").on(table.registryId),
@@ -438,7 +439,7 @@ export type AccessGrantStatus = "ACTIVE" | "REVOKED"; // Deprecated - use Attorn
 export type PolicyVerificationStatus = "PENDING" | "VERIFIED" | "DISCREPANCY" | "INCOMPLETE" | "REJECTED";
 export type RegistryStatus = "ACTIVE" | "ARCHIVED" | "PENDING_VERIFICATION" | "VERIFIED" | "DISPUTED";
 export type RegistrySubmissionSource = "SYSTEM" | "ATTORNEY" | "INTAKE";
-export type AccessLogAction = "VIEWED" | "CREATED" | "UPDATED" | "VERIFIED" | "ARCHIVED" | "EXPORTED" | "DELETED";
+export type AccessLogAction = "VIEWED" | "CREATED" | "UPDATED" | "VERIFIED" | "ARCHIVED" | "EXPORTED" | "DELETED" | "INTAKE_SUBMITTED" | "REGISTRY_UPDATED_BY_TOKEN" | "DASHBOARD_VIEW" | "REGISTRY_VIEW" | "SEARCH_PERFORMED" | "ACCESS_REQUESTED" | "ACCESS_GRANTED";
 
 // Export enum values as constants for compatibility (separate namespace)
 export const AuditActionEnum = {

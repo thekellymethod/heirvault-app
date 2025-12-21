@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAttorney } from "@/lib/auth";
-import { db, registryRecords, registryVersions, accessLogs } from "@/lib/db";
+import { db, registryRecords, registryVersions, logAccess } from "@/lib/db";
 import { eq, desc, ilike } from "@/lib/db";
-import { randomUUID } from "crypto";
 
 /**
  * Search API
@@ -125,27 +124,21 @@ export async function GET(req: NextRequest) {
     const resultCount = results.length;
 
     // Log search intent + result count (critical for audit)
-    // Note: access_logs requires a registryId, but searches don't target specific registries
-    // For now, we log to console with structured data
-    // In production, create a dedicated search_logs table or make registryId nullable for search operations
-    console.log("Search performed:", {
+    // Audit: SEARCH_PERFORMED
+    // Note: For searches, we use a special registryId "search" to indicate it's a search operation
+    // This allows us to use the existing access_logs table while maintaining audit trail
+    await logAccess({
+      registryId: "search", // Special identifier for search operations
       userId: user.id,
-      userEmail: user.email,
-      purpose,
-      searchFields: { decedentName },
-      resultCount,
-      timestamp: new Date().toISOString(),
+      action: "SEARCH_PERFORMED",
+      metadata: {
+        source: "search_api",
+        purpose,
+        searchFields: { decedentName },
+        resultCount,
+        timestamp: new Date().toISOString(),
+      },
     });
-
-    // TODO: Create search_logs table for proper audit trail:
-    // CREATE TABLE search_logs (
-    //   id UUID PRIMARY KEY,
-    //   user_id UUID REFERENCES users(id),
-    //   purpose TEXT NOT NULL,
-    //   search_fields JSONB NOT NULL,
-    //   result_count INTEGER NOT NULL,
-    //   timestamp TIMESTAMP DEFAULT NOW()
-    // );
 
     // Return results (limited fields only - never full data)
     return NextResponse.json({

@@ -153,20 +153,73 @@ export async function POST(
       client.country || null
     );
 
-    // Update policies (delete old, create new)
+    // CRITICAL: Validate policies BEFORE deleting existing data
+    // This prevents silent data loss when required fields are missing
+    const invalidPolicies: number[] = [];
+    const validPolicies: Array<typeof policies[number]> = [];
+    
+    (policies || []).forEach((policy: typeof policies[number], index: number) => {
+      if (!policy.insurerName || String(policy.insurerName).trim() === "") {
+        invalidPolicies.push(index + 1); // 1-indexed for user-friendly error messages
+      } else {
+        validPolicies.push(policy);
+      }
+    });
+
+    // CRITICAL: Validate beneficiaries BEFORE deleting existing data
+    const invalidBeneficiaries: number[] = [];
+    const validBeneficiaries: Array<typeof beneficiaries[number]> = [];
+    
+    (beneficiaries || []).forEach((beneficiary: typeof beneficiaries[number], index: number) => {
+      if (!beneficiary.firstName || String(beneficiary.firstName).trim() === "" || 
+          !beneficiary.lastName || String(beneficiary.lastName).trim() === "") {
+        invalidBeneficiaries.push(index + 1); // 1-indexed for user-friendly error messages
+      } else {
+        validBeneficiaries.push(beneficiary);
+      }
+    });
+
+    // Return error if any required fields are missing
+    // This prevents silent data loss - user must fix the form before submission
+    if (invalidPolicies.length > 0 || invalidBeneficiaries.length > 0) {
+      const errors: string[] = [];
+      
+      if (invalidPolicies.length > 0) {
+        errors.push(
+          `Policy ${invalidPolicies.length === 1 ? "entry" : "entries"} ${invalidPolicies.join(", ")} ${invalidPolicies.length === 1 ? "is" : "are"} missing required Insurance Company name. Please provide an insurer name for all policies or remove the policy entry.`
+        );
+      }
+      
+      if (invalidBeneficiaries.length > 0) {
+        errors.push(
+          `Beneficiary ${invalidBeneficiaries.length === 1 ? "entry" : "entries"} ${invalidBeneficiaries.join(", ")} ${invalidBeneficiaries.length === 1 ? "is" : "are"} missing required first name or last name. Please provide both names for all beneficiaries or remove the beneficiary entry.`
+        );
+      }
+
+      return NextResponse.json(
+        { 
+          error: "Validation failed. Please fix the following errors:",
+          details: errors,
+          invalidPolicies: invalidPolicies.length > 0 ? invalidPolicies : undefined,
+          invalidBeneficiaries: invalidBeneficiaries.length > 0 ? invalidBeneficiaries : undefined,
+        },
+        { status: 400 }
+      );
+    }
+
+    // Only delete existing data AFTER validation passes
+    // This ensures we never lose data due to invalid submissions
     await prisma.$executeRawUnsafe(`
       DELETE FROM policies WHERE client_id = $1
     `, clientId);
 
-    // Get or create insurers and insert policies
-    for (const policy of policies) {
-      if (!policy.insurerName) continue;
-
+    // Get or create insurers and insert policies (all validated now)
+    for (const policy of validPolicies) {
       // Get or create insurer
       let insurerId: string;
       const existingInsurer = await prisma.$queryRawUnsafe<Array<{ id: string }>>(`
         SELECT id FROM insurers WHERE name = $1 LIMIT 1
-      `, policy.insurerName);
+      `, policy.insurerName.trim());
 
       if (existingInsurer.length > 0) {
         insurerId = existingInsurer[0].id;
@@ -175,7 +228,7 @@ export async function POST(
         await prisma.$executeRawUnsafe(`
           INSERT INTO insurers (id, name, created_at, updated_at)
           VALUES ($1, $2, NOW(), NOW())
-        `, newInsurerId, policy.insurerName);
+        `, newInsurerId, policy.insurerName.trim());
         insurerId = newInsurerId;
       }
 
@@ -183,33 +236,32 @@ export async function POST(
       await prisma.$executeRawUnsafe(`
         INSERT INTO policies (id, client_id, insurer_id, policy_number, policy_type, created_at, updated_at)
         VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
-      `, randomUUID(), clientId, insurerId, policy.policyNumber || null, policy.policyType || null);
+      `, randomUUID(), clientId, insurerId, policy.policyNumber?.trim() || null, policy.policyType?.trim() || null);
     }
 
-    // Update beneficiaries (delete old, create new)
+    // Only delete existing beneficiaries AFTER validation passes
     await prisma.$executeRawUnsafe(`
       DELETE FROM beneficiaries WHERE client_id = $1
     `, clientId);
 
-    for (const beneficiary of beneficiaries) {
-      if (!beneficiary.firstName || !beneficiary.lastName) continue;
-
+    // Insert validated beneficiaries
+    for (const beneficiary of validBeneficiaries) {
       await prisma.$executeRawUnsafe(`
         INSERT INTO beneficiaries (
           id, client_id, first_name, last_name, relationship, email, phone, date_of_birth, created_at, updated_at
         ) VALUES (
           $1, $2, $3, $4, $5, $6, $7, 
-          CASE WHEN $8 = '' THEN NULL ELSE $8::date END,
+          CASE WHEN $8 = '' OR $8 IS NULL THEN NULL ELSE $8::date END,
           NOW(), NOW()
         )
       `,
         randomUUID(),
         clientId,
-        beneficiary.firstName,
-        beneficiary.lastName,
-        beneficiary.relationship || null,
-        beneficiary.email || null,
-        beneficiary.phone || null,
+        beneficiary.firstName.trim(),
+        beneficiary.lastName.trim(),
+        beneficiary.relationship?.trim() || null,
+        beneficiary.email?.trim() || null,
+        beneficiary.phone?.trim() || null,
         beneficiary.dateOfBirth || null
       );
     }

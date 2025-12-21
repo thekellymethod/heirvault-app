@@ -40,6 +40,7 @@ export type LogAccessInput = {
   registryId: string;
   userId?: string | null; // null for system actions
   action: AccessLogAction;
+  metadata?: Record<string, unknown>; // Additional metadata for audit trail
 };
 
 /**
@@ -171,6 +172,15 @@ export async function getRegistryById(registryId: string): Promise<RegistryWithV
  * This is called automatically by createRegistry and appendRegistryVersion,
  * but can also be called explicitly for other actions (VIEWED, VERIFIED, etc.).
  */
+/**
+ * Log access to a registry
+ * 
+ * Every route handler must call this function.
+ * This is where credibility lives - comprehensive audit trail.
+ * 
+ * Creates an audit trail entry for any action performed on a registry.
+ * Includes user, registry, action, and optional metadata.
+ */
 export async function logAccess(input: LogAccessInput): Promise<AccessLog> {
   const logId = randomUUID();
 
@@ -180,6 +190,7 @@ export async function logAccess(input: LogAccessInput): Promise<AccessLog> {
       registryId: input.registryId,
       userId: input.userId || null,
       action: input.action,
+      metadata: input.metadata || null,
     })
     .returning();
 

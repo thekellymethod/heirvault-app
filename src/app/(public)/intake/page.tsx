@@ -152,6 +152,14 @@ export default function IntakePage() {
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Button
                 onClick={() => {
+                  window.location.href = `/update/${receiptData.qrToken}`;
+                }}
+                className="btn-primary"
+              >
+                Update Submission
+              </Button>
+              <Button
+                onClick={() => {
                   setSuccess(false);
                   setFormData({
                     decedentName: "",

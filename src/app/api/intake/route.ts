@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createRegistry, appendRegistryVersion, logAccess } from "@/lib/db";
-import { storeFile } from "@/lib/storage";
-import { generateDocumentHash } from "@/lib/document-hash";
+import { uploadFile } from "@/lib/storage";
 import { generateQRToken, generateQRCodeDataURL } from "@/lib/qr";
 import { createHash } from "crypto";
 import { randomUUID } from "crypto";
@@ -90,15 +89,11 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      // Convert to buffer and hash
-      const arrayBuffer = await file.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-      documentHash = generateDocumentHash(buffer);
-
-      // Store file (using registry ID placeholder - will update after registry creation)
-      const tempId = randomUUID();
-      const { filePath } = await storeFile(file, tempId);
-      documentPath = filePath;
+      // Upload file (content-addressed storage)
+      // This computes SHA-256 hash and stores file at content-addressed path
+      const uploadResult = await uploadFile(file);
+      documentHash = uploadResult.hash;
+      documentPath = uploadResult.filePath;
 
       // Update registry data with document hash
       registryData.documentHash = documentHash;
@@ -165,11 +160,19 @@ export async function POST(req: NextRequest) {
       .substring(0, 16)
       .toUpperCase();
 
-    // Log access
+    // Log access (legal backbone - every route handler must call this)
+    // Audit: INTAKE_SUBMITTED
     await logAccess({
       registryId: registry.id,
-      userId: null, // System action
-      action: "CREATED",
+      userId: null, // System action (intake submission)
+      action: "INTAKE_SUBMITTED",
+      metadata: {
+        source: "intake",
+        hasDocument: !!file,
+        documentHash: documentHash || null,
+        qrToken: qrToken,
+        receiptId: receiptId,
+      },
     });
 
     // Return receipt + QR (never return registry ID directly)

@@ -120,17 +120,24 @@ export function SearchView({ user }: SearchViewProps) {
             <label htmlFor="searchPurpose" className="block text-sm font-medium text-ink-900 mb-1">
               Search Purpose <span className="text-red-500">*</span>
             </label>
-            <Input
+            <select
               id="searchPurpose"
-              type="text"
               required
               value={searchPurpose}
               onChange={(e) => setSearchPurpose(e.target.value)}
-              placeholder="e.g., Locating policy for estate administration, Verifying policy existence for beneficiary claim"
-              className="w-full"
-            />
+              className="w-full rounded-md border border-slateui-200 bg-white px-3 py-2 text-sm focus:border-ink-900 focus:outline-none focus:ring-1 focus:ring-ink-900"
+              aria-label="Search purpose"
+            >
+              <option value="">Select a purpose...</option>
+              <option value="ESTATE_ADMINISTRATION">Estate Administration</option>
+              <option value="BENEFICIARY_CLAIM">Beneficiary Claim</option>
+              <option value="POLICY_VERIFICATION">Policy Verification</option>
+              <option value="LEGAL_PROCEEDING">Legal Proceeding</option>
+              <option value="COMPLIANCE_AUDIT">Compliance Audit</option>
+              <option value="OTHER">Other (specify in notes)</option>
+            </select>
             <p className="text-xs text-slateui-500 mt-1">
-              Explain why you are performing this search. This will be logged for audit purposes.
+              Select the purpose for this search. This will be logged for audit purposes.
             </p>
           </div>
 

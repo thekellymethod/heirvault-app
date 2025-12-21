@@ -225,10 +225,11 @@ export async function getFileMetadata(filePath: string): Promise<{
  * Legacy function for backward compatibility
  * 
  * @deprecated Use uploadFile() instead for content-addressed storage
+ * 
+ * @param file - The file to store
  */
 export async function storeFile(
-  file: File,
-  identifier: string
+  file: File
 ): Promise<{ filePath: string; fullPath: string }> {
   const result = await uploadFile(file);
   return {

@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyQRToken, getRegistryIdFromToken } from "@/lib/qr";
+import { verifyQRToken } from "@/lib/qr";
 import { getRegistryById, appendRegistryVersion, logAccess } from "@/lib/db";
-import { storeFile } from "@/lib/storage";
-import { generateDocumentHash } from "@/lib/document-hash";
+import { uploadFile } from "@/lib/storage";
 import { createHash } from "crypto";
 import { randomUUID } from "crypto";
 import { db, documents } from "@/lib/db";
@@ -140,14 +139,11 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      // Convert to buffer and hash
-      const arrayBuffer = await file.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-      documentHash = generateDocumentHash(buffer);
-
-      // Store file
-      const { filePath } = await storeFile(file, payload.registryId);
-      documentPath = filePath;
+      // Upload file (content-addressed storage)
+      // This computes SHA-256 hash and stores file at content-addressed path
+      const uploadResult = await uploadFile(file);
+      documentHash = uploadResult.hash;
+      documentPath = uploadResult.filePath;
 
       // Add document info to new data
       (newData as Record<string, unknown>).documentHash = documentHash;
@@ -199,11 +195,21 @@ export async function POST(req: NextRequest) {
       // In a fully immutable system, we'd create another version, but for documents this is acceptable
     }
 
-    // Log version lineage (access log)
+    // Log version lineage (legal backbone - every route handler must call this)
+    // Audit: REGISTRY_UPDATED_BY_TOKEN
     await logAccess({
       registryId: payload.registryId,
-      userId: null, // System action (public update)
-      action: "UPDATED",
+      userId: null, // System action (public update via QR)
+      action: "REGISTRY_UPDATED_BY_TOKEN",
+      metadata: {
+        source: "qr_update",
+        versionId: newVersion.id,
+        previousVersionId: currentVersion.id,
+        hasDocument: !!file,
+        documentHash: documentHash || null,
+        changes: Object.keys(delta),
+        delta: Object.keys(delta).length > 0 ? delta : null,
+      },
     });
 
     // Return success (never return registry ID directly)

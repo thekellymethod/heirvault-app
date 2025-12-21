@@ -29,7 +29,7 @@ const isPublicRoute = createRouteMatcher([
   "/sign-in(.*)",
   "/sign-up(.*)",
   "/attorney/onboard",
-  "/(auth)/login(.*)",
+  "/login(.*)", // Login page (route group (auth) doesn't appear in URL)
   
   // Error pages
   "/error(.*)",
@@ -77,18 +77,18 @@ export default clerkMiddleware(async (auth, req) => {
     const { userId } = await auth();
     if (!userId) {
       // Redirect to login for protected routes
-      const signInUrl = new URL("/sign-in", req.url);
-      signInUrl.searchParams.set("redirect_url", pathname);
-      return NextResponse.redirect(signInUrl);
+      const loginUrl = new URL("/login", req.url);
+      loginUrl.searchParams.set("redirect_url", pathname);
+      return NextResponse.redirect(loginUrl);
     }
 
     // Fetch user and role from database
     const user = await getUser();
     if (!user) {
       // User exists in Clerk but not in DB - redirect to login
-      const signInUrl = new URL("/sign-in", req.url);
-      signInUrl.searchParams.set("redirect_url", pathname);
-      return NextResponse.redirect(signInUrl);
+      const loginUrl = new URL("/login", req.url);
+      loginUrl.searchParams.set("redirect_url", pathname);
+      return NextResponse.redirect(loginUrl);
     }
 
     // Attach user + role to request headers for downstream use

@@ -86,6 +86,10 @@ export function QRUpdateForm({ token, clientId, currentData }: QRUpdateFormProps
       const data = await res.json();
 
       if (!res.ok) {
+        // Handle validation errors with detailed messages
+        if (data.details && Array.isArray(data.details)) {
+          throw new Error(data.details.join("\n"));
+        }
         throw new Error(data.error || "Failed to submit update");
       }
 
@@ -329,9 +333,12 @@ export function QRUpdateForm({ token, clientId, currentData }: QRUpdateFormProps
                   />
                 </div>
                 <div>
-                  <label className="label">Insurer Name</label>
+                  <label className="label">
+                    Insurance Company <span className="text-red-500">*</span>
+                  </label>
                   <input
                     className="input"
+                    required
                     value={policy.insurerName}
                     onChange={(e) =>
                       setPolicies(
@@ -340,6 +347,7 @@ export function QRUpdateForm({ token, clientId, currentData }: QRUpdateFormProps
                         )
                       )
                     }
+                    placeholder="Required - Insurance company name"
                   />
                 </div>
               </div>
@@ -382,9 +390,12 @@ export function QRUpdateForm({ token, clientId, currentData }: QRUpdateFormProps
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="label">First Name</label>
+                  <label className="label">
+                    First Name <span className="text-red-500">*</span>
+                  </label>
                   <input
                     className="input"
+                    required
                     value={beneficiary.firstName}
                     onChange={(e) =>
                       setBeneficiaries(
@@ -393,12 +404,16 @@ export function QRUpdateForm({ token, clientId, currentData }: QRUpdateFormProps
                         )
                       )
                     }
+                    placeholder="Required"
                   />
                 </div>
                 <div>
-                  <label className="label">Last Name</label>
+                  <label className="label">
+                    Last Name <span className="text-red-500">*</span>
+                  </label>
                   <input
                     className="input"
+                    required
                     value={beneficiary.lastName}
                     onChange={(e) =>
                       setBeneficiaries(
@@ -407,6 +422,7 @@ export function QRUpdateForm({ token, clientId, currentData }: QRUpdateFormProps
                         )
                       )
                     }
+                    placeholder="Required"
                   />
                 </div>
                 <div>

@@ -145,6 +145,22 @@ export default function PolicyIntakePage() {
       if (!res.ok) throw new Error(data?.error || "Failed to submit policy");
 
       setReceiptId(data.receiptId);
+      
+      // Store receipt data in sessionStorage for the receipt page
+      if (data.receiptId) {
+        sessionStorage.setItem(`receipt_${data.receiptId}`, JSON.stringify({
+          receiptId: data.receiptId,
+          qrToken: data.qrToken,
+          qrCodeDataUrl: data.qrCodeDataUrl,
+          submittedAt: new Date().toISOString(),
+          decedentName: formData.firstName && formData.lastName 
+            ? `${formData.firstName} ${formData.lastName}` 
+            : undefined,
+          policyNumber: formData.policyNumber || undefined,
+          insurerName: formData.insurerName || undefined,
+        }));
+      }
+      
       setSuccess(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");

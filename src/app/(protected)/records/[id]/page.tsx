@@ -1,5 +1,5 @@
 import { verifyRegistryAccess } from "@/lib/permissions";
-import { getRegistryById, getRegistryVersionById, logAccess } from "@/lib/db";
+import { getRegistryById, logAccess } from "@/lib/db";
 import { redirect } from "next/navigation";
 import { RecordDetailView } from "./_components/RecordDetailView";
 import { db, documents, inArray } from "@/lib/db";
@@ -64,11 +64,19 @@ export default async function RecordDetailPage({ params }: Props) {
     }
   }
 
-  // Log view access
+  // Log view access (legal backbone - every route handler must call this)
+  // Audit: REGISTRY_VIEW
   await logAccess({
     registryId: id,
     userId: user.id,
-    action: "VIEWED",
+    action: "REGISTRY_VIEW",
+    metadata: {
+      source: "record_detail_page",
+      versionCount: registry.versions.length,
+      documentCount: allDocuments.length,
+      decedentName: registry.decedentName,
+      status: registry.status,
+    },
   });
 
   return (
