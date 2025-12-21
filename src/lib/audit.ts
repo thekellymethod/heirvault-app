@@ -1,16 +1,49 @@
 import { logAccess as dbLogAccess } from "@/lib/db";
 
+/**
+ * Audit Action Types
+ * 
+ * All significant actions must be logged for compliance and legal defensibility.
+ * 
+ * Access Actions:
+ * - DASHBOARD_VIEW: User viewed dashboard
+ * - REGISTRY_VIEW: User viewed a specific registry
+ * - SEARCH_PERFORMED: User performed a search
+ * 
+ * Modification Actions:
+ * - INTAKE_SUBMITTED: New registry created via intake
+ * - REGISTRY_UPDATED_BY_TOKEN: Registry updated via QR token
+ * - REGISTRY_UPDATED_BY_ATTORNEY: Registry updated by attorney
+ * 
+ * Document Actions:
+ * - DOCUMENT_UPLOADED: Document uploaded to registry
+ * - DOCUMENT_DOWNLOADED: Document downloaded
+ * 
+ * Permission Actions:
+ * - PERMISSION_GRANTED: User granted access to registry
+ * - PERMISSION_REVOKED: User access revoked from registry
+ */
 export type Action =
   | "INTAKE_SUBMITTED"
   | "REGISTRY_UPDATED_BY_TOKEN"
+  | "REGISTRY_UPDATED_BY_ATTORNEY"
   | "DASHBOARD_VIEW"
   | "REGISTRY_VIEW"
   | "SEARCH_PERFORMED"
-  | "DOCUMENT_UPLOADED";
+  | "DOCUMENT_UPLOADED"
+  | "DOCUMENT_DOWNLOADED"
+  | "PERMISSION_GRANTED"
+  | "PERMISSION_REVOKED";
 
-function maskSensitive(metadata: Record<string, any> | undefined) {
+/**
+ * Mask sensitive data in audit metadata
+ * 
+ * Prevents PII from being stored in audit logs.
+ * Masks: policy numbers, SSNs, account numbers, etc.
+ */
+function maskSensitive(metadata: Record<string, unknown> | undefined): Record<string, unknown> | undefined {
   if (!metadata) return undefined;
-  const clone = structuredClone(metadata);
+  const clone = structuredClone(metadata) as Record<string, unknown>;
 
   // Mask fields that commonly carry sensitive identifiers
   const mask = (v: unknown) => (typeof v === "string" && v.length > 6 ? `${v.slice(0, 2)}••••${v.slice(-2)}` : v);
@@ -21,16 +54,38 @@ function maskSensitive(metadata: Record<string, any> | undefined) {
   return clone;
 }
 
+/**
+ * Log access with comprehensive metadata
+ * 
+ * Security: Audit logs are append-only and protected from modification.
+ * 
+ * @param input.userId - User ID (null for system actions)
+ * @param input.registryId - Registry ID (null for system-wide actions)
+ * @param input.action - Action type
+ * @param input.metadata - Additional metadata (sensitive data will be masked)
+ * @param input.route - Optional route name for tracking
+ * @param input.requestId - Optional request ID for correlation
+ */
 export async function logAccess(input: {
   userId: string | null;
   registryId?: string | null;
   action: Action;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
+  route?: string;
+  requestId?: string;
 }) {
+  // Build comprehensive metadata
+  const enrichedMetadata = {
+    ...maskSensitive(input.metadata),
+    ...(input.route && { route: input.route }),
+    ...(input.requestId && { requestId: input.requestId }),
+    timestamp: new Date().toISOString(),
+  };
+
   await dbLogAccess({
     user_id: input.userId,
     registry_id: input.registryId ?? null,
     action: input.action,
-    metadata: maskSensitive(input.metadata),
+    metadata: enrichedMetadata,
   });
 }

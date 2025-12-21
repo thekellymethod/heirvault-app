@@ -1,8 +1,8 @@
 import { supabaseServer } from "@/lib/supabase";
 
-// Re-export prisma compatibility layer from Drizzle ORM
-// This allows existing code to import { prisma } from "@/lib/db"
-export { prisma } from "./db/index";
+// Re-export everything from db/index (Drizzle ORM, schema, query helpers)
+// This allows existing code to import { prisma, db, clients, policies, eq, ... } from "@/lib/db"
+export * from "./db/index";
 
 export type RegistryRecord = {
   id: string;

@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { db, attorneyClientAccess, clients, beneficiaries, eq, desc, and, or, ilike } from "@/lib/db";
+import { db, attorneyClientAccess, clients, policies, insurers, eq, desc, and, or, ilike } from "@/lib/db";
 import { requireAuth } from "@/lib/utils/clerk";
 
-export default async function BeneficiariesPage({
+export default async function PoliciesPage({
   searchParams,
 }: {
   searchParams: Promise<{ search?: string; sort?: string }>;
@@ -16,10 +16,9 @@ export default async function BeneficiariesPage({
     // Build search conditions (case-insensitive)
     const searchConditions = searchTerm
       ? [
-          ilike(beneficiaries.firstName, `%${searchTerm}%`),
-          ilike(beneficiaries.lastName, `%${searchTerm}%`),
-          ilike(beneficiaries.email, `%${searchTerm}%`),
-          ilike(beneficiaries.relationship, `%${searchTerm}%`),
+          ilike(policies.policyNumber, `%${searchTerm}%`),
+          ilike(policies.policyType, `%${searchTerm}%`),
+          ilike(insurers.name, `%${searchTerm}%`),
           ilike(clients.firstName, `%${searchTerm}%`),
           ilike(clients.lastName, `%${searchTerm}%`),
           ilike(clients.email, `%${searchTerm}%`),
@@ -32,31 +31,31 @@ export default async function BeneficiariesPage({
       case "clientName":
         orderBy = [desc(clients.lastName), desc(clients.firstName)];
         break;
-      case "beneficiaryName":
-        orderBy = [desc(beneficiaries.lastName), desc(beneficiaries.firstName)];
+      case "insurer":
+        orderBy = [desc(insurers.name)];
         break;
-      case "relationship":
-        orderBy = [desc(beneficiaries.relationship)];
+      case "policyNumber":
+        orderBy = [desc(policies.policyNumber)];
+        break;
+      case "verificationStatus":
+        orderBy = [desc(policies.verificationStatus)];
         break;
       case "createdAt":
       default:
-        orderBy = [desc(beneficiaries.createdAt)];
+        orderBy = [desc(policies.createdAt)];
         break;
     }
 
-    // Fetch beneficiaries joined with authorized clients
+    // Fetch policies joined with authorized clients
     const rows = await db
       .select({
-        beneficiary: {
-          id: beneficiaries.id,
-          firstName: beneficiaries.firstName,
-          lastName: beneficiaries.lastName,
-          relationship: beneficiaries.relationship,
-          email: beneficiaries.email,
-          phone: beneficiaries.phone,
-          dateOfBirth: beneficiaries.dateOfBirth,
-          createdAt: beneficiaries.createdAt,
-          updatedAt: beneficiaries.updatedAt,
+        policy: {
+          id: policies.id,
+          policyNumber: policies.policyNumber,
+          policyType: policies.policyType,
+          verificationStatus: policies.verificationStatus,
+          createdAt: policies.createdAt,
+          updatedAt: policies.updatedAt,
         },
         client: {
           id: clients.id,
@@ -64,10 +63,15 @@ export default async function BeneficiariesPage({
           lastName: clients.lastName,
           email: clients.email,
         },
+        insurer: {
+          id: insurers.id,
+          name: insurers.name,
+        },
       })
       .from(attorneyClientAccess)
       .innerJoin(clients, eq(attorneyClientAccess.clientId, clients.id))
-      .innerJoin(beneficiaries, eq(beneficiaries.clientId, clients.id))
+      .innerJoin(policies, eq(policies.clientId, clients.id))
+      .innerJoin(insurers, eq(policies.insurerId, insurers.id))
       .where(
         and(
           eq(attorneyClientAccess.attorneyId, user.id),
@@ -77,21 +81,22 @@ export default async function BeneficiariesPage({
       )
       .orderBy(...orderBy);
 
-    const beneficiariesList = rows.map((r: typeof rows[number]) => ({
-      id: r.beneficiary.id,
-      firstName: r.beneficiary.firstName,
-      lastName: r.beneficiary.lastName,
-      relationship: r.beneficiary.relationship,
-      email: r.beneficiary.email,
-      phone: r.beneficiary.phone,
-      dateOfBirth: r.beneficiary.dateOfBirth,
-      createdAt: r.beneficiary.createdAt,
-      updatedAt: r.beneficiary.updatedAt,
+    const policiesList = rows.map((r: typeof rows[number]) => ({
+      id: r.policy.id,
+      policyNumber: r.policy.policyNumber,
+      policyType: r.policy.policyType,
+      verificationStatus: r.policy.verificationStatus,
+      createdAt: r.policy.createdAt,
+      updatedAt: r.policy.updatedAt,
       client: {
         id: r.client.id,
         firstName: r.client.firstName,
         lastName: r.client.lastName,
         email: r.client.email,
+      },
+      insurer: {
+        id: r.insurer.id,
+        name: r.insurer.name,
       },
     }));
 
@@ -99,9 +104,9 @@ export default async function BeneficiariesPage({
       <div className="space-y-6">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-semibold text-slate-100">Beneficiaries</h1>
+            <h1 className="text-2xl font-semibold text-slate-100">Policies</h1>
             <p className="text-sm text-slate-300">
-              View all beneficiaries across your authorized clients.
+              View all policies across your authorized clients.
             </p>
           </div>
         </div>
@@ -112,7 +117,7 @@ export default async function BeneficiariesPage({
             <input
               type="text"
               name="search"
-              placeholder="Search by name, email, relationship, or client name..."
+              placeholder="Search by policy number, type, insurer, or client name..."
               defaultValue={searchTerm}
               className="flex-1 rounded-lg border border-slate-800 bg-slate-950/40 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-slate-700 focus:outline-none"
             />
@@ -123,12 +128,12 @@ export default async function BeneficiariesPage({
               Search
             </button>
             {searchTerm && (
-              <a
-                href="/dashboard/beneficiaries"
+              <Link
+                href="/dashboard/policies"
                 className="rounded-lg border border-slate-800 bg-slate-900 px-4 py-2 text-sm text-slate-100 hover:bg-slate-800 transition-colors"
               >
                 Clear
-              </a>
+              </Link>
             )}
           </form>
           <form method="get" className="flex gap-2">
@@ -145,67 +150,80 @@ export default async function BeneficiariesPage({
             >
               <option value="createdAt">Newest First</option>
               <option value="clientName">Client Name</option>
-              <option value="beneficiaryName">Beneficiary Name</option>
-              <option value="relationship">Relationship</option>
+              <option value="insurer">Insurer</option>
+              <option value="policyNumber">Policy Number</option>
+              <option value="verificationStatus">Verification Status</option>
             </select>
           </form>
         </div>
 
         <div className="rounded-xl border border-slate-800 bg-slate-950/40">
           <div className="grid grid-cols-12 gap-2 border-b border-slate-800 px-4 py-3 text-xs font-semibold text-slate-400">
-            <div className="col-span-3">Beneficiary</div>
+            <div className="col-span-3">Policy</div>
             <div className="col-span-2">Client</div>
-            <div className="col-span-2">Relationship</div>
-            <div className="col-span-2">Email</div>
-            <div className="col-span-2">Phone</div>
+            <div className="col-span-2">Insurer</div>
+            <div className="col-span-2">Type</div>
+            <div className="col-span-2">Status</div>
             <div className="col-span-1 text-right">Created</div>
           </div>
 
-          {beneficiariesList.length === 0 ? (
+          {policiesList.length === 0 ? (
             <div className="px-4 py-8 text-sm text-slate-300">
               {searchTerm
-                ? `No beneficiaries found matching "${searchTerm}".`
-                : "No beneficiaries found. Beneficiaries will appear here once clients are added."}
+                ? `No policies found matching "${searchTerm}".`
+                : "No policies found. Policies will appear here once clients are added."}
             </div>
           ) : (
             <div className="divide-y divide-slate-800">
-              {beneficiariesList.map((b: typeof beneficiariesList[number]) => (
+              {policiesList.map((p: typeof policiesList[number]) => (
                 <div
-                  key={b.id}
+                  key={p.id}
                   className="px-4 py-4 hover:bg-slate-900/40 transition-colors"
                 >
                   <div className="grid grid-cols-12 items-center gap-2">
                     <div className="col-span-3">
-                      <div className="text-sm font-medium text-slate-100">
-                        {b.firstName} {b.lastName}
-                      </div>
-                      {b.dateOfBirth && (
-                        <div className="text-xs text-slate-400">
-                          DOB: {new Date(b.dateOfBirth).toLocaleDateString()}
-                        </div>
-                      )}
-                      <div className="text-xs text-slate-400">ID: {b.id.slice(0, 8)}...</div>
+                      <Link
+                        href={`/dashboard/policies/${p.id}`}
+                        className="text-sm font-medium text-slate-100 hover:text-blue-400"
+                      >
+                        {p.policyNumber || "—"}
+                      </Link>
+                      <div className="text-xs text-slate-400">ID: {p.id.slice(0, 8)}...</div>
                     </div>
                     <div className="col-span-2">
                       <Link
-                        href={`/dashboard/clients/${b.client.id}`}
+                        href={`/dashboard/clients/${p.client.id}`}
                         className="text-sm text-slate-200 hover:text-blue-400"
                       >
-                        {b.client.firstName} {b.client.lastName}
+                        {p.client.firstName} {p.client.lastName}
                       </Link>
-                      <div className="text-xs text-slate-400">{b.client.email}</div>
+                      <div className="text-xs text-slate-400">{p.client.email}</div>
                     </div>
                     <div className="col-span-2 text-sm text-slate-200">
-                      {b.relationship || "—"}
+                      {p.insurer.name}
                     </div>
                     <div className="col-span-2 text-sm text-slate-200">
-                      {b.email || "—"}
+                      {p.policyType || "—"}
                     </div>
-                    <div className="col-span-2 text-sm text-slate-200">
-                      {b.phone || "—"}
+                    <div className="col-span-2">
+                      <span
+                        className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
+                          p.verificationStatus === "VERIFIED"
+                            ? "bg-green-500/20 text-green-400"
+                            : p.verificationStatus === "PENDING"
+                            ? "bg-yellow-500/20 text-yellow-400"
+                            : p.verificationStatus === "DISCREPANCY"
+                            ? "bg-orange-500/20 text-orange-400"
+                            : p.verificationStatus === "REJECTED"
+                            ? "bg-red-500/20 text-red-400"
+                            : "bg-slate-500/20 text-slate-400"
+                        }`}
+                      >
+                        {p.verificationStatus}
+                      </span>
                     </div>
                     <div className="col-span-1 text-right text-xs text-slate-400">
-                      {new Date(b.createdAt).toLocaleDateString()}
+                      {new Date(p.createdAt).toLocaleDateString()}
                     </div>
                   </div>
                 </div>
@@ -216,13 +234,13 @@ export default async function BeneficiariesPage({
       </div>
     );
   } catch (error) {
-    console.error("BeneficiariesPage error:", error);
+    console.error("PoliciesPage error:", error);
     return (
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-semibold text-slate-100">Error</h1>
           <p className="text-sm text-slate-300">
-            Failed to load beneficiaries. Please try refreshing the page.
+            Failed to load policies. Please try refreshing the page.
           </p>
           <p className="mt-2 text-xs text-slate-400">
             {error instanceof Error ? error.message : "Unknown error"}
@@ -232,3 +250,4 @@ export default async function BeneficiariesPage({
     );
   }
 }
+

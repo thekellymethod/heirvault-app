@@ -1,7 +1,7 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import * as schema from "./schema";
-import { eq, and, or, inArray, sql, desc, asc } from "drizzle-orm";
+import { eq, and, or, inArray, sql, desc, asc, like, ilike } from "drizzle-orm";
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -20,7 +20,7 @@ export * from "./schema";
 export * from "./enums";
 
 // Export common query helpers
-export { eq, and, or, inArray, sql, desc, asc };
+export { eq, and, or, inArray, sql, desc, asc, like, ilike };
 
 // Prisma compatibility layer for raw SQL queries
 // This allows existing code using prisma.$queryRawUnsafe and prisma.$queryRaw to continue working

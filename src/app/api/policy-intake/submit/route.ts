@@ -183,15 +183,13 @@ export async function POST(req: NextRequest) {
       JSON.stringify({ clientData, policyData })
     );
 
-    // Generate receipt
+    // Generate receipt ID
     const receiptId = `REC-${clientId}-${Date.now()}`;
-    const receiptHash = generateReceiptHash({
-      receiptId,
-      clientId,
-      createdAt: new Date(),
-      policies: [{ id: policyId, policyNumber: policyData.policyNumber || null }],
-    });
+    const receiptDbId = randomUUID();
 
+    // Insert receipt first to get the actual database timestamp
+    // CRITICAL: We must use the database timestamp (NOW()) not JavaScript Date()
+    // to ensure hash consistency during verification
     await prisma.$executeRawUnsafe(`
       INSERT INTO receipts (
         id, client_id, submission_id, receipt_number, created_at
@@ -199,11 +197,56 @@ export async function POST(req: NextRequest) {
         $1, $2, $3, $4, NOW()
       )
     `,
-      randomUUID(),
+      receiptDbId,
       clientId,
       submissionId,
       receiptId
     );
+
+    // Query the receipt back to get the actual database timestamp
+    // This ensures the hash uses the exact same timestamp that will be used during verification
+    const insertedReceipt = await prisma.$queryRawUnsafe<Array<{
+      receipt_number: string;
+      created_at: Date;
+    }>>(`
+      SELECT receipt_number, created_at
+      FROM receipts
+      WHERE id = $1
+      LIMIT 1
+    `, receiptDbId);
+
+    if (insertedReceipt.length === 0) {
+      throw new Error("Failed to retrieve inserted receipt");
+    }
+
+    const receiptCreatedAt = insertedReceipt[0].created_at;
+
+    // CRITICAL: Query ALL policies that existed at the time of receipt creation
+    // This matches the verification logic in receipts-audit route
+    // If a client already has policies, we must include ALL of them in the hash
+    // to ensure the hash matches during verification
+    const policiesAtReceiptTime = await prisma.$queryRawUnsafe<Array<{
+      id: string;
+      policy_number: string | null;
+    }>>(`
+      SELECT id, policy_number
+      FROM policies
+      WHERE client_id = $1
+        AND created_at <= $2
+      ORDER BY created_at ASC
+    `, clientId, receiptCreatedAt);
+
+    // Generate receipt hash using database timestamp and all policies at that time
+    // This ensures the hash will match during verification
+    const receiptHash = generateReceiptHash({
+      receiptId,
+      clientId,
+      createdAt: receiptCreatedAt, // Use database timestamp, not JavaScript Date()
+      policies: policiesAtReceiptTime.map(p => ({ 
+        id: p.id, 
+        policyNumber: p.policy_number 
+      })),
+    });
 
     // Generate QR token for policy updates
     // Create a token that encodes the client ID for updates
