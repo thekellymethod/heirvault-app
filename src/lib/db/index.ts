@@ -22,3 +22,44 @@ export * from "./enums";
 // Export common query helpers
 export { eq, and, or, inArray, sql, desc, asc };
 
+// Prisma compatibility layer for raw SQL queries
+// This allows existing code using prisma.$queryRawUnsafe and prisma.$queryRaw to continue working
+export const prisma = {
+  /**
+   * Execute raw SQL query with unsafe string interpolation
+   * Supports parameterized queries with $1, $2, etc.
+   */
+  async $queryRawUnsafe<T = unknown>(query: string, ...params: unknown[]): Promise<T> {
+    // Use the pool directly for parameterized queries ($1, $2, etc.)
+    // This matches Prisma's behavior for $queryRawUnsafe
+    const result = await pool.query(query, params);
+    return result.rows as T;
+  },
+
+  /**
+   * Execute raw SQL query with template literal (safer)
+   * Supports template literal syntax like: sql`SELECT * FROM users WHERE id = ${id}`
+   */
+  async $queryRaw<T = unknown>(query: TemplateStringsArray, ...values: unknown[]): Promise<T> {
+    // Drizzle's sql template handles this natively
+    const result = await db.execute(sql(query, ...values));
+    return result.rows as T;
+  },
+
+  /**
+   * Execute raw SQL without returning results (for INSERT, UPDATE, DELETE)
+   */
+  async $executeRawUnsafe(query: string, ...params: unknown[]): Promise<number> {
+    const result = await pool.query(query, params);
+    return result.rowCount || 0;
+  },
+
+  /**
+   * Execute raw SQL with template literal (for INSERT, UPDATE, DELETE)
+   */
+  async $executeRaw(query: TemplateStringsArray, ...values: unknown[]): Promise<number> {
+    const result = await db.execute(sql(query, ...values));
+    return result.rowCount || 0;
+  },
+};
+

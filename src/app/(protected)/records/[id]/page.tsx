@@ -1,6 +1,7 @@
 import { requireAttorney } from "@/lib/auth";
 import { getRegistryById, getRegistryVersions, getDocumentsForRegistry } from "@/lib/db";
 import { logAccess } from "@/lib/audit";
+import styles from "./page.module.css";
 
 export default async function RecordDetailPage({ params }: { params: { id: string } }) {
   const user = await requireAttorney();
@@ -8,7 +9,7 @@ export default async function RecordDetailPage({ params }: { params: { id: strin
 
   if (!registry) {
     return (
-      <main style={{ padding: 24, maxWidth: 1100, margin: "0 auto" }}>
+      <main className={styles.main}>
         <h1>Not Found</h1>
         <p>Registry record not found.</p>
       </main>
@@ -26,32 +27,32 @@ export default async function RecordDetailPage({ params }: { params: { id: strin
   });
 
   return (
-    <main style={{ padding: 24, maxWidth: 1100, margin: "0 auto" }}>
+    <main className={styles.main}>
       <h1>Registry Record</h1>
       <p><strong>Insured:</strong> {registry.insured_name}</p>
       <p><strong>Carrier:</strong> {registry.carrier_guess ?? "—"}</p>
       <p><strong>Status:</strong> {registry.status}</p>
 
-      <h2 style={{ marginTop: 24 }}>Versions</h2>
-      <div style={{ display: "grid", gap: 10 }}>
+      <h2 className={styles.sectionTitle}>Versions</h2>
+      <div className={styles.versionsGrid}>
         {versions.map((v) => (
-          <div key={v.id} style={{ padding: 12, border: "1px solid #ddd", borderRadius: 8 }}>
+          <div key={v.id} className={styles.versionCard}>
             <div><strong>{v.submitted_by}</strong> — {new Date(v.created_at).toLocaleString()}</div>
-            <div style={{ fontFamily: "monospace", fontSize: 12, opacity: 0.8 }}>hash: {v.hash}</div>
-            <pre style={{ marginTop: 8, whiteSpace: "pre-wrap" }}>
+            <div className={styles.hash}>hash: {v.hash}</div>
+            <pre className={styles.jsonContent}>
               {JSON.stringify(v.data_json, null, 2)}
             </pre>
           </div>
         ))}
       </div>
 
-      <h2 style={{ marginTop: 24 }}>Documents</h2>
-      <div style={{ display: "grid", gap: 10 }}>
+      <h2 className={styles.sectionTitle}>Documents</h2>
+      <div className={styles.documentsGrid}>
         {docs.map((d) => (
-          <div key={d.id} style={{ padding: 12, border: "1px solid #ddd", borderRadius: 8 }}>
+          <div key={d.id} className={styles.documentCard}>
             <div><strong>{d.content_type}</strong> — {Math.round(d.size_bytes / 1024)} KB</div>
-            <div style={{ fontFamily: "monospace", fontSize: 12, opacity: 0.8 }}>sha256: {d.sha256}</div>
-            <div style={{ fontFamily: "monospace", fontSize: 12, opacity: 0.8 }}>path: {d.storage_path}</div>
+            <div className={styles.metadata}>sha256: {d.sha256}</div>
+            <div className={styles.metadata}>path: {d.storage_path}</div>
           </div>
         ))}
       </div>

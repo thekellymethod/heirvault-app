@@ -18,7 +18,26 @@ export async function GET(
     // Verify attorney has access to this client
     await assertAttorneyCanAccessClient(clientId);
 
-    // Get client and policies
+    // Get receipt record to determine historical state
+    const receiptData = await prisma.$queryRawUnsafe<Array<{
+      id: string;
+      receipt_number: string;
+      client_id: string;
+      created_at: Date;
+    }>>(`
+      SELECT id, receipt_number, client_id, created_at
+      FROM receipts
+      WHERE client_id = $1 AND receipt_number = $2
+      LIMIT 1
+    `, clientId, receiptNumber);
+
+    if (!receiptData || receiptData.length === 0) {
+      return NextResponse.json({ error: "Receipt not found" }, { status: 404 });
+    }
+
+    const receipt = receiptData[0];
+
+    // Get client data
     const clientData = await prisma.$queryRawUnsafe<Array<{
       id: string;
       first_name: string;
@@ -40,7 +59,9 @@ export async function GET(
 
     const client = clientData[0];
 
-    // Get policies
+    // CRITICAL: Get policies that existed at the time the receipt was created
+    // This preserves historical accuracy - policies added/modified after receipt creation
+    // will not appear in the receipt PDF, ensuring it matches the receipt hash
     const policies = await prisma.$queryRawUnsafe<Array<{
       id: string;
       policy_number: string | null;
@@ -59,7 +80,9 @@ export async function GET(
       FROM policies p
       INNER JOIN insurers i ON i.id = p.insurer_id
       WHERE p.client_id = $1
-    `, clientId);
+        AND p.created_at <= $2
+      ORDER BY p.created_at ASC
+    `, clientId, receipt.created_at);
 
     // Get organization info if available
     let organization = null;
@@ -89,7 +112,7 @@ export async function GET(
       console.warn("Could not fetch organization info:", error);
     }
 
-    const receiptData = {
+    const receiptPayload = {
       receiptId: receiptNumber,
       client: {
         firstName: client.first_name,
@@ -120,11 +143,11 @@ export async function GET(
           }
         : null,
       registeredAt: client.created_at,
-      receiptGeneratedAt: new Date(),
+      receiptGeneratedAt: receipt.created_at, // Use receipt creation time, not current time
     };
 
     // Generate PDF
-    const pdfStream = await renderToStream(ClientReceiptPDF({ receiptData }));
+    const pdfStream = await renderToStream(ClientReceiptPDF({ receiptData: receiptPayload }));
 
     const headers = new Headers();
     headers.set("Content-Type", "application/pdf");

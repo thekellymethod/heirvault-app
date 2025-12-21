@@ -7,6 +7,8 @@ import { generateDocumentHash } from "@/lib/document-hash";
 import { generateReceiptHash } from "@/lib/audit-hash";
 import { renderToStream } from "@react-pdf/renderer";
 import { ClientReceiptPDF } from "@/pdfs/ClientReceiptPDF";
+import { signToken } from "@/lib/qr";
+import QRCode from "qrcode";
 
 /**
  * Submit policy intake (public, no authentication required)
@@ -203,12 +205,35 @@ export async function POST(req: NextRequest) {
       receiptId
     );
 
+    // Generate QR token for policy updates
+    // Create a token that encodes the client ID for updates
+    // Using a simple approach: create a token with clientId as the "registryId" equivalent
+    const qrToken = signToken(
+      { 
+        registryId: clientId, // Reusing registryId field for clientId
+        purpose: "update" 
+      },
+      60 * 60 * 24 * 365 // 1 year TTL
+    );
+
+    // Generate QR code data URL
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin;
+    const updateUrl = `${baseUrl}/update-policy/${qrToken}`;
+    const qrCodeDataUrl = await QRCode.toDataURL(updateUrl, {
+      errorCorrectionLevel: "M",
+      type: "image/png",
+      width: 300,
+      margin: 2,
+    });
+
     return NextResponse.json({
       success: true,
       receiptId,
       receiptHash,
       policyId,
       clientId,
+      qrToken,
+      qrCodeDataUrl,
       message: "Policy submitted successfully",
     });
   } catch (error: unknown) {

@@ -67,6 +67,7 @@ Stores versioned updates with the following structure:
 ## API Endpoints
 
 ### `POST /api/qr-update/[token]`
+
 - Public endpoint (no authentication required)
 - Accepts client, policies, and beneficiaries data
 - Creates new version entry
@@ -119,6 +120,7 @@ Run the migration to create the `client_versions` table:
 ## Integration Points
 
 ### Receipt Generation
+
 - Receipts now include QR codes linking to `/qr-update/[token]`
 - Updated in all receipt generation endpoints:
   - `/api/invite/[token]/receipt-pdf`

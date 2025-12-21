@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { requireAuth } from "@/lib/utils/clerk";
+import { assertAttorneyCanAccessClient } from "@/lib/authz";
 import { DocumentVerificationView } from "./_components/DocumentVerificationView";
 import { redirect } from "next/navigation";
 
@@ -13,12 +14,42 @@ interface Props {
  * This page displays extracted policy data alongside source documents.
  * Its function is validation and verification. Attorneys can confirm
  * carrier identity, policy status, completeness, and accuracy.
+ * 
+ * CRITICAL: Verifies attorney has access to the policy's client before
+ * displaying any data. This prevents unauthorized access to policy,
+ * client, and document information.
  */
 export default async function DocumentVerificationPage({ params }: Props) {
   const { id } = await params;
   const { userId } = await requireAuth();
 
-  // Get policy with related data
+  // First, get only the client_id to verify access
+  // This prevents unauthorized access to policy data
+  const policyClient = await prisma.$queryRawUnsafe<Array<{
+    client_id: string;
+  }>>(`
+    SELECT client_id
+    FROM policies
+    WHERE id = $1
+    LIMIT 1
+  `, id);
+
+  if (!policyClient || policyClient.length === 0) {
+    redirect("/dashboard/policies");
+  }
+
+  const clientId = policyClient[0].client_id;
+
+  // CRITICAL: Verify attorney has access to this client before proceeding
+  // This prevents any authenticated user from accessing any policy's data
+  try {
+    await assertAttorneyCanAccessClient(clientId);
+  } catch {
+    // Access denied - redirect to policies list
+    redirect("/dashboard/policies");
+  }
+
+  // Now that access is verified, fetch the full policy data
   const policy = await prisma.$queryRawUnsafe<Array<{
     id: string;
     policy_number: string | null;
@@ -75,7 +106,7 @@ export default async function DocumentVerificationPage({ params }: Props) {
     file_size: number;
     file_path: string;
     mime_type: string;
-    extracted_data: any;
+    extracted_data: unknown;
     ocr_confidence: number | null;
     document_hash: string;
     verified_at: Date | null;
@@ -97,7 +128,7 @@ export default async function DocumentVerificationPage({ params }: Props) {
     id: string;
     status: string;
     submission_type: string;
-    submitted_data: any;
+    submitted_data: unknown;
     created_at: Date;
     processed_at: Date | null;
   }>>(`
@@ -115,7 +146,7 @@ export default async function DocumentVerificationPage({ params }: Props) {
         id: policyData.id,
         policyNumber: policyData.policy_number,
         policyType: policyData.policy_type,
-        verificationStatus: policyData.verification_status as any,
+        verificationStatus: policyData.verification_status as "PENDING" | "VERIFIED" | "DISCREPANCY" | "INCOMPLETE" | "REJECTED",
         verifiedAt: policyData.verified_at,
         verifiedByUserId: policyData.verified_by_user_id,
         verificationNotes: policyData.verification_notes,
@@ -133,7 +164,7 @@ export default async function DocumentVerificationPage({ params }: Props) {
           name: policyData.insurer_name,
         },
       }}
-      documents={documents.map(d => ({
+      documents={documents.map((d: typeof documents[0]) => ({
         id: d.id,
         fileName: d.file_name,
         fileType: d.file_type,
@@ -148,7 +179,7 @@ export default async function DocumentVerificationPage({ params }: Props) {
         verificationNotes: d.verification_notes,
         createdAt: d.created_at,
       }))}
-      submissions={submissions.map(s => ({
+      submissions={submissions.map((s: typeof submissions[0]) => ({
         id: s.id,
         status: s.status,
         submissionType: s.submission_type,

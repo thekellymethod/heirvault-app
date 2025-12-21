@@ -2,9 +2,18 @@
 
 import { useState } from "react";
 
+interface Receipt {
+  receiptId: string | number;
+  registryId: string | number;
+  updateToken: string;
+  updateUrl: string;
+  createdAt: string | Date;
+  confirmationMessage: string;
+}
+
 export default function IntakePage() {
   const [loading, setLoading] = useState(false);
-  const [receipt, setReceipt] = useState<any>(null);
+  const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -19,8 +28,8 @@ export default function IntakePage() {
       const json = await res.json();
       if (!res.ok) throw new Error(json?.details || json?.error || "Submission failed");
       setReceipt(json);
-    } catch (err: any) {
-      setError(String(err?.message ?? err));
+    } catch (err: unknown) {
+      setError(String(err instanceof Error ? err.message : err));
     } finally {
       setLoading(false);
     }
@@ -37,7 +46,10 @@ export default function IntakePage() {
         <input name="beneficiary_name" placeholder="Beneficiary Name (optional)" />
         <input name="policy_number_optional" placeholder="Policy Number (optional)" />
         <textarea name="notes_optional" placeholder="Notes (optional)" rows={4} />
-        <input name="document" type="file" accept="application/pdf,image/jpeg,image/png" />
+        <label>
+          Document (PDF, JPEG, or PNG)
+          <input name="document" type="file" accept="application/pdf,image/jpeg,image/png" />
+        </label>
         <button disabled={loading} type="submit">
           {loading ? "Submitting..." : "Submit"}
         </button>

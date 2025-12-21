@@ -1,0 +1,12 @@
+.main {
+  padding: 24px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.links {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+}
+
