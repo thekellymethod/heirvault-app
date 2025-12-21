@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       clerkId: userId,
-      clerkRole: (clerkUser?.publicMetadata as any)?.role,
+      clerkRole: (clerkUser?.publicMetadata as { role?: string })?.role,
       dbUser: dbUser ? {
         id: dbUser.id,
         email: dbUser.email,

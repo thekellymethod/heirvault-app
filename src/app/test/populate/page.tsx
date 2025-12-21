@@ -4,12 +4,45 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, XCircle, Loader2 } from "lucide-react";
 
+interface TestInvite {
+  token: string;
+  email: string;
+  name: string;
+  url: string;
+}
+
+interface PopulateResult {
+  invites?: TestInvite[];
+}
+
+interface CheckResult {
+  token: string;
+  exists?: boolean;
+  invite?: {
+    isValid: boolean;
+    daysSinceExpiration: number;
+  };
+  error?: string;
+}
+
 export default function PopulateTestCodesPage() {
+  // Only allow in development
+  if (process.env.NODE_ENV === "production") {
+    return (
+      <div className="min-h-screen bg-paper-50 p-8">
+        <div className="max-w-4xl mx-auto">
+          <h1 className="font-display text-3xl font-bold text-ink-900 mb-6">Access Denied</h1>
+          <p className="text-slateui-600">This page is only available in development mode.</p>
+        </div>
+      </div>
+    );
+  }
+
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<PopulateResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [checkingToken, setCheckingToken] = useState<string | null>(null);
-  const [checkResult, setCheckResult] = useState<any>(null);
+  const [checkResult, setCheckResult] = useState<CheckResult | null>(null);
 
   const populateCodes = async () => {
     setLoading(true);

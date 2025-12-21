@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
     const email = clerkUser.emailAddresses?.[0]?.emailAddress;
     const firstName = clerkUser.firstName;
     const lastName = clerkUser.lastName;
-    const clerkRole = (clerkUser.publicMetadata as any)?.role;
+    const clerkRole = (clerkUser.publicMetadata as { role?: string })?.role;
 
     if (!email) {
       return NextResponse.json({ error: "No email found" }, { status: 400 });
@@ -74,11 +74,11 @@ export async function POST(req: NextRequest) {
         }
       });
     }
-  } catch (error: any) {
-    console.error("Error in create-user endpoint:", error);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    console.error("Error in create-user endpoint:", message);
     return NextResponse.json({ 
-      error: error.message,
-      details: error,
+      error: message,
     }, { status: 500 });
   }
 }
