@@ -31,11 +31,13 @@ A secure, private registry where attorneys can manage client life insurance poli
 
 - **Framework**: Next.js 16 (App Router)
 - **Database**: PostgreSQL with Drizzle ORM
+- **Storage**: Supabase Storage (for document storage)
 - **Authentication**: Clerk (attorney-only)
 - **Styling**: Tailwind CSS 4
 - **TypeScript**: Full type safety
 - **PDF Generation**: @react-pdf/renderer
 - **Email**: Resend
+- **QR Code Generation**: qrcode library
 - **QR Code Scanning**: jsQR
 - **OCR**: Tesseract.js for document extraction
 - **Payments**: Stripe (optional)
@@ -80,11 +82,22 @@ npm install
    - Create a new application
    - Get your publishable key and secret key
 
-5. **Configure environment variables**:
+5. **Set up Supabase Storage** (for document storage):
+   - Create a Supabase account at [supabase.com](https://supabase.com)
+   - Create a new project
+   - Create a storage bucket (default: `heirvault-docs`)
+   - Get your Supabase URL and service role key
+
+6. **Configure environment variables**:
    Create a `.env.local` file with:
    ```env
    # Database
    DATABASE_URL="postgresql://user:password@host:port/database"
+   
+   # Supabase Storage (for document storage)
+   SUPABASE_URL="https://your-project.supabase.co"
+   SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"
+   HEIRVAULT_STORAGE_BUCKET="heirvault-docs"
    
    # Clerk Authentication
    NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY="pk_test_..."
@@ -97,6 +110,12 @@ npm install
    # Application
    NEXT_PUBLIC_APP_URL="http://localhost:3000"
    
+   # Security & Tokens
+   HEIRVAULT_TOKEN_SECRET="use-a-long-random-string-for-hmac-signing"
+   
+   # Admin Access Control (comma-separated email addresses)
+   ADMIN_EMAILS="admin@example.com,another-admin@example.com"
+   
    # Email (Resend)
    RESEND_API_KEY="re_..."
    RESEND_FROM_EMAIL="noreply@yourdomain.com"
@@ -107,12 +126,19 @@ npm install
    STRIPE_WEBHOOK_SECRET="whsec_..."
    ```
 
-6. **Run the development server**:
+7. **Set up Registry Database Tables** (Supabase):
+   - In your Supabase SQL editor, run the registry schema:
+   ```sql
+   -- See supabase/schema.sql for the complete schema
+   -- This includes registry_records, registry_versions, documents, and access_logs tables
+   ```
+
+8. **Run the development server**:
 ```bash
 npm run dev
 ```
 
-7. **Open [http://localhost:3000](http://localhost:3000)** in your browser
+9. **Open [http://localhost:3000](http://localhost:3000)** in your browser
 
 ## 📁 Project Structure
 
@@ -136,7 +162,10 @@ src/
 │   │   ├── insurers/                # Insurer management
 │   │   ├── search/                    # Global search
 │   │   ├── user/profile/             # User profile updates
-│   │   └── organizations/           # Organization management
+│   │   ├── organizations/           # Organization management
+│   │   ├── intake/                    # Public policy intake (no auth)
+│   │   ├── records/                   # Registry record updates
+│   │   └── admin/compliance/          # Admin compliance endpoints
 │   ├── dashboard/                    # Attorney dashboard
 │   │   ├── clients/                  # Client management
 │   │   │   ├── [id]/                 # Client detail pages
@@ -150,6 +179,16 @@ src/
 │   ├── invite/[token]/               # Client invitation portal
 │   │   ├── page.tsx                  # Initial policy upload
 │   │   └── update/                   # Update portal
+│   ├── (public)/                      # Public routes (no auth)
+│   │   ├── intake/                    # Policy intake form
+│   │   └── update/[token]/            # QR token update page
+│   ├── (auth)/                        # Authentication routes
+│   │   └── login/                     # Attorney login
+│   ├── (protected)/                   # Protected routes (attorney-only)
+│   │   ├── dashboard/                 # Attorney dashboard
+│   │   ├── records/[id]/              # Registry record detail
+│   │   ├── audit/                     # Audit log viewer
+│   │   └── admin/                     # Admin compliance page
 │   ├── update-policy/                 # Policy update flow
 │   │   └── [token]/                  # Update by token
 │   │       └── receipt/              # Receipt display
@@ -162,8 +201,17 @@ src/
 │   ├── db.ts                         # Database client export
 │   ├── utils/
 │   │   └── clerk.ts                  # Clerk utilities & auth
+│   ├── auth.ts                       # Authentication (Clerk)
+│   ├── admin.ts                      # Admin access control
 │   ├── authz.ts                      # Authorization helpers
 │   ├── audit.ts                      # Audit logging
+│   ├── db.ts                         # Database interface (Supabase)
+│   ├── supabase.ts                   # Supabase client
+│   ├── storage.ts                    # Document storage (Supabase)
+│   ├── hash.ts                       # SHA-256 hashing
+│   ├── qr.ts                         # QR token signing/verification
+│   ├── roles.ts                      # Role definitions
+│   ├── errors.ts                     # HttpError class
 │   ├── email.ts                      # Email sending
 │   ├── ocr.ts                        # OCR extraction
 │   ├── test-invites.ts               # Test code system
@@ -204,11 +252,16 @@ See `src/lib/db/schema.ts` for the complete Drizzle schema.
 
 - **Attorney-Only Accounts**: Only verified attorneys can create accounts
 - **No Client Accounts**: Clients access via secure invitation links only
+- **Admin Access Control**: Admin access controlled via `ADMIN_EMAILS` environment variable
 - **Client Fingerprinting**: Prevents duplicate client records
 - **Secure Invites**: Time-limited tokens with expiration
+- **QR Token Security**: HMAC SHA-256 signed tokens for policy updates
 - **Confirmation Codes**: Email/phone verification for updates
 - **Global Access Control**: All attorneys can view all clients (by design)
-- **Audit Logging**: Complete audit trail of all actions
+- **Audit Logging**: Complete audit trail of all actions with sensitive data masking
+- **Immutable Registry Versions**: All changes create new version entries (append-only)
+- **Document Hashing**: SHA-256 hashes for all uploaded documents
+- **Content-Addressed Storage**: Documents stored by hash for integrity
 - **HTTPS-only** in production
 - **Encrypted data at rest** (PostgreSQL)
 - **Clerk authentication** with MFA support
@@ -245,6 +298,54 @@ Test codes are automatically created when accessed. Format:
 - `TEST-CODE-001` (custom format)
 
 No pre-population needed - the system handles it automatically.
+
+## 📝 Registry System (Policy Intake & Updates)
+
+### Public Intake Flow
+
+- **No Account Required**: Policyholders can submit information without creating accounts
+- **Policy Intake Page**: `/intake` - Simple form for policy submission
+- **Document Upload**: Optional PDF, JPEG, or PNG uploads (max 15MB)
+- **Cryptographic Receipt**: Each submission generates a receipt with hash
+- **QR Code Generation**: Receipts include QR codes for future updates
+- **Update Token**: HMAC SHA-256 signed token for secure updates (1 year TTL)
+
+### QR Token Update Flow
+
+- **Stateless Access**: Updates via QR code scan without requiring login
+- **Update Page**: `/update/[token]` - Verify token and submit updates
+- **Immutable Versions**: Every update creates a new version entry (append-only)
+- **Document Versioning**: New documents linked to new versions
+- **Audit Trail**: All updates logged with timestamps and hashes
+
+### Registry Architecture
+
+- **Registry Records**: Core policy records (insured name, carrier, status)
+- **Registry Versions**: Immutable version history (append-only)
+- **Documents**: Content-addressed storage with SHA-256 hashes
+- **Access Logs**: Complete audit trail of all actions
+- **No In-Place Updates**: All changes create new version rows
+
+## 👨‍💼 Admin & Compliance
+
+### Admin Access
+
+Admin access is controlled via the `ADMIN_EMAILS` environment variable:
+```env
+ADMIN_EMAILS="admin@example.com,another-admin@example.com"
+```
+
+**Important**: Only users with emails listed in this variable can access admin features. This is the authoritative source for admin access control.
+
+### Compliance Page
+
+- **Location**: `/dashboard/admin/compliance` (not in sidebar navigation)
+- **Features**:
+  - System usage statistics
+  - Compliance rules management
+  - Attorney credentials verification
+  - Takedown request handling
+- **Access**: Admin-only (controlled by `ADMIN_EMAILS`)
 
 ## 🔍 Global Search
 
@@ -285,13 +386,31 @@ See `DEPLOYMENT.md` for detailed deployment instructions.
 - **`DEPLOYMENT_CHECKLIST.md`**: Deployment checklist
 - **`DATABASE_SEPARATION.md`**: Database architecture and conflict prevention
 - **`SYSTEM_VERIFICATION.md`**: Complete system verification report
+- **`ADMIN_COMPLIANCE.md`**: Admin access control and compliance page documentation
+- **`REGISTRY_DATABASE.md`**: Registry system architecture and database schema
+- **`PHASE_0_FOUNDATION.md` through `PHASE_6_AUDIT_ADMIN.md`**: Implementation phase documentation
 
 ## 🔄 Recent Updates
+
+### Registry System Implementation
+- **Public Intake Flow**: Policyholders can submit policies without accounts (`/intake`)
+- **QR Token Updates**: Secure, stateless update flow via signed tokens
+- **Immutable Versioning**: All changes create new version entries (append-only)
+- **Document Storage**: Supabase Storage integration with content-addressed paths
+- **Cryptographic Hashing**: SHA-256 hashes for all data and documents
+- **Audit Logging**: Comprehensive audit trail with sensitive data masking
+
+### Admin Access Control
+- **Environment-Based Admin**: Admin access controlled via `ADMIN_EMAILS` variable
+- **Single Source of Truth**: `requireAdmin()` consolidated in `admin.ts`
+- **Compliance API Routes**: Fixed error handling to properly return 401/403 status codes
+- **HttpError Integration**: All compliance routes use `HttpError` for consistent error handling
 
 ### Database Migration
 - Migrated from Prisma ORM to Drizzle ORM for better type safety and performance
 - Schema is now defined in `src/lib/db/schema.ts`
 - All database queries use Drizzle ORM with raw SQL fallback
+- Added Supabase integration for document storage and registry tables
 
 ### Authentication Flow
 - Fixed dashboard layout to properly check organization membership
@@ -353,6 +472,14 @@ The system uses **Drizzle ORM with raw SQL fallback** for maximum reliability. I
 - [x] Database separation and conflict prevention
 - [x] Migration from Prisma to Drizzle ORM
 - [x] Fixed dashboard routing and authentication flow
+- [x] Public policy intake system (no account required)
+- [x] QR token-based update system
+- [x] Immutable registry versioning (append-only)
+- [x] Document storage with Supabase Storage
+- [x] Cryptographic hashing (SHA-256) for data integrity
+- [x] Admin access control via environment variable
+- [x] Compliance page with usage monitoring
+- [x] Error handling improvements (HttpError integration)
 
 ### 🚧 Planned
 
