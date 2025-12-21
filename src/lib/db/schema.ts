@@ -330,7 +330,7 @@ export const clientVersions = pgTable("client_versions", {
   clientId: uuid("client_id").notNull().references(() => clients.id, { onDelete: "cascade" }),
   inviteId: uuid("invite_id").references(() => clientInvites.id, { onDelete: "set null" }),
   versionNumber: integer("version_number").notNull(),
-  previousVersionId: uuid("previous_version_id").references(() => clientVersions.id, { onDelete: "set null" }),
+  previousVersionId: uuid("previous_version_id"),
   // Store the complete state at this version
   clientData: json("client_data").notNull(), // Full client data snapshot
   policiesData: json("policies_data"), // Array of policies at this version
