@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { randomUUID } from "crypto";
 import { getOrCreateTestInvite } from "@/lib/test-invites";
 import { lookupClientInvite } from "@/lib/invite-lookup";
-import { AuditAction } from "@/lib/db/enums";
+import { AuditActionEnum } from "@/lib/db";
 import { audit } from "@/lib/audit";
 
 /**
@@ -216,7 +216,7 @@ export async function POST(
 
     // Log audit event
     try {
-      await audit(AuditAction.CLIENT_UPDATED, {
+      await audit(AuditActionEnum.CLIENT_UPDATED, {
         clientId,
         message: `Client updated via QR code - Version ${versionNumber}`,
       });

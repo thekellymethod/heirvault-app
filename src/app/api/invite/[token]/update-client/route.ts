@@ -383,7 +383,7 @@ export async function POST(
     let receiptPdfBuffer: Buffer | null = null;
     try {
       const baseUrl = process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin;
-      const updateUrl = `${baseUrl}/invite/${token}/update`;
+      const updateUrl = `${baseUrl}/qr-update/${token}`;
       
       const pdfStream = await renderToStream(
         ClientReceiptPDF({ 
@@ -434,7 +434,7 @@ export async function POST(
     // Send notification email to attorney
     if (attorney && organization) {
       const baseUrl = process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin;
-      const updateUrl = `${baseUrl}/invite/${token}/update`;
+      const updateUrl = `${baseUrl}/qr-update/${token}`;
       const attorneyEmail = attorney.email || organization.phone;
       
       if (attorneyEmail && attorneyEmail.includes("@")) {

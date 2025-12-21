@@ -122,6 +122,15 @@ export const insurers = pgTable("insurers", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// Policy verification status enum
+export const policyVerificationStatusEnum = pgEnum("PolicyVerificationStatus", [
+  "PENDING",
+  "VERIFIED",
+  "DISCREPANCY",
+  "INCOMPLETE",
+  "REJECTED",
+]);
+
 // Policies table
 export const policies = pgTable("policies", {
   id: uuid("id").primaryKey().$defaultFn(() => randomUUID()),
@@ -129,6 +138,11 @@ export const policies = pgTable("policies", {
   insurerId: uuid("insurer_id").notNull().references(() => insurers.id, { onDelete: "cascade" }),
   policyNumber: text("policy_number"),
   policyType: text("policy_type"),
+  verificationStatus: policyVerificationStatusEnum("verification_status").default("PENDING"),
+  verifiedAt: timestamp("verified_at"),
+  verifiedByUserId: uuid("verified_by_user_id").references(() => users.id),
+  verificationNotes: text("verification_notes"),
+  documentHash: text("document_hash"), // SHA-256 hash of source document
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -296,6 +310,10 @@ export const documents = pgTable("documents", {
   uploadedVia: text("uploaded_via"),
   extractedData: json("extracted_data"),
   ocrConfidence: integer("ocr_confidence"),
+  documentHash: text("document_hash").notNull(), // SHA-256 hash for cryptographic integrity
+  verifiedAt: timestamp("verified_at"),
+  verifiedByUserId: uuid("verified_by_user_id").references(() => users.id),
+  verificationNotes: text("verification_notes"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => ({
@@ -303,6 +321,7 @@ export const documents = pgTable("documents", {
   submissionIdx: index("documents_submission_id_idx").on(table.submissionId),
   createdAtIdx: index("documents_created_at_idx").on(table.createdAt),
   policyIdx: index("documents_policy_id_idx").on(table.policyId),
+  hashIdx: index("documents_document_hash_idx").on(table.documentHash),
 }));
 
 // Client versions table - stores versioned updates to preserve historical chain
@@ -359,6 +378,7 @@ export type UserRole = "attorney";
 export type InviteStatus = "pending" | "accepted" | "expired" | "revoked";
 export type SubmissionStatus = "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
 export type AccessGrantStatus = "ACTIVE" | "REVOKED"; // Deprecated - use AttorneyClientAccess instead
+export type PolicyVerificationStatus = "PENDING" | "VERIFIED" | "DISCREPANCY" | "INCOMPLETE" | "REJECTED";
 
 // Export enum values as constants for compatibility (separate namespace)
 export const AuditActionEnum = {

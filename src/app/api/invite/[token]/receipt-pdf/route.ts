@@ -155,7 +155,7 @@ export async function GET(
         : null,
       registeredAt: invite.client.createdAt,
       receiptGeneratedAt: new Date(),
-      updateUrl: `${req.nextUrl.origin}/invite/${token}/update`,
+      updateUrl: `${req.nextUrl.origin}/qr-update/${token}`,
     };
 
     // Generate PDF
