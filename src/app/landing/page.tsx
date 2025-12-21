@@ -2,25 +2,8 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { Star } from "lucide-react";
 import { Footer } from "@/components/Footer";
 import { Logo } from "@/components/Logo";
-
-function StarsRow({ rating = 4.5, reviews = 121 }: { rating?: number; reviews?: number }) {
-  return (
-    <div className="flex flex-wrap items-center justify-center gap-3">
-      <div className="flex items-center gap-2">
-        <div className="flex text-gold-500">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Star key={i} className="h-5 w-5 fill-current" />
-          ))}
-        </div>
-        <span className="text-base font-semibold text-ink-900">{rating.toFixed(1)}</span>
-        <span className="text-base text-slateui-600">| {reviews} Reviews</span>
-      </div>
-    </div>
-  );
-}
 
 export default function LandingPage() {
   return (
@@ -201,7 +184,7 @@ export default function LandingPage() {
             {/* Card 1 */}
             <div className="card p-8 text-center transition hover:-translate-y-1 hover:shadow-lift">
               <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-paper-100 border border-slateui-200">
-                <Image src="/search-hv.png" alt="Search icon" width={44} height={44} style={{ width: 'auto', height: 'auto' }} className="object-contain" />
+                <Image src="/search-hv.png" alt="Search icon" width={44} height={44} className="object-contain" />
               </div>
               <h3 className="mt-6 font-display text-xl text-ink-900">Search for a Policy</h3>
               <p className="mt-3 text-sm md:text-base text-slateui-600">
@@ -212,7 +195,7 @@ export default function LandingPage() {
             {/* Card 2 */}
             <div className="card p-8 text-center transition hover:-translate-y-1 hover:shadow-lift">
               <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-paper-100 border border-slateui-200">
-                <Image src="/vault-hv.png" alt="Secure icon" width={44} height={44} style={{ width: 'auto', height: 'auto' }} className="object-contain" />
+                <Image src="/vault-hv.png" alt="Secure icon" width={44} height={44} className="object-contain" />
               </div>
               <h3 className="mt-6 font-display text-xl text-ink-900">Secure Your Claim</h3>
               <p className="mt-3 text-sm md:text-base text-slateui-600">

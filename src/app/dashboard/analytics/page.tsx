@@ -97,16 +97,7 @@ export default async function AnalyticsPage() {
             WHERE aca.attorney_id = ${user.id} AND aca.is_active = true
           `,
       orgId
-        ? prisma.$queryRaw<Array<{
-            id: string;
-            client_id: string;
-            email: string;
-            token: string;
-            created_at: Date;
-            used_at: Date | null;
-            first_name: string;
-            last_name: string;
-          }>>`
+        ? prisma.$queryRaw<Array<InviteRow>>`
             SELECT 
               ci.id,
               ci.client_id,
@@ -159,8 +150,9 @@ export default async function AnalyticsPage() {
         lastName: inv.last_name,
       },
     }));
-  } catch (sqlError: any) {
-    console.error("Analytics page: Raw SQL failed, trying Prisma:", sqlError.message);
+  } catch (sqlError: unknown) {
+    const errorMessage = sqlError instanceof Error ? sqlError.message : "Unknown error";
+    console.error("Analytics page: Raw SQL failed, trying Prisma:", errorMessage);
     // Fallback to Prisma
     try {
       const [
@@ -170,18 +162,29 @@ export default async function AnalyticsPage() {
         beneficiaryCountResult,
         recentInvitesResult,
       ] = await Promise.all([
-        prisma.client.count({ where: { orgId } }),
-        prisma.policy.count({
+        orgId ? prisma.client.count({ where: { orgId } }) : prisma.attorneyClientAccess.count({ where: { attorneyId: user.id, isActive: true } }),
+        orgId ? prisma.policy.count({
           where: { client: { orgId } },
+        }) : prisma.policy.count({
+          where: { client: { attorneyClientAccess: { some: { attorneyId: user.id, isActive: true } } } },
         }),
-        prisma.policy.count({
+        orgId ? prisma.policy.count({
           where: { client: { orgId }, status: "ACTIVE" },
+        }) : prisma.policy.count({
+          where: { client: { attorneyClientAccess: { some: { attorneyId: user.id, isActive: true } } }, status: "ACTIVE" },
         }),
-        prisma.beneficiary.count({
+        orgId ? prisma.beneficiary.count({
           where: { client: { orgId } },
+        }) : prisma.beneficiary.count({
+          where: { client: { attorneyClientAccess: { some: { attorneyId: user.id, isActive: true } } } },
         }),
-        prisma.clientInvite.findMany({
+        orgId ? prisma.clientInvite.findMany({
           where: { client: { orgId } },
+          include: { client: true },
+          orderBy: { createdAt: "desc" },
+          take: 10,
+        }) : prisma.clientInvite.findMany({
+          where: { client: { attorneyClientAccess: { some: { attorneyId: user.id, isActive: true } } } },
           include: { client: true },
           orderBy: { createdAt: "desc" },
           take: 10,
@@ -192,9 +195,22 @@ export default async function AnalyticsPage() {
       policyCount = policyCountResult;
       activePolicyCount = activePolicyCountResult;
       beneficiaryCount = beneficiaryCountResult;
-      recentInvites = recentInvitesResult;
-    } catch (prismaError: any) {
-      console.error("Analytics page: Prisma also failed:", prismaError.message);
+      recentInvites = recentInvitesResult.map((inv) => ({
+        id: inv.id,
+        clientId: inv.clientId,
+        email: inv.email,
+        token: inv.token,
+        createdAt: inv.createdAt,
+        usedAt: inv.usedAt,
+        client: {
+          id: inv.client.id,
+          firstName: inv.client.firstName,
+          lastName: inv.client.lastName,
+        },
+      }));
+    } catch (prismaError: unknown) {
+      const errorMessage = prismaError instanceof Error ? prismaError.message : "Unknown error";
+      console.error("Analytics page: Prisma also failed:", errorMessage);
       // Use defaults (0 counts, empty array)
     }
   }
