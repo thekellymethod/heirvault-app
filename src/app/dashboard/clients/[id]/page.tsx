@@ -74,6 +74,10 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
             <Button variant="outline">Back</Button>
           </Link>
 
+          <Link href={`/dashboard/clients/${client.id}/receipts-audit`}>
+            <Button variant="outline">Receipts & Audit</Button>
+          </Link>
+
           <Link href={`/dashboard/clients/${client.id}/edit`}>
             <Button variant="outline">Edit</Button>
           </Link>
