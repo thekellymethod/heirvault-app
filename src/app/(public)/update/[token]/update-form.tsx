@@ -31,22 +31,16 @@ export default function UpdateForm(props: { token: string; defaultInsured: strin
   return (
     <section style={{ marginTop: 16 }}>
       <form onSubmit={onSubmit} style={{ display: "grid", gap: 12 }}>
-        <label>
-          Insured Name
-          <input name="insured_name" defaultValue={props.defaultInsured} />
-        </label>
-        <label>
-          Carrier
-          <input name="carrier_guess" defaultValue={props.defaultCarrier} />
-        </label>
+        <label htmlFor="insured_name">Insured Name</label>
+        <input id="insured_name" name="insured_name" defaultValue={props.defaultInsured} aria-label="Insured Name" title="Insured Name" />
+        <label htmlFor="carrier_guess">Carrier</label>
+        <input id="carrier_guess" name="carrier_guess" defaultValue={props.defaultCarrier} aria-label="Carrier" title="Carrier" />
         <input name="policyholder_name" placeholder="Policyholder Name (optional)" />
         <input name="beneficiary_name" placeholder="Beneficiary Name (optional)" />
         <input name="policy_number_optional" placeholder="Policy Number (optional)" />
         <textarea name="notes_optional" placeholder="Notes (optional)" rows={4} />
-        <label>
-          Document (PDF, JPEG, or PNG)
-          <input name="document" type="file" accept="application/pdf,image/jpeg,image/png" />
-        </label>
+        <label htmlFor="document">Document (PDF, JPEG, or PNG)</label>
+        <input id="document" name="document" type="file" accept="application/pdf,image/jpeg,image/png" aria-label="Document upload" title="Document upload" />
         <button disabled={loading} type="submit">
           {loading ? "Submitting..." : "Submit Update"}
         </button>

@@ -396,6 +396,7 @@ function AuditTrailTab({
               onChange={(e) => onFilterChange(e.target.value)}
               className="px-4 py-2 border border-slateui-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
               aria-label="Filter audit log by action"
+              title="Filter audit log by action"
             >
               <option value="all">All Actions</option>
               {uniqueActions.map((action) => (
