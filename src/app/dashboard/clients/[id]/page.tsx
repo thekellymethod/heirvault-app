@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requireAuth } from "@/lib/utils/clerk";
+import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
 export default async function ClientDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -32,16 +33,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
   });
 
   if (!client) {
-    return (
-      <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-6">
-        <h1 className="text-lg font-semibold text-slate-100">Client not found</h1>
-        <div className="mt-4">
-          <Link href="/dashboard/clients">
-            <Button variant="outline">Back to Clients</Button>
-          </Link>
-        </div>
-      </div>
-    );
+    redirect("/error?type=not_found");
   }
 
   return (
