@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import DashboardLayout from "@/app/dashboard/_components/DashboardLayout";
 import { Search, Archive, FileText, Calendar, User, Mail, Phone } from "lucide-react";
 
 type Receipt = {
@@ -77,8 +76,7 @@ export default function AdminReceiptsPage() {
   };
 
   return (
-    <DashboardLayout>
-      <div className="space-y-6">
+    <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="font-display text-3xl text-ink-900">Receipt Management</h1>
@@ -227,7 +225,6 @@ export default function AdminReceiptsPage() {
           )}
         </div>
       </div>
-    </DashboardLayout>
   );
 }
 

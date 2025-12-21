@@ -3,7 +3,6 @@
 import * as React from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { DashboardLayout } from "../../../_components/DashboardLayout";
 import { ArrowLeft, UserPlus, Users } from "lucide-react";
 
 type Beneficiary = {
@@ -90,8 +89,7 @@ export default function ClientBeneficiariesPage() {
   }
 
   return (
-    <DashboardLayout>
-      <div className="space-y-6">
+    <div className="space-y-6">
         {/* Header */}
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-4">
@@ -291,6 +289,5 @@ export default function ClientBeneficiariesPage() {
           )}
         </div>
       </div>
-    </DashboardLayout>
   );
 }

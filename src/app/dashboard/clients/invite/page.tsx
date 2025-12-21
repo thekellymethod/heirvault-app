@@ -4,7 +4,6 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Upload, Mail, FileText, X, Loader2, Copy, Check, ExternalLink } from "lucide-react";
-import { DashboardLayout } from "../../_components/DashboardLayout";
 
 type ClientFormData = {
   email: string;
@@ -154,8 +153,7 @@ export default function InviteClientPage() {
   // Show success state
   if (inviteUrl) {
     return (
-      <DashboardLayout>
-        <div className="space-y-6">
+      <div className="space-y-6">
           <div className="flex items-start justify-between gap-4">
             <div>
               <h1 className="font-display text-3xl md:text-4xl font-bold text-ink-900">
@@ -256,13 +254,11 @@ export default function InviteClientPage() {
             </div>
           </div>
         </div>
-      </DashboardLayout>
     );
   }
 
   return (
-    <DashboardLayout>
-      <div className="space-y-6">
+    <div className="space-y-6">
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="font-display text-3xl md:text-4xl font-bold text-ink-900">
@@ -420,7 +416,6 @@ export default function InviteClientPage() {
           </div>
         </form>
       </div>
-    </DashboardLayout>
   );
 }
 

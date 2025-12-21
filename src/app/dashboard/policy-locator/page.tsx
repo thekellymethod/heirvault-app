@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Search, HelpCircle, Calendar, MapPin, User, Globe, FileText, Shield, Users } from "lucide-react";
 import Link from "next/link";
-import { DashboardLayout } from "../_components/DashboardLayout";
 
 type SearchResult = {
   id: string;
@@ -125,8 +124,7 @@ export default function PolicyLocatorPage() {
   };
 
   return (
-    <DashboardLayout>
-      <div className="space-y-6">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex items-start justify-between gap-4 mb-8">
         <div className="flex-1">
@@ -144,10 +142,9 @@ export default function PolicyLocatorPage() {
           Return to Dashboard
         </a>
       </div>
-        <p className="mt-2 text-base text-slateui-600">
-          Search for policy information in your organization or across all organizations.
-        </p>
-      </div>
+      <p className="mt-2 text-base text-slateui-600">
+        Search for policy information in your organization or across all organizations.
+      </p>
 
       {/* Search Mode Tabs */}
       <div className="flex gap-2 border-b border-slateui-200 mb-6">
@@ -805,6 +802,7 @@ export default function PolicyLocatorPage() {
           </Button>
           </Link>
         </div>
+      </div>
 
       {/* Footer Warnings */}
       <div className="mt-12 pt-6 border-t border-slateui-200">
@@ -816,8 +814,7 @@ export default function PolicyLocatorPage() {
           <span>Use is voluntary, not required by law</span>
         </div>
       </div>
-      </div>
-    </DashboardLayout>
+    </div>
   );
 }
 

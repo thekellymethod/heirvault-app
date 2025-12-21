@@ -2,7 +2,6 @@ import { auth } from "@clerk/nextjs/server"
 import { prisma } from "@/lib/db"
 import { redirect } from "next/navigation"
 import { getCurrentUser } from "@/lib/utils/clerk"
-import { DashboardLayout } from "../../_components/DashboardLayout"
 import { OrgSettingsForm } from "./OrgSettingsForm"
 
 export default async function OrgSettingsPage() {
@@ -103,8 +102,7 @@ export default async function OrgSettingsPage() {
   // If no organization, show create form
   if (!orgMember) {
     return (
-      <DashboardLayout>
-        <div className="space-y-6">
+      <div className="space-y-6">
           <div>
             <h1 className="font-display text-3xl md:text-4xl font-bold text-ink-900">Create Organization</h1>
             <p className="mt-2 text-base text-slateui-600">
@@ -123,13 +121,11 @@ export default async function OrgSettingsPage() {
             </a>
           </div>
         </div>
-      </DashboardLayout>
     )
   }
 
   return (
-    <DashboardLayout>
-      <div className="space-y-6">
+    <div className="space-y-6">
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="font-display text-3xl md:text-4xl font-bold text-ink-900">Firm Settings</h1>
@@ -149,7 +145,6 @@ export default async function OrgSettingsPage() {
         </div>
         <OrgSettingsForm org={orgMember.organizations} />
       </div>
-    </DashboardLayout>
   )
 }
 

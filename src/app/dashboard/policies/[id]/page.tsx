@@ -3,7 +3,6 @@
 import * as React from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { DashboardLayout } from "../../_components/DashboardLayout";
 import { Plus, X, ArrowLeft, UserCheck, Users } from "lucide-react";
 
 type Attached = {
@@ -191,8 +190,7 @@ export default function PolicyBeneficiariesPage() {
   }
 
   return (
-    <DashboardLayout>
-      <div className="space-y-6">
+    <div className="space-y-6">
         {/* Header */}
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-4">
@@ -466,7 +464,6 @@ export default function PolicyBeneficiariesPage() {
           </section>
         </div>
       </div>
-    </DashboardLayout>
   );
 }
 

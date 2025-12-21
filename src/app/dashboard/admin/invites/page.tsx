@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import DashboardLayout from "@/app/dashboard/_components/DashboardLayout";
 import { Search, Archive, Key, Calendar, User, Mail, Phone, AlertCircle } from "lucide-react";
 
 type Invite = {
@@ -75,8 +74,7 @@ export default function AdminInvitesPage() {
   };
 
   return (
-    <DashboardLayout>
-      <div className="space-y-6">
+    <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="font-display text-3xl text-ink-900">Invitation Code Management</h1>
@@ -238,7 +236,6 @@ export default function AdminInvitesPage() {
           )}
         </div>
       </div>
-    </DashboardLayout>
   );
 }
 

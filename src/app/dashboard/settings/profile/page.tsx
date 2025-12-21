@@ -2,7 +2,6 @@ import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/db";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/utils/clerk";
-import { DashboardLayout } from "../../_components/DashboardLayout";
 import { ProfileForm } from "./ProfileForm";
 
 export default async function ProfilePage() {
@@ -68,8 +67,7 @@ export default async function ProfilePage() {
   if (!user) redirect("/dashboard");
 
   return (
-    <DashboardLayout>
-      <div className="space-y-6">
+    <div className="space-y-6">
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="font-display text-3xl md:text-4xl font-bold text-ink-900">Attorney Profile</h1>
@@ -90,7 +88,6 @@ export default async function ProfilePage() {
 
         <ProfileForm user={user} organization={orgMember?.organizations || null} />
       </div>
-    </DashboardLayout>
   );
 }
 
