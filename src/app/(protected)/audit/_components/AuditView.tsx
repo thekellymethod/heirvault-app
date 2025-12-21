@@ -1,27 +1,24 @@
 "use client";
 
 import { useState } from "react";
-import { type User } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import {
   Filter,
-  Download,
   Shield,
+  Clock,
 } from "lucide-react";
 
 interface AccessLog {
   id: string;
-  registryId: string;
-  userId: string | null;
-  action: string;
-  metadata: Record<string, unknown> | null;
   timestamp: Date;
-  decedentName: string | null;
-  userEmail: string | null;
-  userFirstName: string | null;
-  userLastName: string | null;
+  userId: string | null;
+  userEmail?: string | null;
+  userName?: string | null;
+  action: string;
+  registryId: string;
+  metadata: Record<string, unknown> | null;
 }
 
 interface AuditViewProps {
@@ -29,7 +26,6 @@ interface AuditViewProps {
   totalCount: number;
   currentPage: number;
   pageSize: number;
-  availableActions: string[];
   filters: {
     action: string;
     registryId: string;
@@ -37,22 +33,21 @@ interface AuditViewProps {
     startDate: string;
     endDate: string;
   };
-  user: User;
 }
 
 /**
  * Audit View Component
  * 
  * Read-only display of audit logs
+ * Displays table: time, user, action, registryId, metadata
  * Filterable by action, registry, user, date range
- * Exportable (PDF later)
+ * No edits. Read-only.
  */
 export function AuditView({
   logs,
   totalCount,
   currentPage,
   pageSize,
-  availableActions,
   filters: initialFilters,
 }: AuditViewProps) {
   const [filters, setFilters] = useState(initialFilters);
@@ -80,24 +75,12 @@ export function AuditView({
     window.location.href = "/audit";
   };
 
-  const getActionColor = (action: string) => {
-    switch (action) {
-      case "CREATED":
-        return "bg-green-100 text-green-800";
-      case "UPDATED":
-        return "bg-blue-100 text-blue-800";
-      case "VIEWED":
-        return "bg-gray-100 text-gray-800";
-      case "VERIFIED":
-        return "bg-purple-100 text-purple-800";
-      case "ARCHIVED":
-        return "bg-yellow-100 text-yellow-800";
-      case "EXPORTED":
-        return "bg-orange-100 text-orange-800";
-      case "DELETED":
-        return "bg-red-100 text-red-800";
-      default:
-        return "bg-slateui-100 text-slateui-800";
+  const formatMetadata = (metadata: Record<string, unknown> | null): string => {
+    if (!metadata) return "—";
+    try {
+      return JSON.stringify(metadata, null, 2);
+    } catch {
+      return String(metadata);
     }
   };
 
@@ -112,26 +95,17 @@ export function AuditView({
                 Audit Trail
               </h1>
               <p className="text-slateui-600">
-                Complete access log history. Read-only. This is where credibility lives.
+                Read-only access logs. All actions are logged for compliance and audit purposes.
               </p>
             </div>
-            <div className="flex items-center gap-3">
-              <Button
-                variant="outline"
-                onClick={() => setShowFilters(!showFilters)}
-              >
-                <Filter className="h-4 w-4 mr-2" />
-                Filters
-              </Button>
-              <Button
-                variant="outline"
-                disabled
-                title="PDF export coming soon"
-              >
-                <Download className="h-4 w-4 mr-2" />
-                Export PDF
-              </Button>
-            </div>
+            <Button
+              variant="outline"
+              onClick={() => setShowFilters(!showFilters)}
+              className="flex items-center gap-2"
+            >
+              <Filter className="h-4 w-4" />
+              {showFilters ? "Hide Filters" : "Show Filters"}
+            </Button>
           </div>
         </div>
 
@@ -141,11 +115,11 @@ export function AuditView({
             <Shield className="h-5 w-5 text-blue-600 mt-0.5" />
             <div>
               <p className="text-sm font-medium text-ink-900 mb-1">
-                Immutable Audit Trail
+                Read-Only Audit Logs
               </p>
               <p className="text-sm text-slateui-600">
-                All access logs are immutable and cannot be modified or deleted.
-                This provides legal defensibility and compliance audit support.
+                This page displays all access logs. Logs are immutable and cannot be edited or deleted.
+                All actions are logged for legal defensibility and compliance.
               </p>
             </div>
           </div>
@@ -157,74 +131,67 @@ export function AuditView({
             <h2 className="font-display text-lg font-semibold text-ink-900 mb-4">
               Filter Logs
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-ink-900 mb-1">
+                <label htmlFor="filter-action" className="block text-sm font-medium text-ink-900 mb-1">
                   Action
                 </label>
-                <select
+                <Input
+                  id="filter-action"
+                  type="text"
                   value={filters.action}
                   onChange={(e) => handleFilterChange("action", e.target.value)}
-                  className="w-full px-3 py-2 border border-slateui-300 rounded-lg"
-                  title="Filter by action type"
-                >
-                  <option value="">All Actions</option>
-                  {availableActions.map((action) => (
-                    <option key={action} value={action}>
-                      {action}
-                    </option>
-                  ))}
-                </select>
+                  placeholder="e.g., REGISTRY_VIEW"
+                />
               </div>
-
               <div>
-                <label className="block text-sm font-medium text-ink-900 mb-1">
+                <label htmlFor="filter-registryId" className="block text-sm font-medium text-ink-900 mb-1">
                   Registry ID
                 </label>
                 <Input
+                  id="filter-registryId"
                   type="text"
                   value={filters.registryId}
                   onChange={(e) => handleFilterChange("registryId", e.target.value)}
-                  placeholder="Filter by registry ID"
+                  placeholder="Registry ID"
                 />
               </div>
-
               <div>
-                <label className="block text-sm font-medium text-ink-900 mb-1">
+                <label htmlFor="filter-userId" className="block text-sm font-medium text-ink-900 mb-1">
                   User ID
                 </label>
                 <Input
+                  id="filter-userId"
                   type="text"
                   value={filters.userId}
                   onChange={(e) => handleFilterChange("userId", e.target.value)}
-                  placeholder="Filter by user ID"
+                  placeholder="User ID"
                 />
               </div>
-
               <div>
-                <label className="block text-sm font-medium text-ink-900 mb-1">
+                <label htmlFor="filter-startDate" className="block text-sm font-medium text-ink-900 mb-1">
                   Start Date
                 </label>
                 <Input
+                  id="filter-startDate"
                   type="date"
                   value={filters.startDate}
                   onChange={(e) => handleFilterChange("startDate", e.target.value)}
                 />
               </div>
-
               <div>
-                <label className="block text-sm font-medium text-ink-900 mb-1">
+                <label htmlFor="filter-endDate" className="block text-sm font-medium text-ink-900 mb-1">
                   End Date
                 </label>
                 <Input
+                  id="filter-endDate"
                   type="date"
                   value={filters.endDate}
                   onChange={(e) => handleFilterChange("endDate", e.target.value)}
                 />
               </div>
             </div>
-
-            <div className="flex justify-end gap-3 mt-4">
+            <div className="flex justify-end gap-2 mt-4">
               <Button variant="outline" onClick={clearFilters}>
                 Clear
               </Button>
@@ -235,27 +202,22 @@ export function AuditView({
           </div>
         )}
 
-        {/* Summary Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <div className="card p-4">
-            <div className="text-sm font-medium text-slateui-600 mb-1">Total Logs</div>
-            <div className="text-2xl font-bold text-ink-900">{totalCount.toLocaleString()}</div>
-          </div>
-          <div className="card p-4">
-            <div className="text-sm font-medium text-slateui-600 mb-1">Showing</div>
-            <div className="text-2xl font-bold text-ink-900">
-              {logs.length} of {totalCount}
+        {/* Results Summary */}
+        <div className="card p-4 mb-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Clock className="h-5 w-5 text-slateui-500" />
+              <span className="text-sm text-slateui-600">
+                Showing {logs.length} of {totalCount} log entries
+              </span>
             </div>
-          </div>
-          <div className="card p-4">
-            <div className="text-sm font-medium text-slateui-600 mb-1">Page</div>
-            <div className="text-2xl font-bold text-ink-900">
-              {currentPage} of {totalPages}
-            </div>
-          </div>
-          <div className="card p-4">
-            <div className="text-sm font-medium text-slateui-600 mb-1">Actions</div>
-            <div className="text-2xl font-bold text-ink-900">{availableActions.length}</div>
+            {totalPages > 1 && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-slateui-600">
+                  Page {currentPage} of {totalPages}
+                </span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -266,16 +228,16 @@ export function AuditView({
               <thead className="bg-slateui-50 border-b border-slateui-200">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-slateui-600 uppercase tracking-wider">
-                    Timestamp
+                    Time
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slateui-600 uppercase tracking-wider">
+                    User
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-slateui-600 uppercase tracking-wider">
                     Action
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-slateui-600 uppercase tracking-wider">
-                    Registry
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slateui-600 uppercase tracking-wider">
-                    User
+                    Registry ID
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-slateui-600 uppercase tracking-wider">
                     Metadata
@@ -295,61 +257,35 @@ export function AuditView({
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-slateui-600">
                         {new Date(log.timestamp).toLocaleString()}
                       </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slateui-600">
+                        {log.userName || log.userEmail || (log.userId ? `User ${log.userId.substring(0, 8)}...` : "System")}
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span
-                          className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getActionColor(log.action)}`}
-                        >
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                           {log.action}
                         </span>
                       </td>
-                      <td className="px-6 py-4">
-                        <div>
-                          {log.registryId !== "search" ? (
-                            <Link
-                              href={`/records/${log.registryId}`}
-                              className="text-sm font-medium text-ink-900 hover:text-gold-600"
-                            >
-                              {log.decedentName || "Unknown"}
-                            </Link>
-                          ) : (
-                            <span className="text-sm font-medium text-ink-900">
-                              Search Operation
-                            </span>
-                          )}
-                          <div className="text-xs text-slateui-500 font-mono">
-                            {log.registryId.substring(0, 8)}...
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slateui-600">
-                        {log.userId ? (
-                          <div>
-                            <div>
-                              {log.userFirstName && log.userLastName
-                                ? `${log.userFirstName} ${log.userLastName}`
-                                : log.userEmail || "Unknown User"}
-                            </div>
-                            <div className="text-xs text-slateui-500 font-mono">
-                              {log.userId.substring(0, 8)}...
-                            </div>
-                          </div>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slateui-600 font-mono">
+                        {log.registryId === "system" ? (
+                          <span className="text-slateui-400">System</span>
                         ) : (
-                          <span className="text-slateui-400 italic">System</span>
+                          <Link
+                            href={`/records/${log.registryId}`}
+                            className="text-blue-600 hover:text-blue-800 hover:underline"
+                          >
+                            {log.registryId.substring(0, 8)}...
+                          </Link>
                         )}
                       </td>
                       <td className="px-6 py-4 text-sm text-slateui-600">
-                        {log.metadata ? (
-                          <details className="cursor-pointer">
-                            <summary className="text-ink-900 hover:text-gold-600">
-                              View Metadata
-                            </summary>
-                            <pre className="mt-2 p-2 bg-slateui-50 rounded text-xs overflow-x-auto">
-                              {JSON.stringify(log.metadata, null, 2)}
-                            </pre>
-                          </details>
-                        ) : (
-                          <span className="text-slateui-400">—</span>
-                        )}
+                        <details className="cursor-pointer">
+                          <summary className="text-blue-600 hover:text-blue-800">
+                            View Metadata
+                          </summary>
+                          <pre className="mt-2 p-2 bg-slateui-50 rounded text-xs overflow-x-auto max-w-md">
+                            {formatMetadata(log.metadata)}
+                          </pre>
+                        </details>
                       </td>
                     </tr>
                   ))
@@ -357,47 +293,31 @@ export function AuditView({
               </tbody>
             </table>
           </div>
-
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="px-6 py-4 border-t border-slateui-200 flex items-center justify-between">
-              <div className="text-sm text-slateui-600">
-                Showing {(currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, totalCount)} of {totalCount} logs
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={currentPage === 1}
-                  onClick={() => {
-                    const params = new URLSearchParams(window.location.search);
-                    params.set("page", String(currentPage - 1));
-                    window.location.href = `/audit?${params.toString()}`;
-                  }}
-                >
-                  Previous
-                </Button>
-                <span className="text-sm text-slateui-600">
-                  Page {currentPage} of {totalPages}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={currentPage === totalPages}
-                  onClick={() => {
-                    const params = new URLSearchParams(window.location.search);
-                    params.set("page", String(currentPage + 1));
-                    window.location.href = `/audit?${params.toString()}`;
-                  }}
-                >
-                  Next
-                </Button>
-              </div>
-            </div>
-          )}
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="card p-4 mt-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                {currentPage > 1 && (
+                  <Link href={`/audit?page=${currentPage - 1}`}>
+                    <Button variant="outline">Previous</Button>
+                  </Link>
+                )}
+                {currentPage < totalPages && (
+                  <Link href={`/audit?page=${currentPage + 1}`}>
+                    <Button variant="outline">Next</Button>
+                  </Link>
+                )}
+              </div>
+              <span className="text-sm text-slateui-600">
+                Page {currentPage} of {totalPages}
+              </span>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
 }
-

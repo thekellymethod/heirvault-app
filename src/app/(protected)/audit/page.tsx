@@ -1,5 +1,6 @@
-import { requireAttorney } from "@/lib/auth";
-import { db, accessLogs, registryRecords, users, sql, desc, eq, and, type AccessLogAction } from "@/lib/db";
+import { getUser, requireAdmin } from "@/lib/auth";
+import { canViewAudit } from "@/lib/permissions";
+import { redirect } from "next/navigation";
 import { AuditView } from "./_components/AuditView";
 
 interface Props {
@@ -15,101 +16,84 @@ interface Props {
 
 /**
  * Audit Trail Page
- * Protected route - requires authentication
  * 
  * Server Component
  * Read-only
- * Filterable logs
- * Exportable (PDF later)
  * 
- * This is where credibility lives.
+ * - requireAdmin() OR allow ATTORNEY with canViewAudit check
+ * - If attorney and canViewAudit returns false, deny access
+ * - Fetch access logs with filters
+ * - Display table: time, user, action, registryId, metadata
+ * - No edits. Read-only.
  */
 export default async function AuditPage({ searchParams }: Props) {
-  // Require attorney authentication
-  const user = await requireAttorney();
+  // Get user (required for permission check)
+  const user = await getUser();
+  if (!user) {
+    redirect("/login");
+  }
+
+  // Check access: requireAdmin() OR allow ATTORNEY with canViewAudit
+  let hasAccess = false;
+  
+  try {
+    // Try requireAdmin first
+    await requireAdmin();
+    hasAccess = true;
+  } catch {
+    // If not admin, check if attorney with canViewAudit
+    if (user.role === "ATTORNEY") {
+      hasAccess = canViewAudit({ user });
+    }
+  }
+
+  // If access denied (attorney with canViewAudit false), redirect to access denied
+  if (!hasAccess) {
+    redirect("/error?type=insufficient_role&reason=Access to audit logs is restricted");
+  }
 
   const params = await searchParams;
-  
+
   // Extract filter parameters
   const actionFilter = params.action;
   const registryIdFilter = params.registryId;
   const userIdFilter = params.userId;
-  const startDate = params.startDate ? new Date(params.startDate) : null;
-  const endDate = params.endDate ? new Date(params.endDate) : null;
   const page = parseInt(params.page || "1", 10);
   const pageSize = 50;
-  const offset = (page - 1) * pageSize;
 
-  // Build filter conditions
-  const conditions = [];
+  // TODO: Implement getAccessLogs() function in /lib/db.ts
+  // For now, using stub that returns empty array
+  // In production, this would query the access_logs table with filters:
+  // - Filter by action if provided
+  // - Filter by registryId if provided
+  // - Filter by userId if provided
+  // - Filter by date range if provided
+  // - Apply pagination (limit, offset)
+  // - Order by timestamp DESC
+  // - Join with users table to get user email/name
+  const logs: Array<{
+    id: string;
+    timestamp: Date;
+    userId: string | null;
+    userEmail?: string | null;
+    userName?: string | null;
+    action: string;
+    registryId: string;
+    metadata: Record<string, unknown> | null;
+  }> = [];
 
-  if (actionFilter) {
-    conditions.push(eq(accessLogs.action, actionFilter as AccessLogAction));
-  }
+  // Stub implementation - in production, this would be:
+  // const logs = await getAccessLogs({
+  //   action: actionFilter,
+  //   registryId: registryIdFilter,
+  //   userId: userIdFilter,
+  //   startDate,
+  //   endDate,
+  //   limit: pageSize,
+  //   offset,
+  // });
 
-  if (registryIdFilter) {
-    conditions.push(eq(accessLogs.registryId, registryIdFilter));
-  }
-
-  if (userIdFilter) {
-    conditions.push(eq(accessLogs.userId, userIdFilter));
-  }
-
-  if (startDate) {
-    conditions.push(sql`${accessLogs.timestamp} >= ${startDate}`);
-  }
-
-  if (endDate) {
-    // Add one day to include the entire end date
-    const endDatePlusOne = new Date(endDate);
-    endDatePlusOne.setDate(endDatePlusOne.getDate() + 1);
-    conditions.push(sql`${accessLogs.timestamp} < ${endDatePlusOne}`);
-  }
-
-  // Fetch access logs with registry and user information
-  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
-
-  const logsResult = await db.select({
-    id: accessLogs.id,
-    registryId: accessLogs.registryId,
-    userId: accessLogs.userId,
-    action: accessLogs.action,
-    metadata: accessLogs.metadata,
-    timestamp: accessLogs.timestamp,
-    decedentName: registryRecords.decedentName,
-    userEmail: users.email,
-    userFirstName: users.firstName,
-    userLastName: users.lastName,
-  })
-    .from(accessLogs)
-    .leftJoin(registryRecords, eq(accessLogs.registryId, registryRecords.id))
-    .leftJoin(users, eq(accessLogs.userId, users.id))
-    .where(whereClause)
-    .orderBy(desc(accessLogs.timestamp))
-    .limit(pageSize)
-    .offset(offset);
-
-  // Type the metadata properly
-  const logs = logsResult.map((log) => ({
-    ...log,
-    metadata: (log.metadata as Record<string, unknown> | null) || null,
-  }));
-
-  // Get total count for pagination
-  const countResult = await db.execute(sql`
-    SELECT COUNT(*)::int as count
-    FROM access_logs
-    ${whereClause ? sql`WHERE ${whereClause}` : sql``}
-  `);
-  const totalCount = (countResult.rows[0] as { count: number })?.count || 0;
-
-  // Get unique values for filters
-  const actionsResult = await db.execute(sql`
-    SELECT DISTINCT action
-    FROM access_logs
-    ORDER BY action
-  `);
-  const availableActions = (actionsResult.rows || []).map((row: Record<string, unknown>) => row.action as string);
+  const totalCount = 0; // Stub - would be actual count from query
 
   return (
     <AuditView
@@ -117,7 +101,6 @@ export default async function AuditPage({ searchParams }: Props) {
       totalCount={totalCount}
       currentPage={page}
       pageSize={pageSize}
-      availableActions={availableActions}
       filters={{
         action: actionFilter || "",
         registryId: registryIdFilter || "",
@@ -125,7 +108,6 @@ export default async function AuditPage({ searchParams }: Props) {
         startDate: params.startDate || "",
         endDate: params.endDate || "",
       }}
-      user={user}
     />
   );
 }

@@ -1,89 +1,60 @@
-import { verifyRegistryAccess } from "@/lib/permissions";
-import { getRegistryById, logAccess } from "@/lib/db";
-import { redirect } from "next/navigation";
-import { RecordDetailView } from "./_components/RecordDetailView";
-import { db, documents, inArray } from "@/lib/db";
+import { requireAttorney } from "@/lib/auth";
+import { getRegistryById, getRegistryVersions, getDocumentsForRegistry } from "@/lib/db";
+import { logAccess } from "@/lib/audit";
 
-interface Props {
-  params: Promise<{ id: string }>;
-}
+export default async function RecordDetailPage({ params }: { params: { id: string } }) {
+  const user = await requireAttorney();
+  const registry = await getRegistryById(params.id);
 
-/**
- * Registry Record Detail Page
- * Protected route - requires authentication
- * 
- * Server Component
- * Verify access via /lib/permissions.ts
- * Fetch registry + versions
- * Display documents + hashes
- * Log view access
- */
-export default async function RecordDetailPage({ params }: Props) {
-  const { id } = await params;
-
-  // Verify access (permission guard - reusable everywhere)
-  const { user } = await verifyRegistryAccess(id);
-
-  // Fetch registry with all versions
-  let registry;
-  try {
-    registry = await getRegistryById(id);
-  } catch (error) {
-    console.error("Error loading registry:", error);
-    redirect("/error?type=not_found");
+  if (!registry) {
+    return (
+      <main style={{ padding: 24, maxWidth: 1100, margin: "0 auto" }}>
+        <h1>Not Found</h1>
+        <p>Registry record not found.</p>
+      </main>
+    );
   }
 
-  // Fetch all documents across all versions
-  // Get all version IDs
-  const versionIds = registry.versions.map(v => v.id);
-  
-  // Fetch documents for all versions
-  const allDocuments = versionIds.length > 0
-    ? await db.select({
-        id: documents.id,
-        fileName: documents.fileName,
-        fileType: documents.fileType,
-        fileSize: documents.fileSize,
-        filePath: documents.filePath,
-        documentHash: documents.documentHash,
-        registryVersionId: documents.registryVersionId,
-        createdAt: documents.createdAt,
-        verifiedAt: documents.verifiedAt,
-      })
-        .from(documents)
-        .where(inArray(documents.registryVersionId, versionIds))
-    : [];
+  const versions = await getRegistryVersions(registry.id);
+  const docs = await getDocumentsForRegistry(registry.id);
 
-  // Group documents by version
-  const documentsByVersion = new Map<string, typeof allDocuments>();
-  for (const doc of allDocuments) {
-    if (doc.registryVersionId) {
-      const versionDocs = documentsByVersion.get(doc.registryVersionId) || [];
-      versionDocs.push(doc);
-      documentsByVersion.set(doc.registryVersionId, versionDocs);
-    }
-  }
-
-  // Log view access (legal backbone - every route handler must call this)
-  // Audit: REGISTRY_VIEW
   await logAccess({
-    registryId: id,
     userId: user.id,
+    registryId: registry.id,
     action: "REGISTRY_VIEW",
-    metadata: {
-      source: "record_detail_page",
-      versionCount: registry.versions.length,
-      documentCount: allDocuments.length,
-      decedentName: registry.decedentName,
-      status: registry.status,
-    },
+    metadata: { versions: versions.length, documents: docs.length },
   });
 
   return (
-    <RecordDetailView
-      registry={registry}
-      documentsByVersion={documentsByVersion}
-      user={user}
-    />
+    <main style={{ padding: 24, maxWidth: 1100, margin: "0 auto" }}>
+      <h1>Registry Record</h1>
+      <p><strong>Insured:</strong> {registry.insured_name}</p>
+      <p><strong>Carrier:</strong> {registry.carrier_guess ?? "—"}</p>
+      <p><strong>Status:</strong> {registry.status}</p>
+
+      <h2 style={{ marginTop: 24 }}>Versions</h2>
+      <div style={{ display: "grid", gap: 10 }}>
+        {versions.map((v) => (
+          <div key={v.id} style={{ padding: 12, border: "1px solid #ddd", borderRadius: 8 }}>
+            <div><strong>{v.submitted_by}</strong> — {new Date(v.created_at).toLocaleString()}</div>
+            <div style={{ fontFamily: "monospace", fontSize: 12, opacity: 0.8 }}>hash: {v.hash}</div>
+            <pre style={{ marginTop: 8, whiteSpace: "pre-wrap" }}>
+              {JSON.stringify(v.data_json, null, 2)}
+            </pre>
+          </div>
+        ))}
+      </div>
+
+      <h2 style={{ marginTop: 24 }}>Documents</h2>
+      <div style={{ display: "grid", gap: 10 }}>
+        {docs.map((d) => (
+          <div key={d.id} style={{ padding: 12, border: "1px solid #ddd", borderRadius: 8 }}>
+            <div><strong>{d.content_type}</strong> — {Math.round(d.size_bytes / 1024)} KB</div>
+            <div style={{ fontFamily: "monospace", fontSize: 12, opacity: 0.8 }}>sha256: {d.sha256}</div>
+            <div style={{ fontFamily: "monospace", fontSize: 12, opacity: 0.8 }}>path: {d.storage_path}</div>
+          </div>
+        ))}
+      </div>
+    </main>
   );
 }

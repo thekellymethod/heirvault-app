@@ -7,37 +7,21 @@ import {
   CheckCircle,
   AlertCircle,
   History,
-  Eye,
-  Shield,
-  Building2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { type User } from "@/lib/auth";
-import { type RegistryWithVersions } from "@/lib/db";
-
-interface Document {
-  id: string;
-  fileName: string;
-  fileType: string;
-  fileSize: number;
-  filePath: string;
-  documentHash: string;
-  registryVersionId: string | null;
-  createdAt: Date;
-  verifiedAt: Date | null;
-}
+import { type RegistryRecord, type RegistryVersion, type DocumentRow } from "@/lib/db";
 
 interface RecordDetailViewProps {
-  registry: RegistryWithVersions;
-  documentsByVersion: Map<string, Document[]>;
-  user: User;
+  registry: RegistryRecord;
+  versions: RegistryVersion[];
+  documentsByVersion: Map<string, DocumentRow[]>;
 }
 
 export function RecordDetailView({
   registry,
+  versions,
   documentsByVersion,
-  user,
 }: RecordDetailViewProps) {
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -45,7 +29,11 @@ export function RecordDetailView({
         return "bg-green-100 text-green-800 border-green-200";
       case "PENDING_VERIFICATION":
         return "bg-yellow-100 text-yellow-800 border-yellow-200";
-      case "DISPUTED":
+      case "DISCREPANCY":
+        return "bg-red-100 text-red-800 border-red-200";
+      case "INCOMPLETE":
+        return "bg-orange-100 text-orange-800 border-orange-200";
+      case "REJECTED":
         return "bg-red-100 text-red-800 border-red-200";
       case "ARCHIVED":
         return "bg-gray-100 text-gray-800 border-gray-200";
@@ -60,7 +48,11 @@ export function RecordDetailView({
         return <CheckCircle className="h-5 w-5" />;
       case "PENDING_VERIFICATION":
         return <Clock className="h-5 w-5" />;
-      case "DISPUTED":
+      case "DISCREPANCY":
+        return <AlertCircle className="h-5 w-5" />;
+      case "INCOMPLETE":
+        return <AlertCircle className="h-5 w-5" />;
+      case "REJECTED":
         return <AlertCircle className="h-5 w-5" />;
       default:
         return <FileText className="h-5 w-5" />;
@@ -73,7 +65,8 @@ export function RecordDetailView({
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  const latestData = registry.latestVersion?.dataJson as Record<string, unknown> | undefined;
+  const latestVersion = versions.length > 0 ? versions[versions.length - 1] : null;
+  const latestData = latestVersion?.dataJson as Record<string, unknown> | undefined;
 
   return (
     <div className="min-h-screen bg-paper-50 py-6">
@@ -116,30 +109,46 @@ export function RecordDetailView({
             {/* Current Data Summary */}
             {latestData && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 pt-4 border-t border-slateui-200">
-                {latestData.policyNumber && (
+                {latestData.policyholder_name ? (
+                  <div>
+                    <span className="text-sm font-medium text-slateui-600">Policyholder:</span>{" "}
+                    <span className="text-sm text-ink-900">
+                      {String(latestData.policyholder_name)}
+                    </span>
+                  </div>
+                ) : null}
+                {latestData.insured_name ? (
+                  <div>
+                    <span className="text-sm font-medium text-slateui-600">Insured:</span>{" "}
+                    <span className="text-sm text-ink-900">
+                      {String(latestData.insured_name)}
+                    </span>
+                  </div>
+                ) : null}
+                {latestData.beneficiary_name ? (
+                  <div>
+                    <span className="text-sm font-medium text-slateui-600">Beneficiary:</span>{" "}
+                    <span className="text-sm text-ink-900">
+                      {String(latestData.beneficiary_name)}
+                    </span>
+                  </div>
+                ) : null}
+                {latestData.carrier_guess ? (
+                  <div>
+                    <span className="text-sm font-medium text-slateui-600">Carrier:</span>{" "}
+                    <span className="text-sm text-ink-900">
+                      {String(latestData.carrier_guess)}
+                    </span>
+                  </div>
+                ) : null}
+                {latestData.policy_number_optional ? (
                   <div>
                     <span className="text-sm font-medium text-slateui-600">Policy Number:</span>{" "}
-                    <span className="text-sm text-ink-900">{String(latestData.policyNumber)}</span>
+                    <span className="text-sm text-ink-900">
+                      {String(latestData.policy_number_optional)}
+                    </span>
                   </div>
-                )}
-                {latestData.policyType && (
-                  <div>
-                    <span className="text-sm font-medium text-slateui-600">Policy Type:</span>{" "}
-                    <span className="text-sm text-ink-900">{String(latestData.policyType)}</span>
-                  </div>
-                )}
-                {latestData.insurerName && (
-                  <div>
-                    <span className="text-sm font-medium text-slateui-600">Insurance Company:</span>{" "}
-                    <span className="text-sm text-ink-900">{String(latestData.insurerName)}</span>
-                  </div>
-                )}
-                {latestData.contactEmail && (
-                  <div>
-                    <span className="text-sm font-medium text-slateui-600">Contact Email:</span>{" "}
-                    <span className="text-sm text-ink-900">{String(latestData.contactEmail)}</span>
-                  </div>
-                )}
+                ) : null}
               </div>
             )}
           </div>
@@ -152,26 +161,32 @@ export function RecordDetailView({
             Version History
           </h3>
           <div className="space-y-4">
-            {registry.versions.map((version, index) => {
-              const versionDocs = documentsByVersion.get(version.id) || [];
-              const versionData = version.dataJson as Record<string, unknown>;
-              const delta = versionData.delta as Record<string, { from: unknown; to: unknown }> | undefined;
+            {versions.length === 0 ? (
+              <div className="text-center py-8 text-slateui-500">
+                No versions found for this registry.
+              </div>
+            ) : (
+              versions.map((version, index) => {
+                const versionDocs = documentsByVersion.get(version.id) || [];
+                const versionData = version.dataJson as Record<string, unknown>;
+                const delta = versionData.delta as Record<string, { from: unknown; to: unknown }> | undefined;
 
-              return (
-                <div key={version.id} className="border border-slateui-200 rounded-lg p-4">
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <div className="font-medium text-ink-900">
-                        Version {registry.versions.length - index} - {version.submittedBy}
+                return (
+                  <div key={version.id} className="border border-slateui-200 rounded-lg p-4">
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <div className="font-medium text-ink-900">
+                          Version {index + 1} - {version.submittedBy}
+                        </div>
+                        <div className="text-sm text-slateui-500">
+                          {new Date(version.createdAt).toLocaleString()}
+                        </div>
                       </div>
-                      <div className="text-sm text-slateui-500">
-                        {new Date(version.createdAt).toLocaleString()}
+                      <div className="text-xs text-slateui-500 font-mono">
+                        <Hash className="h-3 w-3 inline mr-1" />
+                        {version.hash}
                       </div>
                     </div>
-                    <div className="text-xs text-slateui-500 font-mono">
-                      Hash: {version.hash.substring(0, 16)}...
-                    </div>
-                  </div>
 
                   {/* Delta (changes) */}
                   {delta && Object.keys(delta).length > 0 && (
@@ -204,7 +219,8 @@ export function RecordDetailView({
                             </div>
                             <div className="flex items-center gap-2">
                               <div className="text-xs text-slateui-500 font-mono">
-                                Hash: {doc.documentHash.substring(0, 16)}...
+                                <Hash className="h-3 w-3 inline mr-1" />
+                                {doc.sha256}
                               </div>
                             </div>
                           </div>
@@ -213,40 +229,9 @@ export function RecordDetailView({
                     </div>
                   )}
                 </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Access Logs */}
-        <div className="card p-6">
-          <h3 className="font-display text-lg font-semibold text-ink-900 mb-4 flex items-center gap-2">
-            <Eye className="h-5 w-5" />
-            Access Logs
-          </h3>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-slateui-50 border-b border-slateui-200">
-                <tr>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-slateui-600 uppercase">Timestamp</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-slateui-600 uppercase">Action</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-slateui-600 uppercase">User</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slateui-200">
-                {registry.accessLogs.map((log) => (
-                  <tr key={log.id}>
-                    <td className="px-4 py-2 text-sm text-slateui-600">
-                      {new Date(log.timestamp).toLocaleString()}
-                    </td>
-                    <td className="px-4 py-2 text-sm text-ink-900">{log.action}</td>
-                    <td className="px-4 py-2 text-sm text-slateui-600">
-                      {log.userId ? `User ${log.userId.substring(0, 8)}...` : "System"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                );
+              })
+            )}
           </div>
         </div>
       </div>

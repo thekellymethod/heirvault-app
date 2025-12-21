@@ -1,193 +1,91 @@
-import { NextRequest, NextResponse } from "next/server";
-import { createRegistry, appendRegistryVersion, logAccess } from "@/lib/db";
-import { uploadFile } from "@/lib/storage";
-import { generateQRToken, generateQRCodeDataURL } from "@/lib/qr";
-import { createHash } from "crypto";
-import { randomUUID } from "crypto";
-import { db, documents } from "@/lib/db";
+import { NextResponse } from "next/server";
+import { createRegistryRecord, appendRegistryVersion, addDocumentRow } from "@/lib/db";
+import { sha256String } from "@/lib/hash";
+import { uploadDocument } from "@/lib/storage";
+import { signToken } from "@/lib/qr";
+import { logAccess } from "@/lib/audit";
 
-/**
- * Policy Intake API
- * Public endpoint - no authentication required
- * 
- * This route does all the work:
- * - Validate fields
- * - Create registry record
- * - Hash raw submission
- * - Store document via /lib/storage.ts
- * - Create registry version
- * - Generate QR token (/lib/qr.ts)
- * - Return receipt + QR
- * 
- * Important: Never returns registry ID directly. Uses signed token.
- */
-export async function POST(req: NextRequest) {
+export async function POST(req: Request) {
   try {
-    const formData = await req.formData();
-    
-    // Extract form data
-    const decedentName = formData.get("decedentName") as string;
-    const policyNumber = formData.get("policyNumber") as string | null;
-    const policyType = formData.get("policyType") as string | null;
-    const insurerName = formData.get("insurerName") as string | null;
-    const contactEmail = formData.get("contactEmail") as string | null;
-    const contactPhone = formData.get("contactPhone") as string | null;
-    const file = formData.get("file") as File | null;
+    const form = await req.formData();
 
-    // Validate required fields
-    if (!decedentName || decedentName.trim() === "") {
-      return NextResponse.json(
-        { error: "Decedent name is required" },
-        { status: 400 }
-      );
+    const insured_name = String(form.get("insured_name") ?? "").trim();
+    const carrier_guess = String(form.get("carrier_guess") ?? "").trim() || null;
+
+    const policyholder_name = String(form.get("policyholder_name") ?? "").trim();
+    const beneficiary_name = String(form.get("beneficiary_name") ?? "").trim();
+    const policy_number_optional = String(form.get("policy_number_optional") ?? "").trim();
+    const notes_optional = String(form.get("notes_optional") ?? "").trim();
+
+    if (!insured_name) {
+      return NextResponse.json({ error: "insured_name is required" }, { status: 400 });
     }
 
-    // Prepare raw submission data for hashing
-    const rawSubmission = {
-      decedentName: decedentName.trim(),
-      policyNumber: policyNumber?.trim() || null,
-      policyType: policyType?.trim() || null,
-      insurerName: insurerName?.trim() || null,
-      contactEmail: contactEmail?.trim() || null,
-      contactPhone: contactPhone?.trim() || null,
-      submittedAt: new Date().toISOString(),
+    const registry = await createRegistryRecord({ insured_name, carrier_guess });
+
+    const data_json = {
+      insured_name,
+      carrier_guess,
+      policyholder_name: policyholder_name || null,
+      beneficiary_name: beneficiary_name || null,
+      policy_number_optional: policy_number_optional || null,
+      notes_optional: notes_optional || null,
     };
 
-    // Hash raw submission for integrity
-    const submissionHash = createHash("sha256")
-      .update(JSON.stringify(rawSubmission))
-      .digest("hex");
-
-    // Prepare registry data
-    const registryData = {
-      ...rawSubmission,
-      submissionHash,
-      documentHash: null as string | null,
-      documentId: null as string | null,
-    };
-
-    // Handle document upload if provided
-    let documentId: string | null = null;
-    let documentHash: string | null = null;
-    let documentPath: string | null = null;
-
-    if (file) {
-      // Validate file type
-      const validTypes = ["application/pdf", "image/jpeg", "image/png", "image/jpg"];
-      if (!validTypes.includes(file.type)) {
-        return NextResponse.json(
-          { error: "Invalid file type. Please upload a PDF or image file." },
-          { status: 400 }
-        );
-      }
-
-      // Validate file size (max 10MB)
-      if (file.size > 10 * 1024 * 1024) {
-        return NextResponse.json(
-          { error: "File size must be less than 10MB" },
-          { status: 400 }
-        );
-      }
-
-      // Upload file (content-addressed storage)
-      // This computes SHA-256 hash and stores file at content-addressed path
-      const uploadResult = await uploadFile(file);
-      documentHash = uploadResult.hash;
-      documentPath = uploadResult.filePath;
-
-      // Update registry data with document hash
-      registryData.documentHash = documentHash;
-    }
-
-    // Create registry record with initial version
-    const registry = await createRegistry({
-      decedentName: decedentName.trim(),
-      status: "PENDING_VERIFICATION",
-      initialData: registryData,
-      submittedBy: "INTAKE",
+    const versionHash = await sha256String(JSON.stringify(data_json));
+    const version = await appendRegistryVersion({
+      registry_id: registry.id,
+      submitted_by: "INTAKE",
+      data_json,
+      hash: versionHash,
     });
 
-    // If document was uploaded, create document record and link to registry version
-    if (file && documentHash && documentPath && registry.latestVersion) {
-      documentId = randomUUID();
-      
-      // Create a placeholder client ID for registry-first design
-      // In registry-first design, documents are linked to registry versions, not clients
-      // The clientId field is required by schema but not used in registry-first flow
-      const placeholderClientId = randomUUID();
-      
-      // Store document record
-      await db.insert(documents).values({
-        id: documentId,
-        clientId: placeholderClientId, // Placeholder - registry-first design uses registryVersionId
-        registryVersionId: registry.latestVersion.id,
-        fileName: file.name,
-        fileType: file.type,
-        fileSize: file.size,
-        filePath: documentPath,
-        mimeType: file.type,
-        uploadedVia: "intake",
-        documentHash,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+    // Optional file upload
+    const file = form.get("document");
+    if (file && file instanceof File && file.size > 0) {
+      const arrayBuffer = await file.arrayBuffer();
+      const uploaded = await uploadDocument({
+        fileBuffer: arrayBuffer,
+        filename: file.name || "document",
+        contentType: file.type || "application/octet-stream",
       });
 
-      // Update registry data with document ID
-      const updatedData = {
-        ...registryData,
-        documentId,
-      };
+      await addDocumentRow({
+        registry_version_id: version.id,
+        storage_path: uploaded.storagePath,
+        content_type: file.type || "application/octet-stream",
+        size_bytes: uploaded.sizeBytes,
+        sha256: uploaded.sha256,
+      });
 
-      // Create a new version with document ID (immutable - nothing updates in place)
-      await appendRegistryVersion({
+      await logAccess({
+        userId: null,
         registryId: registry.id,
-        data: updatedData,
-        submittedBy: "INTAKE",
+        action: "DOCUMENT_UPLOADED",
+        metadata: { source: "INTAKE", contentType: file.type, size: file.size },
       });
     }
 
-    // Generate signed QR token (never return registry ID directly)
-    const qrToken = generateQRToken(registry.id, registry.latestVersion?.id);
-
-    // Generate QR code data URL
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin;
-    const qrCodeDataUrl = await generateQRCodeDataURL(registry.id, baseUrl);
-
-    // Generate receipt ID (hash of registry ID + timestamp for uniqueness)
-    const receiptId = createHash("sha256")
-      .update(`${registry.id}-${Date.now()}`)
-      .digest("hex")
-      .substring(0, 16)
-      .toUpperCase();
-
-    // Log access (legal backbone - every route handler must call this)
-    // Audit: INTAKE_SUBMITTED
     await logAccess({
+      userId: null,
       registryId: registry.id,
-      userId: null, // System action (intake submission)
       action: "INTAKE_SUBMITTED",
-      metadata: {
-        source: "intake",
-        hasDocument: !!file,
-        documentHash: documentHash || null,
-        qrToken: qrToken,
-        receiptId: receiptId,
-      },
+      metadata: { carrier_guess, insured_name },
     });
 
-    // Return receipt + QR (never return registry ID directly)
+    const updateToken = signToken({ registryId: registry.id, purpose: "update" }, 60 * 60 * 24 * 365); // 1 year
+
     return NextResponse.json({
-      success: true,
-      receiptId,
-      qrToken, // Signed token, not registry ID
-      qrCodeDataUrl,
-      message: "Policy submitted successfully",
+      receiptId: version.id,
+      registryId: registry.id,
+      updateToken,
+      updateUrl: `/update/${updateToken}`,
+      createdAt: version.created_at,
+      confirmationMessage: "Submission received and recorded.",
     });
-  } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error("Error in intake submission:", errorMessage);
+  } catch (e: any) {
     return NextResponse.json(
-      { error: errorMessage || "Failed to process submission" },
+      { error: "intake_failed", details: String(e?.message ?? e) },
       { status: 500 }
     );
   }

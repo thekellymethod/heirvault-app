@@ -15,7 +15,7 @@ import { SearchView } from "./_components/SearchView";
  */
 export default async function SearchPage() {
   // Require attorney authentication
-  const user = await requireAttorney();
+  await requireAttorney();
 
-  return <SearchView user={user} />;
+  return <SearchView />;
 }

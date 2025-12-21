@@ -1,229 +1,92 @@
-import { NextRequest, NextResponse } from "next/server";
-import { verifyQRToken } from "@/lib/qr";
-import { getRegistryById, appendRegistryVersion, logAccess } from "@/lib/db";
-import { uploadFile } from "@/lib/storage";
-import { createHash } from "crypto";
-import { randomUUID } from "crypto";
-import { db, documents } from "@/lib/db";
+import { NextResponse } from "next/server";
+import { verifyToken } from "@/lib/qr";
+import { appendRegistryVersion, addDocumentRow, getRegistryById } from "@/lib/db";
+import { sha256String } from "@/lib/hash";
+import { uploadDocument } from "@/lib/storage";
+import { logAccess } from "@/lib/audit";
 
-/**
- * Registry Records API
- * Public endpoint - no authentication required (uses signed tokens)
- * 
- * Verify token
- * Append new registry version
- * Hash + store delta
- * Log version lineage
- * 
- * CRITICAL: Do not allow edits. Only append.
- * This is where many systems fail.
- */
-export async function POST(req: NextRequest) {
+export async function POST(req: Request) {
   try {
-    const formData = await req.formData();
-    
-    // Extract token
-    const token = formData.get("token") as string;
-    if (!token) {
-      return NextResponse.json(
-        { error: "Token is required" },
-        { status: 400 }
-      );
+    const form = await req.formData();
+    const token = String(form.get("token") ?? "").trim();
+    if (!token) return NextResponse.json({ error: "token_required" }, { status: 400 });
+
+    const vt = verifyToken(token);
+    if (!vt.valid || !vt.payload) {
+      return NextResponse.json({ error: "invalid_token", reason: vt.reason }, { status: 403 });
     }
 
-    // Verify token
-    const payload = verifyQRToken(token);
-    if (!payload) {
-      return NextResponse.json(
-        { error: "Invalid or expired token" },
-        { status: 403 }
-      );
-    }
+    const registryId = vt.payload.registryId;
+    const registry = await getRegistryById(registryId);
+    if (!registry) return NextResponse.json({ error: "registry_not_found" }, { status: 404 });
 
-    // Validate expiry
-    if (Date.now() > payload.expiresAt) {
-      return NextResponse.json(
-        { error: "Token has expired" },
-        { status: 403 }
-      );
-    }
+    const insured_name = String(form.get("insured_name") ?? registry.insured_name).trim();
+    const carrier_guess = String(form.get("carrier_guess") ?? registry.carrier_guess ?? "").trim() || null;
 
-    // Load current registry to get latest version
-    const registry = await getRegistryById(payload.registryId);
-    const currentVersion = registry.latestVersion;
-    
-    if (!currentVersion) {
-      return NextResponse.json(
-        { error: "Registry has no versions" },
-        { status: 404 }
-      );
-    }
+    const policyholder_name = String(form.get("policyholder_name") ?? "").trim();
+    const beneficiary_name = String(form.get("beneficiary_name") ?? "").trim();
+    const policy_number_optional = String(form.get("policy_number_optional") ?? "").trim();
+    const notes_optional = String(form.get("notes_optional") ?? "").trim();
 
-    // Extract form data
-    const decedentName = formData.get("decedentName") as string;
-    const policyNumber = formData.get("policyNumber") as string | null;
-    const policyType = formData.get("policyType") as string | null;
-    const insurerName = formData.get("insurerName") as string | null;
-    const contactEmail = formData.get("contactEmail") as string | null;
-    const contactPhone = formData.get("contactPhone") as string | null;
-    const file = formData.get("file") as File | null;
-
-    // Validate required fields
-    if (!decedentName || decedentName.trim() === "") {
-      return NextResponse.json(
-        { error: "Decedent name is required" },
-        { status: 400 }
-      );
-    }
-
-    // Get current data from latest version
-    const currentData = currentVersion.dataJson as Record<string, unknown>;
-
-    // Prepare new data
-    const newData = {
-      decedentName: decedentName.trim(),
-      policyNumber: policyNumber?.trim() || null,
-      policyType: policyType?.trim() || null,
-      insurerName: insurerName?.trim() || null,
-      contactEmail: contactEmail?.trim() || null,
-      contactPhone: contactPhone?.trim() || null,
-      updatedAt: new Date().toISOString(),
+    const data_json = {
+      insured_name,
+      carrier_guess,
+      policyholder_name: policyholder_name || null,
+      beneficiary_name: beneficiary_name || null,
+      policy_number_optional: policy_number_optional || null,
+      notes_optional: notes_optional || null,
+      update_source: "TOKEN",
     };
 
-    // Calculate delta (what changed)
-    // CRITICAL: Store delta to show what changed from previous version
-    const delta: Record<string, { from: unknown; to: unknown }> = {};
-    
-    const fieldsToCompare = [
-      "decedentName",
-      "policyNumber",
-      "policyType",
-      "insurerName",
-      "contactEmail",
-      "contactPhone",
-    ];
-
-    for (const field of fieldsToCompare) {
-      const currentValue = currentData[field];
-      const newValue = newData[field as keyof typeof newData];
-      
-      // Only include in delta if value actually changed
-      if (JSON.stringify(currentValue) !== JSON.stringify(newValue)) {
-        delta[field] = {
-          from: currentValue ?? null,
-          to: newValue ?? null,
-        };
-      }
-    }
-
-    // Handle document upload if provided
-    let documentHash: string | null = null;
-    let documentPath: string | null = null;
-    let documentId: string | null = null;
-
-    if (file) {
-      // Validate file type
-      const validTypes = ["application/pdf", "image/jpeg", "image/png", "image/jpg"];
-      if (!validTypes.includes(file.type)) {
-        return NextResponse.json(
-          { error: "Invalid file type. Please upload a PDF or image file." },
-          { status: 400 }
-        );
-      }
-
-      // Validate file size (max 10MB)
-      if (file.size > 10 * 1024 * 1024) {
-        return NextResponse.json(
-          { error: "File size must be less than 10MB" },
-          { status: 400 }
-        );
-      }
-
-      // Upload file (content-addressed storage)
-      // This computes SHA-256 hash and stores file at content-addressed path
-      const uploadResult = await uploadFile(file);
-      documentHash = uploadResult.hash;
-      documentPath = uploadResult.filePath;
-
-      // Add document info to new data
-      (newData as Record<string, unknown>).documentHash = documentHash;
-      (newData as Record<string, unknown>).documentId = null; // Will be set after document creation
-    }
-
-    // Hash the new data for integrity
-    const dataHash = createHash("sha256")
-      .update(JSON.stringify(newData))
-      .digest("hex");
-
-    // Add hash and delta to new data
-    (newData as Record<string, unknown>).submissionHash = dataHash;
-    (newData as Record<string, unknown>).delta = delta;
-    (newData as Record<string, unknown>).previousVersionId = currentVersion.id;
-
-    // CRITICAL: Append new version (do not edit existing version)
-    // This is where many systems fail - they try to update in place
-    const newVersion = await appendRegistryVersion({
-      registryId: payload.registryId,
-      data: newData,
-      submittedBy: "INTAKE", // Updated via intake QR code
+    const versionHash = await sha256String(JSON.stringify(data_json));
+    const version = await appendRegistryVersion({
+      registry_id: registryId,
+      submitted_by: "TOKEN",
+      data_json,
+      hash: versionHash,
     });
 
-    // If document was uploaded, create document record and link to new version
-    if (file && documentHash && documentPath && newVersion) {
-      documentId = randomUUID();
-      
-      // Create placeholder client ID (registry-first design)
-      const placeholderClientId = randomUUID();
-      
-      // Store document record linked to new version
-      await db.insert(documents).values({
-        id: documentId,
-        clientId: placeholderClientId,
-        registryVersionId: newVersion.id,
-        fileName: file.name,
-        fileType: file.type,
-        fileSize: file.size,
-        filePath: documentPath,
-        mimeType: file.type,
-        uploadedVia: "qr_update",
-        documentHash,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+    const file = form.get("document");
+    if (file && file instanceof File && file.size > 0) {
+      const arrayBuffer = await file.arrayBuffer();
+      const uploaded = await uploadDocument({
+        fileBuffer: arrayBuffer,
+        filename: file.name || "document",
+        contentType: file.type || "application/octet-stream",
       });
 
-      // Update new version data with document ID (would require new version, but for now just log)
-      // In a fully immutable system, we'd create another version, but for documents this is acceptable
+      await addDocumentRow({
+        registry_version_id: version.id,
+        storage_path: uploaded.storagePath,
+        content_type: file.type || "application/octet-stream",
+        size_bytes: uploaded.sizeBytes,
+        sha256: uploaded.sha256,
+      });
+
+      await logAccess({
+        userId: null,
+        registryId,
+        action: "DOCUMENT_UPLOADED",
+        metadata: { source: "TOKEN", contentType: file.type, size: file.size },
+      });
     }
 
-    // Log version lineage (legal backbone - every route handler must call this)
-    // Audit: REGISTRY_UPDATED_BY_TOKEN
     await logAccess({
-      registryId: payload.registryId,
-      userId: null, // System action (public update via QR)
+      userId: null,
+      registryId,
       action: "REGISTRY_UPDATED_BY_TOKEN",
-      metadata: {
-        source: "qr_update",
-        versionId: newVersion.id,
-        previousVersionId: currentVersion.id,
-        hasDocument: !!file,
-        documentHash: documentHash || null,
-        changes: Object.keys(delta),
-        delta: Object.keys(delta).length > 0 ? delta : null,
-      },
+      metadata: { insured_name, carrier_guess },
     });
 
-    // Return success (never return registry ID directly)
     return NextResponse.json({
-      success: true,
-      message: "Update submitted successfully. A new version has been created.",
-      versionId: newVersion.id,
-      changes: Object.keys(delta).length > 0 ? delta : "No changes detected",
+      receiptId: version.id,
+      registryId,
+      createdAt: version.created_at,
+      confirmationMessage: "Update recorded successfully.",
     });
-  } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error("Error in record update:", errorMessage);
+  } catch (e: any) {
     return NextResponse.json(
-      { error: errorMessage || "Failed to process update" },
+      { error: "update_failed", details: String(e?.message ?? e) },
       { status: 500 }
     );
   }

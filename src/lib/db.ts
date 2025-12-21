@@ -1,329 +1,189 @@
-/**
- * Database Interface
- * 
- * Postgres-compatible interface with strongly typed contracts.
- * Uses a single exported db client placeholder (prisma/supabase/drizzle).
- * 
- * For now, implements with in-memory stubs or TODOs, but returns correct shapes.
- */
+import { supabaseServer } from "@/lib/supabase";
 
-/**
- * Registry Record Type
- */
-export interface RegistryRecord {
+export type RegistryRecord = {
   id: string;
-  decedentName: string;
-  status: "PENDING_VERIFICATION" | "VERIFIED" | "DISCREPANCY" | "INCOMPLETE" | "REJECTED";
-  createdAt: Date;
-}
-
-/**
- * Registry Version Type
- */
-export interface RegistryVersion {
-  id: string;
-  registryId: string;
-  dataJson: Record<string, unknown>;
-  submittedBy: "SYSTEM" | "ATTORNEY" | "INTAKE";
-  hash: string;
-  createdAt: Date;
-}
-
-/**
- * Document Row Type
- */
-export interface DocumentRow {
-  id: string;
-  registryVersionId: string;
-  storagePath: string;
-  sha256: string;
-  mimeType: string;
-  fileName: string;
-  fileSize: number;
-  createdAt: Date;
-}
-
-/**
- * Access Log Row Type
- */
-export interface AccessLogRow {
-  id: string;
-  registryId: string;
-  userId: string | null;
-  action: string;
-  metadata: Record<string, unknown> | null;
-  timestamp: Date;
-}
-
-/**
- * Database Client Placeholder
- * 
- * Replace with actual client (prisma, supabase, drizzle, etc.)
- */
-export const db = {
-  // Placeholder - replace with actual db client
-  // Example: export const db = prisma;
-  // Example: export const db = supabase;
-  // Example: export const db = drizzle(...);
-} as unknown as {
-  // Type placeholder for db operations
-  // Actual implementation will provide real methods
-  [key: string]: unknown;
+  status: string;
+  insured_name: string;
+  carrier_guess: string | null;
+  created_at: string;
 };
 
-/**
- * Create Registry Record Input
- */
-export interface CreateRegistryRecordInput {
-  decedentName: string;
-  status?: RegistryRecord["status"];
-  initialData: Record<string, unknown>;
-  submittedBy: RegistryVersion["submittedBy"];
-}
+export type RegistryVersion = {
+  id: string;
+  registry_id: string;
+  submitted_by: string;
+  data_json: Record<string, any>;
+  hash: string;
+  created_at: string;
+};
 
-/**
- * Append Registry Version Input
- */
-export interface AppendRegistryVersionInput {
-  registryId: string;
-  data: Record<string, unknown>;
-  submittedBy: RegistryVersion["submittedBy"];
-}
-
-/**
- * Add Document Row Input
- */
-export interface AddDocumentRowInput {
-  registryVersionId: string;
-  storagePath: string;
+export type DocumentRow = {
+  id: string;
+  registry_version_id: string;
+  storage_path: string;
+  content_type: string;
+  size_bytes: number;
   sha256: string;
-  mimeType: string;
-  fileName: string;
-  fileSize: number;
-}
+  created_at: string;
+};
 
-/**
- * Log Access Input
- */
-export interface LogAccessInput {
-  registryId: string;
-  userId?: string | null;
+export type AccessLogRow = {
+  id: string;
+  user_id: string | null;
+  registry_id: string | null;
   action: string;
-  metadata?: Record<string, unknown>;
+  metadata: Record<string, any> | null;
+  created_at: string;
+};
+
+export async function createRegistryRecord(input: {
+  insured_name: string;
+  carrier_guess?: string | null;
+}): Promise<RegistryRecord> {
+  const sb = supabaseServer();
+  const { data, error } = await sb
+    .from("registry_records")
+    .insert({
+      insured_name: input.insured_name.trim(),
+      carrier_guess: input.carrier_guess?.trim() ?? null,
+    })
+    .select("*")
+    .single();
+
+  if (error) throw error;
+  return data as RegistryRecord;
 }
 
-/**
- * Constrained Search Input
- */
-export interface ConstrainedSearchInput {
-  userId: string;
-  decedentName?: string;
-  limit?: number;
+export async function appendRegistryVersion(input: {
+  registry_id: string;
+  submitted_by: "INTAKE" | "TOKEN" | "ATTORNEY" | "SYSTEM";
+  data_json: Record<string, any>;
+  hash: string;
+}): Promise<RegistryVersion> {
+  const sb = supabaseServer();
+  const { data, error } = await sb
+    .from("registry_versions")
+    .insert({
+      registry_id: input.registry_id,
+      submitted_by: input.submitted_by,
+      data_json: input.data_json,
+      hash: input.hash,
+    })
+    .select("*")
+    .single();
+
+  if (error) throw error;
+  return data as RegistryVersion;
 }
 
-/**
- * Create a new registry record with initial version
- * 
- * Returns the created registry record.
- */
-export async function createRegistryRecord(
-  input: CreateRegistryRecordInput
-): Promise<RegistryRecord> {
-  // TODO: Implement with actual database client
-  // Example with Prisma:
-  //   return await db.registryRecord.create({ data: { ... } });
-  // Example with Drizzle:
-  //   return await db.insert(registryRecords).values({ ... }).returning()[0];
-  
-  // Stub implementation
-  const record: RegistryRecord = {
-    id: crypto.randomUUID(),
-    decedentName: input.decedentName,
-    status: input.status || "PENDING_VERIFICATION",
-    createdAt: new Date(),
-  };
-  
-  return record;
+export async function addDocumentRow(input: {
+  registry_version_id: string;
+  storage_path: string;
+  content_type: string;
+  size_bytes: number;
+  sha256: string;
+}): Promise<DocumentRow> {
+  const sb = supabaseServer();
+  const { data, error } = await sb
+    .from("documents")
+    .insert({
+      registry_version_id: input.registry_version_id,
+      storage_path: input.storage_path,
+      content_type: input.content_type,
+      size_bytes: input.size_bytes,
+      sha256: input.sha256,
+    })
+    .select("*")
+    .single();
+
+  if (error) throw error;
+  return data as DocumentRow;
 }
 
-/**
- * Append a new version to an existing registry
- * 
- * Returns the created version.
- */
-export async function appendRegistryVersion(
-  input: AppendRegistryVersionInput
-): Promise<RegistryVersion> {
-  // TODO: Implement with actual database client
-  // Example with Prisma:
-  //   return await db.registryVersion.create({ data: { ... } });
-  // Example with Drizzle:
-  //   return await db.insert(registryVersions).values({ ... }).returning()[0];
-  
-  // Stub implementation
-  const dataJson = input.data;
-  const hash = crypto.randomUUID(); // TODO: Compute actual SHA-256 hash
-  
-  const version: RegistryVersion = {
-    id: crypto.randomUUID(),
-    registryId: input.registryId,
-    dataJson,
-    submittedBy: input.submittedBy,
-    hash,
-    createdAt: new Date(),
-  };
-  
-  return version;
-}
-
-/**
- * Add a document row
- * 
- * Returns the created document row.
- */
-export async function addDocumentRow(
-  input: AddDocumentRowInput
-): Promise<DocumentRow> {
-  // TODO: Implement with actual database client
-  // Example with Prisma:
-  //   return await db.document.create({ data: { ... } });
-  // Example with Drizzle:
-  //   return await db.insert(documents).values({ ... }).returning()[0];
-  
-  // Stub implementation
-  const document: DocumentRow = {
-    id: crypto.randomUUID(),
-    registryVersionId: input.registryVersionId,
-    storagePath: input.storagePath,
-    sha256: input.sha256,
-    mimeType: input.mimeType,
-    fileName: input.fileName,
-    fileSize: input.fileSize,
-    createdAt: new Date(),
-  };
-  
-  return document;
-}
-
-/**
- * Get registry by ID
- * 
- * Returns the registry record or null if not found.
- */
 export async function getRegistryById(id: string): Promise<RegistryRecord | null> {
-  // TODO: Implement with actual database client
-  // Example with Prisma:
-  //   return await db.registryRecord.findUnique({ where: { id } });
-  // Example with Drizzle:
-  //   const [record] = await db.select().from(registryRecords).where(eq(registryRecords.id, id));
-  //   return record || null;
-  
-  // Stub implementation
-  return null;
+  const sb = supabaseServer();
+  const { data, error } = await sb.from("registry_records").select("*").eq("id", id).maybeSingle();
+  if (error) throw error;
+  return (data ?? null) as RegistryRecord | null;
 }
 
-/**
- * Get registry versions for a registry
- * 
- * Returns array of versions, ordered by creation date (newest first).
- */
-export async function getRegistryVersions(
-  registryId: string
-): Promise<RegistryVersion[]> {
-  // TODO: Implement with actual database client
-  // Example with Prisma:
-  //   return await db.registryVersion.findMany({
-  //     where: { registryId },
-  //     orderBy: { createdAt: "desc" },
-  //   });
-  // Example with Drizzle:
-  //   return await db.select()
-  //     .from(registryVersions)
-  //     .where(eq(registryVersions.registryId, registryId))
-  //     .orderBy(desc(registryVersions.createdAt));
-  
-  // Stub implementation
-  return [];
+export async function getRegistryVersions(registryId: string): Promise<RegistryVersion[]> {
+  const sb = supabaseServer();
+  const { data, error } = await sb
+    .from("registry_versions")
+    .select("*")
+    .eq("registry_id", registryId)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return (data ?? []) as RegistryVersion[];
 }
 
-/**
- * List authorized registries for a user
- * 
- * Returns array of registry records the user is authorized to access.
- */
-export async function listAuthorizedRegistries(
-  userId: string
-): Promise<RegistryRecord[]> {
-  // TODO: Implement with actual database client
-  // This should check access grants, organization membership, etc.
-  // Example with Prisma:
-  //   return await db.registryRecord.findMany({
-  //     where: {
-  //       accessGrants: { some: { userId } },
-  //       OR: { organization: { members: { some: { userId } } } },
-  //     },
-  //   });
-  // Example with Drizzle:
-  //   return await db.select()
-  //     .from(registryRecords)
-  //     .leftJoin(accessGrants, eq(accessGrants.registryId, registryRecords.id))
-  //     .where(eq(accessGrants.userId, userId));
-  
-  // Stub implementation
-  return [];
+export async function getDocumentsForRegistry(registryId: string): Promise<DocumentRow[]> {
+  const sb = supabaseServer();
+  const { data, error } = await sb
+    .from("documents")
+    .select("*, registry_versions!inner(registry_id)")
+    .eq("registry_versions.registry_id", registryId)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  // Supabase returns join shape; keep only DocumentRow fields
+  return (data ?? []).map((d: any) => ({
+    id: d.id,
+    registry_version_id: d.registry_version_id,
+    storage_path: d.storage_path,
+    content_type: d.content_type,
+    size_bytes: d.size_bytes,
+    sha256: d.sha256,
+    created_at: d.created_at,
+  })) as DocumentRow[];
 }
 
-/**
- * Log access to a registry
- * 
- * Creates an access log entry for audit trail.
- */
-export async function logAccess(input: LogAccessInput): Promise<AccessLogRow> {
-  // TODO: Implement with actual database client
-  // Example with Prisma:
-  //   return await db.accessLog.create({ data: { ... } });
-  // Example with Drizzle:
-  //   return await db.insert(accessLogs).values({ ... }).returning()[0];
-  
-  // Stub implementation
-  const log: AccessLogRow = {
-    id: crypto.randomUUID(),
-    registryId: input.registryId,
-    userId: input.userId ?? null,
+export async function listRegistries(limit = 50): Promise<RegistryRecord[]> {
+  const sb = supabaseServer();
+  const { data, error } = await sb
+    .from("registry_records")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) throw error;
+  return (data ?? []) as RegistryRecord[];
+}
+
+export async function logAccess(input: {
+  user_id: string | null;
+  registry_id?: string | null;
+  action: string;
+  metadata?: Record<string, any>;
+}): Promise<void> {
+  const sb = supabaseServer();
+  const { error } = await sb.from("access_logs").insert({
+    user_id: input.user_id,
+    registry_id: input.registry_id ?? null,
     action: input.action,
     metadata: input.metadata ?? null,
-    timestamp: new Date(),
-  };
-  
-  return log;
+  });
+  if (error) throw error;
 }
 
-/**
- * Constrained search for registries
- * 
- * Performs a limited search with controlled fields only.
- * Returns array of registry records matching the search criteria.
- */
-export async function constrainedSearch(
-  input: ConstrainedSearchInput
-): Promise<RegistryRecord[]> {
-  // TODO: Implement with actual database client
-  // This should only search on allowed fields (e.g., decedentName)
-  // and respect access controls
-  // Example with Prisma:
-  //   return await db.registryRecord.findMany({
-  //     where: {
-  //       decedentName: { contains: input.decedentName },
-  //       // Add access control filters
-  //     },
-  //     take: input.limit || 50,
-  //   });
-  // Example with Drizzle:
-  //   return await db.select()
-  //     .from(registryRecords)
-  //     .where(ilike(registryRecords.decedentName, `%${input.decedentName}%`))
-  //     .limit(input.limit || 50);
-  
-  // Stub implementation
-  return [];
+export async function constrainedSearch(input: {
+  query: string;
+  limit?: number;
+}): Promise<RegistryRecord[]> {
+  const sb = supabaseServer();
+  const q = input.query.trim();
+  const limit = input.limit ?? 25;
+
+  // Constrained search: insured_name or carrier_guess only (v1)
+  const { data, error } = await sb
+    .from("registry_records")
+    .select("*")
+    .or(`insured_name.ilike.%${q}%,carrier_guess.ilike.%${q}%`)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) throw error;
+  return (data ?? []) as RegistryRecord[];
 }

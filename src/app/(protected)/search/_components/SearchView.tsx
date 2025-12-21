@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { type User } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -10,36 +9,36 @@ import {
   AlertCircle,
   Loader2,
   Shield,
-  CheckCircle,
 } from "lucide-react";
-
-interface SearchViewProps {
-  user: User;
-}
+import Link from "next/link";
 
 interface SearchResult {
   id: string;
   decedentName: string;
   status: string;
   createdAt: Date;
-  latestVersion: {
-    submittedBy: string;
-    createdAt: Date;
-  } | null;
+  matchedField?: string;
+  redactedData?: {
+    insuredName?: string;
+    beneficiaryName?: string;
+    carrierGuess?: string;
+    policyNumber?: string | null;
+  };
 }
 
 /**
  * Search View Component
  * 
- * Controlled exposure search - requires purpose and uses constrained queries only.
- * Never allows free-text global search.
+ * Constrained search - requires purpose dropdown and search string.
+ * Only searches across limited fields: insured_name, beneficiary_name, carrier_guess.
+ * Returns redacted results (no full policy numbers).
  */
-export function SearchView({ user }: SearchViewProps) {
+export function SearchView() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<SearchResult[]>([]);
   const [searchPurpose, setSearchPurpose] = useState("");
-  const [decedentName, setDecedentName] = useState("");
+  const [searchString, setSearchString] = useState("");
   const [resultCount, setResultCount] = useState<number | null>(null);
 
   const handleSearch = async (e: React.FormEvent) => {
@@ -50,27 +49,28 @@ export function SearchView({ user }: SearchViewProps) {
 
     // Validate purpose is provided
     if (!searchPurpose.trim()) {
-      setError("Search purpose is required. Please explain why you are searching.");
+      setError("Search purpose is required. Please select a purpose from the dropdown.");
       return;
     }
 
-    // Validate at least one search field is provided
-    if (!decedentName.trim()) {
-      setError("At least one search field is required.");
+    // Validate search string is provided
+    if (!searchString.trim()) {
+      setError("Search string is required. Enter a name or carrier to search for.");
       return;
     }
 
     setLoading(true);
 
     try {
-      const params = new URLSearchParams();
-      params.set("purpose", searchPurpose.trim());
-      if (decedentName.trim()) {
-        params.set("decedentName", decedentName.trim());
-      }
-
-      const res = await fetch(`/api/search?${params.toString()}`, {
-        method: "GET",
+      const res = await fetch("/api/search", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          purpose: searchPurpose.trim(),
+          searchString: searchString.trim(),
+        }),
       });
 
       const data = await res.json();
@@ -94,7 +94,7 @@ export function SearchView({ user }: SearchViewProps) {
             Search & Discovery
           </h1>
           <p className="text-slateui-600">
-            Controlled search with purpose-driven queries. Limited fields only.
+            Constrained search across limited fields. All searches are logged for audit purposes.
           </p>
         </div>
 
@@ -107,8 +107,8 @@ export function SearchView({ user }: SearchViewProps) {
                 Controlled Search Access
               </p>
               <p className="text-sm text-slateui-600">
-                All searches are logged and require a stated purpose. Free-text global search is not permitted.
-                Only specific, constrained field searches are allowed.
+                This search only queries: Insured Name, Beneficiary Name, and Carrier Guess.
+                Policy numbers are redacted in results. All searches are logged with your stated purpose.
               </p>
             </div>
           </div>
@@ -141,25 +141,21 @@ export function SearchView({ user }: SearchViewProps) {
             </p>
           </div>
 
-          <div className="border-t border-slateui-200 pt-4">
-            <h3 className="text-sm font-medium text-ink-900 mb-3">
-              Search Criteria (At least one required)
-            </h3>
-
-            <div className="space-y-4">
-              <div>
-                <label htmlFor="decedentName" className="block text-sm font-medium text-ink-900 mb-1">
-                  Decedent Name
-                </label>
-                <Input
-                  id="decedentName"
-                  type="text"
-                  value={decedentName}
-                  onChange={(e) => setDecedentName(e.target.value)}
-                  placeholder="Full name of the decedent"
-                />
-              </div>
-            </div>
+          <div>
+            <label htmlFor="searchString" className="block text-sm font-medium text-ink-900 mb-1">
+              Search String <span className="text-red-500">*</span>
+            </label>
+            <Input
+              id="searchString"
+              type="text"
+              required
+              value={searchString}
+              onChange={(e) => setSearchString(e.target.value)}
+              placeholder="Search by insured name, beneficiary name, or carrier..."
+            />
+            <p className="text-xs text-slateui-500 mt-1">
+              Searches across: Insured Name, Beneficiary Name, Carrier Guess
+            </p>
           </div>
 
           {error && (
@@ -174,7 +170,7 @@ export function SearchView({ user }: SearchViewProps) {
           <div className="flex justify-end">
             <Button
               type="submit"
-              disabled={loading || !searchPurpose.trim() || !decedentName.trim()}
+              disabled={loading || !searchPurpose.trim() || !searchString.trim()}
               className="btn-primary"
             >
               {loading ? (
@@ -218,14 +214,40 @@ export function SearchView({ user }: SearchViewProps) {
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <h3 className="font-medium text-ink-900 mb-1">
+                        <h3 className="font-medium text-ink-900 mb-2">
                           {result.decedentName}
                         </h3>
+                        
+                        {result.redactedData && (
+                          <div className="space-y-1 text-sm text-slateui-600 mb-2">
+                            {result.redactedData.insuredName && (
+                              <div>
+                                <span className="font-medium">Insured:</span> {result.redactedData.insuredName}
+                              </div>
+                            )}
+                            {result.redactedData.beneficiaryName && (
+                              <div>
+                                <span className="font-medium">Beneficiary:</span> {result.redactedData.beneficiaryName}
+                              </div>
+                            )}
+                            {result.redactedData.carrierGuess && (
+                              <div>
+                                <span className="font-medium">Carrier:</span> {result.redactedData.carrierGuess}
+                              </div>
+                            )}
+                            {result.redactedData.policyNumber && (
+                              <div>
+                                <span className="font-medium">Policy Number:</span> {result.redactedData.policyNumber}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
                         <div className="flex items-center gap-4 text-sm text-slateui-600">
                           <span>Status: {result.status.replace("_", " ")}</span>
-                          {result.latestVersion && (
-                            <span>
-                              Last updated: {new Date(result.latestVersion.createdAt).toLocaleDateString()}
+                          {result.matchedField && (
+                            <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                              Matched: {result.matchedField.replace("_", " ")}
                             </span>
                           )}
                         </div>
@@ -233,12 +255,12 @@ export function SearchView({ user }: SearchViewProps) {
                           Registry ID: {result.id}
                         </p>
                       </div>
-                      <a
+                      <Link
                         href={`/records/${result.id}`}
-                        className="btn-primary text-sm"
+                        className="btn-primary text-sm whitespace-nowrap ml-4"
                       >
                         View Details
-                      </a>
+                      </Link>
                     </div>
                   </div>
                 ))}
@@ -250,4 +272,3 @@ export function SearchView({ user }: SearchViewProps) {
     </div>
   );
 }
-

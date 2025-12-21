@@ -1,32 +1,19 @@
 "use client";
 
 import { type User } from "@/lib/auth";
+import { type RegistryRecord } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { FileText, Clock, CheckCircle, AlertCircle, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
 
-interface RegistrySummary {
-  id: string;
-  decedentName: string;
-  status: string;
-  createdAt: Date;
-  latestVersion: {
-    id: string;
-    createdAt: Date;
-    submittedBy: string;
-  } | null;
-  versionCount: number;
-  lastUpdated: Date | null;
-}
-
 interface DashboardViewProps {
-  registries: RegistrySummary[];
+  registries: RegistryRecord[];
   user: User;
 }
 
-export function DashboardView({ registries, user }: DashboardViewProps) {
+export function DashboardView({ registries }: DashboardViewProps) {
   const [searchQuery, setSearchQuery] = useState("");
 
   // Filter registries by search query
@@ -47,7 +34,7 @@ export function DashboardView({ registries, user }: DashboardViewProps) {
         return "bg-green-100 text-green-800";
       case "PENDING_VERIFICATION":
         return "bg-yellow-100 text-yellow-800";
-      case "DISPUTED":
+      case "DISCREPANCY":
         return "bg-red-100 text-red-800";
       case "ARCHIVED":
         return "bg-gray-100 text-gray-800";
@@ -63,7 +50,7 @@ export function DashboardView({ registries, user }: DashboardViewProps) {
         return <CheckCircle className="h-4 w-4" />;
       case "PENDING_VERIFICATION":
         return <Clock className="h-4 w-4" />;
-      case "DISPUTED":
+      case "DISCREPANCY":
         return <AlertCircle className="h-4 w-4" />;
       default:
         return <FileText className="h-4 w-4" />;
@@ -102,9 +89,9 @@ export function DashboardView({ registries, user }: DashboardViewProps) {
             </div>
           </div>
           <div className="card p-4">
-            <div className="text-sm font-medium text-slateui-600 mb-1">Disputed</div>
+            <div className="text-sm font-medium text-slateui-600 mb-1">Discrepancy</div>
             <div className="text-2xl font-bold text-red-600">
-              {registries.filter((r) => r.status === "DISPUTED").length}
+              {registries.filter((r) => r.status === "DISCREPANCY").length}
             </div>
           </div>
         </div>
@@ -172,12 +159,10 @@ export function DashboardView({ registries, user }: DashboardViewProps) {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-slateui-600">
-                        {registry.versionCount} version{registry.versionCount !== 1 ? "s" : ""}
+                        —
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-slateui-600">
-                        {registry.lastUpdated
-                          ? new Date(registry.lastUpdated).toLocaleDateString()
-                          : "Never"}
+                        —
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-slateui-600">
                         {new Date(registry.createdAt).toLocaleDateString()}

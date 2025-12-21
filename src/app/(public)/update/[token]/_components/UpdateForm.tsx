@@ -21,10 +21,11 @@ interface UpdateFormProps {
 /**
  * Update Form Component
  * 
+ * Client component that posts to /api/records with token.
  * Allows users to submit updates to their registry.
  * All changes create new versions (immutable).
  */
-export function UpdateForm({ token, currentData, registryId }: UpdateFormProps) {
+export function UpdateForm({ token, currentData }: UpdateFormProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -32,12 +33,12 @@ export function UpdateForm({ token, currentData, registryId }: UpdateFormProps) 
 
   // Form state - pre-fill with current data
   const [formData, setFormData] = useState({
-    decedentName: (currentData?.decedentName as string) || "",
-    policyNumber: (currentData?.policyNumber as string) || "",
-    policyType: (currentData?.policyType as string) || "",
-    insurerName: (currentData?.insurerName as string) || "",
-    contactEmail: (currentData?.contactEmail as string) || "",
-    contactPhone: (currentData?.contactPhone as string) || "",
+    policyholder_name: (currentData?.policyholderName || currentData?.policyholder_name) as string || "",
+    insured_name: (currentData?.insuredName || currentData?.insured_name) as string || "",
+    beneficiary_name: (currentData?.beneficiaryName || currentData?.beneficiary_name) as string || "",
+    carrier_guess: (currentData?.carrierGuess || currentData?.carrier_guess) as string || "",
+    policy_number_optional: (currentData?.policyNumber || currentData?.policy_number_optional) as string || "",
+    notes_optional: (currentData?.notes || currentData?.notes_optional) as string || "",
   });
 
   // Handle file upload
@@ -52,9 +53,9 @@ export function UpdateForm({ token, currentData, registryId }: UpdateFormProps) 
       return;
     }
 
-    // Validate file size (max 10MB)
-    if (file.size > 10 * 1024 * 1024) {
-      setError("File size must be less than 10MB");
+    // Validate file size (max 15MB)
+    if (file.size > 15 * 1024 * 1024) {
+      setError("File size must be less than 15MB");
       return;
     }
 
@@ -71,15 +72,21 @@ export function UpdateForm({ token, currentData, registryId }: UpdateFormProps) 
     try {
       const submitData = new FormData();
       submitData.append("token", token);
-      submitData.append("decedentName", formData.decedentName);
-      submitData.append("policyNumber", formData.policyNumber || "");
-      submitData.append("policyType", formData.policyType || "");
-      submitData.append("insurerName", formData.insurerName || "");
-      submitData.append("contactEmail", formData.contactEmail || "");
-      submitData.append("contactPhone", formData.contactPhone || "");
+      submitData.append("policyholder_name", formData.policyholder_name);
+      submitData.append("insured_name", formData.insured_name);
+      submitData.append("beneficiary_name", formData.beneficiary_name);
+      submitData.append("carrier_guess", formData.carrier_guess);
+      
+      if (formData.policy_number_optional) {
+        submitData.append("policy_number_optional", formData.policy_number_optional);
+      }
+      
+      if (formData.notes_optional) {
+        submitData.append("notes_optional", formData.notes_optional);
+      }
 
       if (uploadedFile) {
-        submitData.append("file", uploadedFile);
+        submitData.append("document", uploadedFile);
       }
 
       const res = await fetch("/api/records", {
@@ -110,12 +117,14 @@ export function UpdateForm({ token, currentData, registryId }: UpdateFormProps) 
         </h2>
         
         <p className="text-slateui-600 mb-6">
-          Your changes have been recorded as a new version. The previous version remains unchanged.
+          Your changes have been recorded as a new version. All previous versions remain intact.
         </p>
 
         <Button
-          onClick={() => window.location.reload()}
-          variant="outline"
+          onClick={() => {
+            window.location.reload();
+          }}
+          className="btn-primary"
         >
           Submit Another Update
         </Button>
@@ -124,179 +133,179 @@ export function UpdateForm({ token, currentData, registryId }: UpdateFormProps) 
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <div className="card p-6">
+      <h2 className="font-display text-lg font-semibold text-ink-900 mb-4">
+        Update Information
+      </h2>
+
       {error && (
-        <div className="card p-4 bg-red-50 border-red-200">
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
           <div className="flex items-center gap-2 text-red-700">
             <AlertCircle className="h-5 w-5" />
-            <span>{error}</span>
+            <span className="text-sm">{error}</span>
           </div>
         </div>
       )}
 
-      {/* Document Upload Section */}
-      <div className="card p-6">
-        <h2 className="font-display text-lg font-semibold text-ink-900 mb-4 flex items-center gap-2">
-          <Upload className="h-5 w-5 text-gold-500" />
-          Upload Updated Document (Optional)
-        </h2>
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Document Upload Section */}
+        <div>
+          <h3 className="font-display text-md font-semibold text-ink-900 mb-3 flex items-center gap-2">
+            <Upload className="h-4 w-4 text-gold-500" />
+            Upload New Document (Optional)
+          </h3>
 
-        <div className="space-y-4">
-          <div className="flex items-center gap-4">
-            <label
-              htmlFor="file-upload"
-              className="flex-1 cursor-pointer rounded-lg border-2 border-dashed border-slateui-300 p-6 text-center hover:border-gold-500 transition-colors"
-            >
-              <input
-                id="file-upload"
-                type="file"
-                accept=".pdf,.jpg,.jpeg,.png"
-                onChange={handleFileUpload}
-                className="hidden"
-              />
-              <div className="flex flex-col items-center gap-2">
-                <Upload className="h-8 w-8 text-slateui-400" />
-                <span className="text-sm font-medium text-slateui-600">
-                  Click to upload or drag and drop
-                </span>
-                <span className="text-xs text-slateui-500">
-                  PDF, JPEG, or PNG (max 10MB)
-                </span>
-              </div>
-            </label>
-          </div>
-
-          {uploadedFile && (
-            <div className="flex items-center justify-between rounded-lg bg-slateui-50 p-3">
-              <div className="flex items-center gap-2">
-                <FileText className="h-5 w-5 text-slateui-500" />
-                <span className="text-sm text-slateui-700">{uploadedFile.name}</span>
-                <span className="text-xs text-slateui-500">
-                  ({(uploadedFile.size / 1024).toFixed(1)} KB)
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setUploadedFile(null)}
-                className="text-slateui-400 hover:text-slateui-600"
-                aria-label="Remove uploaded file"
-                title="Remove uploaded file"
+          <div className="space-y-4">
+            <div className="flex items-center gap-4">
+              <label
+                htmlFor="file-upload"
+                className="flex-1 cursor-pointer rounded-lg border-2 border-dashed border-slateui-300 p-4 text-center hover:border-gold-500 transition-colors"
               >
-                <X className="h-4 w-4" />
-              </button>
+                <input
+                  id="file-upload"
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                />
+                <div className="flex flex-col items-center gap-2">
+                  <Upload className="h-6 w-6 text-slateui-400" />
+                  <span className="text-xs font-medium text-slateui-600">
+                    Click to upload or drag and drop
+                  </span>
+                  <span className="text-xs text-slateui-500">
+                    PDF, JPEG, or PNG (max 15MB)
+                  </span>
+                </div>
+              </label>
             </div>
-          )}
+
+            {uploadedFile && (
+              <div className="flex items-center justify-between rounded-lg bg-slateui-50 p-3">
+                <div className="flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-slateui-500" />
+                  <span className="text-sm text-slateui-700">{uploadedFile.name}</span>
+                  <span className="text-xs text-slateui-500">
+                    ({(uploadedFile.size / 1024).toFixed(1)} KB)
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setUploadedFile(null)}
+                  className="text-slateui-400 hover:text-slateui-600"
+                  aria-label="Remove uploaded file"
+                  title="Remove uploaded file"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
 
-      {/* Form Fields */}
-      <div className="card p-6">
-        <h2 className="font-display text-lg font-semibold text-ink-900 mb-4">
-          Updated Information
-        </h2>
-        <p className="text-sm text-slateui-600 mb-4">
-          Enter any changes below. Leave fields unchanged to keep current values.
-        </p>
-
+        {/* Form Fields */}
         <div className="space-y-4">
           <div>
-            <label htmlFor="decedentName" className="block text-sm font-medium text-ink-900 mb-1">
-              Decedent Name <span className="text-red-500">*</span>
+            <label htmlFor="policyholder_name" className="block text-sm font-medium text-ink-900 mb-1">
+              Policyholder Name <span className="text-red-500">*</span>
             </label>
             <Input
-              id="decedentName"
+              id="policyholder_name"
               type="text"
               required
-              value={formData.decedentName}
-              onChange={(e) => setFormData({ ...formData, decedentName: e.target.value })}
-              placeholder="Full name of the policyholder"
+              value={formData.policyholder_name}
+              onChange={(e) => setFormData({ ...formData, policyholder_name: e.target.value })}
+              placeholder="Full name of policyholder"
             />
           </div>
 
           <div>
-            <label htmlFor="policyNumber" className="block text-sm font-medium text-ink-900 mb-1">
-              Policy Number
+            <label htmlFor="insured_name" className="block text-sm font-medium text-ink-900 mb-1">
+              Insured Name <span className="text-red-500">*</span>
             </label>
             <Input
-              id="policyNumber"
+              id="insured_name"
               type="text"
-              value={formData.policyNumber}
-              onChange={(e) => setFormData({ ...formData, policyNumber: e.target.value })}
-              placeholder="Policy number if available"
+              required
+              value={formData.insured_name}
+              onChange={(e) => setFormData({ ...formData, insured_name: e.target.value })}
+              placeholder="Full name of insured person"
             />
           </div>
 
           <div>
-            <label htmlFor="policyType" className="block text-sm font-medium text-ink-900 mb-1">
-              Policy Type
+            <label htmlFor="beneficiary_name" className="block text-sm font-medium text-ink-900 mb-1">
+              Beneficiary Name <span className="text-red-500">*</span>
             </label>
             <Input
-              id="policyType"
+              id="beneficiary_name"
               type="text"
-              value={formData.policyType}
-              onChange={(e) => setFormData({ ...formData, policyType: e.target.value })}
-              placeholder="e.g., Term, Whole Life, Universal"
+              required
+              value={formData.beneficiary_name}
+              onChange={(e) => setFormData({ ...formData, beneficiary_name: e.target.value })}
+              placeholder="Full name of beneficiary"
             />
           </div>
 
           <div>
-            <label htmlFor="insurerName" className="block text-sm font-medium text-ink-900 mb-1">
-              Insurance Company
+            <label htmlFor="carrier_guess" className="block text-sm font-medium text-ink-900 mb-1">
+              Insurance Carrier <span className="text-red-500">*</span>
             </label>
             <Input
-              id="insurerName"
+              id="carrier_guess"
               type="text"
-              value={formData.insurerName}
-              onChange={(e) => setFormData({ ...formData, insurerName: e.target.value })}
+              required
+              value={formData.carrier_guess}
+              onChange={(e) => setFormData({ ...formData, carrier_guess: e.target.value })}
               placeholder="Name of insurance company"
             />
           </div>
 
           <div>
-            <label htmlFor="contactEmail" className="block text-sm font-medium text-ink-900 mb-1">
-              Contact Email (Optional)
+            <label htmlFor="policy_number_optional" className="block text-sm font-medium text-ink-900 mb-1">
+              Policy Number (Optional)
             </label>
             <Input
-              id="contactEmail"
-              type="email"
-              value={formData.contactEmail}
-              onChange={(e) => setFormData({ ...formData, contactEmail: e.target.value })}
-              placeholder="your@email.com"
+              id="policy_number_optional"
+              type="text"
+              value={formData.policy_number_optional}
+              onChange={(e) => setFormData({ ...formData, policy_number_optional: e.target.value })}
+              placeholder="Policy number if available"
             />
           </div>
 
           <div>
-            <label htmlFor="contactPhone" className="block text-sm font-medium text-ink-900 mb-1">
-              Contact Phone (Optional)
+            <label htmlFor="notes_optional" className="block text-sm font-medium text-ink-900 mb-1">
+              Notes (Optional)
             </label>
-            <Input
-              id="contactPhone"
-              type="tel"
-              value={formData.contactPhone}
-              onChange={(e) => setFormData({ ...formData, contactPhone: e.target.value })}
-              placeholder="(555) 123-4567"
+            <textarea
+              id="notes_optional"
+              rows={4}
+              value={formData.notes_optional}
+              onChange={(e) => setFormData({ ...formData, notes_optional: e.target.value })}
+              placeholder="Additional information or notes"
+              className="flex w-full rounded-md border border-slateui-200 bg-white px-3 py-2 text-sm text-ink-900 placeholder:text-slateui-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink-900 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             />
           </div>
         </div>
-      </div>
 
-      <div className="flex justify-end">
-        <Button
-          type="submit"
-          disabled={loading || !formData.decedentName}
-          className="btn-primary"
-        >
-          {loading ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Submitting Update...
-            </>
-          ) : (
-            "Submit Update"
-          )}
-        </Button>
-      </div>
-    </form>
+        <div className="flex justify-end">
+          <Button
+            type="submit"
+            disabled={loading || !formData.policyholder_name || !formData.insured_name || !formData.beneficiary_name || !formData.carrier_guess}
+            className="btn-primary"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Submitting...
+              </>
+            ) : (
+              "Submit Update"
+            )}
+          </Button>
+        </div>
+      </form>
+    </div>
   );
 }
-

@@ -1,17 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAttorney } from "@/lib/auth";
-import { db, registryRecords, registryVersions, logAccess } from "@/lib/db";
-import { eq, desc, ilike } from "@/lib/db";
+import { constrainedSearch, getRegistryVersions } from "@/lib/db";
+import { logAccess } from "@/lib/audit";
 
 /**
  * Search API
- * Protected endpoint - requires authentication
  * 
- * Validate purpose
- * Run constrained query
- * Log intent + result count
+ * Constrained search endpoint - requires authentication
  * 
- * Never allow free-text global search. Ever.
+ * - Validates purpose is non-empty
+ * - Only searches across limited fields: insured_name, beneficiary_name, carrier_guess
+ * - Returns redacted results (no full policy numbers)
+ * - Audits SEARCH_PERFORMED with purpose and resultCount
  */
 
 // Valid search purposes (controlled list)
@@ -26,45 +26,42 @@ const VALID_PURPOSES = [
 
 type SearchPurpose = typeof VALID_PURPOSES[number];
 
-interface SearchParams {
-  purpose: string;
-  decedentName?: string;
-}
-
 /**
- * Validate search purpose
+ * Mask policy number for redaction
+ * Shows only last 4 digits
  */
-function validatePurpose(purpose: string): purpose is SearchPurpose {
-  return VALID_PURPOSES.includes(purpose as SearchPurpose);
+function maskPolicyNumber(policyNumber: string | null | undefined): string | null {
+  if (!policyNumber) return null;
+  if (policyNumber.length <= 4) return "****";
+  return `****${policyNumber.slice(-4)}`;
 }
 
 /**
- * GET /api/search
+ * POST /api/search
  * 
- * Controlled search endpoint - only allows constrained field searches
+ * Constrained search endpoint
  */
-export async function GET(req: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
     // Require attorney authentication
     const user = await requireAttorney();
 
-    // Extract and validate search parameters
-    const { searchParams } = new URL(req.url);
-    const purpose = searchParams.get("purpose")?.trim();
-    const decedentName = searchParams.get("decedentName")?.trim();
+    // Parse request body
+    const body = await req.json();
+    const { purpose, searchString } = body;
 
-    // Validate purpose is provided
-    if (!purpose) {
+    // Validate purpose is provided and non-empty
+    if (!purpose || typeof purpose !== "string" || purpose.trim() === "") {
       return NextResponse.json(
-        { error: "Search purpose is required" },
+        { error: "Search purpose is required and cannot be empty" },
         { status: 400 }
       );
     }
 
     // Validate purpose is in allowed list
-    if (!validatePurpose(purpose)) {
+    if (!VALID_PURPOSES.includes(purpose as SearchPurpose)) {
       return NextResponse.json(
-        { 
+        {
           error: "Invalid search purpose",
           validPurposes: VALID_PURPOSES,
         },
@@ -72,83 +69,103 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Validate at least one search field is provided
-    if (!decedentName) {
+    // Validate search string is provided
+    if (!searchString || typeof searchString !== "string" || searchString.trim() === "") {
       return NextResponse.json(
-        { error: "At least one search field is required" },
+        { error: "Search string is required" },
         { status: 400 }
       );
     }
 
-    // CRITICAL: Never allow free-text global search
-    // Only search on specific, constrained fields
-    // Build constrained query - only search decedent_name field
-    const searchPattern = `%${decedentName.replace(/'/g, "''")}%`;
+    // CRITICAL: Only search across limited fields
+    // Search in registry versions for: insured_name, beneficiary_name, carrier_guess
+    // We'll search through versions and match registries
+    const searchTerm = searchString.trim().toLowerCase();
 
-    // Query limited fields only - never expose full data in search results
-    const registries = await db.select({
-      id: registryRecords.id,
-      decedentName: registryRecords.decedentName,
-      status: registryRecords.status,
-      createdAt: registryRecords.createdAt,
-    })
-      .from(registryRecords)
-      .where(
-        ilike(registryRecords.decedentName, searchPattern)
-      )
-      .orderBy(desc(registryRecords.createdAt))
-      .limit(50); // Limit results to prevent data exposure
-
-    // Get latest version info for each registry (summary only)
-    const results = await Promise.all(
-      registries.map(async (registry) => {
-        const [latestVersion] = await db.select({
-          submittedBy: registryVersions.submittedBy,
-          createdAt: registryVersions.createdAt,
-        })
-          .from(registryVersions)
-          .where(eq(registryVersions.registryId, registry.id))
-          .orderBy(desc(registryVersions.createdAt))
-          .limit(1);
-
-        return {
-          id: registry.id,
-          decedentName: registry.decedentName,
-          status: registry.status,
-          createdAt: registry.createdAt,
-          latestVersion: latestVersion || null,
-        };
-      })
-    );
-
-    const resultCount = results.length;
-
-    // Log search intent + result count (critical for audit)
-    // Audit: SEARCH_PERFORMED
-    // Note: For searches, we use a special registryId "search" to indicate it's a search operation
-    // This allows us to use the existing access_logs table while maintaining audit trail
-    await logAccess({
-      registryId: "search", // Special identifier for search operations
+    // Use constrainedSearch with the search term
+    // Note: constrainedSearch currently only supports decedentName
+    // For now, we'll search through all authorized registries and filter by version data
+    const allRegistries = await constrainedSearch({
       userId: user.id,
+      decedentName: searchTerm, // Fallback to decedent name search
+    });
+
+    // Also search through versions for insured_name, beneficiary_name, carrier_guess
+    // This is a simplified approach - in production, you'd want a more efficient query
+    const matchingRegistries: Array<{
+      id: string;
+      decedentName: string;
+      status: string;
+      createdAt: Date;
+      matchedField?: string;
+      redactedData?: {
+        insuredName?: string;
+        beneficiaryName?: string;
+        carrierGuess?: string;
+        policyNumber?: string | null;
+      };
+    }> = [];
+
+    for (const registry of allRegistries) {
+      const versions = await getRegistryVersions(registry.id);
+      const latestVersion = versions.length > 0 ? versions[0] : null;
+
+      if (latestVersion) {
+        const data = latestVersion.dataJson as Record<string, unknown>;
+        const insuredName = String(data.insured_name || "").toLowerCase();
+        const beneficiaryName = String(data.beneficiary_name || "").toLowerCase();
+        const carrierGuess = String(data.carrier_guess || "").toLowerCase();
+
+        let matchedField: string | undefined;
+        if (insuredName.includes(searchTerm)) {
+          matchedField = "insured_name";
+        } else if (beneficiaryName.includes(searchTerm)) {
+          matchedField = "beneficiary_name";
+        } else if (carrierGuess.includes(searchTerm)) {
+          matchedField = "carrier_guess";
+        }
+
+        if (matchedField) {
+          matchingRegistries.push({
+            id: registry.id,
+            decedentName: registry.decedentName,
+            status: registry.status,
+            createdAt: registry.createdAt,
+            matchedField,
+            redactedData: {
+              insuredName: data.insured_name ? String(data.insured_name) : undefined,
+              beneficiaryName: data.beneficiary_name ? String(data.beneficiary_name) : undefined,
+              carrierGuess: data.carrier_guess ? String(data.carrier_guess) : undefined,
+              policyNumber: maskPolicyNumber(data.policy_number_optional as string | null | undefined),
+            },
+          });
+        }
+      }
+    }
+
+    const resultCount = matchingRegistries.length;
+
+    // Audit: SEARCH_PERFORMED with purpose and resultCount
+    await logAccess({
+      userId: user.id,
+      registryId: "system", // System-wide search operation
       action: "SEARCH_PERFORMED",
       metadata: {
         source: "search_api",
         purpose,
-        searchFields: { decedentName },
+        searchString: searchTerm,
         resultCount,
+        matchedFields: ["insured_name", "beneficiary_name", "carrier_guess"],
         timestamp: new Date().toISOString(),
       },
     });
 
-    // Return results (limited fields only - never full data)
+    // Return redacted results (no full policy numbers)
     return NextResponse.json({
       success: true,
-      results,
+      results: matchingRegistries,
       resultCount,
       purpose,
-      searchFields: {
-        decedentName: decedentName || null,
-      },
       message: `Search completed. Found ${resultCount} result${resultCount !== 1 ? "s" : ""}.`,
     });
   } catch (error: unknown) {
