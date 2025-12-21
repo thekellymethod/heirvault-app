@@ -1,6 +1,7 @@
 import { currentUser } from "@clerk/nextjs/server";
 import { HttpError } from "@/lib/errors";
 import { isRole, Role } from "@/lib/roles";
+import { isAdmin } from "@/lib/admin";
 
 export type AppUser = {
   id: string;
@@ -33,6 +34,13 @@ export async function requireAttorney(): Promise<AppUser> {
 export async function requireAdmin(): Promise<AppUser> {
   const user = await getUser();
   if (!user) throw new HttpError(401, "UNAUTHENTICATED", "Authentication required.");
-  if (user.role !== "ADMIN") throw new HttpError(403, "FORBIDDEN", "Admin access required.");
+  
+  // Check admin status via ADMIN_EMAILS environment variable
+  // This is the authoritative source for admin access as documented in ADMIN_COMPLIANCE.md
+  const adminStatus = await isAdmin(user);
+  if (!adminStatus) {
+    throw new HttpError(403, "FORBIDDEN", "Admin access required.");
+  }
+  
   return user;
 }

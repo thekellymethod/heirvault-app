@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin";
+import { HttpError } from "@/lib/errors";
 
 /**
  * Get takedown requests
@@ -14,13 +15,14 @@ export async function GET(req: NextRequest) {
     const requests: any[] = [];
 
     return NextResponse.json({ requests });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error fetching takedown requests:", error);
-    if (error.message === "Forbidden: Admin access required" || error.message === "Unauthorized") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    if (error instanceof HttpError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
     }
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
-      { error: error.message || "Failed to fetch takedown requests" },
+      { error: errorMessage || "Failed to fetch takedown requests" },
       { status: 500 }
     );
   }
@@ -51,13 +53,14 @@ export async function POST(req: NextRequest) {
     // This would update the request status and potentially remove/redact the entity
 
     return NextResponse.json({ success: true, message: `Request ${action}d` });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error processing takedown request:", error);
-    if (error.message === "Forbidden: Admin access required" || error.message === "Unauthorized") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    if (error instanceof HttpError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
     }
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
-      { error: error.message || "Failed to process takedown request" },
+      { error: errorMessage || "Failed to process takedown request" },
       { status: 500 }
     );
   }

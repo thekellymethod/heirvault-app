@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/admin";
+import { HttpError } from "@/lib/errors";
 
 /**
  * Get system usage statistics
@@ -44,13 +45,14 @@ export async function GET(req: NextRequest) {
       activeAttorneys,
       recentActivity,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error fetching usage stats:", error);
-    if (error.message === "Forbidden: Admin access required" || error.message === "Unauthorized") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    if (error instanceof HttpError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
     }
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
-      { error: error.message || "Failed to fetch usage statistics" },
+      { error: errorMessage || "Failed to fetch usage statistics" },
       { status: 500 }
     );
   }

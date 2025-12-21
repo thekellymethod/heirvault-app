@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin";
+import { HttpError } from "@/lib/errors";
 
 // In-memory storage for compliance rules (TODO: Replace with database)
 // In production, this should be stored in a database table
@@ -43,11 +44,11 @@ export async function GET() {
 
     return NextResponse.json({ rules: complianceRules });
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error("Error fetching compliance rules:", errorMessage);
-    if (errorMessage === "Forbidden: Admin access required" || errorMessage === "Unauthorized") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    console.error("Error fetching compliance rules:", error);
+    if (error instanceof HttpError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
     }
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
       { error: errorMessage || "Failed to fetch compliance rules" },
       { status: 500 }
@@ -100,11 +101,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, rule: newRule });
     }
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error("Error saving compliance rule:", errorMessage);
-    if (errorMessage === "Forbidden: Admin access required" || errorMessage === "Unauthorized") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    console.error("Error saving compliance rule:", error);
+    if (error instanceof HttpError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
     }
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
       { error: errorMessage || "Failed to save compliance rule" },
       { status: 500 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/admin";
+import { HttpError } from "@/lib/errors";
 
 /**
  * Get attorney credentials
@@ -41,13 +42,14 @@ export async function GET(req: NextRequest) {
     }));
 
     return NextResponse.json({ credentials });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error fetching attorney credentials:", error);
-    if (error.message === "Forbidden: Admin access required" || error.message === "Unauthorized") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    if (error instanceof HttpError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
     }
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
-      { error: error.message || "Failed to fetch attorney credentials" },
+      { error: errorMessage || "Failed to fetch attorney credentials" },
       { status: 500 }
     );
   }
@@ -81,13 +83,14 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ success: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error updating attorney credential:", error);
-    if (error.message === "Forbidden: Admin access required" || error.message === "Unauthorized") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    if (error instanceof HttpError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
     }
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
-      { error: error.message || "Failed to update attorney credential" },
+      { error: errorMessage || "Failed to update attorney credential" },
       { status: 500 }
     );
   }
