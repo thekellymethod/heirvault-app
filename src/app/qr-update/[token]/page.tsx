@@ -24,7 +24,7 @@ export default async function QRUpdatePage({ params }: Props) {
   const { token } = await params;
 
   // Try to get or create test invite first
-  let invite: any = await getOrCreateTestInvite(token);
+  let invite: Awaited<ReturnType<typeof getOrCreateTestInvite>> | Awaited<ReturnType<typeof lookupClientInvite>> | null = await getOrCreateTestInvite(token);
 
   // If not a test code, do normal lookup
   if (!invite) {
@@ -59,24 +59,7 @@ export default async function QRUpdatePage({ params }: Props) {
   `, invite.clientId);
 
   if (!clientData || clientData.length === 0) {
-    return (
-      <main className="min-h-screen flex items-center justify-center bg-paper-50 px-4 py-8">
-        <div className="w-full max-w-md">
-          <div className="card p-8 text-center">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
-              <XCircle className="h-8 w-8 text-red-600" />
-            </div>
-            <h1 className="font-display text-xl font-bold text-ink-900 mb-2">Client Not Found</h1>
-            <p className="text-sm text-slateui-600 mb-6">
-              Unable to find client information. Please contact your attorney.
-            </p>
-            <Link href="/" className="btn-primary inline-block">
-              Return to Home
-            </Link>
-          </div>
-        </div>
-      </main>
-    );
+    redirect("/error?type=not_found");
   }
 
   const client = clientData[0];
@@ -179,13 +162,13 @@ export default async function QRUpdatePage({ params }: Props) {
               postalCode: client.postal_code || "",
               country: client.country || "",
             },
-            policies: policies.map(p => ({
+            policies: policies.map((p: { id: string; policy_number: string | null; policy_type: string | null; insurer_name: string }) => ({
               id: p.id,
               policyNumber: p.policy_number || "",
               policyType: p.policy_type || "",
               insurerName: p.insurer_name,
             })),
-            beneficiaries: beneficiaries.map(b => ({
+            beneficiaries: beneficiaries.map((b: { id: string; first_name: string; last_name: string; relationship: string | null; email: string | null; phone: string | null; date_of_birth: Date | null }) => ({
               id: b.id,
               firstName: b.first_name,
               lastName: b.last_name,
