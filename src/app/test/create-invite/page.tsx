@@ -6,11 +6,33 @@ import { Logo } from "@/components/Logo";
 import Link from "next/link";
 import { CheckCircle, Copy, ExternalLink } from "lucide-react";
 
+interface InviteData {
+  inviteId: string;
+  inviteUrl: string;
+  token: string;
+  expiresAt: string;
+  clientId: string;
+  email: string;
+  clientName?: string;
+}
+
 export default function CreateTestInvitePage() {
   const [loading, setLoading] = useState(false);
-  const [inviteData, setInviteData] = useState<any>(null);
+  const [inviteData, setInviteData] = useState<InviteData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+
+  // Only allow in development
+  if (process.env.NODE_ENV === "production") {
+    return (
+      <div className="min-h-screen bg-paper-50 p-8">
+        <div className="max-w-4xl mx-auto">
+          <h1 className="font-display text-3xl font-bold text-ink-900 mb-6">Access Denied</h1>
+          <p className="text-slateui-600">This page is only available in development mode.</p>
+        </div>
+      </div>
+    );
+  }
 
   async function createTestInvite() {
     setLoading(true);
@@ -29,8 +51,9 @@ export default function CreateTestInvitePage() {
       }
 
       setInviteData(data);
-    } catch (e: any) {
-      setError(e.message || "Something went wrong");
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Something went wrong";
+      setError(message);
     } finally {
       setLoading(false);
     }

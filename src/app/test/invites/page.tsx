@@ -23,6 +23,18 @@ export default function TestInvitesPage() {
     lastName: "Client",
   });
 
+  // Only allow in development
+  if (process.env.NODE_ENV === "production") {
+    return (
+      <div className="min-h-screen bg-paper-50 p-8">
+        <div className="max-w-4xl mx-auto">
+          <h1 className="font-display text-3xl font-bold text-ink-900 mb-6">Access Denied</h1>
+          <p className="text-slateui-600">This page is only available in development mode.</p>
+        </div>
+      </div>
+    );
+  }
+
   const generateTestInvite = async () => {
     setLoading(true);
     try {
@@ -45,8 +57,9 @@ export default function TestInvitesPage() {
       };
 
       setInvites([...invites, invite]);
-    } catch (error: any) {
-      alert(`Error: ${error.message}`);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "An error occurred";
+      alert(`Error: ${message}`);
     } finally {
       setLoading(false);
     }
@@ -84,8 +97,9 @@ export default function TestInvitesPage() {
         }
       }
       setInvites([...invites, ...newInvites]);
-    } catch (error: any) {
-      alert(`Error: ${error.message}`);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "An error occurred";
+      alert(`Error: ${message}`);
     } finally {
       setLoading(false);
     }
@@ -101,7 +115,6 @@ export default function TestInvitesPage() {
     setInvites(invites.filter((inv) => inv.token !== token));
   };
 
-  const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
 
   return (
     <div className="min-h-screen bg-paper-50 p-8">

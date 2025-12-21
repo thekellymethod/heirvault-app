@@ -26,6 +26,12 @@ interface CheckResult {
 }
 
 export default function PopulateTestCodesPage() {
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<PopulateResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [checkingToken, setCheckingToken] = useState<string | null>(null);
+  const [checkResult, setCheckResult] = useState<CheckResult | null>(null);
+
   // Only allow in development
   if (process.env.NODE_ENV === "production") {
     return (
@@ -37,12 +43,6 @@ export default function PopulateTestCodesPage() {
       </div>
     );
   }
-
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<PopulateResult | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [checkingToken, setCheckingToken] = useState<string | null>(null);
-  const [checkResult, setCheckResult] = useState<CheckResult | null>(null);
 
   const populateCodes = async () => {
     setLoading(true);
@@ -62,8 +62,9 @@ export default function PopulateTestCodesPage() {
       }
 
       setResult(data);
-    } catch (e: any) {
-      setError(e.message || "An error occurred");
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "An error occurred";
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -77,8 +78,9 @@ export default function PopulateTestCodesPage() {
       const res = await fetch(`/api/test/check-invite?token=${encodeURIComponent(token)}`);
       const data = await res.json();
       setCheckResult({ token, ...data });
-    } catch (e: any) {
-      setCheckResult({ token, error: e.message });
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Unknown error";
+      setCheckResult({ token, error: message });
     } finally {
       setCheckingToken(null);
     }
@@ -126,7 +128,7 @@ export default function PopulateTestCodesPage() {
               </p>
 
               <div className="space-y-3">
-                {result.invites?.map((invite: any, index: number) => (
+                {result.invites?.map((invite: TestInvite, index: number) => (
                   <div
                     key={invite.token}
                     className="border border-slateui-200 rounded-lg p-4 bg-white"
@@ -185,7 +187,7 @@ export default function PopulateTestCodesPage() {
                     </div>
                     {checkResult && checkResult.token === invite.token && (
                       <div className="mt-3 pt-3 border-t border-slateui-200">
-                        {checkResult.exists ? (
+                        {checkResult.exists && checkResult.invite ? (
                           <div className="flex items-center gap-2 text-sm">
                             {checkResult.invite.isValid ? (
                               <>
@@ -202,6 +204,11 @@ export default function PopulateTestCodesPage() {
                                 </span>
                               </>
                             )}
+                          </div>
+                        ) : checkResult.error ? (
+                          <div className="flex items-center gap-2 text-sm text-red-700">
+                            <XCircle className="h-4 w-4" />
+                            <span>{checkResult.error}</span>
                           </div>
                         ) : (
                           <div className="flex items-center gap-2 text-sm text-red-700">
