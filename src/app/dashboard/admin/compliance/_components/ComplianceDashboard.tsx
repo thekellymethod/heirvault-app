@@ -178,6 +178,24 @@ export function ComplianceDashboard() {
     }
   };
 
+  // Wrapper function for child components to call without parameters
+  const handleRefresh = () => {
+    // Generate a unique ID for this refresh request
+    const requestId = `${activeTab}-refresh-${Date.now()}`;
+    currentRequestRef.current = requestId;
+    
+    // Cancel any previous request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    // Create new AbortController for this request
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+    
+    loadData(requestId, abortController.signal);
+  };
+
   const showSuccess = (message: string) => {
     setSuccess(message);
     setTimeout(() => setSuccess(null), 3000);
@@ -255,9 +273,9 @@ export function ComplianceDashboard() {
           <>
             {activeTab === "overview" && <OverviewTab stats={usageStats} />}
             {activeTab === "usage" && <UsageMonitoringTab stats={usageStats} />}
-            {activeTab === "rules" && <ComplianceRulesTab rules={complianceRules} onRefresh={loadData} onSuccess={showSuccess} />}
-            {activeTab === "credentials" && <AttorneyCredentialsTab credentials={attorneyCredentials} onRefresh={loadData} onSuccess={showSuccess} />}
-            {activeTab === "takedowns" && <TakedownsTab requests={takedownRequests} onRefresh={loadData} onSuccess={showSuccess} />}
+            {activeTab === "rules" && <ComplianceRulesTab rules={complianceRules} onRefresh={handleRefresh} onSuccess={showSuccess} />}
+            {activeTab === "credentials" && <AttorneyCredentialsTab credentials={attorneyCredentials} onRefresh={handleRefresh} onSuccess={showSuccess} />}
+            {activeTab === "takedowns" && <TakedownsTab requests={takedownRequests} onRefresh={handleRefresh} onSuccess={showSuccess} />}
             {activeTab === "statutory" && <StatutoryAlignmentTab />}
           </>
         )}
