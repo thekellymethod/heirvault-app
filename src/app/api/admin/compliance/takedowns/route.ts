@@ -6,13 +6,17 @@ import { HttpError } from "@/lib/errors";
  * Get takedown requests
  * Admin-only endpoint
  */
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
     await requireAdmin();
 
     // TODO: Implement takedown requests storage (database table)
     // For now, return empty array
-    const requests: any[] = [];
+    const requests: Array<{
+      id: string;
+      status: string;
+      createdAt: string;
+    }> = [];
 
     return NextResponse.json({ requests });
   } catch (error: unknown) {

@@ -7,7 +7,7 @@ import { HttpError } from "@/lib/errors";
  * Get attorney credentials
  * Admin-only endpoint
  */
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
     await requireAdmin();
 

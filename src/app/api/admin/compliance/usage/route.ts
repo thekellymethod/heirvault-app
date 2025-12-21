@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/admin";
 import { HttpError } from "@/lib/errors";
@@ -7,7 +7,7 @@ import { HttpError } from "@/lib/errors";
  * Get system usage statistics
  * Admin-only endpoint
  */
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
     await requireAdmin();
 
