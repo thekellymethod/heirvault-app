@@ -31,13 +31,22 @@ export default function UpdateForm(props: { token: string; defaultInsured: strin
   return (
     <section style={{ marginTop: 16 }}>
       <form onSubmit={onSubmit} style={{ display: "grid", gap: 12 }}>
-        <input name="insured_name" defaultValue={props.defaultInsured} />
-        <input name="carrier_guess" defaultValue={props.defaultCarrier} />
+        <label>
+          Insured Name
+          <input name="insured_name" defaultValue={props.defaultInsured} />
+        </label>
+        <label>
+          Carrier
+          <input name="carrier_guess" defaultValue={props.defaultCarrier} />
+        </label>
         <input name="policyholder_name" placeholder="Policyholder Name (optional)" />
         <input name="beneficiary_name" placeholder="Beneficiary Name (optional)" />
         <input name="policy_number_optional" placeholder="Policy Number (optional)" />
         <textarea name="notes_optional" placeholder="Notes (optional)" rows={4} />
-        <input name="document" type="file" accept="application/pdf,image/jpeg,image/png" />
+        <label>
+          Document (PDF, JPEG, or PNG)
+          <input name="document" type="file" accept="application/pdf,image/jpeg,image/png" />
+        </label>
         <button disabled={loading} type="submit">
           {loading ? "Submitting..." : "Submit Update"}
         </button>

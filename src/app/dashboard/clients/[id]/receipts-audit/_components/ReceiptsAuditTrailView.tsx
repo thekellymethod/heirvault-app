@@ -387,10 +387,15 @@ function AuditTrailTab({
           </div>
           <div className="flex items-center gap-2">
             <Filter className="h-5 w-5 text-slateui-400" />
+            <label htmlFor="action-filter" className="sr-only">
+              Filter by action
+            </label>
             <select
+              id="action-filter"
               value={filterAction}
               onChange={(e) => onFilterChange(e.target.value)}
               className="px-4 py-2 border border-slateui-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+              aria-label="Filter audit log by action"
             >
               <option value="all">All Actions</option>
               {uniqueActions.map((action) => (
