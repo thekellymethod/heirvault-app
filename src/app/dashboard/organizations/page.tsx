@@ -1,13 +1,13 @@
 import Link from "next/link";
-import { db, organizations, orgMembers, users, eq, desc, and } from "@/lib/db";
+import { db, organizations, orgMembers, eq, desc, sql } from "@/lib/db";
 import { requireAuth } from "@/lib/utils/clerk";
 import { getCurrentUserWithOrg } from "@/lib/authz";
 import { Button } from "@/components/ui/button";
 
 export default async function OrganizationsPage() {
   try {
-    const user = await requireAuth();
-    const { user: currentUser, orgMember } = await getCurrentUserWithOrg();
+    await requireAuth();
+    const { user: currentUser } = await getCurrentUserWithOrg();
 
     // Get all organizations the user is a member of
     const userOrganizations = await db
@@ -32,16 +32,17 @@ export default async function OrganizationsPage() {
     // Get member counts for each organization
     const orgsWithCounts = await Promise.all(
       userOrganizations.map(async (org) => {
-        const [memberCount] = await db
-          .select({ count: db.$count(orgMembers.id) })
-          .from(orgMembers)
-          .where(eq(orgMembers.organizationId, org.organization.id))
-          .limit(1);
+        const memberCountResult = await db.execute(sql`
+          SELECT COUNT(*)::int as count
+          FROM org_members
+          WHERE organization_id = ${org.organization.id}
+        `);
+        const memberCount = (memberCountResult.rows[0] as { count: number })?.count || 0;
 
         return {
           ...org.organization,
           role: org.membership.role,
-          memberCount: memberCount?.count || 0,
+          memberCount,
           joinedAt: org.membership.createdAt,
         };
       })
@@ -63,10 +64,10 @@ export default async function OrganizationsPage() {
           )}
         </div>
 
-        {orgsWithCounts.length === 0 ? (
+            {orgsWithCounts.length === 0 ? (
           <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-8 text-center">
             <p className="text-slate-300 mb-4">
-              You're not a member of any organizations yet.
+              You&apos;re not a member of any organizations yet.
             </p>
             <Link href="/dashboard/organizations/new">
               <Button>Create Your First Organization</Button>

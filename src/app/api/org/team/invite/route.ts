@@ -11,23 +11,32 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Check if current user is owner (only owners can invite)
-    const currentMember = await prisma.orgMember.findFirst({
-      where: {
-        userId: user.id,
-        organizationId: orgMember.organizationId,
-      },
-    });
-
-    if (currentMember?.role !== "OWNER") {
-      return NextResponse.json(
-        { error: "Only owners can invite team members" },
-        { status: 403 }
-      );
-    }
+    // Note: We'll check ownership after determining which org to use
 
     const body = await req.json();
-    const { email, role } = body;
+    const { email, role, organizationId: requestedOrgId } = body;
+    
+    // Use organizationId from request if provided, otherwise use user's org
+    const organizationId = requestedOrgId || orgMember.organizationId;
+    
+    // Verify user has permission to invite to this organization
+    if (organizationId !== orgMember.organizationId) {
+      // Check if user is owner of the requested organization
+      const requesterMembership = await prisma.orgMember.findFirst({
+        where: {
+          userId: user.id,
+          organizationId: organizationId,
+          role: "OWNER",
+        },
+      });
+      
+      if (!requesterMembership) {
+        return NextResponse.json(
+          { error: "You can only invite members to your own organization" },
+          { status: 403 }
+        );
+      }
+    }
 
     if (!email) {
       return NextResponse.json(
@@ -57,11 +66,26 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Check if current user is owner (only owners can invite)
+    const currentMember = await prisma.orgMember.findFirst({
+      where: {
+        userId: user.id,
+        organizationId: organizationId,
+      },
+    });
+
+    if (currentMember?.role !== "OWNER") {
+      return NextResponse.json(
+        { error: "Only owners can invite team members" },
+        { status: 403 }
+      );
+    }
+
     // Check if user is already a member
     const existingMember = await prisma.orgMember.findFirst({
       where: {
         userId: targetUser.id,
-        organizationId: orgMember.organizationId,
+        organizationId: organizationId,
       },
     });
 
@@ -76,7 +100,7 @@ export async function POST(req: NextRequest) {
     await prisma.orgMember.create({
       data: {
         userId: targetUser.id,
-        organizationId: orgMember.organizationId,
+        organizationId: organizationId,
         role: role as OrgRole,
       },
     });
