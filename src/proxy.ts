@@ -9,9 +9,11 @@ const isPublicRoute = createRouteMatcher([
   "/client-portal(.*)",
   "/invite(.*)",
   "/client(.*)",
+  "/qr-update(.*)",
   "/api/invite(.*)",
   "/api/user/provision(.*)",
   "/api/user/check-role(.*)",
+  "/api/qr-update(.*)",
 ]);
 
 export default clerkMiddleware(async (auth, req) => {

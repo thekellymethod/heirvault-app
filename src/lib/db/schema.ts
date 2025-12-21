@@ -348,6 +348,8 @@ export type Receipt = typeof receipts.$inferSelect;
 export type NewReceipt = typeof receipts.$inferInsert;
 export type Document = typeof documents.$inferSelect;
 export type NewDocument = typeof documents.$inferInsert;
+export type ClientVersion = typeof clientVersions.$inferSelect;
+export type NewClientVersion = typeof clientVersions.$inferInsert;
 
 // Enum type exports (for compatibility with @prisma/client imports)
 export type AuditAction = "CLIENT_CREATED" | "CLIENT_UPDATED" | "POLICY_CREATED" | "POLICY_UPDATED" | "BENEFICIARY_CREATED" | "BENEFICIARY_UPDATED" | "INVITE_CREATED" | "INVITE_ACCEPTED" | "CLIENT_VIEWED" | "CLIENT_SUMMARY_PDF_DOWNLOADED" | "POLICY_SEARCH_PERFORMED" | "GLOBAL_POLICY_SEARCH_PERFORMED" | "DOCUMENT_UPLOADED" | "DOCUMENT_PROCESSED";
