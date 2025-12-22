@@ -1,0 +1,30 @@
+name: Test Summary
+
+on:
+  workflow_run:
+    workflows: ["Tests"]
+    types:
+      - completed
+
+jobs:
+  test-summary:
+    name: Test Summary
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion != 'success' }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Comment on PR
+        uses: actions/github-script@v6
+        if: github.event.workflow_run.event == 'pull_request'
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '⚠️ Tests failed. Please check the [workflow run](${{ github.event.workflow_run.html_url }}) for details.'
+            })
+

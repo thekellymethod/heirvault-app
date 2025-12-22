@@ -28,10 +28,27 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
-// Mock Clerk
+// Mock Clerk (can be overridden in individual tests)
 vi.mock("@clerk/nextjs/server", () => ({
-  auth: vi.fn(),
-  currentUser: vi.fn(),
+  auth: vi.fn().mockResolvedValue({
+    userId: "test_user_123",
+    sessionId: "test_session_123",
+  }),
+  currentUser: vi.fn().mockResolvedValue({
+    id: "test_user_123",
+    emailAddresses: [{ emailAddress: "test@example.com" }],
+    publicMetadata: { role: "ATTORNEY" },
+    privateMetadata: {},
+  }),
+  clerkClient: {
+    users: {
+      getUser: vi.fn().mockResolvedValue({
+        id: "test_user_123",
+        emailAddresses: [{ emailAddress: "test@example.com" }],
+        publicMetadata: { role: "ATTORNEY" },
+      }),
+    },
+  },
 }));
 
 // Suppress console errors in tests (unless needed for debugging)
