@@ -258,6 +258,7 @@ model User {
   firstName     String?  @map("first_name")
   lastName      String?  @map("last_name")
   role          UserRole @default(attorney)
+  roles         String[] @default(["USER"])
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
   barNumber     String?  @map("bar_number")
@@ -276,10 +277,27 @@ model User {
   accessGrants         access_grants[]          @relation("AttorneyAccess")
   clientRecord         clients?                 @relation("UserClient")
   auditLogs            audit_logs[]
+  attorneyProfile      attorneyProfile?
 
   @@index([firstName, lastName])
   @@index([address_line1, city, state, postal_code])
   @@map("users")
+}
+
+model attorneyProfile {
+  id           String   @id @default(uuid())
+  userId       String   @unique
+  licenseStatus LicenseStatus @default(PENDING)
+  verifiedAt   DateTime?
+  appliedAt    DateTime @default(now())
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  lawFirm      String?  @map("law_firm")
+  licenseDocumentPath String? @map("license_document_path")
+  licenseDocumentName String? @map("license_document_name")
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("attorney_profiles")
 }
 
 enum AccessGrantStatus {
@@ -302,6 +320,7 @@ enum AuditAction {
   GLOBAL_POLICY_SEARCH_PERFORMED
   DOCUMENT_UPLOADED
   DOCUMENT_PROCESSED
+  ATTORNEY_VERIFIED
 }
 
 enum BillingPlan {
@@ -326,4 +345,11 @@ enum OrgRole {
 
 enum UserRole {
   attorney
+}
+
+enum LicenseStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  REVOKED
 }

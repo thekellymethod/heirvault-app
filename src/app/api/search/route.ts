@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAttorney } from "@/lib/auth";
+import { requireVerifiedAttorneyWithClerkId } from "@/lib/auth/guards";
 import { listAuthorizedRegistries, getRegistryVersions } from "@/lib/db";
 import { logAccess } from "@/lib/audit";
+
+export const runtime = "nodejs";
 
 /**
  * Search API
@@ -44,7 +46,7 @@ function maskPolicyNumber(policyNumber: string | null | undefined): string | nul
 export async function POST(req: NextRequest) {
   try {
     // Require attorney authentication
-    const user = await requireAttorney();
+    const user = await requireVerifiedAttorneyWithClerkId();
 
     // Parse request body
     const body = await req.json();
@@ -83,7 +85,7 @@ export async function POST(req: NextRequest) {
     const searchTerm = searchString.trim().toLowerCase();
 
     // Get all authorized registries for this user (respects permissions)
-    const authorizedRegistries = await listAuthorizedRegistries(user.id, 1000);
+    const authorizedRegistries = await listAuthorizedRegistries(user.clerkId, 1000);
     
     // Filter by search term in authorized registries only
     const allRegistries = authorizedRegistries.filter((registry) => {

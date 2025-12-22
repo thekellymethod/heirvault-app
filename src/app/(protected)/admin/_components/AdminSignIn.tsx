@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-export default function SignInPage() {
+export function AdminSignIn() {
   const [mounted, setMounted] = useState(false);
   const { isSignedIn, isLoaded } = useAuth();
   const router = useRouter();
@@ -18,26 +18,22 @@ export default function SignInPage() {
   // Disable autofill on Clerk input fields
   useEffect(() => {
     const disableAutofill = () => {
-      // Find all input fields in the Clerk form
       const inputs = document.querySelectorAll('input[type="email"], input[type="password"], input[type="text"]');
       inputs.forEach((input) => {
         (input as HTMLInputElement).setAttribute('autocomplete', 'off');
         (input as HTMLInputElement).setAttribute('autocapitalize', 'off');
         (input as HTMLInputElement).setAttribute('autocorrect', 'off');
         (input as HTMLInputElement).setAttribute('spellcheck', 'false');
-        // For password fields, use 'new-password' which is more effective
         if ((input as HTMLInputElement).type === 'password') {
           (input as HTMLInputElement).setAttribute('autocomplete', 'new-password');
         }
       });
     };
 
-    // Run immediately and also after a short delay to catch dynamically rendered fields
     disableAutofill();
     const timer = setTimeout(disableAutofill, 500);
     const observer = new MutationObserver(disableAutofill);
     
-    // Observe the document for changes
     observer.observe(document.body, {
       childList: true,
       subtree: true,
@@ -48,19 +44,6 @@ export default function SignInPage() {
       observer.disconnect();
     };
   }, [mounted]);
-
-  // Redirect if already signed in - preserve redirect URL if present
-  useEffect(() => {
-    if (isLoaded && isSignedIn) {
-      const urlParams = new URLSearchParams(window.location.search);
-      const redirectUrl = urlParams.get("redirect_url");
-      if (redirectUrl && redirectUrl.startsWith("/")) {
-        router.push(redirectUrl);
-      } else {
-        router.push("/dashboard");
-      }
-    }
-  }, [isLoaded, isSignedIn, router]);
 
   // Add meta tags to prevent caching
   useEffect(() => {
@@ -81,7 +64,6 @@ export default function SignInPage() {
     });
 
     return () => {
-      // Cleanup on unmount
       metaTags.forEach(({ httpEquiv }) => {
         const meta = document.querySelector(`meta[http-equiv="${httpEquiv}"]`);
         if (meta) {
@@ -90,6 +72,25 @@ export default function SignInPage() {
       });
     };
   }, []);
+
+  // Redirect if already signed in and check admin status
+  useEffect(() => {
+    if (isLoaded && isSignedIn) {
+      // Check if user is admin by trying to access admin page
+      fetch('/api/debug/user-roles')
+        .then(res => res.json())
+        .then(data => {
+          if (data.user?.roles?.includes('ADMIN')) {
+            router.push('/admin');
+          } else {
+            router.push('/dashboard');
+          }
+        })
+        .catch(() => {
+          router.push('/dashboard');
+        });
+    }
+  }, [isLoaded, isSignedIn, router]);
 
   // Show loading while checking auth or mounting
   if (!mounted || (isLoaded && isSignedIn)) {
@@ -116,13 +117,13 @@ export default function SignInPage() {
             <Logo size="lg" showTagline={false} className="flex-row" href="/" />
           </div>
           <h1 className="font-display text-3xl font-bold text-ink-900 mb-2">
-            Sign In
+            Admin Sign In
           </h1>
           <p className="text-sm text-slateui-600">
-            Sign in to access your HeirVault dashboard
+            Sign in to access the HeirVault administration dashboard
           </p>
           <p className="text-xs text-slateui-500 mt-2">
-            For attorneys and administrators
+            Administrator access required
           </p>
         </div>
 
@@ -132,8 +133,8 @@ export default function SignInPage() {
             routing="path"
             path="/sign-in"
             signUpUrl="/sign-up"
-            fallbackRedirectUrl="/dashboard"
-            afterSignInUrl="/dashboard"
+            fallbackRedirectUrl="/admin"
+            afterSignInUrl="/admin"
             appearance={{
               elements: {
                 rootBox: "mx-auto w-full",
@@ -162,9 +163,6 @@ export default function SignInPage() {
               Sign up here
             </Link>
           </p>
-          <p className="text-xs text-slateui-500">
-            Administrators: Sign in with your admin email to access the admin dashboard.
-          </p>
           <Link
             href="/"
             className="mt-4 inline-block text-sm text-slateui-600 hover:text-ink-900 transition"
@@ -176,3 +174,4 @@ export default function SignInPage() {
     </main>
   );
 }
+

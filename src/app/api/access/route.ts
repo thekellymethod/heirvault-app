@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAttorney, requireAdmin } from "@/lib/auth";
+import { requireAdmin, requireVerifiedAttorney } from "@/lib/auth/guards";
 import { db, registryRecords, users, logAccess } from "@/lib/db";
 import { eq } from "@/lib/db";
 import { randomUUID } from "crypto";
 import { sendAccessGrantedEmail } from "@/lib/email";
+
+export const runtime = "nodejs";
 
 /**
  * Access Control API
@@ -39,7 +41,7 @@ const accessRequests: Map<string, AccessRequest> = new Map();
 export async function POST(req: NextRequest) {
   try {
     // Require attorney authentication
-    const user = await requireAttorney();
+    const user = await requireVerifiedAttorney();
 
     const body = await req.json();
     const { registryId, reason } = body;

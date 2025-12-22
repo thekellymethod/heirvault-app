@@ -130,7 +130,7 @@ export async function audit(
  * Log audit event with structured parameters
  * Wrapper around audit() for convenience
  */
-export async function logAuditEvent(input: {
+export function logAuditEvent(input: {
   action: string;
   resourceType: string;
   resourceId: string;
@@ -140,7 +140,7 @@ export async function logAuditEvent(input: {
 }): Promise<void> {
   const message = `${input.action}: ${input.resourceType} ${input.resourceId}${input.details ? ` - ${JSON.stringify(input.details)}` : ""}`;
   
-  await audit(input.action, {
+  return audit(input.action, {
     message,
     userId: input.userId || null,
     orgId: input.orgId || null,

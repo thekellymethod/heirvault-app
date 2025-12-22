@@ -1,4 +1,4 @@
-import { requireAttorney } from "@/lib/auth";
+import { requireVerifiedAttorneyWithClerkId } from "@/lib/auth/guards";
 import { listAuthorizedRegistries, getRegistryVersions } from "@/lib/db";
 import { logAccess } from "@/lib/audit";
 import { RecordsListView } from "./_components/RecordsListView";
@@ -8,17 +8,17 @@ import { RecordsListView } from "./_components/RecordsListView";
  * Protected route - requires authentication
  * 
  * Server Component
- * Calls requireAttorney()
+ * Calls requireVerifiedAttorneyWithClerkId()
  * Fetch authorized registries
  * Table view with status filtering
  * Audit: DASHBOARD_VIEW (list view)
  */
 export default async function RecordsPage() {
-  // Require attorney authentication
-  const user = await requireAttorney();
+  // Require verified attorney authentication
+  const user = await requireVerifiedAttorneyWithClerkId();
 
   // Fetch only registries this user has permission to access
-  const authorizedRegistries = await listAuthorizedRegistries(user.id, 100);
+  const authorizedRegistries = await listAuthorizedRegistries(user.clerkId, 100);
   
   // Transform to RegistrySummary format
   const registries = await Promise.all(

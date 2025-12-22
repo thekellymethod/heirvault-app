@@ -15,6 +15,9 @@ const isPublicRoute = createRouteMatcher([
   "/policy-intake(.*)",
   "/intake(.*)",
   "/login(.*)",
+  
+  // Attorney application (accessible to authenticated users)
+  "/attorney/apply(.*)",
 
   // Optional: allow these pages publicly if you use them
   "/error(.*)",

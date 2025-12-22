@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db, attorneyClientAccess, clients, eq, and, desc } from "@/lib/db";
+import { db, attorneyClientAccess, clients, eq, and, desc, sql } from "@/lib/db";
+import { prisma } from "@/lib/db";
 import { requireAuthApi } from "@/lib/utils/clerk";
 import { logAuditEvent } from "@/lib/audit";
+import { randomUUID } from "crypto";
+
+export const runtime = "nodejs";
 
 function toDateOnlyOrNull(input: unknown) {
   if (!input) return null;
@@ -65,37 +69,43 @@ export async function POST(req: NextRequest) {
   }
 
   // Create client + grant attorney access in one transaction.
-  // Use Drizzle's transaction support
+  // Use raw SQL to only insert columns that exist in the database
+  const clientId = randomUUID();
+  const accessId = randomUUID();
+  
+  // Use Drizzle transaction with raw SQL to avoid columns that don't exist
   const result = await db.transaction(async (tx) => {
-    // Insert client
-    const [client] = await tx
-      .insert(clients)
-      .values({
-        firstName,
-        lastName,
-        email,
-        phone,
-        dateOfBirth,
-      })
-      .returning({
-        id: clients.id,
-        firstName: clients.firstName,
-        lastName: clients.lastName,
-        email: clients.email,
-      });
+    // Insert client using raw SQL within transaction
+    const clientResult = await tx.execute<Array<{
+      id: string;
+      first_name: string;
+      last_name: string;
+      email: string;
+    }>>(
+      sql`INSERT INTO clients (id, email, first_name, last_name, phone, date_of_birth, created_at, updated_at)
+          VALUES (${clientId}, ${email}, ${firstName}, ${lastName}, ${phone || null}, ${dateOfBirth || null}, NOW(), NOW())
+          RETURNING id, first_name, last_name, email`
+    );
 
-    if (!client) {
+    if (!clientResult.rows || clientResult.rows.length === 0) {
       throw new Error("Failed to create client");
     }
 
-    // Grant attorney access
-    await tx.insert(attorneyClientAccess).values({
-      attorneyId: user.id,
-      clientId: client.id,
-      isActive: true,
-    });
+    const client = clientResult.rows[0] as { id: string; first_name: string; last_name: string; email: string };
 
-    return client;
+    // Grant attorney access using raw SQL within transaction
+    // Note: attorney_client_access table only has: id, attorney_id, client_id, organization_id, granted_at, revoked_at, is_active
+    await tx.execute(
+      sql`INSERT INTO attorney_client_access (id, attorney_id, client_id, is_active, granted_at)
+          VALUES (${accessId}, ${user.id}, ${client.id}, true, NOW())`
+    );
+
+    return {
+      id: client.id,
+      firstName: client.first_name,
+      lastName: client.last_name,
+      email: client.email,
+    };
   });
 
   await logAuditEvent({

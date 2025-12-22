@@ -1,4 +1,4 @@
-import { getUser, requireAdmin } from "@/lib/auth";
+import { requireAdmin, requireAuth } from "@/lib/auth/guards";
 import { canViewAudit } from "@/lib/permissions";
 import { redirect } from "next/navigation";
 import { AuditView } from "./_components/AuditView";
@@ -27,23 +27,23 @@ interface Props {
  * - No edits. Read-only.
  */
 export default async function AuditPage({ searchParams }: Props) {
-  // Get user (required for permission check)
-  const user = await getUser();
-  if (!user) {
-    redirect("/login");
-  }
-
   // Check access: requireAdmin() OR allow ATTORNEY with canViewAudit
   let hasAccess = false;
+  let user;
   
   try {
-    // Try requireAdmin first
-    await requireAdmin();
+    // Try requireAdmin first (admins have full access)
+    user = await requireAdmin();
     hasAccess = true;
   } catch {
     // If not admin, check if attorney with canViewAudit
-    if (user.role === "ATTORNEY") {
+    try {
+      user = await requireAuth();
+      // Check if user has ATTORNEY role and canViewAudit permission
       hasAccess = canViewAudit({ user });
+    } catch {
+      // Not authenticated
+      redirect("/sign-in");
     }
   }
 

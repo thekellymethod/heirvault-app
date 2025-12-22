@@ -19,6 +19,7 @@ import {
   Eye,
   Download,
 } from "lucide-react";
+import { ManualUpload } from "./ManualUpload";
 
 interface AdminDashboardProps {
   admin: User;
@@ -40,13 +41,19 @@ interface AccessRequest {
 
 interface AttorneyCredential {
   id: string;
+  userId: string;
   email: string;
   firstName: string | null;
   lastName: string | null;
+  phone: string | null;
   barNumber: string | null;
-  status: "verified" | "pending" | "revoked";
-  lastVerified: string | null;
-  createdAt: string;
+  lawFirm: string | null;
+  licenseState: string | null;
+  licenseStatus: "PENDING" | "ACTIVE" | "SUSPENDED" | "REVOKED";
+  licenseDocumentPath: string | null;
+  licenseDocumentName: string | null;
+  appliedAt: string;
+  verifiedAt: string | null;
 }
 
 /**
@@ -56,7 +63,7 @@ interface AttorneyCredential {
  * Approvals, credential reviews, compliance
  */
 export function AdminDashboard({ admin }: AdminDashboardProps) {
-  const [activeTab, setActiveTab] = useState<"overview" | "approvals" | "credentials" | "compliance">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "approvals" | "credentials" | "compliance" | "manual-upload">("overview");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -87,10 +94,11 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
         const data = await res.json();
         setAccessRequests(data.requests || []);
       } else if (activeTab === "credentials") {
-        // Load attorney credentials
-        // TODO: Create API endpoint for attorney credentials
-        // For now, placeholder
-        setAttorneyCredentials([]);
+        // Load pending attorney applications
+        const res = await fetch("/api/admin/attorneys/verify?status=PENDING");
+        if (!res.ok) throw new Error("Failed to load attorney applications");
+        const data = await res.json();
+        setAttorneyCredentials(data.profiles || []);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load data");
@@ -125,6 +133,32 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
     }
   };
 
+  const handleVerifyAttorney = async (userId: string, status: "ACTIVE" | "SUSPENDED" | "REVOKED") => {
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const res = await fetch("/api/admin/attorneys/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, licenseStatus: status }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to verify attorney");
+      }
+
+      setSuccess(`Attorney ${status === "ACTIVE" ? "approved" : status.toLowerCase()}`);
+      await loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to verify attorney");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const pendingCount = accessRequests.filter((r) => r.status === "PENDING").length;
 
   return (
@@ -146,6 +180,12 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
                 <Button variant="outline">
                   <Eye className="h-4 w-4 mr-2" />
                   View Audit Trail
+                </Button>
+              </Link>
+              <Link href="/admin/console">
+                <Button variant="outline">
+                  <FileText className="h-4 w-4 mr-2" />
+                  Admin Console
                 </Button>
               </Link>
             </div>
@@ -214,6 +254,16 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
               }`}
             >
               Compliance
+            </button>
+            <button
+              onClick={() => setActiveTab("manual-upload")}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === "manual-upload"
+                  ? "border-gold-500 text-gold-600"
+                  : "border-transparent text-slateui-500 hover:text-slateui-700 hover:border-slateui-300"
+              }`}
+            >
+              Manual Upload
             </button>
           </nav>
         </div>
@@ -470,16 +520,145 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
 
         {activeTab === "credentials" && (
           <div className="card p-6">
-            <div className="text-center py-12 text-slateui-500">
-              <UserCheck className="h-12 w-12 mx-auto mb-4 text-slateui-400" />
-              <p className="text-lg font-medium mb-2">Credential Reviews</p>
-              <p className="text-sm">
-                Attorney credential management will be implemented here.
-              </p>
-              <p className="text-xs mt-2">
-                See <Link href="/dashboard/admin/compliance" className="text-gold-600 hover:underline">Compliance Dashboard</Link> for current credential management.
-              </p>
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-xl font-semibold text-ink-900">Pending Attorney Applications</h2>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="text"
+                  placeholder="Search by name, email, or bar number..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-64"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => loadData()}
+                  disabled={loading}
+                >
+                  <Search className="h-4 w-4 mr-2" />
+                  Refresh
+                </Button>
+              </div>
             </div>
+
+            {loading && attorneyCredentials.length === 0 ? (
+              <div className="text-center py-12 text-slateui-500">
+                Loading applications...
+              </div>
+            ) : attorneyCredentials.length === 0 ? (
+              <div className="text-center py-12 text-slateui-500">
+                <UserCheck className="h-12 w-12 mx-auto mb-4 text-slateui-400" />
+                <p className="text-lg font-medium mb-2">No Pending Applications</p>
+                <p className="text-sm">All attorney applications have been reviewed.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-slateui-200">
+                  <thead className="bg-slateui-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-slateui-600 uppercase tracking-wider">
+                        Attorney
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-slateui-600 uppercase tracking-wider">
+                        Contact
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-slateui-600 uppercase tracking-wider">
+                        Law Firm
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-slateui-600 uppercase tracking-wider">
+                        Bar Information
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-slateui-600 uppercase tracking-wider">
+                        Applied
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-slateui-600 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-slateui-200">
+                    {attorneyCredentials
+                      .filter((cred) => {
+                        if (!searchQuery) return true;
+                        const query = searchQuery.toLowerCase();
+                        return (
+                          cred.email?.toLowerCase().includes(query) ||
+                          cred.firstName?.toLowerCase().includes(query) ||
+                          cred.lastName?.toLowerCase().includes(query) ||
+                          cred.barNumber?.toLowerCase().includes(query) ||
+                          cred.lawFirm?.toLowerCase().includes(query)
+                        );
+                      })
+                      .map((cred) => (
+                        <tr key={cred.id} className="hover:bg-slateui-50">
+                          <td className="px-6 py-4">
+                            <div className="text-sm font-medium text-ink-900">
+                              {cred.firstName} {cred.lastName}
+                            </div>
+                            <div className="text-xs text-slateui-500">{cred.email}</div>
+                          </td>
+                          <td className="px-6 py-4 text-sm text-slateui-600">
+                            {cred.phone || "—"}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-slateui-600">
+                            {cred.lawFirm || "—"}
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="text-sm text-slateui-600">
+                              <div>Bar #: {cred.barNumber || "—"}</div>
+                              {cred.licenseDocumentName && (
+                                <div className="text-xs text-slateui-500 mt-1">
+                                  <a
+                                    href={`/api/admin/attorneys/verify/document?userId=${cred.userId}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-gold-600 hover:underline flex items-center gap-1"
+                                  >
+                                    <Download className="h-3 w-3" />
+                                    View License
+                                  </a>
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-slateui-600">
+                            {new Date(cred.appliedAt).toLocaleDateString()}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm">
+                            <div className="flex items-center gap-2">
+                              <Button
+                                size="sm"
+                                className="bg-green-600 hover:bg-green-700 text-white"
+                                onClick={() => handleVerifyAttorney(cred.userId, "ACTIVE")}
+                                disabled={loading}
+                              >
+                                <CheckCircle className="h-4 w-4 mr-1" />
+                                Approve
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-red-700 border-red-300 hover:bg-red-50"
+                                onClick={() => {
+                                  const reason = prompt("Reason for rejection:");
+                                  if (reason !== null) {
+                                    handleVerifyAttorney(cred.userId, "REVOKED");
+                                  }
+                                }}
+                                disabled={loading}
+                              >
+                                <X className="h-4 w-4 mr-1" />
+                                Reject
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
 
@@ -498,6 +677,10 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
               </Link>
             </div>
           </div>
+        )}
+
+        {activeTab === "manual-upload" && (
+          <ManualUpload />
         )}
       </div>
     </div>

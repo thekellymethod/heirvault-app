@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
-import { db, users, orgMembers, organizations, eq } from "./db";
+import { db, users, orgMembers, organizations, eq, sql, prisma } from "./db";
 import { getCurrentUser } from "./utils/clerk";
+import { randomUUID } from "crypto";
 
 type OrgRole = "OWNER" | "ATTORNEY" | "STAFF";
 
@@ -58,6 +59,119 @@ export async function getCurrentUserWithOrg() {
     // Return user without org if query fails
     userWithOrg = user;
     orgMember = null;
+  }
+
+  // Admin bypass - admins don't need organizations
+  try {
+    const { getOrCreateAppUser } = await import("@/lib/auth/CurrentUser");
+    const appUser = await getOrCreateAppUser();
+    const { hasAdminRole } = await import("@/lib/auth/admin-bypass");
+    if (appUser && hasAdminRole(appUser)) {
+      // Admin bypass - return user without org requirement
+      return {
+        clerkId: userId,
+        user: {
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          role: user.role || 'attorney',
+          orgMemberships: [],
+        },
+        orgMember: null,
+      };
+    }
+  } catch (error) {
+    // If admin check fails, continue with normal flow
+    console.warn("getCurrentUserWithOrg: Admin check failed, continuing with normal flow", error);
+  }
+
+  // If user doesn't have an organization, automatically create a personal one
+  if (!orgMember && user) {
+    try {
+      // Generate organization name from user's name or email
+      const orgName = user.firstName && user.lastName
+        ? `${user.firstName} ${user.lastName}`
+        : user.email.split('@')[0];
+
+      // Generate slug from organization name
+      const slug = orgName
+        .toLowerCase()
+        .trim()
+        .replace(/[^\w\s-]/g, "")
+        .replace(/[\s_-]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+
+      // Check if slug already exists, append random suffix if needed
+      const existingOrg = await prisma.$queryRawUnsafe<Array<{ id: string }>>(
+        `SELECT id FROM organizations WHERE slug = $1 LIMIT 1`,
+        slug
+      );
+
+      let finalSlug = slug;
+      if (existingOrg && existingOrg.length > 0) {
+        finalSlug = `${slug}-${randomUUID().slice(0, 8)}`;
+      }
+
+      // Create organization and add user as OWNER in a transaction
+      const orgId = randomUUID();
+      const memberId = randomUUID();
+
+      await db.transaction(async (tx) => {
+        // Create organization using raw SQL
+        await tx.execute(
+          sql`INSERT INTO organizations (id, name, slug, created_at, updated_at)
+              VALUES (${orgId}, ${orgName}, ${finalSlug}, NOW(), NOW())`
+        );
+
+        // Add user as OWNER of the organization
+        await tx.execute(
+          sql`INSERT INTO org_members (id, user_id, organization_id, role, created_at, updated_at)
+              VALUES (${memberId}, ${user.id}, ${orgId}, 'OWNER', NOW(), NOW())`
+        );
+      });
+
+      // Fetch the newly created organization and membership
+      const newResult = await db
+        .select({
+          userId: users.id,
+          userEmail: users.email,
+          userFirstName: users.firstName,
+          userLastName: users.lastName,
+          userRole: users.role,
+          orgId: orgMembers.organizationId,
+          orgRole: orgMembers.role,
+          orgName: organizations.name,
+        })
+        .from(orgMembers)
+        .innerJoin(organizations, eq(orgMembers.organizationId, organizations.id))
+        .innerJoin(users, eq(orgMembers.userId, users.id))
+        .where(eq(orgMembers.userId, user.id))
+        .limit(1);
+
+      if (newResult && newResult.length > 0) {
+        const row = newResult[0];
+        userWithOrg = {
+          id: row.userId,
+          email: row.userEmail,
+          firstName: row.userFirstName,
+          lastName: row.userLastName,
+          role: row.userRole || 'attorney',
+          orgMemberships: [{
+            organizationId: row.orgId,
+            role: row.orgRole,
+            organizations: {
+              id: row.orgId,
+              name: row.orgName,
+            },
+          }],
+        };
+        orgMember = userWithOrg.orgMemberships[0];
+      }
+    } catch (error: any) {
+      console.error("getCurrentUserWithOrg: Error creating personal organization:", error.message);
+      // Continue without org if creation fails
+    }
   }
 
   // Ensure the returned user has a role set (default to attorney)
@@ -122,12 +236,31 @@ export async function requireAttorneyOrOwner() {
 
 // For attorney-side client access
 // All attorneys can access all clients globally
+// Admins have full bypass
 export async function assertAttorneyCanAccessClient(clientId: string) {
   const { user, orgMember } = await getCurrentUserWithOrg()
 
   if (!user || !orgMember) {
     console.error('assertAttorneyCanAccessClient: No user or orgMember', { user: !!user, orgMember: !!orgMember })
     throw new Error("Unauthorized")
+  }
+
+  // Admin bypass - admins can access all clients
+  // Check admin status using the new Prisma user system
+  try {
+    const { getOrCreateAppUser } = await import("@/lib/auth/CurrentUser");
+    const appUser = await getOrCreateAppUser();
+    const { hasAdminRole } = await import("@/lib/auth/admin-bypass");
+    if (appUser && hasAdminRole(appUser)) {
+      console.log('assertAttorneyCanAccessClient: Admin bypass granted', {
+        clientId,
+        userId: user.id,
+      });
+      return { user, orgMember };
+    }
+  } catch (error) {
+    // If admin check fails, continue with normal attorney check
+    console.warn('assertAttorneyCanAccessClient: Admin check failed, using normal flow', error);
   }
 
   // Verify user is an attorney

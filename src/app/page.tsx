@@ -50,16 +50,39 @@ export default function LandingPage() {
             <div className="flex items-center gap-3">
               <Link
                 href="/sign-in"
-                className="hidden sm:inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold border border-slateui-200 bg-white/70 text-ink-900 hover:bg-white transition"
+                className="hidden sm:inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-bold border border-gold-500 bg-gradient-to-b from-gold-400 to-gold-600 text-slate-900 hover:from-gold-500 hover:to-gold-700 transition shadow-lg shadow-gold-500/30 uppercase tracking-wide text-center"
+                style={{ 
+                  boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06), inset 0 1px 0 0 rgba(255, 255, 255, 0.2)",
+                  textShadow: "0 1px 2px rgba(255, 255, 255, 0.3), 0 -1px 1px rgba(0, 0, 0, 0.2)",
+                  fontFamily: "'Playfair Display', Georgia, serif",
+                  fontWeight: '700'
+                }}
               >
-                For Attorneys
+                ATTORNEY SIGN IN
+              </Link>
+              <Link
+                href="/attorney/apply"
+                className="hidden sm:inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-bold border border-slate-900 bg-gradient-to-b from-slate-800 to-slate-900 text-gold-500 hover:from-slate-700 hover:to-slate-800 transition shadow-lg shadow-slate-900/40 uppercase tracking-wide text-center"
+                style={{ 
+                  boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06), inset 0 1px 0 0 rgba(255, 255, 255, 0.1)",
+                  textShadow: "0 1px 2px rgba(255, 215, 0, 0.4), 0 -1px 1px rgba(0, 0, 0, 0.3)",
+                  fontFamily: "'Playfair Display', Georgia, serif"
+                }}
+              >
+                ATTORNEY APPLICATION
               </Link>
 
               <Link
                 href="/client/invite-code"
-                className="btn-primary inline-flex items-center justify-center px-4 py-2 text-sm"
+                className="inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-bold border border-slateui-200 bg-gradient-to-b from-white to-slate-50 text-blue-900 hover:from-slate-50 hover:to-slate-100 transition shadow-md uppercase tracking-wide text-center"
+                style={{ 
+                  boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06), inset 0 1px 0 0 rgba(255, 255, 255, 0.9)",
+                  textShadow: "0 1px 2px rgba(255, 255, 255, 0.8), 0 -1px 1px rgba(0, 0, 0, 0.1)",
+                  fontFamily: "'Playfair Display', Georgia, serif",
+                  fontWeight: '700'
+                }}
               >
-                Client Invitation
+                CLIENT INVITATION
               </Link>
             </div>
           </div>
@@ -101,14 +124,40 @@ export default function LandingPage() {
               </p>
 
               <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center md:justify-start">
-                <Link href="/sign-in" className="btn-primary text-base px-7 py-3">
-                  For Attorneys
+                <Link 
+                  href="/sign-in" 
+                  className="inline-flex items-center justify-center rounded-xl px-7 py-3 text-base font-bold border border-gold-500 bg-gradient-to-b from-gold-400 to-gold-600 text-slate-900 hover:from-gold-500 hover:to-gold-700 transition shadow-lg shadow-gold-500/30 uppercase tracking-wide text-center"
+                  style={{ 
+                    boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06), inset 0 1px 0 0 rgba(255, 255, 255, 0.2)",
+                    textShadow: "0 1px 2px rgba(255, 255, 255, 0.3), 0 -1px 1px rgba(0, 0, 0, 0.2)",
+                    fontFamily: "'Playfair Display', Georgia, serif",
+                    fontWeight: '700'
+                  }}
+                >
+                  ATTORNEY SIGN IN
+                </Link>
+                <Link
+                  href="/attorney/apply"
+                  className="inline-flex items-center justify-center rounded-xl px-7 py-3 text-base font-bold border border-slate-900 bg-gradient-to-b from-slate-800 to-slate-900 text-gold-500 hover:from-slate-700 hover:to-slate-800 transition shadow-lg shadow-slate-900/40 uppercase tracking-wide text-center"
+                  style={{ 
+                    boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06), inset 0 1px 0 0 rgba(255, 255, 255, 0.1)",
+                    textShadow: "0 1px 2px rgba(255, 215, 0, 0.4), 0 -1px 1px rgba(0, 0, 0, 0.3)",
+                    fontFamily: "'Playfair Display', Georgia, serif"
+                  }}
+                >
+                  ATTORNEY APPLICATION
                 </Link>
                 <Link
                   href="/client/invite-code"
-                  className="inline-flex items-center justify-center rounded-xl px-7 py-3 text-base font-semibold border border-white/15 bg-white/5 text-paper-50 hover:bg-white/10 transition"
+                  className="inline-flex items-center justify-center rounded-xl px-7 py-3 text-base font-bold border border-white/20 bg-gradient-to-b from-white to-slate-50 text-blue-900 hover:from-slate-50 hover:to-slate-100 transition shadow-md uppercase tracking-wide text-center"
+                  style={{ 
+                    boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06), inset 0 1px 0 0 rgba(255, 255, 255, 0.9)",
+                    textShadow: "0 1px 2px rgba(255, 255, 255, 0.8), 0 -1px 1px rgba(0, 0, 0, 0.1)",
+                    fontFamily: "'Playfair Display', Georgia, serif",
+                    fontWeight: '700'
+                  }}
                 >
-                  Client Invitation
+                  CLIENT INVITATION
                 </Link>
               </div>
 
@@ -129,21 +178,6 @@ export default function LandingPage() {
             </div>
 
             <div className="relative order-1 md:order-2">
-              <div className="mb-6 rounded-3xl border border-gold-500/30 bg-white/10 shadow-lift backdrop-blur overflow-hidden relative z-10">
-                <div className="relative aspect-[4/3] w-full">
-                  <div className="absolute inset-0 bg-gradient-to-br from-gold-500/20 via-blue-500/10 to-ink-950/40" />
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="text-center p-8">
-                      <div className="text-6xl mb-4">👨‍👩‍👧‍👦</div>
-                      <p className="text-paper-100/80 text-sm font-medium">
-                        Protecting Your Legacy
-                      </p>
-                    </div>
-                  </div>
-                  <div className="absolute inset-0 bg-gradient-to-t from-ink-950/30 to-transparent" />
-                </div>
-              </div>
-
               <div className="rounded-3xl border border-gold-500/25 bg-white/5 shadow-lift backdrop-blur relative z-0">
                 <div className="p-6 md:p-8">
                   <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl bg-ink-950/40">
@@ -286,9 +320,29 @@ export default function LandingPage() {
           <p className="mt-4 text-base md:text-lg text-slateui-600">
             Contact us for more information about HeirVault and how it can help your practice.
           </p>
-          <div className="mt-8">
-            <Link href="/sign-in" className="btn-primary px-8 py-3 text-base">
-              Get Started Today
+          <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
+            <Link 
+              href="/attorney/apply" 
+              className="inline-flex items-center justify-center rounded-xl px-8 py-3 text-base font-bold border border-slate-900 bg-gradient-to-b from-slate-800 to-slate-900 text-gold-500 hover:from-slate-700 hover:to-slate-800 transition shadow-lg shadow-slate-900/40 uppercase tracking-wide text-center"
+              style={{ 
+                boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06), inset 0 1px 0 0 rgba(255, 255, 255, 0.1)",
+                textShadow: "0 1px 2px rgba(255, 215, 0, 0.4), 0 -1px 1px rgba(0, 0, 0, 0.3)",
+                fontFamily: "'Playfair Display', Georgia, serif"
+              }}
+            >
+              APPLY AS ATTORNEY
+            </Link>
+            <Link 
+              href="/sign-in" 
+              className="inline-flex items-center justify-center rounded-xl px-8 py-3 text-base font-bold border border-gold-500 bg-gradient-to-b from-gold-400 to-gold-600 text-slate-900 hover:from-gold-500 hover:to-gold-700 transition shadow-lg shadow-gold-500/30 uppercase tracking-wide text-center"
+              style={{ 
+                boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06), inset 0 1px 0 0 rgba(255, 255, 255, 0.2)",
+                textShadow: "0 1px 2px rgba(255, 255, 255, 0.3), 0 -1px 1px rgba(0, 0, 0, 0.2)",
+                fontFamily: "'Playfair Display', Georgia, serif",
+                fontWeight: '700'
+              }}
+            >
+              ATTORNEY SIGN IN
             </Link>
           </div>
         </div>

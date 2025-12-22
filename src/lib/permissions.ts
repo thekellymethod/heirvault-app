@@ -43,7 +43,15 @@ export async function canAccessRegistry({
   user: User;
   registryId: string;
 }): Promise<boolean> {
-  // ADMIN can access all registries (server-authoritative check)
+  // ADMIN can access all registries - check roles array
+  const { hasAdminRole } = await import("@/lib/auth/admin-bypass");
+  if (hasAdminRole(user as { roles?: string[] })) {
+    // Verify registry exists
+    const registry = await getRegistryById(registryId);
+    return registry !== null;
+  }
+  
+  // Also check legacy admin system for backwards compatibility
   const userIsAdmin = await isAdmin(user);
   if (userIsAdmin) {
     // Verify registry exists
@@ -59,7 +67,7 @@ export async function canAccessRegistry({
 
   // ATTORNEY: Check if registry is in authorized list
   if (user.role === "ATTORNEY") {
-    const authorizedRegistries = await listAuthorizedRegistries(user.id);
+    const authorizedRegistries = await listAuthorizedRegistries(user.clerkId);
     return authorizedRegistries.some((registry) => registry.id === registryId);
   }
 
@@ -139,20 +147,34 @@ export function canSearch({ user }: { user: User }): boolean {
  * @param user - The user to check
  * @returns True if user can view audit logs
  */
-export function canViewAudit({ user }: { user: User }): boolean {
-  // ADMIN can view audit logs
-  if (user.role === "ADMIN") {
-    return true;
+export function canViewAudit({ user }: { user: User | { roles?: string[]; role?: string } }): boolean {
+  // Check if user has roles array (new auth system)
+  if ('roles' in user && Array.isArray(user.roles)) {
+    if (user.roles.includes("ADMIN")) {
+      return true;
+    }
+    if (user.roles.includes("ATTORNEY")) {
+      return true;
+    }
+    return false;
   }
 
-  // SYSTEM can view audit logs (internal use)
-  if (user.role === "SYSTEM") {
-    return true;
-  }
+  // Legacy: Check role string (old auth system)
+  if ('role' in user) {
+    // ADMIN can view audit logs
+    if (user.role === "ADMIN") {
+      return true;
+    }
 
-  // ATTORNEY can view audit logs (filtered to authorized registries)
-  if (user.role === "ATTORNEY") {
-    return true;
+    // SYSTEM can view audit logs (internal use)
+    if (user.role === "SYSTEM") {
+      return true;
+    }
+
+    // ATTORNEY can view audit logs (filtered to authorized registries)
+    if (user.role === "ATTORNEY") {
+      return true;
+    }
   }
 
   // Unknown role - deny audit access

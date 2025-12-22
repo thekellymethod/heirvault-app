@@ -3,6 +3,8 @@ import { prisma } from "@/lib/db";
 import { requireAuth } from "@/lib/utils/clerk";
 import { getCurrentUserWithOrg } from "@/lib/authz";
 
+export const runtime = "nodejs";
+
 /**
  * Global Search API - Searches across ALL organizations in the database
  * Only accessible to attorneys. This allows attorneys to search for clients

@@ -30,8 +30,14 @@ export async function GET(req: NextRequest, { params }: Params) {
     }
 
     // Check access via client
-    // All attorneys have global access to all policies
-    if (user.role === 'attorney') {
+    // Admins have full access to all policies
+    const { getOrCreateAppUser } = await import("@/lib/auth/CurrentUser");
+    const { hasAdminRole } = await import("@/lib/auth/admin-bypass");
+    const appUser = await getOrCreateAppUser();
+    if (appUser && hasAdminRole(appUser)) {
+      // Admin bypass - full access
+    } else if (user.role === 'attorney') {
+      // All attorneys have global access to all policies
       // Global access granted - no need to check specific access
     } else {
       // Client can only view their own policies

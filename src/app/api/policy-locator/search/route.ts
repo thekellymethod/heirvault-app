@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUserWithOrg } from "@/lib/authz";
 
+export const runtime = "nodejs";
+
 export async function GET(req: NextRequest) {
   try {
     const { user, orgMember } = await getCurrentUserWithOrg();

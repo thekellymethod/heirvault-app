@@ -1,5 +1,6 @@
-import { requireAdmin } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth/guards";
 import { AdminDashboard } from "./_components/AdminDashboard";
+import { AdminSignIn } from "./_components/AdminSignIn";
 
 /**
  * Administration Page
@@ -11,8 +12,12 @@ import { AdminDashboard } from "./_components/AdminDashboard";
  * Exit criteria: You can reconstruct "who did what when" for any record.
  */
 export default async function AdminPage() {
-  // Require admin authentication
-  const admin = await requireAdmin();
-
-  return <AdminDashboard admin={admin} />;
+  try {
+    // Require admin authentication
+    const admin = await requireAdmin();
+    return <AdminDashboard admin={admin} />;
+  } catch (error: any) {
+    // If not authenticated or not admin, show sign-in page
+    return <AdminSignIn />;
+  }
 }

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
-import { requireAuth } from "@/lib/utils/clerk";
+import { requireVerifiedAttorney } from "@/lib/auth/guards";
+import { redirect } from "next/navigation";
 import { AttorneyDashboardView } from "./_components/AttorneyDashboardView";
 
 /**
@@ -12,10 +13,17 @@ import { AttorneyDashboardView } from "./_components/AttorneyDashboardView";
  * unnecessary document detail.
  */
 export default async function DashboardPage() {
-  // requireAuth will throw if user is not authenticated, which should
-  // be caught by the error boundary. The proxy middleware should have
-  // already redirected unauthenticated users, but we double-check here.
-  const user = await requireAuth();
+  // requireVerifiedAttorney will throw if user is not authenticated or not verified
+  try {
+    var user = await requireVerifiedAttorney();
+  } catch (error: any) {
+    // If error has redirectTo property, redirect there
+    if (error?.redirectTo) {
+      redirect(error.redirectTo);
+    }
+    // Otherwise redirect to apply page
+    redirect("/attorney/apply");
+  }
 
   // Get all policies with key metadata
   // Note: verification_status column may not exist yet, so we query without it and set a default

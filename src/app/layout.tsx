@@ -34,7 +34,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <ClerkProvider signInUrl="/sign-in" signUpUrl="/sign-up">
+    <ClerkProvider 
+      signInUrl="/sign-in" 
+      signUpUrl="/sign-up"
+      afterSignInUrl="/dashboard"
+      afterSignUpUrl="/dashboard"
+    >
       <html lang="en" className={`${inter.variable} ${playfair.variable}`}>
         <body className="bg-paper-50 font-sans text-slateui-800 antialiased">
           {children}
