@@ -109,6 +109,7 @@ describe("Clerk Roles Enforcement", () => {
 
     it("should throw for unauthenticated user", async () => {
       vi.mocked(auth).mockResolvedValue({ userId: null } as any);
+      vi.mocked(currentUser).mockResolvedValue(null);
 
       await expect(requireAttorney()).rejects.toThrow();
     });
