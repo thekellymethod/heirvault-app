@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { db, attorneyClientAccess, clients, policies, insurers, eq, desc, and, or, ilike } from "@/lib/db";
 import { requireAuth } from "@/lib/utils/clerk";
+import { EmptyListState, EmptySearchState } from "@/components/ui/empty-state";
+import { FileText, Search } from "lucide-react";
 
 export default async function PoliciesPage({
   searchParams,
@@ -168,11 +170,26 @@ export default async function PoliciesPage({
           </div>
 
           {policiesList.length === 0 ? (
-            <div className="px-4 py-8 text-sm text-slate-300">
-              {searchTerm
-                ? `No policies found matching "${searchTerm}".`
-                : "No policies found. Policies will appear here once clients are added."}
-            </div>
+            searchTerm ? (
+              <EmptySearchState
+                searchQuery={searchTerm}
+                onClear={() => {
+                  window.location.href = "/dashboard/policies";
+                }}
+              />
+            ) : (
+              <EmptyListState
+                icon={FileText}
+                title="No policies found"
+                description="Policies will appear here once you create clients and add policies to their registries."
+                action={{
+                  label: "Create Client",
+                  onClick: () => {
+                    window.location.href = "/dashboard/clients/new";
+                  },
+                }}
+              />
+            )
           ) : (
             <div className="divide-y divide-slate-800">
               {policiesList.map((p: typeof policiesList[number]) => (
@@ -180,7 +197,7 @@ export default async function PoliciesPage({
                   key={p.id}
                   className="px-4 py-4 hover:bg-slate-900/40 transition-colors"
                 >
-                  <div className="grid grid-cols-12 items-center gap-2">
+                  <div className="grid grid-cols-12 items-center gap-2 min-w-[1000px]">
                     <div className="col-span-3">
                       <Link
                         href={`/dashboard/policies/${p.id}`}
@@ -188,9 +205,9 @@ export default async function PoliciesPage({
                       >
                         {p.policyNumber || "—"}
                       </Link>
-                      <div className="text-xs text-slate-400">ID: {p.id.slice(0, 8)}...</div>
+                      <div className="text-xs text-slate-400 hidden sm:block">ID: {p.id.slice(0, 8)}...</div>
                     </div>
-                    <div className="col-span-2">
+                    <div className="col-span-2 hidden lg:block">
                       <Link
                         href={`/dashboard/clients/${p.client.id}`}
                         className="text-sm text-slate-200 hover:text-blue-400"

@@ -4,6 +4,8 @@ import * as React from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, UserPlus, Users } from "lucide-react";
+import { ListSkeleton } from "@/components/ui/skeleton";
+import { EmptyListState } from "@/components/ui/empty-state";
 
 type Beneficiary = {
   id: string;
@@ -240,11 +242,21 @@ export default function ClientBeneficiariesPage() {
             </div>
           </div>
           {loading ? (
-            <div className="p-8 text-center text-slateui-600">Loading beneficiaries...</div>
-          ) : items.length === 0 ? (
-            <div className="p-8 text-center text-slateui-600">
-              No beneficiaries yet. Click "New Beneficiary" to add one.
+            <div className="p-8">
+              <ListSkeleton count={3} />
             </div>
+          ) : items.length === 0 ? (
+            <EmptyListState
+              icon={Users}
+              title="No beneficiaries yet"
+              description="Add beneficiaries to track who will receive benefits from your client's life insurance policies."
+              action={{
+                label: "New Beneficiary",
+                onClick: () => {
+                  window.location.href = `/dashboard/clients/${clientId}/beneficiaries/new`;
+                },
+              }}
+            />
           ) : (
             <div className="divide-y divide-slateui-200">
               {items.map((b) => (

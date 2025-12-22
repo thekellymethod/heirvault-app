@@ -2,6 +2,8 @@ import Link from "next/link";
 import { db, attorneyClientAccess, clients, eq, desc, and } from "@/lib/db";
 import { requireAuth } from "@/lib/utils/clerk";
 import { Button } from "@/components/ui/button";
+import { EmptyListState } from "@/components/ui/empty-state";
+import { Users } from "lucide-react";
 
 export default async function ClientsPage() {
   try {
@@ -54,18 +56,26 @@ export default async function ClientsPage() {
             </Link>
         </div>
 
-      <div className="rounded-xl border border-slate-800 bg-slate-950/40">
-        <div className="grid grid-cols-12 gap-2 border-b border-slate-800 px-4 py-3 text-xs font-semibold text-slate-400">
+      <div className="rounded-xl border border-slate-800 bg-slate-950/40 overflow-x-auto">
+        <div className="grid grid-cols-12 gap-2 border-b border-slate-800 px-4 py-3 text-xs font-semibold text-slate-400 min-w-[800px]">
           <div className="col-span-4">Client</div>
-          <div className="col-span-4">Email</div>
-          <div className="col-span-2">Phone</div>
+          <div className="col-span-4 hidden md:block">Email</div>
+          <div className="col-span-2 hidden sm:block">Phone</div>
           <div className="col-span-2 text-right">Updated</div>
         </div>
 
         {clientList.length === 0 ? (
-          <div className="px-4 py-8 text-sm text-slate-300">
-            No clients yet. Create your first client profile.
-          </div>
+          <EmptyListState
+            icon={Users}
+            title="No clients yet"
+            description="Get started by creating your first client profile. Clients can then be invited to complete their life insurance registry."
+            action={{
+              label: "Create Client",
+              onClick: () => {
+                window.location.href = "/dashboard/clients/new";
+              },
+            }}
+          />
         ) : (
           <div className="divide-y divide-slate-800">
             {clientList.map((c) => (
@@ -74,19 +84,21 @@ export default async function ClientsPage() {
                 href={`/dashboard/clients/${c.id}`}
                 className="block px-4 py-4 hover:bg-slate-900/40"
               >
-                <div className="grid grid-cols-12 items-center gap-2">
+                <div className="grid grid-cols-12 items-center gap-2 min-w-[800px]">
                   <div className="col-span-4">
                     <div className="text-sm font-medium text-slate-100">
                       {c.firstName} {c.lastName}
                     </div>
-                    <div className="text-xs text-slate-400">ID: {c.id}</div>
+                    <div className="text-xs text-slate-400 hidden sm:block">ID: {c.id.substring(0, 8)}...</div>
+                    <div className="text-xs text-slate-400 sm:hidden">{c.email}</div>
                   </div>
-                  <div className="col-span-4 text-sm text-slate-200">{c.email}</div>
-                  <div className="col-span-2 text-sm text-slate-200">
+                  <div className="col-span-4 text-sm text-slate-200 hidden md:block">{c.email}</div>
+                  <div className="col-span-2 text-sm text-slate-200 hidden sm:block">
                     {c.phone ?? "—"}
                   </div>
                   <div className="col-span-2 text-right text-xs text-slate-400">
-                    {new Date(c.updatedAt).toLocaleDateString()}
+                    <span className="hidden sm:inline">{new Date(c.updatedAt).toLocaleDateString()}</span>
+                    <span className="sm:hidden">{new Date(c.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
                   </div>
             </div>
               </Link>

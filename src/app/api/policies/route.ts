@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db, insurers, policies, beneficiaries, policyBeneficiaries, eq, desc, inArray, AuditAction } from '@/lib/db'
+import { db, insurers, policies, beneficiaries, policyBeneficiaries, clients, eq, desc, inArray, AuditAction } from '@/lib/db'
 import { getCurrentUserWithOrg, assertAttorneyCanAccessClient, assertClientSelfAccess } from '@/lib/authz'
 import { audit } from '@/lib/audit'
+import { sendPolicyAddedEmail } from '@/lib/email'
 
 export async function POST(req: NextRequest) {
   try {
@@ -90,6 +91,37 @@ export async function POST(req: NextRequest) {
       message: `Policy created for client ${policy.clientId} with insurer ${insurer.name}`,
     })
 
+    // Send email notification to client (if email exists)
+    try {
+      const [client] = await db.select()
+        .from(clients)
+        .where(eq(clients.id, clientId))
+        .limit(1);
+
+      if (client && client.email) {
+        const { orgMember } = await getCurrentUserWithOrg();
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+        const dashboardUrl = `${baseUrl}/dashboard/clients/${clientId}`;
+        const firmName = orgMember?.organizations?.name || undefined;
+
+        await sendPolicyAddedEmail({
+          to: client.email,
+          clientName: `${client.firstName} ${client.lastName}`,
+          insurerName: insurer.name,
+          policyNumber: policyNumber || undefined,
+          policyType: policyType || undefined,
+          firmName,
+          dashboardUrl,
+        }).catch((emailError) => {
+          console.error("Error sending policy added email:", emailError);
+          // Don't fail the request if email fails
+        });
+      }
+    } catch (emailError) {
+      console.error("Error sending policy added email:", emailError);
+      // Don't fail the request if email fails
+    }
+
     return NextResponse.json(policy, { status: 201 })
   } catch (error: any) {
     return NextResponse.json(
@@ -157,10 +189,11 @@ export async function GET(req: NextRequest) {
         .map(pb => ({ beneficiary: pb.beneficiary })),
     }));
 
-    await logAuditEvent({
-      action: 'read' as any,
-      resourceType: 'policy',
-      resourceId: `list-${clientId}`,
+    // Audit logging for policy list view
+    // Note: Using audit() function for consistency
+    await audit(AuditAction.CLIENT_VIEWED, {
+      clientId,
+      message: `Policy list viewed for client ${clientId}`,
       userId: user.id,
     })
 

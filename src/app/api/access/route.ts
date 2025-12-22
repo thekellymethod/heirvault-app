@@ -3,6 +3,7 @@ import { requireAttorney, requireAdmin } from "@/lib/auth";
 import { db, registryRecords, users, logAccess } from "@/lib/db";
 import { eq } from "@/lib/db";
 import { randomUUID } from "crypto";
+import { sendAccessGrantedEmail } from "@/lib/email";
 
 /**
  * Access Control API
@@ -310,6 +311,41 @@ export async function PATCH(req: NextRequest) {
       //   userId: accessRequest.requestedByUserId,
       //   grantedByUserId: admin.id,
       // });
+
+      // Send email notification to the attorney who was granted access
+      try {
+        const [attorney] = await db.select({
+          id: users.id,
+          email: users.email,
+          firstName: users.firstName,
+          lastName: users.lastName,
+        })
+          .from(users)
+          .where(eq(users.id, accessRequest.requestedByUserId))
+          .limit(1);
+
+        if (attorney && attorney.email) {
+          const baseUrl = process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin;
+          const dashboardUrl = `${baseUrl}/dashboard/records/${accessRequest.registryId}`;
+          const attorneyName = attorney.firstName && attorney.lastName
+            ? `${attorney.firstName} ${attorney.lastName}`
+            : attorney.email;
+          const clientName = registry?.decedentName || "Registry";
+
+          await sendAccessGrantedEmail({
+            to: attorney.email,
+            attorneyName,
+            clientName,
+            dashboardUrl,
+          }).catch((emailError) => {
+            console.error("Error sending access granted email:", emailError);
+            // Don't fail the request if email fails
+          });
+        }
+      } catch (emailError) {
+        console.error("Error sending access granted email:", emailError);
+        // Don't fail the request if email fails
+      }
     }
 
     return NextResponse.json({

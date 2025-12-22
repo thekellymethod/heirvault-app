@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/utils/clerk'
 import { createInvite } from '@/lib/utils/invites'
+import { sendClientInviteEmail } from '@/lib/email'
+import { getCurrentUserWithOrg } from '@/lib/authz'
 
 export async function POST(request: NextRequest) {
   try {
@@ -21,8 +23,23 @@ export async function POST(request: NextRequest) {
       clientEmail
     )
 
-    // Note: Email sending is handled in /api/clients/invite/route.ts
-    // This endpoint is kept for backward compatibility
+    // Send invite email
+    try {
+      const { orgMember } = await getCurrentUserWithOrg()
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin
+      const inviteUrl = `${baseUrl}/invite/${invite.token}`
+      const firmName = orgMember?.organizations?.name || undefined
+
+      await sendClientInviteEmail({
+        to: clientEmail,
+        clientName: clientEmail.split('@')[0], // Use email prefix as fallback name
+        firmName,
+        inviteUrl,
+      })
+    } catch (emailError: any) {
+      console.error('Failed to send invite email:', emailError)
+      // Continue even if email fails - we still return the invite
+    }
 
     return NextResponse.json(invite, { status: 201 })
   } catch (error: any) {

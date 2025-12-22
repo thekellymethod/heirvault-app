@@ -105,8 +105,15 @@ export default function DashboardInsurersPage() {
       // Load clients for the selector
       await loadClients();
       setShowClientSelector(true);
+      
+      // Show success toast
+      const { showSuccess } = await import("@/lib/toast");
+      showSuccess(`Insurer "${name}" created successfully!`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unknown error");
+      const errorMessage = e instanceof Error ? e.message : "Unknown error";
+      setError(errorMessage);
+      const { showError } = await import("@/lib/toast");
+      showError(errorMessage);
     } finally {
       setSaving(false);
     }
@@ -135,8 +142,9 @@ export default function DashboardInsurersPage() {
         <Button onClick={() => setOpen((s) => !s)}>{open ? "Close" : "Add insurer"}</Button>
       </div>
 
+      {/* Error is now shown via toast, but keep inline for accessibility */}
       {error && (
-        <div className="mt-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+        <div className="mt-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert">
           {error}
         </div>
       )}
@@ -227,11 +235,22 @@ export default function DashboardInsurersPage() {
         </div>
 
         <div className="divide-y divide-slate-200">
-          {!loading && items.length === 0 && (
-            <div className="px-6 py-10 text-slate-600">No insurers yet.</div>
-          )}
-
-          {items.map((i) => (
+          {loading ? (
+            <div className="px-6 py-8">
+              <ListSkeleton count={5} />
+            </div>
+          ) : items.length === 0 ? (
+            <EmptyListState
+              icon={Building2}
+              title="No insurers yet"
+              description="Add insurers to your directory to make it easier to create policies for clients."
+              action={{
+                label: "Add Insurer",
+                onClick: () => setOpen(true),
+              }}
+            />
+          ) : (
+            items.map((i) => (
             <div key={i.id} className="px-6 py-4">
               <div className="flex items-start justify-between gap-4">
                 <div>
@@ -253,7 +272,8 @@ export default function DashboardInsurersPage() {
                 </div>
               </div>
             </div>
-          ))}
+            ))
+          )}
         </div>
       </div>
     </div>

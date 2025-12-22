@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, clients, policies, beneficiaries, insurers, policyBeneficiaries, eq, inArray, desc } from "@/lib/db";
 import { requireAuthApi } from "@/lib/utils/clerk";
+import { sendPolicyAddedEmail } from "@/lib/email";
+import { getCurrentUserWithOrg } from "@/lib/authz";
 
 export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const authResult = await requireAuthApi();
@@ -106,6 +108,37 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       .from(insurers)
       .where(eq(insurers.id, insurerId))
       .limit(1);
+
+    // Send email notification to client (if email exists)
+    try {
+      const [client] = await db.select()
+        .from(clients)
+        .where(eq(clients.id, clientId))
+        .limit(1);
+
+      if (client && client.email && insurer) {
+        const { orgMember } = await getCurrentUserWithOrg();
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin;
+        const dashboardUrl = `${baseUrl}/dashboard/clients/${clientId}`;
+        const firmName = orgMember?.organizations?.name || undefined;
+
+        await sendPolicyAddedEmail({
+          to: client.email,
+          clientName: `${client.firstName} ${client.lastName}`,
+          insurerName: insurer.name,
+          policyNumber: policy.policyNumber || undefined,
+          policyType: policy.policyType || undefined,
+          firmName,
+          dashboardUrl,
+        }).catch((emailError) => {
+          console.error("Error sending policy added email:", emailError);
+          // Don't fail the request if email fails
+        });
+      }
+    } catch (emailError) {
+      console.error("Error sending policy added email:", emailError);
+      // Don't fail the request if email fails
+    }
 
     return NextResponse.json({
       policy: {

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Mail, Copy, Check, ExternalLink } from "lucide-react";
+import { showSuccess, showError } from "@/lib/toast";
 
 interface Props {
   clientId: string;
@@ -50,8 +51,11 @@ export function InviteClientButton({ clientId, defaultEmail, clientName }: Props
       const code = data.inviteUrl.split("/invite/")[1];
       setInviteCode(code);
       setSuccess(true);
+      showSuccess(`Invitation sent successfully to ${email}`);
     } catch (e: any) {
-      setError(e.message || "Something went wrong.");
+      const errorMessage = e.message || "Something went wrong.";
+      setError(errorMessage);
+      showError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -60,6 +64,7 @@ export function InviteClientButton({ clientId, defaultEmail, clientName }: Props
   function copyToClipboard(text: string) {
     navigator.clipboard.writeText(text);
     setCopied(true);
+    showSuccess("Copied to clipboard!");
     setTimeout(() => setCopied(false), 2000);
   }
 
