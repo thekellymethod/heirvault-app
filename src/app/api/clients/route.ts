@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { db, attorneyClientAccess, clients, eq, and, desc } from "@/lib/db";
 import { requireAuthApi } from "@/lib/utils/clerk";
 import { logAuditEvent } from "@/lib/audit";
 
@@ -15,29 +15,33 @@ export async function GET() {
   const { user } = auth;
 
   // Attorney's accessible clients (via AttorneyClientAccess)
-  const rows = await prisma.attorneyClientAccess.findMany({
-    where: { attorneyId: user.id, isActive: true },
-    select: {
+  const rows = await db
+    .select({
       client: {
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          email: true,
-          phone: true,
-          dateOfBirth: true,
-          createdAt: true,
-          updatedAt: true,
-        },
+        id: clients.id,
+        firstName: clients.firstName,
+        lastName: clients.lastName,
+        email: clients.email,
+        phone: clients.phone,
+        dateOfBirth: clients.dateOfBirth,
+        createdAt: clients.createdAt,
+        updatedAt: clients.updatedAt,
       },
-      grantedAt: true,
-    },
-    orderBy: { grantedAt: "desc" },
-  });
+      grantedAt: attorneyClientAccess.grantedAt,
+    })
+    .from(attorneyClientAccess)
+    .innerJoin(clients, eq(attorneyClientAccess.clientId, clients.id))
+    .where(
+      and(
+        eq(attorneyClientAccess.attorneyId, user.id),
+        eq(attorneyClientAccess.isActive, true)
+      )
+    )
+    .orderBy(desc(attorneyClientAccess.grantedAt));
 
-  const clients = rows.map((r) => r.client);
+  const clientList = rows.map((r) => r.client);
 
-  return NextResponse.json({ clients });
+  return NextResponse.json({ clients: clientList });
 }
 
 export async function POST(req: NextRequest) {
@@ -61,25 +65,34 @@ export async function POST(req: NextRequest) {
   }
 
   // Create client + grant attorney access in one transaction.
-  const result = await prisma.$transaction(async (tx) => {
-    const client = await tx.client.create({
-      data: {
+  // Use Drizzle's transaction support
+  const result = await db.transaction(async (tx) => {
+    // Insert client
+    const [client] = await tx
+      .insert(clients)
+      .values({
         firstName,
         lastName,
         email,
         phone,
         dateOfBirth,
-      },
-      select: { id: true, firstName: true, lastName: true, email: true },
-    });
+      })
+      .returning({
+        id: clients.id,
+        firstName: clients.firstName,
+        lastName: clients.lastName,
+        email: clients.email,
+      });
 
-    await tx.attorneyClientAccess.create({
-      data: {
-        attorneyId: user.id,
-        clientId: client.id,
-        isActive: true,
-      },
-      select: { id: true },
+    if (!client) {
+      throw new Error("Failed to create client");
+    }
+
+    // Grant attorney access
+    await tx.insert(attorneyClientAccess).values({
+      attorneyId: user.id,
+      clientId: client.id,
+      isActive: true,
     });
 
     return client;

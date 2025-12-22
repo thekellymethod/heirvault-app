@@ -28,81 +28,77 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Build search query
-    const where: any = {
-      orgId: orgMember.organizationId,
-      firstName: {
-        contains: firstName,
-        mode: "insensitive",
-      },
-      lastName: {
-        contains: lastName,
-        mode: "insensitive",
-      },
-    };
+    // Build search query using raw SQL
+    let query = `
+      SELECT DISTINCT
+        c.id,
+        c.first_name,
+        c.last_name,
+        c.date_of_birth,
+        p.id as policy_id,
+        p.policy_number,
+        p.policy_type,
+        i.name as insurer_name
+      FROM clients c
+      INNER JOIN policies p ON p.client_id = c.id
+      INNER JOIN insurers i ON i.id = p.insurer_id
+      WHERE c.org_id = $1
+        AND LOWER(c.first_name) LIKE LOWER($2)
+        AND LOWER(c.last_name) LIKE LOWER($3)
+    `;
+    
+    const params: any[] = [
+      orgMember.organizationId,
+      `%${firstName}%`,
+      `%${lastName}%`,
+    ];
 
     // Add optional filters
     if (dateOfBirth) {
-      where.dateOfBirth = new Date(dateOfBirth);
+      query += ` AND c.date_of_birth = $${params.length + 1}`;
+      params.push(new Date(dateOfBirth));
     }
 
-    if (ssn) {
-      // Note: SSN would need to be stored in the database schema
-      // For now, we'll skip this filter if SSN field doesn't exist
+    if (policyNumber) {
+      query += ` AND LOWER(p.policy_number) LIKE LOWER($${params.length + 1})`;
+      params.push(`%${policyNumber}%`);
     }
 
-    if (address) {
-      // Note: Address would need to be stored in the database schema
-      // For now, we'll skip this filter if address field doesn't exist
-    }
+    query += ` ORDER BY c.created_at DESC LIMIT 50`;
 
-    // Search for clients matching the criteria
-    const clients = await prisma.client.findMany({
-      where,
-      include: {
-        policies: {
-          include: {
-            insurer: true,
-          },
-          where: policyNumber
-            ? {
-                policyNumber: {
-                  contains: policyNumber,
-                  mode: "insensitive",
-                },
-              }
-            : undefined,
-        },
-      },
-    });
+    // Execute query
+    const rows = await prisma.$queryRawUnsafe<Array<{
+      id: string;
+      first_name: string;
+      last_name: string;
+      date_of_birth: Date | null;
+      policy_id: string;
+      policy_number: string | null;
+      policy_type: string | null;
+      insurer_name: string;
+    }>>(query, ...params);
 
-    // Filter results to only include clients with policies
-    const results = clients
-      .filter((client) => client.policies.length > 0)
-      .map((client) => {
-        // Return the first policy (or you could return all policies)
-        const policy = client.policies[0];
-        return {
-          id: client.id,
-          clientName: `${client.firstName} ${client.lastName}`,
-          policyNumber: policy.policyNumber,
-          policyType: policy.policyType,
-          insurerName: policy.insurer.name,
-          dateOfBirth: client.dateOfBirth,
-          dateOfDeath: null, // This would need to be added to the schema if needed
-        };
-      });
+    // Map results
+    const results = rows.map((row) => ({
+      id: row.id,
+      clientName: `${row.first_name} ${row.last_name}`,
+      policyNumber: row.policy_number,
+      policyType: row.policy_type,
+      insurerName: row.insurer_name,
+      dateOfBirth: row.date_of_birth,
+      dateOfDeath: null, // This would need to be added to the schema if needed
+    }));
 
     // Log the policy search for audit purposes (internal audit log, not visible to users)
     try {
-      await prisma.auditLog.create({
-        data: {
-          action: "POLICY_SEARCH_PERFORMED",
-          message: `Policy search: ${firstName} ${lastName}${dateOfBirth ? ` (DOB: ${dateOfBirth})` : ""}${policyNumber ? ` | Policy #: ${policyNumber}` : ""} | Results: ${results.length} policy(ies)`,
-          userId: user.id,
-          orgId: orgMember.organizationId,
-        },
-      });
+      await prisma.$executeRawUnsafe(
+        `INSERT INTO audit_logs (action, message, user_id, org_id, created_at) 
+         VALUES ($1, $2, $3, $4, NOW())`,
+        "POLICY_SEARCH_PERFORMED",
+        `Policy search: ${firstName} ${lastName}${dateOfBirth ? ` (DOB: ${dateOfBirth})` : ""}${policyNumber ? ` | Policy #: ${policyNumber}` : ""} | Results: ${results.length} policy(ies)`,
+        user.id,
+        orgMember.organizationId
+      );
     } catch (auditError) {
       console.error("Failed to log policy search audit:", auditError);
       // Don't fail the request if audit logging fails

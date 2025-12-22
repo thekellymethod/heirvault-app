@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAuth } from "@/lib/utils/clerk";
+import { getCurrentUserWithOrg } from "@/lib/authz";
 
 /**
  * Global Search API - Searches across ALL organizations in the database
@@ -16,16 +17,7 @@ export async function GET(req: Request) {
     const user = await requireAuth("attorney");
     
     // Get user with org memberships for audit logging
-    const userWithOrg = await prisma.user.findUnique({
-      where: { id: user.id },
-      include: {
-        orgMemberships: {
-          include: {
-            organizations: true,
-          },
-        },
-      },
-    });
+    const { user: userWithOrg, orgMember } = await getCurrentUserWithOrg();
     
     const { searchParams } = new URL(req.url);
     const q = (searchParams.get("q") || "").trim();
@@ -44,7 +36,7 @@ export async function GET(req: Request) {
       const searchPattern = `%${q.replace(/'/g, "''")}%`;
       
       // Search clients using raw SQL
-      const clientsResult = await prisma.$queryRaw<Array<{
+      const clientsResult = await prisma.$queryRawUnsafe<Array<{
         id: string;
         first_name: string;
         last_name: string;
@@ -53,8 +45,8 @@ export async function GET(req: Request) {
         created_at: Date;
         org_id: string | null;
         org_name: string | null;
-      }>>`
-        SELECT 
+      }>>(
+        `SELECT 
           c.id,
           c.first_name,
           c.last_name,
@@ -66,13 +58,14 @@ export async function GET(req: Request) {
         FROM clients c
         LEFT JOIN organizations o ON o.id = c.org_id
         WHERE 
-          LOWER(c.first_name) LIKE LOWER(${searchPattern}) OR
-          LOWER(c.last_name) LIKE LOWER(${searchPattern}) OR
-          LOWER(c.email) LIKE LOWER(${searchPattern}) OR
-          (c.phone IS NOT NULL AND LOWER(c.phone) LIKE LOWER(${searchPattern}))
+          LOWER(c.first_name) LIKE LOWER($1) OR
+          LOWER(c.last_name) LIKE LOWER($1) OR
+          LOWER(c.email) LIKE LOWER($1) OR
+          (c.phone IS NOT NULL AND LOWER(c.phone) LIKE LOWER($1))
         ORDER BY c.created_at DESC
-        LIMIT 50
-      `;
+        LIMIT 50`,
+        searchPattern
+      );
 
       clients = clientsResult.map(row => ({
         id: row.id,
@@ -88,7 +81,7 @@ export async function GET(req: Request) {
       }));
 
       // Search policies using raw SQL (reusing searchPattern)
-      const policiesResult = await prisma.$queryRaw<Array<{
+      const policiesResult = await prisma.$queryRawUnsafe<Array<{
         policy_id: string;
         policy_number: string | null;
         policy_type: string | null;
@@ -100,8 +93,8 @@ export async function GET(req: Request) {
         client_org_id: string | null;
         client_org_name: string | null;
         insurer_name: string;
-      }>>`
-        SELECT 
+      }>>(
+        `SELECT 
           p.id as policy_id,
           p.policy_number,
           p.policy_type,
@@ -118,11 +111,12 @@ export async function GET(req: Request) {
         LEFT JOIN organizations o ON o.id = c.org_id
         INNER JOIN insurers i ON i.id = p.insurer_id
         WHERE 
-          LOWER(i.name) LIKE LOWER(${searchPattern}) OR
-          (p.policy_number IS NOT NULL AND LOWER(p.policy_number) LIKE LOWER(${searchPattern}))
+          LOWER(i.name) LIKE LOWER($1) OR
+          (p.policy_number IS NOT NULL AND LOWER(p.policy_number) LIKE LOWER($1))
         ORDER BY p.created_at DESC
-        LIMIT 50
-      `;
+        LIMIT 50`,
+        searchPattern
+      );
 
       policies = policiesResult.map(row => ({
         id: row.policy_id,
@@ -144,85 +138,24 @@ export async function GET(req: Request) {
         },
       }));
     } catch (sqlError: any) {
-      console.error("Global search: Raw SQL failed, trying Prisma:", sqlError.message);
-      // Fallback to Prisma
-      try {
-        clients = await prisma.client.findMany({
-          where: {
-            OR: [
-              { firstName: { contains: q, mode: "insensitive" } },
-              { lastName: { contains: q, mode: "insensitive" } },
-              { email: { contains: q, mode: "insensitive" } },
-              { phone: { contains: q, mode: "insensitive" } },
-            ],
-          },
-          include: {
-            org: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
-          },
-          take: 50,
-          orderBy: {
-            createdAt: "desc",
-          },
-        });
-
-        policies = await prisma.policy.findMany({
-          where: {
-            OR: [
-              { insurer: { name: { contains: q, mode: "insensitive" } } },
-              { policyNumber: { contains: q, mode: "insensitive" } },
-            ],
-          },
-          include: {
-            client: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                email: true,
-                org: {
-                  select: {
-                    id: true,
-                    name: true,
-                  },
-                },
-              },
-            },
-            insurer: {
-              select: {
-                name: true,
-              },
-            },
-          },
-          take: 50,
-          orderBy: {
-            createdAt: "desc",
-          },
-        });
-      } catch (prismaError: any) {
-        console.error("Global search: Prisma also failed:", prismaError.message);
-        // Return empty results if both fail
-        clients = [];
-        policies = [];
-      }
+      console.error("Global search: Raw SQL failed:", sqlError.message);
+      // Return empty results if query fails
+      clients = [];
+      policies = [];
     }
 
     // Log the global search for audit purposes (internal audit log, not visible to users)
     // This search includes ALL clients across ALL organizations
     try {
-      const orgId = userWithOrg?.orgMemberships?.[0]?.organizations?.id || userWithOrg?.orgMemberships?.[0]?.organization_id || null;
-      await prisma.auditLog.create({
-        data: {
-          action: "GLOBAL_POLICY_SEARCH_PERFORMED",
-          message: `Global database search (all clients): "${q}" | Results: ${clients.length} client(s), ${policies.length} policy(ies)`,
-          userId: user.id,
-          orgId: orgId,
-        },
-      });
+      const orgId = orgMember?.organizationId || null;
+      await prisma.$executeRawUnsafe(
+        `INSERT INTO audit_logs (action, message, user_id, org_id, created_at) 
+         VALUES ($1, $2, $3, $4, NOW())`,
+        "GLOBAL_POLICY_SEARCH_PERFORMED",
+        `Global database search (all clients): "${q}" | Results: ${clients.length} client(s), ${policies.length} policy(ies)`,
+        user.id,
+        orgId
+      );
     } catch (auditError) {
       console.error("Failed to log global search audit:", auditError);
       // Don't fail the request if audit logging fails

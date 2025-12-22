@@ -126,5 +126,28 @@ export async function audit(
   }
 }
 
+/**
+ * Log audit event with structured parameters
+ * Wrapper around audit() for convenience
+ */
+export async function logAuditEvent(input: {
+  action: string;
+  resourceType: string;
+  resourceId: string;
+  details?: Record<string, unknown>;
+  userId?: string | null;
+  orgId?: string | null;
+}): Promise<void> {
+  const message = `${input.action}: ${input.resourceType} ${input.resourceId}${input.details ? ` - ${JSON.stringify(input.details)}` : ""}`;
+  
+  await audit(input.action, {
+    message,
+    userId: input.userId || null,
+    orgId: input.orgId || null,
+    clientId: input.resourceType === "client" ? input.resourceId : undefined,
+    policyId: input.resourceType === "policy" ? input.resourceId : undefined,
+  });
+}
+
 // Export AuditAction for compatibility
 export { AuditAction } from "@/lib/db/enums";
