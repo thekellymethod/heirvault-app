@@ -2,7 +2,6 @@ import Link from "next/link";
 import { db, attorneyClientAccess, clients, policies, insurers, eq, desc, and, or, ilike } from "@/lib/db";
 import { requireAuth } from "@/lib/utils/clerk";
 import { EmptyListState, EmptySearchState } from "@/components/ui/empty-state";
-import { FileText, Search } from "lucide-react";
 
 export default async function PoliciesPage({
   searchParams,
@@ -173,20 +172,16 @@ export default async function PoliciesPage({
             searchTerm ? (
               <EmptySearchState
                 searchQuery={searchTerm}
-                onClear={() => {
-                  window.location.href = "/dashboard/policies";
-                }}
+                clearHref="/dashboard/policies"
               />
             ) : (
               <EmptyListState
-                icon={FileText}
+                icon="FileText"
                 title="No policies found"
                 description="Policies will appear here once you create clients and add policies to their registries."
                 action={{
                   label: "Create Client",
-                  onClick: () => {
-                    window.location.href = "/dashboard/clients/new";
-                  },
+                  href: "/dashboard/clients/new",
                 }}
               />
             )

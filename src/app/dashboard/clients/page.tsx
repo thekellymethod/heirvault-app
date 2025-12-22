@@ -3,7 +3,6 @@ import { db, attorneyClientAccess, clients, eq, desc, and } from "@/lib/db";
 import { requireAuth } from "@/lib/utils/clerk";
 import { Button } from "@/components/ui/button";
 import { EmptyListState } from "@/components/ui/empty-state";
-import { Users } from "lucide-react";
 
 export default async function ClientsPage() {
   try {
@@ -66,14 +65,12 @@ export default async function ClientsPage() {
 
         {clientList.length === 0 ? (
           <EmptyListState
-            icon={Users}
+            icon="Users"
             title="No clients yet"
             description="Get started by creating your first client profile. Clients can then be invited to complete their life insurance registry."
             action={{
               label: "Create Client",
-              onClick: () => {
-                window.location.href = "/dashboard/clients/new";
-              },
+              href: "/dashboard/clients/new",
             }}
           />
         ) : (

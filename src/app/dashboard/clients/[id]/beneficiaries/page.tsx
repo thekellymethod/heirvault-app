@@ -247,14 +247,12 @@ export default function ClientBeneficiariesPage() {
             </div>
           ) : items.length === 0 ? (
             <EmptyListState
-              icon={Users}
+              icon="Users"
               title="No beneficiaries yet"
               description="Add beneficiaries to track who will receive benefits from your client's life insurance policies."
               action={{
                 label: "New Beneficiary",
-                onClick: () => {
-                  window.location.href = `/dashboard/clients/${clientId}/beneficiaries/new`;
-                },
+                href: `/dashboard/clients/${clientId}/beneficiaries/new`,
               }}
             />
           ) : (
