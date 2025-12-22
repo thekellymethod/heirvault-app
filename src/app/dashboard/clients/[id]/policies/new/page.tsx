@@ -63,32 +63,32 @@ export default function NewPolicyPage() {
       <div className="flex items-center gap-4">
         <Link
           href={`/dashboard/clients/${clientId}`}
-          className="text-slate-400 hover:text-slate-200"
+          className="text-slateui-600 hover:text-ink-900"
         >
           <ArrowLeft className="h-5 w-5" />
         </Link>
         <div>
-          <h1 className="text-xl font-semibold text-slate-50">Add Policy</h1>
-          <p className="text-sm text-slate-400">Create a new policy record</p>
+          <h1 className="text-xl font-semibold text-ink-900">Add Policy</h1>
+          <p className="text-sm text-slateui-600">Create a new policy record</p>
         </div>
       </div>
 
       <form
         onSubmit={handleSubmit}
-        className="space-y-4 rounded-xl border border-slate-800 bg-slate-950/50 p-6"
+        className="space-y-4 rounded-xl border border-slateui-200 bg-white p-6"
       >
         {error && (
-          <p className="text-xs text-red-400 bg-red-950/40 border border-red-800 rounded p-2">
+          <p className="text-xs text-red-700 bg-red-50 border border-red-200 rounded p-2">
             {error}
           </p>
         )}
 
         <div>
-          <label className="block text-xs font-medium text-slate-300 mb-1">
-            Insurer name <span className="text-red-400">*</span>
+          <label className="block text-xs font-medium text-ink-900 mb-1">
+            Insurer name <span className="text-red-600">*</span>
           </label>
           <input
-            className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-50 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            className="mt-1 w-full rounded-lg border border-slateui-300 bg-white px-3 py-2 text-sm text-ink-900 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
             value={insurerName}
             onChange={(e) => setInsurerName(e.target.value)}
             required
@@ -98,18 +98,18 @@ export default function NewPolicyPage() {
 
         <div className="grid gap-4 md:grid-cols-2">
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1">
+            <label className="block text-xs font-medium text-ink-900 mb-1">
               Policy number
             </label>
             <input
-              className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-50 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              className="mt-1 w-full rounded-lg border border-slateui-300 bg-white px-3 py-2 text-sm text-ink-900 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
               value={policyNumber}
               onChange={(e) => setPolicyNumber(e.target.value)}
               placeholder="POL-123456"
             />
           </div>
           <div>
-            <label htmlFor="policy-type" className="block text-xs font-medium text-slate-300 mb-1">
+            <label htmlFor="policy-type" className="block text-xs font-medium text-ink-900 mb-1">
               Policy type
             </label>
             <select
@@ -117,7 +117,7 @@ export default function NewPolicyPage() {
               name="policy-type"
               title="Policy type"
               aria-label="Policy type"
-              className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-50 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              className="mt-1 w-full rounded-lg border border-slateui-300 bg-white px-3 py-2 text-sm text-ink-900 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
               value={policyType}
               onChange={(e) => setPolicyType(e.target.value as "TERM" | "WHOLE" | "GROUP" | "OTHER" | "")}
             >
@@ -132,23 +132,23 @@ export default function NewPolicyPage() {
 
         <div className="grid gap-4 md:grid-cols-2">
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1">
+            <label className="block text-xs font-medium text-ink-900 mb-1">
               Insurer phone
             </label>
             <input
-              className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-50 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              className="mt-1 w-full rounded-lg border border-slateui-300 bg-white px-3 py-2 text-sm text-ink-900 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
               value={insurerPhone}
               onChange={(e) => setInsurerPhone(e.target.value)}
               placeholder="(555) 123-4567"
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1">
+            <label className="block text-xs font-medium text-ink-900 mb-1">
               Insurer email
             </label>
             <input
               type="email"
-              className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-50 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              className="mt-1 w-full rounded-lg border border-slateui-300 bg-white px-3 py-2 text-sm text-ink-900 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
               value={insurerEmail}
               onChange={(e) => setInsurerEmail(e.target.value)}
               placeholder="contact@insurer.com"
@@ -157,12 +157,12 @@ export default function NewPolicyPage() {
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-slate-300 mb-1">
+          <label className="block text-xs font-medium text-ink-900 mb-1">
             Insurer website
           </label>
           <input
             type="url"
-            className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-50 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            className="mt-1 w-full rounded-lg border border-slateui-300 bg-white px-3 py-2 text-sm text-ink-900 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
             value={insurerWebsite}
             onChange={(e) => setInsurerWebsite(e.target.value)}
             placeholder="https://insurer.com"

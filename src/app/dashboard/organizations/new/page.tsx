@@ -42,22 +42,22 @@ export default function NewOrganizationPage() {
       <div>
         <Link
           href="/dashboard/organizations"
-          className="text-sm text-slate-400 hover:text-slate-300 mb-4 inline-block"
+          className="text-sm text-slateui-600 hover:text-ink-900 mb-4 inline-block"
         >
           ← Back to Organizations
         </Link>
-        <h1 className="text-2xl font-semibold text-slate-100">
+        <h1 className="text-2xl font-semibold text-ink-900">
           Create Organization
         </h1>
-        <p className="text-sm text-slate-300">
+        <p className="text-sm text-slateui-600">
           Create a new organization to manage team members and clients.
         </p>
       </div>
 
-      <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-6 max-w-2xl">
+      <div className="rounded-xl border border-slateui-200 bg-white p-6 max-w-2xl">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="name" className="block text-sm font-medium text-slate-200 mb-2">
+            <label htmlFor="name" className="block text-sm font-medium text-ink-900 mb-2">
               Organization Name
             </label>
             <input
@@ -68,15 +68,15 @@ export default function NewOrganizationPage() {
               placeholder="Smith & Associates Law Firm"
               required
               minLength={1}
-              className="w-full rounded-lg border border-slate-800 bg-slate-950/40 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-slate-700 focus:outline-none"
+              className="w-full rounded-lg border border-slateui-300 bg-white px-4 py-2 text-sm text-ink-900 placeholder:text-slateui-400 focus:border-slateui-500 focus:outline-none"
             />
-            <p className="mt-1 text-xs text-slate-400">
+            <p className="mt-1 text-xs text-slateui-600">
               A unique slug will be generated from this name.
             </p>
           </div>
 
           {error && (
-            <div className="rounded-lg border border-red-800 bg-red-950/20 px-4 py-3 text-sm text-red-400">
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
               {error}
             </div>
           )}

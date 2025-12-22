@@ -27,14 +27,14 @@ export default async function TeamPage() {
   if (!orgMember || !organizationId) {
     return (
       <main className="p-8 max-w-3xl mx-auto space-y-4">
-        <h1 className="text-xl font-semibold text-slate-50">
+        <h1 className="text-xl font-semibold text-ink-900">
           Firm team
         </h1>
-        <p className="text-sm text-slate-400">
+        <p className="text-sm text-slateui-600">
           Team management is available when you create or join an organization.
         </p>
-        <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-6 text-center">
-          <p className="text-slate-300 mb-4">
+        <div className="rounded-xl border border-slateui-200 bg-white p-6 text-center">
+          <p className="text-ink-900 mb-4">
             You need to create or join an organization to manage team members.
           </p>
           <a
@@ -125,10 +125,10 @@ export default async function TeamPage() {
 
   return (
     <main className="p-8 max-w-3xl mx-auto space-y-4">
-      <h1 className="text-xl font-semibold text-slate-50">
+      <h1 className="text-xl font-semibold text-ink-900">
         Firm team
       </h1>
-      <p className="text-sm text-slate-400">
+      <p className="text-sm text-slateui-600">
         Manage who has access to this firm&apos;s clients and registries.
       </p>
       <TeamManagement members={members} currentUserId={user.id} />

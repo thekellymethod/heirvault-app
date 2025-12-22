@@ -52,8 +52,8 @@ export default async function OrganizationsPage() {
       <div className="space-y-6">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-semibold text-slate-100">Organizations</h1>
-            <p className="text-sm text-slate-300">
+            <h1 className="text-2xl font-semibold text-ink-900">Organizations</h1>
+            <p className="text-sm text-slateui-600">
               Manage your organizations and team members.
             </p>
           </div>
@@ -65,8 +65,8 @@ export default async function OrganizationsPage() {
         </div>
 
             {orgsWithCounts.length === 0 ? (
-          <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-8 text-center">
-            <p className="text-slate-300 mb-4">
+          <div className="rounded-xl border border-slateui-200 bg-white p-8 text-center">
+            <p className="text-slateui-600 mb-4">
               You&apos;re not a member of any organizations yet.
             </p>
             <Link href="/dashboard/organizations/new">
@@ -74,8 +74,8 @@ export default async function OrganizationsPage() {
             </Link>
           </div>
         ) : (
-          <div className="rounded-xl border border-slate-800 bg-slate-950/40">
-            <div className="grid grid-cols-12 gap-2 border-b border-slate-800 px-4 py-3 text-xs font-semibold text-slate-400">
+          <div className="rounded-xl border border-slateui-200 bg-white">
+            <div className="grid grid-cols-12 gap-2 border-b border-slateui-200 px-4 py-3 text-xs font-semibold text-ink-900">
               <div className="col-span-4">Organization</div>
               <div className="col-span-2">Your Role</div>
               <div className="col-span-2">Members</div>
@@ -83,42 +83,42 @@ export default async function OrganizationsPage() {
               <div className="col-span-2 text-right">Actions</div>
             </div>
 
-            <div className="divide-y divide-slate-800">
+            <div className="divide-y divide-slateui-200">
               {orgsWithCounts.map((org) => (
                 <div
                   key={org.id}
-                  className="px-4 py-4 hover:bg-slate-900/40 transition-colors"
+                  className="px-4 py-4 hover:bg-slateui-50 transition-colors"
                 >
                   <div className="grid grid-cols-12 items-center gap-2">
                     <div className="col-span-4">
-                      <div className="text-sm font-medium text-slate-100">
+                      <div className="text-sm font-medium text-ink-900">
                         {org.name}
                       </div>
-                      <div className="text-xs text-slate-400">Slug: {org.slug}</div>
+                      <div className="text-xs text-slateui-600">Slug: {org.slug}</div>
                     </div>
                     <div className="col-span-2">
                       <span
                         className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
                           org.role === "OWNER"
-                            ? "bg-purple-500/20 text-purple-400"
+                            ? "bg-purple-100 text-purple-700"
                             : org.role === "ATTORNEY"
-                            ? "bg-blue-500/20 text-blue-400"
-                            : "bg-slate-500/20 text-slate-400"
+                            ? "bg-blue-100 text-blue-700"
+                            : "bg-slateui-100 text-slateui-700"
                         }`}
                       >
                         {org.role}
                       </span>
                     </div>
-                    <div className="col-span-2 text-sm text-slate-200">
+                    <div className="col-span-2 text-sm text-ink-900">
                       {org.memberCount} {org.memberCount === 1 ? "member" : "members"}
                     </div>
-                    <div className="col-span-2 text-xs text-slate-400">
+                    <div className="col-span-2 text-xs text-slateui-600">
                       {new Date(org.joinedAt).toLocaleDateString()}
                     </div>
                     <div className="col-span-2 text-right">
                       <Link
                         href={`/dashboard/organizations/${org.id}`}
-                        className="text-sm text-blue-400 hover:text-blue-300"
+                        className="text-sm text-blue-600 hover:text-blue-700"
                       >
                         Manage →
                       </Link>
@@ -136,11 +136,11 @@ export default async function OrganizationsPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-100">Error</h1>
-          <p className="text-sm text-slate-300">
+          <h1 className="text-2xl font-semibold text-ink-900">Error</h1>
+          <p className="text-sm text-slateui-600">
             Failed to load organizations. Please try refreshing the page.
           </p>
-          <p className="mt-2 text-xs text-slate-400">
+          <p className="mt-2 text-xs text-slateui-600">
             {error instanceof Error ? error.message : "Unknown error"}
           </p>
         </div>

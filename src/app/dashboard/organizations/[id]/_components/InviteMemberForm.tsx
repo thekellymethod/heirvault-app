@@ -49,7 +49,7 @@ export function InviteMemberForm({ organizationId }: InviteMemberFormProps) {
   return (
     <form onSubmit={handleSubmit} className="flex gap-2 items-end">
       <div className="flex-1">
-        <label htmlFor="email" className="block text-xs text-slate-400 mb-1">
+        <label htmlFor="email" className="block text-xs text-slateui-600 mb-1">
           Email
         </label>
         <input
@@ -59,18 +59,18 @@ export function InviteMemberForm({ organizationId }: InviteMemberFormProps) {
           onChange={(e) => setEmail(e.target.value)}
           placeholder="attorney@example.com"
           required
-          className="w-full rounded-lg border border-slate-800 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-slate-700 focus:outline-none"
+          className="w-full rounded-lg border border-slateui-300 bg-white px-3 py-2 text-sm text-ink-900 placeholder:text-slateui-400 focus:border-slateui-500 focus:outline-none"
         />
       </div>
       <div>
-        <label htmlFor="role" className="block text-xs text-slate-400 mb-1">
+        <label htmlFor="role" className="block text-xs text-slateui-600 mb-1">
           Role
         </label>
         <select
           id="role"
           value={role}
           onChange={(e) => setRole(e.target.value as "OWNER" | "ATTORNEY" | "STAFF")}
-          className="rounded-lg border border-slate-800 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:border-slate-700 focus:outline-none"
+          className="rounded-lg border border-slateui-300 bg-white px-3 py-2 text-sm text-ink-900 focus:border-slateui-500 focus:outline-none"
         >
           <option value="ATTORNEY">Attorney</option>
           <option value="STAFF">Staff</option>
@@ -81,10 +81,10 @@ export function InviteMemberForm({ organizationId }: InviteMemberFormProps) {
         {loading ? "Inviting..." : "Invite"}
       </Button>
       {error && (
-        <div className="text-xs text-red-400 mt-1">{error}</div>
+        <div className="text-xs text-red-700 mt-1">{error}</div>
       )}
       {success && (
-        <div className="text-xs text-green-400 mt-1">Invitation sent!</div>
+        <div className="text-xs text-green-700 mt-1">Invitation sent!</div>
       )}
     </form>
   );

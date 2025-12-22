@@ -76,11 +76,11 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-100">
+          <h1 className="text-2xl font-semibold text-ink-900">
             {client.firstName} {client.lastName}
           </h1>
-          <p className="text-sm text-slate-300">{client.email}</p>
-          <p className="text-xs text-slate-400">
+          <p className="text-sm text-slateui-600">{client.email}</p>
+          <p className="text-xs text-slateui-600">
             Client ID: {client.id}
           </p>
         </div>
@@ -94,7 +94,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
             <a
               href={`/api/clients/${client.id}/summary-pdf`}
               download
-              className="inline-flex items-center justify-center rounded-lg border border-slate-800 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-100 hover:bg-slate-800 transition-colors"
+              className="inline-flex items-center justify-center rounded-lg border border-slateui-300 bg-white px-4 py-2 text-sm font-medium text-ink-900 hover:bg-slateui-50 transition-colors"
             >
               <svg
                 className="mr-2 h-4 w-4"
@@ -114,7 +114,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
             <a
               href={`/api/clients/${client.id}/probate-summary`}
               download
-              className="inline-flex items-center justify-center rounded-lg border border-slate-800 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-100 hover:bg-slate-800 transition-colors"
+              className="inline-flex items-center justify-center rounded-lg border border-slateui-300 bg-white px-4 py-2 text-sm font-medium text-ink-900 hover:bg-slateui-50 transition-colors"
             >
               <svg
                 className="mr-2 h-4 w-4"
@@ -148,9 +148,9 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-5">
-          <div className="text-xs font-semibold text-slate-400">Policies</div>
-          <div className="mt-2 text-3xl font-semibold text-slate-100">
+        <div className="rounded-xl border border-slateui-200 bg-white p-5">
+          <div className="text-xs font-semibold text-slateui-600">Policies</div>
+          <div className="mt-2 text-3xl font-semibold text-ink-900">
             {client._count.policies}
           </div>
           <div className="mt-3">
@@ -160,9 +160,9 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
           </div>
         </div>
 
-        <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-5">
-          <div className="text-xs font-semibold text-slate-400">Beneficiaries</div>
-          <div className="mt-2 text-3xl font-semibold text-slate-100">
+        <div className="rounded-xl border border-slateui-200 bg-white p-5">
+          <div className="text-xs font-semibold text-slateui-600">Beneficiaries</div>
+          <div className="mt-2 text-3xl font-semibold text-ink-900">
             {client._count.beneficiaries}
           </div>
           <div className="mt-3">
@@ -172,9 +172,9 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
           </div>
         </div>
 
-        <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-5">
-          <div className="text-xs font-semibold text-slate-400">Registry status</div>
-          <div className="mt-2 text-sm text-slate-200">
+        <div className="rounded-xl border border-slateui-200 bg-white p-5">
+          <div className="text-xs font-semibold text-slateui-600">Registry status</div>
+          <div className="mt-2 text-sm text-ink-900">
             Keep going: add policies + attach beneficiaries.
           </div>
           <div className="mt-3 flex gap-2">
@@ -188,16 +188,16 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
         </div>
       </div>
 
-      <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-5">
-        <h2 className="text-sm font-semibold text-slate-100">Client information</h2>
-        <div className="mt-3 grid gap-2 text-sm text-slate-200">
-          <div><span className="text-slate-400">Phone:</span> {client.phone ?? "—"}</div>
+      <div className="rounded-xl border border-slateui-200 bg-white p-5">
+        <h2 className="text-sm font-semibold text-ink-900">Client information</h2>
+        <div className="mt-3 grid gap-2 text-sm text-ink-900">
+          <div><span className="text-slateui-600">Phone:</span> {client.phone ?? "—"}</div>
           <div>
-            <span className="text-slate-400">Date of birth:</span>{" "}
+            <span className="text-slateui-600">Date of birth:</span>{" "}
             {client.dateOfBirth ? new Date(client.dateOfBirth).toLocaleDateString() : "—"}
           </div>
-          <div><span className="text-slate-400">Created:</span> {new Date(client.createdAt).toLocaleString()}</div>
-          <div><span className="text-slate-400">Updated:</span> {new Date(client.updatedAt).toLocaleString()}</div>
+          <div><span className="text-slateui-600">Created:</span> {new Date(client.createdAt).toLocaleString()}</div>
+          <div><span className="text-slateui-600">Updated:</span> {new Date(client.updatedAt).toLocaleString()}</div>
         </div>
       </div>
     </div>

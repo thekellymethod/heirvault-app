@@ -28,17 +28,17 @@ export const viewport: Viewport = {
   maximumScale: 5,
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    <ClerkProvider 
-      signInUrl="/sign-in" 
-      signUpUrl="/sign-up"
-      signOutUrl="/sign-in"
-      afterSignOutUrl="/sign-in"
-    >
+    <ClerkProvider signInUrl="/sign-in" signUpUrl="/sign-up">
       <html lang="en" className={`${inter.variable} ${playfair.variable}`}>
         <body className="bg-paper-50 font-sans text-slateui-800 antialiased">
           {children}
+
           <Toaster
             position="top-right"
             toastOptions={{
@@ -52,16 +52,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 fontSize: "14px",
               },
               success: {
-                iconTheme: {
-                  primary: "#10b981",
-                  secondary: "#fff",
-                },
+                iconTheme: { primary: "#10b981", secondary: "#fff" },
               },
               error: {
-                iconTheme: {
-                  primary: "#ef4444",
-                  secondary: "#fff",
-                },
+                iconTheme: { primary: "#ef4444", secondary: "#fff" },
               },
             }}
           />

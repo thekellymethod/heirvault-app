@@ -3,12 +3,20 @@ import { Pool } from "pg";
 import * as schema from "./schema";
 import { eq, and, or, inArray, sql, desc, asc, like, ilike } from "drizzle-orm";
 
-const pool = new Pool({
+// Configure pool with SSL for Prisma/cloud databases
+const connectionConfig: any = {
   connectionString: process.env.DATABASE_URL,
-  connectionTimeoutMillis: 10000, // 10 second timeout
-  // Note: query_timeout and statement_timeout are PostgreSQL connection string parameters
-  // They should be set in the DATABASE_URL if needed, not here
-});
+  connectionTimeoutMillis: 30000, // 30 second timeout
+};
+
+// Enable SSL for Prisma and other cloud databases
+if (process.env.DATABASE_URL?.includes('prisma.io') || process.env.DATABASE_URL?.includes('neon.tech') || process.env.DATABASE_URL?.includes('supabase.co')) {
+  connectionConfig.ssl = {
+    rejectUnauthorized: false
+  };
+}
+
+const pool = new Pool(connectionConfig);
 
 // Create Drizzle instance
 export const db = drizzle(pool, { schema });

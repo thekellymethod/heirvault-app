@@ -27,15 +27,15 @@ export default async function BillingPage() {
     return (
       <main className="p-8 max-w-3xl mx-auto space-y-6">
         <section>
-          <h1 className="text-xl font-semibold text-slate-50">
+          <h1 className="text-xl font-semibold text-ink-900">
             Billing & subscription
           </h1>
-          <p className="mt-1 text-sm text-slate-400">
+          <p className="mt-1 text-sm text-slateui-600">
             Billing is available when you create or join an organization.
           </p>
         </section>
-        <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-6 text-center">
-          <p className="text-slate-300 mb-4">
+        <div className="rounded-xl border border-slateui-200 bg-white p-6 text-center">
+          <p className="text-ink-900 mb-4">
             You need to create or join an organization to manage billing.
           </p>
           <a
@@ -54,18 +54,18 @@ export default async function BillingPage() {
   return (
     <main className="p-8 max-w-3xl mx-auto space-y-6">
       <section>
-        <h1 className="text-xl font-semibold text-slate-50">
+        <h1 className="text-xl font-semibold text-ink-900">
           Billing & subscription
         </h1>
-        <p className="mt-1 text-sm text-slate-400">
+        <p className="mt-1 text-sm text-slateui-600">
           Manage your firm&apos;s subscription to HeirVault.
         </p>
       </section>
 
-      <section className="rounded-xl border border-slate-800 bg-slate-950/60 p-4 text-sm text-slate-300 space-y-2">
+      <section className="rounded-xl border border-slateui-200 bg-white p-4 text-sm text-ink-900 space-y-2">
         <div className="flex items-center justify-between">
           <div>
-            <div className="text-xs text-slate-400">Current plan</div>
+            <div className="text-xs text-slateui-600">Current plan</div>
             <div className="text-lg font-semibold">
               {org.billingPlan === "FREE" && "Free (evaluation)"}
               {org.billingPlan === "SOLO" && "Solo"}
@@ -73,14 +73,14 @@ export default async function BillingPage() {
               {org.billingPlan === "ENTERPRISE" && "Enterprise"}
             </div>
           </div>
-          <div className="text-xs text-slate-500">
+          <div className="text-xs text-slateui-600">
             Status:{" "}
-            <span className="text-emerald-300">
+            <span className="text-emerald-600">
               {org.billingStatus || "n/a"}
             </span>
           </div>
         </div>
-        <p className="text-xs text-slate-400">
+        <p className="text-xs text-slateui-600">
           Billing is handled securely by Stripe. We do not store card details.
         </p>
       </section>

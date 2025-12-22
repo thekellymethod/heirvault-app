@@ -45,8 +45,8 @@ export default async function ClientsPage() {
       <div className="space-y-6">
         <div className="flex items-start justify-between gap-4">
           <div>
-          <h1 className="text-2xl font-semibold text-slate-100">Clients</h1>
-          <p className="text-sm text-slate-300">
+          <h1 className="text-2xl font-semibold text-ink-900">Clients</h1>
+          <p className="text-sm text-slateui-600">
             Create and manage client registry profiles.
           </p>
           </div>
@@ -56,8 +56,8 @@ export default async function ClientsPage() {
             </Link>
         </div>
 
-      <div className="rounded-xl border border-slate-800 bg-slate-950/40 overflow-x-auto">
-        <div className="grid grid-cols-12 gap-2 border-b border-slate-800 px-4 py-3 text-xs font-semibold text-slate-400 min-w-[800px]">
+      <div className="rounded-xl border border-slateui-200 bg-white overflow-x-auto">
+        <div className="grid grid-cols-12 gap-2 border-b border-slateui-200 px-4 py-3 text-xs font-semibold text-ink-900 min-w-[800px]">
           <div className="col-span-4">Client</div>
           <div className="col-span-4 hidden md:block">Email</div>
           <div className="col-span-2 hidden sm:block">Phone</div>
@@ -77,26 +77,26 @@ export default async function ClientsPage() {
             }}
           />
         ) : (
-          <div className="divide-y divide-slate-800">
+          <div className="divide-y divide-slateui-200">
             {clientList.map((c) => (
               <Link
                 key={c.id}
                 href={`/dashboard/clients/${c.id}`}
-                className="block px-4 py-4 hover:bg-slate-900/40"
+                className="block px-4 py-4 hover:bg-slateui-50"
               >
                 <div className="grid grid-cols-12 items-center gap-2 min-w-[800px]">
                   <div className="col-span-4">
-                    <div className="text-sm font-medium text-slate-100">
+                    <div className="text-sm font-medium text-ink-900">
                       {c.firstName} {c.lastName}
                     </div>
-                    <div className="text-xs text-slate-400 hidden sm:block">ID: {c.id.substring(0, 8)}...</div>
-                    <div className="text-xs text-slate-400 sm:hidden">{c.email}</div>
+                    <div className="text-xs text-slateui-600 hidden sm:block">ID: {c.id.substring(0, 8)}...</div>
+                    <div className="text-xs text-slateui-600 sm:hidden">{c.email}</div>
                   </div>
-                  <div className="col-span-4 text-sm text-slate-200 hidden md:block">{c.email}</div>
-                  <div className="col-span-2 text-sm text-slate-200 hidden sm:block">
+                  <div className="col-span-4 text-sm text-ink-900 hidden md:block">{c.email}</div>
+                  <div className="col-span-2 text-sm text-ink-900 hidden sm:block">
                     {c.phone ?? "—"}
                   </div>
-                  <div className="col-span-2 text-right text-xs text-slate-400">
+                  <div className="col-span-2 text-right text-xs text-slateui-600">
                     <span className="hidden sm:inline">{new Date(c.updatedAt).toLocaleDateString()}</span>
                     <span className="sm:hidden">{new Date(c.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
                   </div>
@@ -116,11 +116,11 @@ export default async function ClientsPage() {
   return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-100">Error</h1>
-          <p className="text-sm text-slate-300">
+          <h1 className="text-2xl font-semibold text-ink-900">Error</h1>
+          <p className="text-sm text-slateui-600">
             Failed to load clients. Please try refreshing the page.
           </p>
-          <p className="mt-2 text-xs text-slate-400">
+          <p className="mt-2 text-xs text-slateui-600">
             {error instanceof Error ? error.message : "Unknown error"}
           </p>
         </div>

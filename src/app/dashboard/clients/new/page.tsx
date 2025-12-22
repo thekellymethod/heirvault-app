@@ -62,27 +62,27 @@ export default function NewClientPage() {
   return (
     <div className="max-w-2xl space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-slate-100">New Client</h1>
-        <p className="text-sm text-slate-300">
+        <h1 className="text-2xl font-semibold text-ink-900">New Client</h1>
+        <p className="text-sm text-slateui-600">
           Create a client profile for the life insurance registry.
         </p>
       </div>
 
       <form
         onSubmit={onSubmit}
-        className="rounded-xl border border-slate-800 bg-slate-950/40 p-5 space-y-4"
+        className="rounded-xl border border-slateui-200 bg-white p-5 space-y-4 shadow-sm"
       >
         {error ? (
-          <div className="rounded-lg border border-rose-900/60 bg-rose-950/30 px-4 py-3 text-sm text-rose-200">
+          <div className="rounded-lg border border-rose-300 bg-rose-50 px-4 py-3 text-sm text-rose-800">
             {error}
           </div>
         ) : null}
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <label className="space-y-1">
-            <div className="text-xs font-semibold text-slate-400">First name</div>
+            <div className="text-xs font-semibold text-ink-900">First name</div>
             <input
-              className="h-10 w-full rounded-md border border-slate-800 bg-slate-950 px-3 text-sm text-slate-100 outline-none focus:border-emerald-500"
+              className="h-10 w-full rounded-md border border-slateui-300 bg-white px-3 text-sm text-ink-900 placeholder:text-slateui-400 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
               value={form.firstName}
               onChange={(e) => setForm((f) => ({ ...f, firstName: e.target.value }))}
               required
@@ -90,9 +90,9 @@ export default function NewClientPage() {
           </label>
 
           <label className="space-y-1">
-            <div className="text-xs font-semibold text-slate-400">Last name</div>
+            <div className="text-xs font-semibold text-ink-900">Last name</div>
             <input
-              className="h-10 w-full rounded-md border border-slate-800 bg-slate-950 px-3 text-sm text-slate-100 outline-none focus:border-emerald-500"
+              className="h-10 w-full rounded-md border border-slateui-300 bg-white px-3 text-sm text-ink-900 placeholder:text-slateui-400 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
               value={form.lastName}
               onChange={(e) => setForm((f) => ({ ...f, lastName: e.target.value }))}
               required
@@ -101,10 +101,10 @@ export default function NewClientPage() {
         </div>
 
         <label className="space-y-1 block">
-          <div className="text-xs font-semibold text-slate-400">Email</div>
+          <div className="text-xs font-semibold text-ink-900">Email</div>
           <input
             type="email"
-            className="h-10 w-full rounded-md border border-slate-800 bg-slate-950 px-3 text-sm text-slate-100 outline-none focus:border-emerald-500"
+            className="h-10 w-full rounded-md border border-slateui-300 bg-white px-3 text-sm text-ink-900 placeholder:text-slateui-400 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
             value={form.email}
             onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
             required
@@ -113,9 +113,9 @@ export default function NewClientPage() {
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <label className="space-y-1">
-            <div className="text-xs font-semibold text-slate-400">Phone</div>
+            <div className="text-xs font-semibold text-ink-900">Phone</div>
             <input
-              className="h-10 w-full rounded-md border border-slate-800 bg-slate-950 px-3 text-sm text-slate-100 outline-none focus:border-emerald-500"
+              className="h-10 w-full rounded-md border border-slateui-300 bg-white px-3 text-sm text-ink-900 placeholder:text-slateui-400 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
               value={form.phone}
               onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
               placeholder="Optional"
@@ -123,10 +123,10 @@ export default function NewClientPage() {
           </label>
 
           <label className="space-y-1">
-            <div className="text-xs font-semibold text-slate-400">Date of birth</div>
+            <div className="text-xs font-semibold text-ink-900">Date of birth</div>
             <input
               type="date"
-              className="h-10 w-full rounded-md border border-slate-800 bg-slate-950 px-3 text-sm text-slate-100 outline-none focus:border-emerald-500"
+              className="h-10 w-full rounded-md border border-slateui-300 bg-white px-3 text-sm text-ink-900 placeholder:text-slateui-400 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
               value={form.dateOfBirth}
               onChange={(e) => setForm((f) => ({ ...f, dateOfBirth: e.target.value }))}
             />

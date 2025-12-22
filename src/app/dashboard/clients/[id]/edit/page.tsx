@@ -110,7 +110,7 @@ export default function EditClientPage() {
   if (loading) {
     return (
       <main className="p-8 max-w-2xl mx-auto">
-        <div className="text-slate-400">Loading client data...</div>
+        <div className="text-slateui-600">Loading client data...</div>
       </main>
     )
   }
@@ -121,28 +121,28 @@ export default function EditClientPage() {
       <div className="flex items-center gap-4">
         <Link
           href={`/dashboard/clients/${id}`}
-          className="text-slate-400 hover:text-slate-200"
+          className="text-slateui-600 hover:text-ink-900"
         >
           <ArrowLeft className="h-5 w-5" />
         </Link>
         <div>
-          <h1 className="text-2xl font-semibold text-slate-50">Edit Client</h1>
-          <p className="text-sm text-slate-400">Update client information</p>
+          <h1 className="text-2xl font-semibold text-ink-900">Edit Client</h1>
+          <p className="text-sm text-slateui-600">Update client information</p>
         </div>
       </div>
 
       {/* Form */}
       <form onSubmit={handleSubmit} className="space-y-6">
         {error && (
-          <div className="rounded-lg bg-red-500/10 border border-red-500/50 p-4 text-sm text-red-400">
+          <div className="rounded-lg bg-red-50 border border-red-200 p-4 text-sm text-red-700">
             {error}
           </div>
         )}
 
-        <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-6 space-y-4">
+        <div className="rounded-xl border border-slateui-200 bg-white p-6 space-y-4">
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-slate-300 mb-1">
-              Email <span className="text-red-400">*</span>
+            <label htmlFor="email" className="block text-sm font-medium text-ink-900 mb-1">
+              Email <span className="text-red-600">*</span>
             </label>
             <input
               type="email"
@@ -150,15 +150,15 @@ export default function EditClientPage() {
               required
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-50 placeholder:text-slate-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              className="w-full rounded-lg border border-slateui-300 bg-white px-3 py-2 text-sm text-ink-900 placeholder:text-slateui-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
               placeholder="client@example.com"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label htmlFor="firstName" className="block text-sm font-medium text-slate-300 mb-1">
-                First Name <span className="text-red-400">*</span>
+              <label htmlFor="firstName" className="block text-sm font-medium text-ink-900 mb-1">
+                First Name <span className="text-red-600">*</span>
               </label>
               <input
                 type="text"
@@ -166,13 +166,13 @@ export default function EditClientPage() {
                 required
                 value={formData.firstName}
                 onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-50 placeholder:text-slate-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                className="w-full rounded-lg border border-slateui-300 bg-white px-3 py-2 text-sm text-ink-900 placeholder:text-slateui-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
                 placeholder="John"
               />
             </div>
             <div>
-              <label htmlFor="lastName" className="block text-sm font-medium text-slate-300 mb-1">
-                Last Name <span className="text-red-400">*</span>
+              <label htmlFor="lastName" className="block text-sm font-medium text-ink-900 mb-1">
+                Last Name <span className="text-red-600">*</span>
               </label>
               <input
                 type="text"
@@ -180,14 +180,14 @@ export default function EditClientPage() {
                 required
                 value={formData.lastName}
                 onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-50 placeholder:text-slate-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                className="w-full rounded-lg border border-slateui-300 bg-white px-3 py-2 text-sm text-ink-900 placeholder:text-slateui-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
                 placeholder="Doe"
               />
             </div>
           </div>
 
           <div>
-            <label htmlFor="phone" className="block text-sm font-medium text-slate-300 mb-1">
+            <label htmlFor="phone" className="block text-sm font-medium text-ink-900 mb-1">
               Phone
             </label>
             <input
@@ -195,13 +195,13 @@ export default function EditClientPage() {
               id="phone"
               value={formData.phone}
               onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-50 placeholder:text-slate-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              className="w-full rounded-lg border border-slateui-300 bg-white px-3 py-2 text-sm text-ink-900 placeholder:text-slateui-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
               placeholder="(555) 123-4567"
             />
           </div>
 
           <div>
-            <label htmlFor="dateOfBirth" className="block text-sm font-medium text-slate-300 mb-1">
+            <label htmlFor="dateOfBirth" className="block text-sm font-medium text-ink-900 mb-1">
               Date of Birth
             </label>
             <input
@@ -209,7 +209,7 @@ export default function EditClientPage() {
               id="dateOfBirth"
               value={formData.dateOfBirth}
               onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
-              className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-50 placeholder:text-slate-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              className="w-full rounded-lg border border-slateui-300 bg-white px-3 py-2 text-sm text-ink-900 placeholder:text-slateui-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
             />
           </div>
         </div>

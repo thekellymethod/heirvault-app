@@ -40,8 +40,10 @@ export async function GET(req: Request) {
     let policies: any[] = [];
     
     try {
-      // Search clients using raw SQL
+      // Create search pattern once for reuse
       const searchPattern = `%${q.replace(/'/g, "''")}%`;
+      
+      // Search clients using raw SQL
       const clientsResult = await prisma.$queryRaw<Array<{
         id: string;
         first_name: string;
@@ -85,8 +87,7 @@ export async function GET(req: Request) {
         } : null,
       }));
 
-      // Search policies using raw SQL
-      const searchPattern = `%${q.replace(/'/g, "''")}%`;
+      // Search policies using raw SQL (reusing searchPattern)
       const policiesResult = await prisma.$queryRaw<Array<{
         policy_id: string;
         policy_number: string | null;

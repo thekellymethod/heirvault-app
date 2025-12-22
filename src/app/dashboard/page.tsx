@@ -12,10 +12,14 @@ import { AttorneyDashboardView } from "./_components/AttorneyDashboardView";
  * unnecessary document detail.
  */
 export default async function DashboardPage() {
-  const { userId } = await requireAuth();
+  // requireAuth will throw if user is not authenticated, which should
+  // be caught by the error boundary. The proxy middleware should have
+  // already redirected unauthenticated users, but we double-check here.
+  const user = await requireAuth();
 
   // Get all policies with key metadata
-  const policies = await prisma.$queryRawUnsafe<Array<{
+  // Note: verification_status column may not exist yet, so we query without it and set a default
+  let policies: Array<{
     id: string;
     policy_number: string | null;
     policy_type: string | null;
@@ -29,47 +33,104 @@ export default async function DashboardPage() {
     insurer_id: string;
     insurer_name: string;
     document_count: number;
-  }>>(`
-    SELECT 
-      p.id,
-      p.policy_number,
-      p.policy_type,
-      p.verification_status,
-      p.updated_at,
-      p.created_at,
-      p.client_id,
-      c.first_name as client_first_name,
-      c.last_name as client_last_name,
-      c.email as client_email,
-      i.id as insurer_id,
-      i.name as insurer_name,
-      COUNT(DISTINCT d.id)::int as document_count
-    FROM policies p
-    INNER JOIN clients c ON c.id = p.client_id
-    INNER JOIN insurers i ON i.id = p.insurer_id
-    LEFT JOIN documents d ON d.policy_id = p.id
-    GROUP BY p.id, c.first_name, c.last_name, c.email, i.id, i.name
-    ORDER BY p.updated_at DESC
-    LIMIT 100
-  `);
+  }>;
+
+  try {
+    // Try querying with verification_status (if column exists)
+    policies = await prisma.$queryRawUnsafe(`
+      SELECT 
+        p.id,
+        p.policy_number,
+        p.policy_type,
+        COALESCE(p.verification_status::text, 'PENDING') as verification_status,
+        p.updated_at,
+        p.created_at,
+        p.client_id,
+        c.first_name as client_first_name,
+        c.last_name as client_last_name,
+        c.email as client_email,
+        i.id as insurer_id,
+        i.name as insurer_name,
+        COUNT(DISTINCT d.id)::int as document_count
+      FROM policies p
+      INNER JOIN clients c ON c.id = p.client_id
+      INNER JOIN insurers i ON i.id = p.insurer_id
+      LEFT JOIN documents d ON d.policy_id = p.id
+      GROUP BY p.id, p.policy_number, p.policy_type, p.verification_status, p.updated_at, p.created_at, p.client_id, c.first_name, c.last_name, c.email, i.id, i.name
+      ORDER BY p.updated_at DESC
+      LIMIT 100
+    `);
+  } catch (error: unknown) {
+    // If verification_status doesn't exist, query without it and set default
+    const err = error as { code?: string; message?: string };
+    if (err?.code === '42703' || err?.message?.includes('verification_status')) {
+      policies = await prisma.$queryRawUnsafe(`
+        SELECT 
+          p.id,
+          p.policy_number,
+          p.policy_type,
+          'PENDING' as verification_status,
+          p.updated_at,
+          p.created_at,
+          p.client_id,
+          c.first_name as client_first_name,
+          c.last_name as client_last_name,
+          c.email as client_email,
+          i.id as insurer_id,
+          i.name as insurer_name,
+          COUNT(DISTINCT d.id)::int as document_count
+        FROM policies p
+        INNER JOIN clients c ON c.id = p.client_id
+        INNER JOIN insurers i ON i.id = p.insurer_id
+        LEFT JOIN documents d ON d.policy_id = p.id
+        GROUP BY p.id, p.policy_number, p.policy_type, p.updated_at, p.created_at, p.client_id, c.first_name, c.last_name, c.email, i.id, i.name
+        ORDER BY p.updated_at DESC
+        LIMIT 100
+      `);
+    } else {
+      throw error;
+    }
+  }
 
   // Get summary statistics
-  const stats = await prisma.$queryRawUnsafe<Array<{
+  // Note: verification_status may not exist, so we handle it gracefully
+  let stats: Array<{
     total_policies: number;
     pending_verification: number;
     verified: number;
     discrepancy: number;
     total_clients: number;
-  }>>(`
-    SELECT 
-      COUNT(DISTINCT p.id)::int as total_policies,
-      COUNT(DISTINCT CASE WHEN p.verification_status = 'PENDING' THEN p.id END)::int as pending_verification,
-      COUNT(DISTINCT CASE WHEN p.verification_status = 'VERIFIED' THEN p.id END)::int as verified,
-      COUNT(DISTINCT CASE WHEN p.verification_status = 'DISCREPANCY' THEN p.id END)::int as discrepancy,
-      COUNT(DISTINCT c.id)::int as total_clients
-    FROM policies p
-    INNER JOIN clients c ON c.id = p.client_id
-  `);
+  }>;
+
+  try {
+    stats = await prisma.$queryRawUnsafe(`
+      SELECT 
+        COUNT(DISTINCT p.id)::int as total_policies,
+        COUNT(DISTINCT CASE WHEN COALESCE(p.verification_status::text, 'PENDING') = 'PENDING' THEN p.id END)::int as pending_verification,
+        COUNT(DISTINCT CASE WHEN COALESCE(p.verification_status::text, 'PENDING') = 'VERIFIED' THEN p.id END)::int as verified,
+        COUNT(DISTINCT CASE WHEN COALESCE(p.verification_status::text, 'PENDING') = 'DISCREPANCY' THEN p.id END)::int as discrepancy,
+        COUNT(DISTINCT c.id)::int as total_clients
+      FROM policies p
+      INNER JOIN clients c ON c.id = p.client_id
+    `);
+  } catch (error: unknown) {
+    // If verification_status doesn't exist, count all as pending
+    const err = error as { code?: string; message?: string };
+    if (err?.code === '42703' || err?.message?.includes('verification_status')) {
+      stats = await prisma.$queryRawUnsafe(`
+        SELECT 
+          COUNT(DISTINCT p.id)::int as total_policies,
+          COUNT(DISTINCT p.id)::int as pending_verification,
+          0::int as verified,
+          0::int as discrepancy,
+          COUNT(DISTINCT c.id)::int as total_clients
+        FROM policies p
+        INNER JOIN clients c ON c.id = p.client_id
+      `);
+    } else {
+      throw error;
+    }
+  }
 
   const summaryStats = stats[0] || {
     total_policies: 0,
