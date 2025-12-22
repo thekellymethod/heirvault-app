@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { db, attorneyClientAccess, clients, beneficiaries, eq, desc, and, or, ilike } from "@/lib/db";
 import { requireAuth } from "@/lib/utils/clerk";
+import { SortSelect } from "@/components/ui/sort-select";
 
 export default async function BeneficiariesPage({
   searchParams,
@@ -131,24 +132,17 @@ export default async function BeneficiariesPage({
               </a>
             )}
           </form>
-          <form method="get" className="flex gap-2">
-            <input type="hidden" name="search" value={searchTerm} />
-            <select
-              name="sort"
-              title="Sort by"
-              defaultValue={sortBy}
-              onChange={(e) => {
-                const form = e.currentTarget.form;
-                if (form) form.submit();
-              }}
-              className="rounded-lg border border-slateui-300 bg-white px-4 py-2 text-sm text-ink-900 focus:border-slateui-500 focus:outline-none"
-            >
-              <option value="createdAt">Newest First</option>
-              <option value="clientName">Client Name</option>
-              <option value="beneficiaryName">Beneficiary Name</option>
-              <option value="relationship">Relationship</option>
-            </select>
-          </form>
+          <SortSelect
+            name="sort"
+            defaultValue={sortBy}
+            options={[
+              { value: "createdAt", label: "Newest First" },
+              { value: "clientName", label: "Client Name" },
+              { value: "beneficiaryName", label: "Beneficiary Name" },
+              { value: "relationship", label: "Relationship" },
+            ]}
+            className="rounded-lg border border-slateui-300 bg-white px-4 py-2 text-sm text-ink-900 focus:border-slateui-500 focus:outline-none"
+          />
         </div>
 
         <div className="rounded-xl border border-slateui-200 bg-white">
