@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { db, sql } from "@/lib/db";
 import { createRegistryRecord, appendRegistryVersion, getRegistryById, getRegistryVersions } from "@/lib/db";
 import { sha256String, sha256Buffer } from "@/lib/hash";
@@ -27,7 +27,7 @@ export const runtime = "nodejs";
  * - Permissions
  * - Roles
  */
-export async function GET(_req: NextRequest) {
+export async function GET() {
   try {
     const results: Record<string, unknown> = {};
 
