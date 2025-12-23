@@ -170,17 +170,11 @@ export async function POST(
           },
         });
 
-        if (extractedData) {
-          const data = extractedData; // Capture for type narrowing
-          console.log("OCR extraction completed:", {
-            fileName: file.name,
-            confidence: ocrResult.confidence,
-            extractedFields: Object.keys(data).filter((k) => {
-              const key = k as keyof typeof data;
-              return data[key] !== null;
-            }),
-          });
-        }
+        console.log("OCR extraction completed:", {
+          fileName: file.name,
+          confidence: ocrResult.confidence,
+          extractedFields: Object.keys(extractedData).filter((k) => extractedData[k] !== null),
+        });
       } catch (ocrError: unknown) {
         const errorMessage = ocrError instanceof Error ? ocrError.message : String(ocrError);
         console.error("OCR extraction error:", errorMessage);
@@ -249,13 +243,10 @@ export async function POST(
           // Insurer not found - store raw name instead (lazy insurers)
           carrierNameRaw = finalPolicyData.insurerName;
         }
-      } catch (sqlError: unknown) {
-        const errorMessage = sqlError instanceof Error ? sqlError.message : String(sqlError);
-        console.error("Upload policy: Insurer lookup failed:", errorMessage);
+      } catch (sqlError: any) {
+        console.error("Upload policy: Insurer lookup failed:", sqlError.message);
         // Store raw name as fallback
-        if (finalPolicyData?.insurerName && typeof finalPolicyData.insurerName === "string") {
-          carrierNameRaw = finalPolicyData.insurerName;
-        }
+        carrierNameRaw = finalPolicyData.insurerName;
       }
     }
 
@@ -301,9 +292,8 @@ export async function POST(
         await prisma.$executeRaw`
           UPDATE documents SET policy_id = ${policy.id}, updated_at = NOW() WHERE id = ${archivedDocument.id}
         `;
-      } catch (sqlError: unknown) {
-        const errorMessage = sqlError instanceof Error ? sqlError.message : String(sqlError);
-        console.error("Upload policy: Raw SQL document update failed:", errorMessage);
+      } catch (sqlError: any) {
+        console.error("Upload policy: Raw SQL document update failed:", sqlError.message);
         // Continue - document update is not critical
       }
     }
@@ -313,9 +303,14 @@ export async function POST(
       try {
         const { audit } = await import("@/lib/audit");
         await audit(AuditAction.DOCUMENT_PROCESSED, {
-          message: `Document processed: ${typeof archivedDocument.fileName === "string" ? archivedDocument.fileName : "unknown"}${extractedData ? " (OCR successful)" : " (manual entry required)"}`,
+          resourceType: "document",
+          resourceId: archivedDocument.id,
           clientId: invite.clientId,
-          policyId: policy?.id || undefined,
+          policyId: policy?.id || null,
+          details: {
+            fileName: typeof archivedDocument.fileName === "string" ? archivedDocument.fileName : "unknown",
+            ocrSuccessful: extractedData !== null,
+          },
         });
       } catch (auditError: unknown) {
         const errorMessage = auditError instanceof Error ? auditError.message : String(auditError);
@@ -341,7 +336,7 @@ export async function POST(
     if (clientData) {
       try {
         clientInfo = JSON.parse(clientData);
-      } catch {
+      } catch (e) {
         // Invalid JSON, ignore
       }
     }
@@ -353,9 +348,9 @@ export async function POST(
         const lastName = clientInfo?.lastName || finalPolicyData?.lastName || invite.client.lastName;
         const email = clientInfo?.email || invite.client.email;
         const phone = clientInfo?.phone || finalPolicyData?.phone || invite.client.phone || null;
-        const dateOfBirth = clientInfo?.dateOfBirth && (typeof clientInfo.dateOfBirth === "string" || clientInfo.dateOfBirth instanceof Date)
+        const dateOfBirth = clientInfo?.dateOfBirth
           ? new Date(clientInfo.dateOfBirth)
-          : finalPolicyData?.dateOfBirth && typeof finalPolicyData.dateOfBirth === "string"
+          : finalPolicyData?.dateOfBirth
           ? new Date(finalPolicyData.dateOfBirth)
           : invite.client.dateOfBirth;
         
@@ -363,12 +358,12 @@ export async function POST(
         const { generateClientFingerprint } = await import("@/lib/client-fingerprint");
         const fingerprint = generateClientFingerprint({
           email,
-          firstName: typeof firstName === "string" ? firstName : "",
-          lastName: typeof lastName === "string" ? lastName : "",
+          firstName,
+          lastName,
           dateOfBirth,
-          ssnLast4: (clientInfo?.ssnLast4 && typeof clientInfo.ssnLast4 === "string") ? clientInfo.ssnLast4 : null,
-          passportNumber: (clientInfo?.passportNumber && typeof clientInfo.passportNumber === "string") ? clientInfo.passportNumber : null,
-          driversLicense: (clientInfo?.driversLicense && typeof clientInfo.driversLicense === "string") ? clientInfo.driversLicense : null,
+          ssnLast4: clientInfo?.ssnLast4 || null,
+          passportNumber: clientInfo?.passportNumber || null,
+          driversLicense: clientInfo?.driversLicense || null,
         });
         
         await prisma.$executeRaw`
@@ -387,9 +382,8 @@ export async function POST(
             updated_at = NOW()
           WHERE id = ${invite.clientId}
         `;
-      } catch (sqlError: unknown) {
-        const errorMessage = sqlError instanceof Error ? sqlError.message : String(sqlError);
-        console.error("Upload policy: Raw SQL client update failed:", errorMessage);
+      } catch (sqlError: any) {
+        console.error("Upload policy: Raw SQL client update failed:", sqlError.message);
         // Continue - client update is not critical for policy upload
       }
     }
@@ -400,9 +394,8 @@ export async function POST(
         await prisma.$executeRaw`
           UPDATE client_invites SET used_at = ${now}, updated_at = NOW() WHERE id = ${invite.id}
         `;
-      } catch (sqlError: unknown) {
-        const errorMessage = sqlError instanceof Error ? sqlError.message : String(sqlError);
-        console.error("Upload policy: Raw SQL invite update failed:", errorMessage);
+      } catch (sqlError: any) {
+        console.error("Upload policy: Raw SQL invite update failed:", sqlError.message);
         // Continue - marking invite as used is not critical
       }
     }
@@ -411,24 +404,8 @@ export async function POST(
     const receiptId = `REC-${invite.clientId}-${Date.now()}`;
 
     // Get organization and attorney info for emails - use raw SQL first
-    type OrganizationInfo = {
-      id: string;
-      name: string;
-      addressLine1: string | null;
-      addressLine2: string | null;
-      city: string | null;
-      state: string | null;
-      postalCode: string | null;
-      phone: string | null;
-    };
-    type AttorneyInfo = {
-      id: string;
-      email: string;
-      firstName: string | null;
-      lastName: string | null;
-    };
-    let organization: OrganizationInfo | null = null;
-    let attorney: AttorneyInfo | null = null;
+    let organization: { id: string; name: string; [key: string]: unknown } | null = null;
+    let attorney: { id: string; email: string; [key: string]: unknown } | null = null;
     try {
       const accessResult = await prisma.$queryRaw<Array<{
         attorney_id: string;
@@ -472,7 +449,7 @@ export async function POST(
           email: row.attorney_email,
           firstName: row.attorney_first_name,
           lastName: row.attorney_last_name,
-        } as AttorneyInfo;
+        };
         organization = {
           id: row.org_id,
           name: row.org_name,
@@ -482,36 +459,15 @@ export async function POST(
           state: row.org_state,
           postalCode: row.org_postal_code,
           phone: row.org_phone,
-        } as OrganizationInfo;
+        };
       }
-      } catch (sqlError: unknown) {
-        const errorMessage = sqlError instanceof Error ? sqlError.message : String(sqlError);
-        console.error("Upload policy: Raw SQL access lookup failed:", errorMessage);
+    } catch (sqlError: any) {
+      console.error("Upload policy: Raw SQL access lookup failed:", sqlError.message);
       // Continue without org/attorney info - emails will be skipped
     }
 
     // Get updated client with policies for receipt - use raw SQL
-    type UpdatedClient = {
-      id: string;
-      firstName: string;
-      lastName: string;
-      email: string;
-      phone: string | null;
-      dateOfBirth: Date | null;
-      createdAt: Date;
-      policies: Array<{
-        id: string;
-        policyNumber: string | null;
-        policyType: string | null;
-        carrierNameRaw: string | null;
-        insurer: {
-          name: string;
-          contactPhone: string | null;
-          contactEmail: string | null;
-        } | null;
-      }>;
-    };
-    let updatedClient: UpdatedClient | null = null;
+    let updatedClient: { id: string; [key: string]: unknown } | null = null;
     try {
       const [clientResult, policiesResult] = await Promise.all([
         prisma.$queryRaw<Array<{
@@ -559,15 +515,7 @@ export async function POST(
           phone: clientRow.phone,
           dateOfBirth: clientRow.date_of_birth,
           createdAt: clientRow.created_at,
-          policies: (policiesResult || []).map((p: {
-            id: string;
-            policy_number: string | null;
-            policy_type: string | null;
-            carrier_name_raw: string | null;
-            insurer_name: string | null;
-            insurer_contact_phone: string | null;
-            insurer_contact_email: string | null;
-          }) => ({
+          policies: (policiesResult || []).map(p => ({
             id: p.id,
             policyNumber: p.policy_number,
             policyType: p.policy_type,
@@ -597,27 +545,25 @@ export async function POST(
         phone: updatedClient?.phone || invite.client.phone,
         dateOfBirth: updatedClient?.dateOfBirth || invite.client.dateOfBirth,
       },
-      policies: updatedClient?.policies
-        .map((p) => ({
-          id: p.id,
-          policyNumber: p.policyNumber,
-          policyType: p.policyType,
-          // Use resolved insurer if available, otherwise fall back to carrierNameRaw (lazy insurers)
-          insurer: p.insurer || {
-            name: p.carrierNameRaw || "Unknown Insurer",
-            contactPhone: null,
-            contactEmail: null,
-          },
-        })) || [],
+      policies: updatedClient?.policies.map((p) => ({
+        id: p.id,
+        policyNumber: p.policyNumber,
+        policyType: p.policyType,
+        insurer: {
+          name: p.insurer.name,
+          contactPhone: p.insurer.contactPhone,
+          contactEmail: p.insurer.contactEmail,
+        },
+      })) || [],
       organization: organization
         ? {
             name: organization.name,
-            addressLine1: typeof organization.addressLine1 === "string" ? organization.addressLine1 : undefined,
-            addressLine2: typeof organization.addressLine2 === "string" ? organization.addressLine2 : undefined,
-            city: typeof organization.city === "string" ? organization.city : undefined,
-            state: typeof organization.state === "string" ? organization.state : undefined,
-            postalCode: typeof organization.postalCode === "string" ? organization.postalCode : undefined,
-            phone: typeof organization.phone === "string" ? organization.phone : undefined,
+            addressLine1: organization.addressLine1,
+            addressLine2: organization.addressLine2,
+            city: organization.city,
+            state: organization.state,
+            postalCode: organization.postalCode,
+            phone: organization.phone,
           }
         : null,
       registeredAt: updatedClient?.createdAt || invite.client.createdAt,
@@ -641,8 +587,7 @@ export async function POST(
 
       // Convert stream to buffer
       const chunks: Uint8Array[] = [];
-      const stream = pdfStream as unknown as ReadableStream<Uint8Array>;
-      const reader = stream.getReader();
+      const reader = pdfStream.getReader();
       let done = false;
 
       while (!done) {
@@ -681,8 +626,7 @@ export async function POST(
     if (attorney && organization) {
       const baseUrl = process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin;
       const updateUrl = `${baseUrl}/qr-update/${token}`;
-      const attorneyEmail: string | null = attorney.email || 
-        (organization.phone && organization.phone.includes("@") ? organization.phone : null);
+      const attorneyEmail = attorney.email || organization.phone; // Use organization contact if attorney email not available
       
       if (attorneyEmail && attorneyEmail.includes("@")) {
         emailPromises.push(
@@ -715,8 +659,9 @@ export async function POST(
     });
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("Error uploading policy:", errorMessage);
+    console.error("Error uploading policy:", error);
     // Always return JSON, never HTML
+    const errorMessage = error?.message || "Internal server error";
     return NextResponse.json(
       { error: errorMessage },
       { 
