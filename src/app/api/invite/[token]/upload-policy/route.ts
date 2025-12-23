@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { renderToStream } from "@react-pdf/renderer";
 import { AuditAction } from "@/lib/db/enums";
-import { ClientBallotPDF } from "@/pdfs/ClientBallotPDF";
-import QRCode from "qrcode";
+import { ClientReceiptPDF } from "@/pdfs/ClientReceiptPDF";
 import { sendClientReceiptEmail, sendAttorneyNotificationEmail } from "@/lib/email";
 import { extractPolicyData } from "@/lib/ocr";
 import { uploadDocument } from "@/lib/storage";
@@ -11,7 +10,6 @@ import { prisma } from "@/lib/prisma";
 import { getOrCreateTestInvite } from "@/lib/test-invites";
 import { randomUUID } from "crypto";
 import { lookupClientInvite } from "@/lib/invite-lookup";
-import { generateDocumentHash } from "@/lib/document-hash";
 
 export const runtime = "nodejs";
 
@@ -39,16 +37,7 @@ export async function POST(
     }
 
     const now = new Date();
-    
-    // Check if invite has been used (one-time use enforcement)
-    if (invite.usedAt) {
-      return NextResponse.json(
-        { error: "This invitation code has already been used. Please request a new code from your attorney." },
-        { status: 400 }
-      );
-    }
-    
-    // Check expiration (with 30 day grace period for updates)
+    // Allow updates even after invite is used, but check expiration (with 30 day grace period)
     const daysSinceExpiration = (now.getTime() - invite.expiresAt.getTime()) / (1000 * 60 * 60 * 24);
     if (daysSinceExpiration > 30) {
       return NextResponse.json(
@@ -128,105 +117,63 @@ export async function POST(
         const arrayBuffer = await file.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
 
-        // Generate document hash for duplicate detection and integrity verification
-        const documentHash = generateDocumentHash(buffer);
+        // Extract data using OCR
+        const ocrResult = await extractPolicyData(file, buffer);
+        extractedData = {
+          firstName: ocrResult.firstName,
+          lastName: ocrResult.lastName,
+          email: ocrResult.email,
+          phone: ocrResult.phone,
+          dateOfBirth: ocrResult.dateOfBirth,
+          policyNumber: ocrResult.policyNumber,
+          policyType: ocrResult.policyType,
+          insurerName: ocrResult.insurerName,
+          insurerPhone: ocrResult.insurerPhone,
+          insurerEmail: ocrResult.insurerEmail,
+        };
 
-        // Check for duplicate document by hash
-        const existingDocument = await prisma.$queryRawUnsafe<Array<{ id: string; client_id: string }>>(`
-          SELECT id, client_id FROM documents WHERE document_hash = $1 LIMIT 1
-        `, documentHash);
-
-        if (existingDocument && existingDocument.length > 0) {
-          // Document already exists - use existing document
-          archivedDocument = await prisma.document.findUnique({
-            where: { id: existingDocument[0].id },
-          });
-          
-          // If document belongs to different client, log warning but continue
-          if (archivedDocument && archivedDocument.clientId !== invite.clientId) {
-            console.warn(`Document hash collision detected: ${documentHash} - document belongs to different client`);
-          }
-          
-          // Try to get extracted data from existing document
-          if (archivedDocument && archivedDocument.extractedData) {
-            try {
-              extractedData = typeof archivedDocument.extractedData === 'string' 
-                ? JSON.parse(archivedDocument.extractedData)
-                : archivedDocument.extractedData;
-            } catch {
-              // If parsing fails, proceed with OCR
-            }
-          }
-        }
-
-        // If document doesn't exist or OCR data not available, perform OCR
-        let ocrConfidence = 0;
-        if (!extractedData) {
-          // Extract data using OCR
-          const ocrResult = await extractPolicyData(file, buffer);
-          ocrConfidence = ocrResult.confidence;
-          extractedData = {
-            firstName: ocrResult.firstName,
-            lastName: ocrResult.lastName,
-            email: ocrResult.email,
-            phone: ocrResult.phone,
-            dateOfBirth: ocrResult.dateOfBirth,
-            policyNumber: ocrResult.policyNumber,
-            policyType: ocrResult.policyType,
-            insurerName: ocrResult.insurerName,
-            insurerPhone: ocrResult.insurerPhone,
-            insurerEmail: ocrResult.insurerEmail,
-          };
-        } else if (archivedDocument && typeof archivedDocument.ocrConfidence === 'number') {
-          // Use existing OCR confidence if available
-          ocrConfidence = archivedDocument.ocrConfidence;
-        }
-
-        // Archive the original file if not already archived
-        if (!archivedDocument) {
-          const fileArrayBuffer = await file.arrayBuffer();
-          const { storagePath } = await uploadDocument({
-            fileBuffer: fileArrayBuffer,
-            filename: file.name,
-            contentType: file.type,
-          });
-          const filePath = storagePath;
-          
-          // Store document record in database with hash
-          archivedDocument = await prisma.document.create({
-            data: {
-              clientId: invite.clientId,
-              fileName: file.name,
-              fileType: file.type,
-              fileSize: file.size,
-              filePath: filePath,
-              mimeType: file.type,
-              uploadedVia: "invite",
-              extractedData: extractedData,
-              ocrConfidence: ocrConfidence,
-              documentHash: documentHash,
-            },
-          });
-        }
-
-        // Log document upload with comprehensive audit trail
-        try {
-          const { audit } = await import("@/lib/audit");
-          await audit(AuditAction.DOCUMENT_UPLOADED, {
+        // Archive the original file
+        const fileArrayBuffer = await file.arrayBuffer();
+        const { storagePath } = await uploadDocument({
+          fileBuffer: fileArrayBuffer,
+          filename: file.name,
+          contentType: file.type,
+        });
+        const filePath = storagePath;
+        
+        // Store document record in database
+        archivedDocument = await prisma.document.create({
+          data: {
             clientId: invite.clientId,
-            message: `Policy document uploaded and processed via OCR: ${file.name} (Hash: ${documentHash.substring(0, 16)}...)`,
-            userId: null, // Public route
-          });
-        } catch (auditError: unknown) {
-          console.error("Upload policy: Document upload audit logging failed:", auditError);
-          // Continue - audit is non-critical but log error
-        }
+            fileName: file.name,
+            fileType: file.type,
+            fileSize: file.size,
+            filePath: filePath,
+            mimeType: file.type,
+            uploadedVia: "invite",
+            extractedData: extractedData,
+            ocrConfidence: ocrResult.confidence,
+          },
+        });
+
+        // Log document upload (public route - no user context)
+        await prisma.audit_logs.create({
+          data: {
+            id: randomUUID(),
+            action: AuditAction.DOCUMENT_UPLOADED,
+            message: `Policy document uploaded and processed via OCR: ${file.name}`,
+            client_id: invite.clientId,
+            user_id: null,
+            org_id: null,
+            policy_id: null,
+            created_at: new Date(),
+          },
+        });
 
         console.log("OCR extraction completed:", {
           fileName: file.name,
-          confidence: ocrConfidence,
+          confidence: ocrResult.confidence,
           extractedFields: Object.keys(extractedData).filter((k) => extractedData[k] !== null),
-          documentHash: documentHash ? documentHash.substring(0, 16) + "..." : "none",
         });
       } catch (ocrError: unknown) {
         const errorMessage = ocrError instanceof Error ? ocrError.message : String(ocrError);
@@ -308,83 +255,29 @@ export async function POST(
     let policy: { id: string } | null = null;
     if (finalPolicyData?.insurerName && !isChangeRequest) {
       try {
-        // Enhanced duplicate detection: Check by document hash first, then by policy number + insurer
-        const docHash = archivedDocument?.documentHash || null;
-        let existingPolicyResult: Array<{ id: string }> = [];
-        
-        // First check by document hash (most reliable - same document = same policy)
-        if (docHash) {
-          const hashMatch = await prisma.$queryRawUnsafe<Array<{ id: string }>>(`
-            SELECT p.id FROM policies p
-            INNER JOIN documents d ON d.policy_id = p.id
-            WHERE p.client_id = $1 AND d.document_hash = $2
-            LIMIT 1
-          `, invite.clientId, docHash);
-          
-          if (hashMatch && hashMatch.length > 0) {
-            existingPolicyResult = hashMatch;
-          }
-        }
-        
-        // If no hash match, check by policy number + insurer (fallback)
-        if (existingPolicyResult.length === 0) {
-          existingPolicyResult = await prisma.$queryRaw<Array<{ id: string }>>`
-            SELECT id FROM policies 
-            WHERE client_id = ${invite.clientId} 
-              AND (policy_number = ${finalPolicyData?.policyNumber || null} OR (policy_number IS NULL AND ${finalPolicyData?.policyNumber || null} IS NULL))
-              AND (
-                (insurer_id IS NOT NULL AND insurer_id = ${insurer?.id || null})
-                OR (insurer_id IS NULL AND carrier_name_raw = ${carrierNameRaw || null})
-              )
-            LIMIT 1
-          `;
-        }
+        // Check if policy already exists using raw SQL
+        // Match by client_id, policy_number, and either insurer_id or carrier_name_raw
+        const existingPolicyResult = await prisma.$queryRaw<Array<{ id: string }>>`
+          SELECT id FROM policies 
+          WHERE client_id = ${invite.clientId} 
+            AND (policy_number = ${finalPolicyData?.policyNumber || null} OR (policy_number IS NULL AND ${finalPolicyData?.policyNumber || null} IS NULL))
+            AND (
+              (insurer_id IS NOT NULL AND insurer_id = ${insurer?.id || null})
+              OR (insurer_id IS NULL AND carrier_name_raw = ${carrierNameRaw || null})
+            )
+          LIMIT 1
+        `;
         
         if (existingPolicyResult && existingPolicyResult.length > 0) {
           policy = { id: existingPolicyResult[0].id };
-          
-          // Log duplicate detection
-          try {
-            const { audit } = await import("@/lib/audit");
-            await audit(AuditAction.POLICY_UPDATED, {
-              clientId: invite.clientId,
-              policyId: policy.id,
-              message: `Duplicate policy upload detected and prevented: ${finalPolicyData?.policyNumber || 'No policy number'} - ${finalPolicyData?.insurerName || carrierNameRaw || 'Unknown insurer'}`,
-              userId: null,
-            });
-          } catch (auditError: unknown) {
-            console.error("Upload policy: Duplicate detection audit logging failed:", auditError);
-          }
         } else {
-          // Create new policy using raw SQL with verification_status and document_hash
+          // Create new policy using raw SQL
           const policyId = randomUUID();
-          
           await prisma.$executeRaw`
-            INSERT INTO policies (
-              id, client_id, insurer_id, carrier_name_raw, policy_number, policy_type, 
-              verification_status, document_hash, created_at, updated_at
-            )
-            VALUES (
-              ${policyId}, ${invite.clientId}, ${insurer?.id || null}, ${carrierNameRaw}, 
-              ${finalPolicyData?.policyNumber || null}, ${finalPolicyData?.policyType || null}, 
-              'PENDING', ${docHash}, NOW(), NOW()
-            )
+            INSERT INTO policies (id, client_id, insurer_id, carrier_name_raw, policy_number, policy_type, created_at, updated_at)
+            VALUES (${policyId}, ${invite.clientId}, ${insurer?.id || null}, ${carrierNameRaw}, ${finalPolicyData?.policyNumber || null}, ${finalPolicyData?.policyType || null}, NOW(), NOW())
           `;
           policy = { id: policyId };
-          
-          // Audit log policy creation
-          try {
-            const { audit } = await import("@/lib/audit");
-            await audit(AuditAction.POLICY_CREATED, {
-              clientId: invite.clientId,
-              policyId: policyId,
-              message: `Policy created via invite upload: ${finalPolicyData?.policyNumber || 'No policy number'} - ${finalPolicyData?.insurerName || carrierNameRaw || 'Unknown insurer'}`,
-              userId: null, // Public route
-            });
-          } catch (auditError: unknown) {
-            console.error("Upload policy: Policy creation audit logging failed:", auditError);
-            // Continue - audit is non-critical
-          }
         }
       } catch (sqlError: unknown) {
         const errorMessage = sqlError instanceof Error ? sqlError.message : String(sqlError);
@@ -656,11 +549,10 @@ export async function POST(
         id: p.id,
         policyNumber: p.policyNumber,
         policyType: p.policyType,
-        // Use resolved insurer if available, otherwise fall back to carrierNameRaw (lazy insurers)
-        insurer: p.insurer || {
-          name: p.carrierNameRaw || "Unknown Insurer",
-          contactPhone: null,
-          contactEmail: null,
+        insurer: {
+          name: p.insurer.name,
+          contactPhone: p.insurer.contactPhone,
+          contactEmail: p.insurer.contactEmail,
         },
       })) || [],
       organization: organization
@@ -678,51 +570,24 @@ export async function POST(
       receiptGeneratedAt: new Date(),
     };
 
-    // Generate receipt PDF with ballot style
+    // Generate receipt PDF
     let receiptPdfBuffer: Buffer | null = null;
     try {
       const baseUrl = process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin;
       const updateUrl = `${baseUrl}/qr-update/${token}`;
       
-      // Generate QR code data URL
-      let qrCodeDataUrl: string | undefined;
-      try {
-        qrCodeDataUrl = await QRCode.toDataURL(updateUrl, {
-          errorCorrectionLevel: "M",
-          type: "image/png",
-          width: 200,
-          margin: 1,
-        });
-      } catch (qrError) {
-        console.error("Error generating QR code:", qrError);
-        // Continue without QR code
-      }
-      
       const pdfStream = await renderToStream(
-        ClientBallotPDF({ 
-          ballotData: {
+        ClientReceiptPDF({ 
+          receiptData: {
             ...receiptData,
             updateUrl,
-            qrCodeDataUrl,
-            organization: organization
-              ? {
-                  name: organization.name,
-                  addressLine1: typeof organization.addressLine1 === "string" ? organization.addressLine1 : undefined,
-                  addressLine2: typeof organization.addressLine2 === "string" ? organization.addressLine2 : undefined,
-                  city: typeof organization.city === "string" ? organization.city : undefined,
-                  state: typeof organization.state === "string" ? organization.state : undefined,
-                  postalCode: typeof organization.postalCode === "string" ? organization.postalCode : undefined,
-                  phone: typeof organization.phone === "string" ? organization.phone : undefined,
-                }
-              : null,
           }
         })
       );
 
       // Convert stream to buffer
       const chunks: Uint8Array[] = [];
-      const stream = pdfStream as unknown as ReadableStream<Uint8Array>;
-      const reader = stream.getReader();
+      const reader = pdfStream.getReader();
       let done = false;
 
       while (!done) {

@@ -12,12 +12,12 @@ const requiredEnvVars = {
   // Clerk Authentication
   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
   CLERK_SECRET_KEY: process.env.CLERK_SECRET_KEY,
+  
+  // Optional but recommended
+  NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
 } as const;
 
 const optionalEnvVars = {
-  // App URL (optional but recommended - all usages have fallbacks)
-  NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
-  
   // Prisma Accelerate (optional)
   PRISMA_ACCELERATE_URL: process.env.PRISMA_ACCELERATE_URL,
   
