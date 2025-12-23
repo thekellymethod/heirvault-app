@@ -38,7 +38,8 @@ interface Policy {
   insurer: {
     id: string;
     name: string;
-  };
+  } | null;
+  carrierNameRaw?: string | null;
 }
 
 interface Document {
@@ -189,7 +190,16 @@ export function DocumentVerificationView({
               <label className="label">Insurer</label>
               <div className="flex items-center gap-2">
                 <Building2 className="h-4 w-4 text-slateui-400" />
-                <p className="text-ink-900">{policy.insurer.name}</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-ink-900">
+                    {policy.insurer?.name ?? policy.carrierNameRaw ?? "Unknown"}
+                  </p>
+                  {!policy.insurer && policy.carrierNameRaw && (
+                    <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-orange-100 text-orange-700">
+                      Unresolved
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
             <div>

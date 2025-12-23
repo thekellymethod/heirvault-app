@@ -197,8 +197,10 @@ export async function POST(
       ...policyInfo,
     };
 
-    // Find or create insurer - use raw SQL first
+    // Try to find existing insurer (lazy insurers: don't auto-create)
     let insurer: any = null;
+    let carrierNameRaw: string | null = null;
+    
     if (finalPolicyData?.insurerName) {
       try {
         const insurerResult = await prisma.$queryRaw<Array<{ id: string }>>`
@@ -208,50 +210,31 @@ export async function POST(
         if (insurerResult && insurerResult.length > 0) {
           insurer = { id: insurerResult[0].id };
         } else {
-          // Create new insurer
-          const newInsurerId = randomUUID();
-          await prisma.$executeRaw`
-            INSERT INTO insurers (id, name, contact_phone, contact_email, website, created_at, updated_at)
-            VALUES (${newInsurerId}, ${finalPolicyData.insurerName}, ${finalPolicyData.insurerPhone || null}, ${finalPolicyData.insurerEmail || null}, ${finalPolicyData.insurerWebsite || null}, NOW(), NOW())
-          `;
-          insurer = { id: newInsurerId };
+          // Insurer not found - store raw name instead (lazy insurers)
+          carrierNameRaw = finalPolicyData.insurerName;
         }
       } catch (sqlError: any) {
-        console.error("Upload policy: Raw SQL insurer lookup/create failed, trying Prisma:", sqlError.message);
-        // Fallback to Prisma
-        try {
-          if ((prisma as any).insurers) {
-            insurer = await (prisma as any).insurers.findFirst({
-              where: { name: { equals: finalPolicyData.insurerName, mode: "insensitive" } },
-            });
-            if (!insurer) {
-              insurer = await (prisma as any).insurers.create({
-                data: {
-                  name: finalPolicyData.insurerName,
-                  contact_phone: finalPolicyData.insurerPhone || null,
-                  contact_email: finalPolicyData.insurerEmail || null,
-                  website: finalPolicyData.insurerWebsite || null,
-                },
-              });
-            }
-          }
-        } catch (prismaError: any) {
-          console.error("Upload policy: Prisma insurer also failed:", prismaError.message);
-          // Continue without insurer - policy creation will fail gracefully
-        }
+        console.error("Upload policy: Insurer lookup failed:", sqlError.message);
+        // Store raw name as fallback
+        carrierNameRaw = finalPolicyData.insurerName;
       }
     }
 
-    // Create policy if we have insurer info (only if not a change request) - use raw SQL first
+    // Create policy (only if not a change request) - use raw SQL first
+    // Policy can be created with or without insurer_id
     let policy: any = null;
-    if (insurer && !isChangeRequest) {
+    if (finalPolicyData?.insurerName && !isChangeRequest) {
       try {
         // Check if policy already exists using raw SQL
+        // Match by client_id, policy_number, and either insurer_id or carrier_name_raw
         const existingPolicyResult = await prisma.$queryRaw<Array<{ id: string }>>`
           SELECT id FROM policies 
           WHERE client_id = ${invite.clientId} 
-            AND insurer_id = ${insurer.id}
             AND (policy_number = ${finalPolicyData?.policyNumber || null} OR (policy_number IS NULL AND ${finalPolicyData?.policyNumber || null} IS NULL))
+            AND (
+              (insurer_id IS NOT NULL AND insurer_id = ${insurer?.id || null})
+              OR (insurer_id IS NULL AND carrier_name_raw = ${carrierNameRaw || null})
+            )
           LIMIT 1
         `;
         
@@ -261,8 +244,8 @@ export async function POST(
           // Create new policy using raw SQL
           const policyId = randomUUID();
           await prisma.$executeRaw`
-            INSERT INTO policies (id, client_id, insurer_id, policy_number, policy_type, created_at, updated_at)
-            VALUES (${policyId}, ${invite.clientId}, ${insurer.id}, ${finalPolicyData?.policyNumber || null}, ${finalPolicyData?.policyType || null}, NOW(), NOW())
+            INSERT INTO policies (id, client_id, insurer_id, carrier_name_raw, policy_number, policy_type, created_at, updated_at)
+            VALUES (${policyId}, ${invite.clientId}, ${insurer?.id || null}, ${carrierNameRaw}, ${finalPolicyData?.policyNumber || null}, ${finalPolicyData?.policyType || null}, NOW(), NOW())
           `;
           policy = { id: policyId };
         }
@@ -476,11 +459,12 @@ export async function POST(
             p.id,
             p.policy_number,
             p.policy_type,
+            p.carrier_name_raw,
             i.name as insurer_name,
             i.contact_phone as insurer_contact_phone,
             i.contact_email as insurer_contact_email
           FROM policies p
-          INNER JOIN insurers i ON i.id = p.insurer_id
+          LEFT JOIN insurers i ON i.id = p.insurer_id
           WHERE p.client_id = ${invite.clientId}
         `,
       ]);
@@ -499,11 +483,12 @@ export async function POST(
             id: p.id,
             policyNumber: p.policy_number,
             policyType: p.policy_type,
-            insurer: {
+            carrierNameRaw: p.carrier_name_raw,
+            insurer: p.insurer_name ? {
               name: p.insurer_name,
               contactPhone: p.insurer_contact_phone,
               contactEmail: p.insurer_contact_email,
-            },
+            } : null,
           })),
         };
       }

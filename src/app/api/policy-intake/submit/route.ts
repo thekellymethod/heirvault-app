@@ -75,8 +75,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Find or create insurer
-    let insurerId: string;
+    // Try to find existing insurer (lazy insurers: don't auto-create)
+    let insurerId: string | null = null;
+    let carrierNameRaw: string | null = null;
+    let carrierConfidence: number | null = null;
+    
     const existingInsurer = await prisma.$queryRawUnsafe<Array<{ id: string }>>(`
       SELECT id FROM insurers WHERE name = $1 LIMIT 1
     `, policyData.insurerName);
@@ -84,16 +87,12 @@ export async function POST(req: NextRequest) {
     if (existingInsurer.length > 0) {
       insurerId = existingInsurer[0].id;
     } else {
-      insurerId = randomUUID();
-      await prisma.$executeRawUnsafe(`
-        INSERT INTO insurers (id, name, contact_phone, contact_email, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, NOW(), NOW())
-      `,
-        insurerId,
-        policyData.insurerName,
-        policyData.insurerPhone || null,
-        policyData.insurerEmail || null
-      );
+      // Insurer not found - store raw name instead (lazy insurers)
+      carrierNameRaw = policyData.insurerName;
+      // If we have OCR data, use its confidence
+      if (extractedData && extractedData.insurerName) {
+        carrierConfidence = 0.8; // OCR confidence estimate
+      }
     }
 
     // Process document if provided
@@ -148,15 +147,17 @@ export async function POST(req: NextRequest) {
     const policyId = randomUUID();
     await prisma.$executeRawUnsafe(`
       INSERT INTO policies (
-        id, client_id, insurer_id, policy_number, policy_type,
+        id, client_id, insurer_id, carrier_name_raw, carrier_confidence, policy_number, policy_type,
         verification_status, document_hash, created_at, updated_at
       ) VALUES (
-        $1, $2, $3, $4, $5, 'PENDING', $6, NOW(), NOW()
+        $1, $2, $3, $4, $5, $6, $7, 'PENDING', $8, NOW(), NOW()
       )
     `,
       policyId,
       clientId,
       insurerId,
+      carrierNameRaw,
+      carrierConfidence,
       policyData.policyNumber || null,
       policyData.policyType || null,
       documentHash

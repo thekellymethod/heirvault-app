@@ -62,8 +62,9 @@ export default async function DocumentVerificationPage({ params }: Props) {
     created_at: Date;
     updated_at: Date;
     client_id: string;
-    insurer_id: string;
-    insurer_name: string;
+    insurer_id: string | null;
+    carrier_name_raw: string | null;
+    insurer_name: string | null;
     client_first_name: string;
     client_last_name: string;
     client_email: string;
@@ -81,12 +82,13 @@ export default async function DocumentVerificationPage({ params }: Props) {
       p.updated_at,
       p.client_id,
       p.insurer_id,
+      p.carrier_name_raw,
       i.name as insurer_name,
       c.first_name as client_first_name,
       c.last_name as client_last_name,
       c.email as client_email
     FROM policies p
-    INNER JOIN insurers i ON i.id = p.insurer_id
+    LEFT JOIN insurers i ON i.id = p.insurer_id
     INNER JOIN clients c ON c.id = p.client_id
     WHERE p.id = $1
     LIMIT 1
@@ -159,10 +161,11 @@ export default async function DocumentVerificationPage({ params }: Props) {
           lastName: policyData.client_last_name,
           email: policyData.client_email,
         },
-        insurer: {
+        insurer: policyData.insurer_id ? {
           id: policyData.insurer_id,
-          name: policyData.insurer_name,
-        },
+          name: policyData.insurer_name || "Unknown",
+        } : null,
+        carrierNameRaw: policyData.carrier_name_raw,
       }}
       documents={documents.map((d: typeof documents[0]) => ({
         id: d.id,

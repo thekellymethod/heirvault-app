@@ -16,6 +16,7 @@ export default async function PoliciesPage({
     const sortBy = params.sort || "createdAt";
 
     // Build search conditions (case-insensitive)
+    // Note: carrier_name_raw search would require raw SQL or separate query
     const searchConditions = searchTerm
       ? [
           ilike(policies.policyNumber, `%${searchTerm}%`),
@@ -48,13 +49,14 @@ export default async function PoliciesPage({
         break;
     }
 
-    // Fetch policies joined with authorized clients
+    // Fetch policies joined with authorized clients (left join insurers to include unresolved)
     const rows = await db
       .select({
         policy: {
           id: policies.id,
           policyNumber: policies.policyNumber,
           policyType: policies.policyType,
+          carrierNameRaw: policies.carrierNameRaw,
           verificationStatus: policies.verificationStatus,
           createdAt: policies.createdAt,
           updatedAt: policies.updatedAt,
@@ -73,7 +75,7 @@ export default async function PoliciesPage({
       .from(attorneyClientAccess)
       .innerJoin(clients, eq(attorneyClientAccess.clientId, clients.id))
       .innerJoin(policies, eq(policies.clientId, clients.id))
-      .innerJoin(insurers, eq(policies.insurerId, insurers.id))
+      .leftJoin(insurers, eq(policies.insurerId, insurers.id))
       .where(
         and(
           eq(attorneyClientAccess.attorneyId, user.id),
@@ -83,24 +85,32 @@ export default async function PoliciesPage({
       )
       .orderBy(...orderBy);
 
-    const policiesList = rows.map((r: typeof rows[number]) => ({
-      id: r.policy.id,
-      policyNumber: r.policy.policyNumber,
-      policyType: r.policy.policyType,
-      verificationStatus: r.policy.verificationStatus,
-      createdAt: r.policy.createdAt,
-      updatedAt: r.policy.updatedAt,
-      client: {
-        id: r.client.id,
-        firstName: r.client.firstName,
-        lastName: r.client.lastName,
-        email: r.client.email,
-      },
-      insurer: {
-        id: r.insurer.id,
-        name: r.insurer.name,
-      },
-    }));
+    const policiesList = rows.map((r: typeof rows[number]) => {
+      const displayName = r.insurer?.name ?? r.policy.carrierNameRaw ?? "Unknown";
+      const isUnresolved = !r.insurer?.name && !!r.policy.carrierNameRaw;
+      
+      return {
+        id: r.policy.id,
+        policyNumber: r.policy.policyNumber,
+        policyType: r.policy.policyType,
+        carrierNameRaw: r.policy.carrierNameRaw,
+        verificationStatus: r.policy.verificationStatus,
+        createdAt: r.policy.createdAt,
+        updatedAt: r.policy.updatedAt,
+        client: {
+          id: r.client.id,
+          firstName: r.client.firstName,
+          lastName: r.client.lastName,
+          email: r.client.email,
+        },
+        insurer: r.insurer ? {
+          id: r.insurer.id,
+          name: r.insurer.name,
+        } : null,
+        displayName,
+        isUnresolved,
+      };
+    });
 
     return (
       <div className="space-y-6">
@@ -206,7 +216,14 @@ export default async function PoliciesPage({
                       <div className="text-xs text-slateui-600">{p.client.email}</div>
                     </div>
                     <div className="col-span-2 text-sm text-ink-900">
-                      {p.insurer.name}
+                      <div className="flex items-center gap-2">
+                        <span>{p.displayName}</span>
+                        {p.isUnresolved && (
+                          <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-orange-100 text-orange-700">
+                            Unresolved
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <div className="col-span-2 text-sm text-ink-900">
                       {p.policyType || "—"}

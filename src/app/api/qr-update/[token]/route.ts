@@ -289,10 +289,13 @@ export async function POST(
       DELETE FROM policies WHERE client_id = $1
     `, clientId);
 
-    // Get or create insurers and insert policies (all validated now)
+    // Get or find insurers and insert policies (all validated now)
+    // Lazy insurers: don't auto-create, store raw name if not found
     for (const policy of validPolicies) {
-      // Get or create insurer
-      let insurerId: string;
+      // Try to find existing insurer
+      let insurerId: string | null = null;
+      let carrierNameRaw: string | null = null;
+      
       const existingInsurer = await prisma.$queryRawUnsafe<Array<{ id: string }>>(`
         SELECT id FROM insurers WHERE name = $1 LIMIT 1
       `, policy.insurerName.trim());
@@ -300,12 +303,8 @@ export async function POST(
       if (existingInsurer.length > 0) {
         insurerId = existingInsurer[0].id;
       } else {
-        const newInsurerId = randomUUID();
-        await prisma.$executeRawUnsafe(`
-          INSERT INTO insurers (id, name, created_at, updated_at)
-          VALUES ($1, $2, NOW(), NOW())
-        `, newInsurerId, policy.insurerName.trim());
-        insurerId = newInsurerId;
+        // Insurer not found - store raw name instead (lazy insurers)
+        carrierNameRaw = policy.insurerName.trim();
       }
 
       // Create policy
@@ -313,9 +312,9 @@ export async function POST(
       // with policy-intake route. While the database has a default, using raw SQL
       // requires explicit values to ensure consistent behavior across all creation paths.
       await prisma.$executeRawUnsafe(`
-        INSERT INTO policies (id, client_id, insurer_id, policy_number, policy_type, verification_status, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, 'PENDING', NOW(), NOW())
-      `, randomUUID(), clientId, insurerId, policy.policyNumber?.trim() || null, policy.policyType?.trim() || null);
+        INSERT INTO policies (id, client_id, insurer_id, carrier_name_raw, policy_number, policy_type, verification_status, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, 'PENDING', NOW(), NOW())
+      `, randomUUID(), clientId, insurerId, carrierNameRaw, policy.policyNumber?.trim() || null, policy.policyType?.trim() || null);
     }
 
     // Only delete existing beneficiaries AFTER validation passes

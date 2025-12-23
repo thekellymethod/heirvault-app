@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, boolean, integer, json, date, pgEnum, uuid, uniqueIndex, index } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, boolean, integer, json, date, pgEnum, uuid, uniqueIndex, index, real } from "drizzle-orm/pg-core";
 import { randomUUID } from "crypto";
 
 // Enums
@@ -134,7 +134,9 @@ export const policyVerificationStatusEnum = pgEnum("PolicyVerificationStatus", [
 export const policies = pgTable("policies", {
   id: uuid("id").primaryKey().$defaultFn(() => randomUUID()),
   clientId: uuid("client_id").notNull().references(() => clients.id, { onDelete: "cascade" }),
-  insurerId: uuid("insurer_id").notNull().references(() => insurers.id, { onDelete: "cascade" }),
+  insurerId: uuid("insurer_id").references(() => insurers.id, { onDelete: "set null" }),
+  carrierNameRaw: text("carrier_name_raw"), // Raw carrier name from document/intake
+  carrierConfidence: real("carrier_confidence"), // OCR/LLM confidence (0..1) if available
   policyNumber: text("policy_number"),
   policyType: text("policy_type"),
   verificationStatus: policyVerificationStatusEnum("verification_status").default("PENDING"),

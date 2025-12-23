@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
         })
           .from(policyBeneficiaries)
           .innerJoin(policies, eq(policyBeneficiaries.policyId, policies.id))
-          .innerJoin(insurers, eq(policies.insurerId, insurers.id))
+          .leftJoin(insurers, eq(policies.insurerId, insurers.id))
           .where(inArray(policyBeneficiaries.beneficiaryId, beneficiaryIds))
       : [];
 

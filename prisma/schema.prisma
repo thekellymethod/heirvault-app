@@ -226,17 +226,19 @@ model organizations {
 }
 
 model policies {
-  id                   String                 @id
-  client_id            String
-  insurer_id           String
-  policy_number        String?
-  policy_type          String?
-  created_at           DateTime               @default(now())
-  updated_at           DateTime
-  audit_logs           audit_logs[]
-  documents            documents[]
-  clients              clients                @relation(fields: [client_id], references: [id], onDelete: Cascade)
-  insurers             insurers               @relation(fields: [insurer_id], references: [id], onDelete: Cascade)
+  id                  String                 @id
+  client_id           String
+  insurer_id          String?
+  carrier_name_raw    String?
+  carrier_confidence  Float?
+  policy_number       String?
+  policy_type         String?
+  created_at          DateTime               @default(now())
+  updated_at          DateTime
+  audit_logs          audit_logs[]
+  documents           documents[]
+  clients             clients                @relation(fields: [client_id], references: [id], onDelete: Cascade)
+  insurers            insurers?               @relation(fields: [insurer_id], references: [id], onDelete: SetNull)
   policy_beneficiaries policy_beneficiaries[]
 }
 

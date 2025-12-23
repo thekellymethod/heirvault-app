@@ -5,7 +5,12 @@ export const NL_PLAN_SCHEMA = {
     additionalProperties: false,
     properties: {
       cmd: { type: ["string", "null"] },
-      args: { type: "object", additionalProperties: true },
+      args: { 
+        type: "object",
+        additionalProperties: true, // Allow flexible args for different commands
+        // Note: Cannot use strict mode with additionalProperties: true
+        // Validation is handled by validateAndNormalizePlan() after parsing
+      },
       next: {
         type: "array",
         items: {
@@ -13,7 +18,10 @@ export const NL_PLAN_SCHEMA = {
           additionalProperties: false,
           properties: {
             cmd: { type: "string" },
-            args: { type: "object", additionalProperties: true }
+            args: { 
+              type: "object",
+              additionalProperties: true, // Allow flexible args
+            }
           },
           required: ["cmd", "args"]
         }

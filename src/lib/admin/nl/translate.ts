@@ -135,7 +135,9 @@ export async function translateNLToPlan(input: {
         json_schema: {
           name: NL_PLAN_SCHEMA.name,
           schema: NL_PLAN_SCHEMA.schema,
-          strict: true, // Enforce strict schema compliance
+          // Note: strict mode is disabled because args needs additionalProperties: true
+          // for flexible command arguments. Validation is handled by validateAndNormalizePlan()
+          strict: false,
         },
       },
       temperature: 0.1, // Low temperature for more deterministic output

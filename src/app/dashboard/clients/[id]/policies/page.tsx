@@ -18,6 +18,7 @@ type Policy = {
   id: string;
   policyNumber: string | null;
   policyType: string | null;
+  carrierNameRaw?: string | null;
   insurer?: { id: string; name: string; website?: string | null } | null;
   beneficiaries: Beneficiary[];
   createdAt?: string;
@@ -207,8 +208,15 @@ export default function ClientPoliciesPage() {
                   <div className="text-sm font-semibold text-slate-900">
                     {p.policyType || "Policy"} {p.policyNumber ? `• ${p.policyNumber}` : ""}
                   </div>
-                  <div className="text-xs text-slate-600 mt-1">
-                    {p.insurer?.name ? `Insurer: ${p.insurer.name}` : "Insurer: —"}
+                  <div className="text-xs text-slate-600 mt-1 flex items-center gap-2">
+                    <span>
+                      Insurer: {p.insurer?.name ?? p.carrierNameRaw ?? "Unknown"}
+                    </span>
+                    {!p.insurer?.name && p.carrierNameRaw && (
+                      <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-orange-100 text-orange-700">
+                        Unresolved
+                      </span>
+                    )}
                   </div>
                 </div>
                 <Button 

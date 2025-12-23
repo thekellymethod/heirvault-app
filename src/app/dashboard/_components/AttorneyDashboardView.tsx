@@ -35,7 +35,8 @@ interface Policy {
   insurer: {
     id: string;
     name: string;
-  };
+  } | null;
+  carrierNameRaw?: string | null;
   documentCount: number;
 }
 
@@ -280,7 +281,16 @@ export function AttorneyDashboardView({ policies, stats }: AttorneyDashboardView
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
                         <Building2 className="h-4 w-4 text-slateui-400" />
-                        <p className="text-sm text-ink-900">{policy.insurer.name}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm text-ink-900">
+                            {policy.insurer?.name ?? (policy as any).carrierNameRaw ?? "Unknown"}
+                          </p>
+                          {!policy.insurer?.name && (policy as any).carrierNameRaw && (
+                            <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-orange-100 text-orange-700">
+                              Unresolved
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </td>
                     <td className="px-6 py-4">

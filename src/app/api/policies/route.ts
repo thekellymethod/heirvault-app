@@ -14,13 +14,16 @@ export async function POST(req: NextRequest) {
       insurerPhone,
       insurerEmail,
       insurerWebsite,
+      insurerId, // Optional: if canonical insurer ID is known
+      carrierNameRaw, // Optional: raw carrier name from document/intake
+      carrierConfidence, // Optional: OCR/LLM confidence (0..1)
       policyNumber,
       policyType,
     } = body
 
-    if (!clientId || !insurerName) {
+    if (!clientId) {
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        { error: 'Missing required field: clientId' },
         { status: 400 }
       )
     }
@@ -40,55 +43,63 @@ export async function POST(req: NextRequest) {
       await assertClientSelfAccess(clientId)
     }
 
-    // Find or create insurer
-    const [existingInsurer] = await db.select()
-      .from(insurers)
-      .where(eq(insurers.name, insurerName))
-      .limit(1);
+    // Determine insurer_id and carrier_name_raw
+    let resolvedInsurerId: string | null = null;
+    let resolvedCarrierNameRaw: string | null = null;
 
-    let insurer;
-    if (!existingInsurer) {
-      const [newInsurer] = await db.insert(insurers)
-        .values({
-          name: insurerName,
-          contactPhone: insurerPhone || null,
-          contactEmail: insurerEmail || null,
-          website: insurerWebsite || null,
-        })
-        .returning();
-      insurer = newInsurer;
-    } else {
-      // Update existing insurer if new contact info provided
-      if (insurerPhone || insurerEmail || insurerWebsite) {
-        const [updated] = await db.update(insurers)
-          .set({
-            contactPhone: insurerPhone || existingInsurer.contactPhone,
-            contactEmail: insurerEmail || existingInsurer.contactEmail,
-            website: insurerWebsite || existingInsurer.website,
-            updatedAt: new Date(),
-          })
-          .where(eq(insurers.id, existingInsurer.id))
-          .returning();
-        insurer = updated || existingInsurer;
+    // If insurerId is provided, use it (canonical insurer already known)
+    if (insurerId) {
+      resolvedInsurerId = insurerId;
+    } else if (insurerName) {
+      // Try to find or create insurer
+      const [existingInsurer] = await db.select()
+        .from(insurers)
+        .where(eq(insurers.name, insurerName))
+        .limit(1);
+
+      if (existingInsurer) {
+        resolvedInsurerId = existingInsurer.id;
+        // Update existing insurer if new contact info provided
+        if (insurerPhone || insurerEmail || insurerWebsite) {
+          await db.update(insurers)
+            .set({
+              contactPhone: insurerPhone || existingInsurer.contactPhone,
+              contactEmail: insurerEmail || existingInsurer.contactEmail,
+              website: insurerWebsite || existingInsurer.website,
+              updatedAt: new Date(),
+            })
+            .where(eq(insurers.id, existingInsurer.id));
+        }
       } else {
-        insurer = existingInsurer;
+        // Insurer not found - store raw name instead of creating
+        // (lazy insurers: don't auto-create during intake)
+        resolvedCarrierNameRaw = insurerName;
       }
+    } else if (carrierNameRaw) {
+      // Raw carrier name provided directly
+      resolvedCarrierNameRaw = carrierNameRaw;
     }
 
     // Create policy
     const [policy] = await db.insert(policies)
       .values({
         clientId,
-        insurerId: insurer.id,
+        insurerId: resolvedInsurerId,
+        carrierNameRaw: resolvedCarrierNameRaw,
+        carrierConfidence: carrierConfidence ? Number(carrierConfidence) : null,
         policyNumber: policyNumber || null,
         policyType: policyType || null,
       })
       .returning();
 
+    const insurerDisplayName = resolvedInsurerId 
+      ? (await db.select().from(insurers).where(eq(insurers.id, resolvedInsurerId)).limit(1))[0]?.name || 'Unknown'
+      : resolvedCarrierNameRaw || 'Unknown';
+    
     await audit(AuditAction.POLICY_CREATED, {
       clientId: policy.clientId,
       policyId: policy.id,
-      message: `Policy created for client ${policy.clientId} with insurer ${insurer.name}`,
+      message: `Policy created for client ${policy.clientId} with insurer ${insurerDisplayName}${resolvedCarrierNameRaw ? ' (unresolved)' : ''}`,
     })
 
     // Send email notification to client (if email exists)
@@ -104,10 +115,14 @@ export async function POST(req: NextRequest) {
         const dashboardUrl = `${baseUrl}/dashboard/clients/${clientId}`;
         const firmName = orgMember?.organizations?.name || undefined;
 
+        const emailInsurerName = resolvedInsurerId
+          ? (await db.select().from(insurers).where(eq(insurers.id, resolvedInsurerId)).limit(1))[0]?.name || 'Unknown'
+          : resolvedCarrierNameRaw || 'Unknown';
+
         await sendPolicyAddedEmail({
           to: client.email,
           clientName: `${client.firstName} ${client.lastName}`,
-          insurerName: insurer.name,
+          insurerName: emailInsurerName,
           policyNumber: policyNumber || undefined,
           policyType: policyType || undefined,
           firmName,
@@ -158,13 +173,13 @@ export async function GET(req: NextRequest) {
       await assertClientSelfAccess(clientId)
     }
 
-    // Get policies with insurers
+    // Get policies with insurers (left join to include policies without insurers)
     const policiesList = await db.select({
       policy: policies,
       insurer: insurers,
     })
       .from(policies)
-      .innerJoin(insurers, eq(policies.insurerId, insurers.id))
+      .leftJoin(insurers, eq(policies.insurerId, insurers.id))
       .where(eq(policies.clientId, clientId))
       .orderBy(desc(policies.createdAt));
 

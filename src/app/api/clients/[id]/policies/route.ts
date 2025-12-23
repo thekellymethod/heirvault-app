@@ -22,13 +22,13 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
       return NextResponse.json({ error: "Client not found" }, { status: 404 });
     }
 
-    // Get policies with insurers
+    // Get policies with insurers (left join to include policies without insurers)
     const clientPolicies = await db.select({
       policy: policies,
       insurer: insurers,
     })
       .from(policies)
-      .innerJoin(insurers, eq(policies.insurerId, insurers.id))
+      .leftJoin(insurers, eq(policies.insurerId, insurers.id))
       .where(eq(policies.clientId, clientId))
       .orderBy(desc(policies.createdAt));
 
@@ -80,17 +80,22 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
     const body = await req.json();
     const insurerId = body?.insurerId as string | undefined;
+    const carrierNameRaw = body?.carrierNameRaw as string | undefined;
+    const carrierConfidence = body?.carrierConfidence as number | undefined;
     const policyNumber = (body?.policyNumber as string | undefined) ?? null;
     const policyType = (body?.policyType as string | undefined) ?? null;
 
-    if (!insurerId) {
-      return NextResponse.json({ error: "insurerId is required" }, { status: 400 });
+    // Either insurerId or carrierNameRaw must be provided
+    if (!insurerId && !carrierNameRaw) {
+      return NextResponse.json({ error: "Either insurerId or carrierNameRaw is required" }, { status: 400 });
     }
 
     const [policy] = await db.insert(policies)
       .values({
         clientId,
-        insurerId,
+        insurerId: insurerId || null,
+        carrierNameRaw: carrierNameRaw || null,
+        carrierConfidence: carrierConfidence ? Number(carrierConfidence) : null,
         policyNumber,
         policyType,
       })
@@ -98,16 +103,20 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         id: policies.id,
         clientId: policies.clientId,
         insurerId: policies.insurerId,
+        carrierNameRaw: policies.carrierNameRaw,
+        carrierConfidence: policies.carrierConfidence,
         policyNumber: policies.policyNumber,
         policyType: policies.policyType,
         createdAt: policies.createdAt,
       });
 
-    // Get insurer info
-    const [insurer] = await db.select()
-      .from(insurers)
-      .where(eq(insurers.id, insurerId))
-      .limit(1);
+    // Get insurer info if insurerId was provided
+    const insurer = insurerId
+      ? (await db.select()
+          .from(insurers)
+          .where(eq(insurers.id, insurerId))
+          .limit(1))[0] || null
+      : null;
 
     // Send email notification to client (if email exists)
     try {
@@ -116,16 +125,17 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         .where(eq(clients.id, clientId))
         .limit(1);
 
-      if (client && client.email && insurer) {
+      if (client && client.email) {
         const { orgMember } = await getCurrentUserWithOrg();
         const baseUrl = process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin;
         const dashboardUrl = `${baseUrl}/dashboard/clients/${clientId}`;
         const firmName = orgMember?.organizations?.name || undefined;
+        const insurerName = insurer?.name || policy.carrierNameRaw || "Unknown";
 
         await sendPolicyAddedEmail({
           to: client.email,
           clientName: `${client.firstName} ${client.lastName}`,
-          insurerName: insurer.name,
+          insurerName,
           policyNumber: policy.policyNumber || undefined,
           policyType: policy.policyType || undefined,
           firmName,
@@ -144,6 +154,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       policy: {
         ...policy,
         insurer: insurer ? { id: insurer.id, name: insurer.name } : null,
+        carrierNameRaw: policy.carrierNameRaw,
       },
     }, { status: 201 });
   } catch (error: unknown) {
