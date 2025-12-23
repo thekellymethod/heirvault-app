@@ -81,17 +81,21 @@ export async function getOrCreateAppUser(): Promise<AppUser | null> {
         // For a legal application handling sensitive estate data, we should NOT automatically
         // link accounts to prevent account takeover attacks
         // 
-        // Instead, we should:
-        // 1. Log a security warning
-        // 2. Create a new user account for this Clerk ID (don't link)
-        // 3. Let the user contact support if they need accounts merged
+        // We throw an error here instead of trying to create a new user, because:
+        // 1. Creating a new user with the same email would violate the unique constraint
+        // 2. Users should use their original sign-in method or contact support
+        const originalProvider = userByEmail.clerkId.startsWith("pending_") 
+          ? "pending application" 
+          : "a different sign-in method";
+        
         console.error(`[SECURITY] Account linking blocked: User with email ${email} already has a different Clerk account (${userByEmail.clerkId}). Attempted sign-in with Clerk ID: ${userId} (OAuth provider: ${cu?.externalAccounts?.[0]?.provider || 'unknown'})`);
         
-        // Don't link accounts - this prevents account takeover
-        // The user will need to contact support if they need accounts merged
-        // For now, we'll continue with creating/finding a user by clerkId only
-        // (which will create a new user if not found by clerkId)
-        existingUser = null;
+        // Throw a helpful error that will be caught by the caller
+        throw new Error(
+          `This email address is already associated with an account. ` +
+          `Please sign in using your original sign-in method, or contact support if you need to link accounts. ` +
+          `Original account was created via: ${originalProvider}`
+        );
       }
     }
   }

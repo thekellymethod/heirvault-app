@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { supabaseServer } from "@/lib/supabase";
+import { db, organizations, sql } from "@/lib/db";
 
 // If your guards return this shape already, keep it.
 // Otherwise adjust fields to match your AppUser type.
@@ -302,6 +303,253 @@ export const COMMANDS: CommandDef[] = [
       const to = requireString(args, "to");
       // Wire your existing Resend utility here.
       return { ok: true, data: { message: `Not wired yet. Would send test email to: ${to}` } };
+    },
+  },
+
+  {
+    id: "client:invite",
+    title: "Send client invitation",
+    description: "Create or find a client and send them an invitation email.",
+    usage: "client:invite { email: string, firstName: string, lastName: string, phone?: string, dateOfBirth?: string }",
+    handler: async (ctx, args) => {
+      const email = requireString(args, "email").toLowerCase().trim();
+      const firstName = requireString(args, "firstName");
+      const lastName = requireString(args, "lastName");
+      const phone = args?.phone ? String(args.phone).trim() : null;
+      const dateOfBirth = args?.dateOfBirth ? String(args.dateOfBirth) : null;
+
+      // Import dependencies
+      const { db, clients, attorneyClientAccess, clientInvites, eq } = await import("@/lib/db");
+      const { getCurrentUserWithOrg } = await import("@/lib/authz");
+      const { sendClientInviteEmail } = await import("@/lib/email");
+      const { generateClientFingerprint, findClientByFingerprint } = await import("@/lib/client-fingerprint");
+      const { randomBytes, randomUUID } = await import("crypto");
+
+      // Get or create organization for admin (getCurrentUserWithOrg auto-creates if needed)
+      const { orgMember } = await getCurrentUserWithOrg();
+      
+      if (!orgMember) {
+        return { ok: false, error: "Failed to get or create organization for admin. Please ensure you have an organization set up." };
+      }
+
+      const organizationId = orgMember.organizationId || (orgMember as any).organizations?.id;
+      const organizationName = (orgMember as any).organizations?.name || 'Your Firm';
+
+      if (!organizationId) {
+        return { ok: false, error: "Organization ID not found" };
+      }
+
+      // Check if client already exists
+          const [existingClient] = await db.select()
+            .from(clients)
+            .where(eq(clients.email, email))
+            .limit(1);
+
+          let client = existingClient || null;
+
+          if (!client) {
+            const fingerprint = generateClientFingerprint({
+              email,
+              firstName,
+              lastName,
+              dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
+            });
+
+            const existingClientId = await findClientByFingerprint(fingerprint, db);
+            if (existingClientId) {
+              const [existing] = await db.select()
+                .from(clients)
+                .where(eq(clients.id, existingClientId))
+                .limit(1);
+              if (existing) client = existing;
+            }
+
+            if (!client) {
+              const [newClient] = await db.insert(clients)
+                .values({
+                  email,
+                  firstName,
+                  lastName,
+                  phone: phone || null,
+                  dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
+                  orgId: organizationId,
+                  clientFingerprint: fingerprint,
+                })
+                .returning();
+              client = newClient;
+            }
+          }
+
+          // Grant attorney access
+          try {
+            await db.insert(attorneyClientAccess)
+              .values({
+                attorneyId: ctx.actor.id,
+                clientId: client.id,
+                organizationId: organizationId,
+                isActive: true,
+              });
+          } catch (error: any) {
+            // Access might already exist, ignore
+          }
+
+          // Create invite
+          const token = randomBytes(24).toString('hex');
+          const expiresAt = new Date();
+          expiresAt.setDate(expiresAt.getDate() + 14);
+
+          const [invite] = await db.insert(clientInvites)
+            .values({
+              clientId: client.id,
+              email,
+              token,
+              expiresAt,
+              invitedByUserId: ctx.actor.id,
+            })
+            .returning();
+
+          const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+          const inviteUrl = `${baseUrl}/invite/${invite.token}`;
+
+          // Send invite email
+          try {
+            await sendClientInviteEmail({
+              to: email,
+              clientName: `${client.firstName} ${client.lastName}`,
+              firmName: organizationName,
+              inviteUrl,
+            });
+          } catch (emailError: any) {
+            console.error('Failed to send invite email:', emailError);
+          }
+
+          // Audit
+          await prisma.audit_logs.create({
+            data: {
+              id: randomUUID(),
+              user_id: ctx.actor.id,
+              action: "INVITE_CREATED",
+              message: `Admin console sent client invitation to ${email}`,
+              created_at: new Date(),
+            },
+          });
+
+        return {
+          ok: true,
+          data: {
+            client: {
+              id: client.id,
+              email: client.email,
+              firstName: client.firstName,
+              lastName: client.lastName,
+            },
+            invite: {
+              id: invite.id,
+              inviteUrl,
+              expiresAt: invite.expiresAt,
+              token: invite.token,
+            },
+          },
+        };
+      }
+    },
+  },
+
+  {
+    id: "policy:create",
+    title: "Create policy",
+    description: "Create a policy for a client. Supports both canonical insurers and unresolved carriers.",
+    usage: "policy:create { clientId: string, insurerName?: string, insurerId?: string, carrierNameRaw?: string, policyNumber?: string, policyType?: string }",
+    handler: async (ctx, args) => {
+      const clientId = requireString(args, "clientId");
+      const insurerName = args?.insurerName ? String(args.insurerName).trim() : null;
+      const insurerId = args?.insurerId ? String(args.insurerId).trim() : null;
+      const carrierNameRaw = args?.carrierNameRaw ? String(args.carrierNameRaw).trim() : null;
+      const policyNumber = args?.policyNumber ? String(args.policyNumber).trim() : null;
+      const policyType = args?.policyType ? String(args.policyType).trim() : null;
+
+      // Import dependencies
+      const { db, insurers, policies, clients, eq, AuditAction } = await import("@/lib/db");
+      const { audit } = await import("@/lib/audit");
+      const { randomUUID } = await import("crypto");
+
+      // Verify client exists
+      const [clientExists] = await db.select({ id: clients.id })
+        .from(clients)
+        .where(eq(clients.id, clientId))
+        .limit(1);
+
+      if (!clientExists) {
+        return { ok: false, error: "Client not found" };
+      }
+
+      // Determine insurer_id and carrier_name_raw
+      let resolvedInsurerId: string | null = null;
+      let resolvedCarrierNameRaw: string | null = null;
+
+      if (insurerId) {
+        resolvedInsurerId = insurerId;
+      } else if (insurerName) {
+        const [existingInsurer] = await db.select()
+          .from(insurers)
+          .where(eq(insurers.name, insurerName))
+          .limit(1);
+
+        if (existingInsurer) {
+          resolvedInsurerId = existingInsurer.id;
+        } else {
+          resolvedCarrierNameRaw = insurerName;
+        }
+      } else if (carrierNameRaw) {
+        resolvedCarrierNameRaw = carrierNameRaw;
+      }
+
+      // Validate that at least one form of insurer identification is provided
+      if (!resolvedInsurerId && !resolvedCarrierNameRaw) {
+        return {
+          ok: false,
+          error: "Either insurerId, insurerName, or carrierNameRaw is required to identify the insurance carrier",
+        };
+      }
+
+      // Create policy
+      const [policy] = await db.insert(policies)
+        .values({
+          clientId,
+          insurerId: resolvedInsurerId,
+          carrierNameRaw: resolvedCarrierNameRaw,
+          carrierConfidence: null,
+          policyNumber: policyNumber || null,
+          policyType: policyType || null,
+        })
+        .returning();
+
+      const insurerDisplayName = resolvedInsurerId
+        ? (await db.select().from(insurers).where(eq(insurers.id, resolvedInsurerId)).limit(1))[0]?.name || 'Unknown'
+        : resolvedCarrierNameRaw || 'Unknown';
+
+      await audit(AuditAction.POLICY_CREATED, {
+        clientId: policy.clientId,
+        policyId: policy.id,
+        message: `Admin console created policy for client ${policy.clientId} with insurer ${insurerDisplayName}${resolvedCarrierNameRaw ? ' (unresolved)' : ''}`,
+      });
+
+      return {
+        ok: true,
+        data: {
+          policy: {
+            id: policy.id,
+            clientId: policy.clientId,
+            insurerId: policy.insurerId,
+            carrierNameRaw: policy.carrierNameRaw,
+            policyNumber: policy.policyNumber,
+            policyType: policy.policyType,
+            createdAt: policy.createdAt,
+          },
+          insurerDisplayName,
+          isUnresolved: !!resolvedCarrierNameRaw,
+        },
+      };
     },
   },
 ];
