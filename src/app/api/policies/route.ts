@@ -80,6 +80,15 @@ export async function POST(req: NextRequest) {
       resolvedCarrierNameRaw = carrierNameRaw;
     }
 
+    // Validate that at least one form of insurer identification is provided
+    // This prevents creating orphaned policies with no way to identify the insurance carrier
+    if (!resolvedInsurerId && !resolvedCarrierNameRaw) {
+      return NextResponse.json(
+        { error: 'Either insurerId, insurerName, or carrierNameRaw is required to identify the insurance carrier' },
+        { status: 400 }
+      );
+    }
+
     // Create policy
     const [policy] = await db.insert(policies)
       .values({

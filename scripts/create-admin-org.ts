@@ -10,8 +10,6 @@ const pool = new Pool({
   ssl: process.env.DATABASE_URL?.includes("sslmode=require") ? { rejectUnauthorized: false } : undefined,
 });
 
-const db = drizzle(pool);
-
 async function main() {
   const adminEmail = process.env.BOOTSTRAP_ADMIN_EMAIL || "admin@heirvault.app";
   
@@ -57,7 +55,6 @@ async function main() {
       console.log(`Existing organization: ${org.rows[0].name} (ID: ${org.rows[0].id})`);
       console.log("If you want to update it, please delete the existing organization first.");
       await pool.end();
-      await prisma.$disconnect();
       process.exit(0);
     }
   }
