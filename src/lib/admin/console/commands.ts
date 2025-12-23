@@ -2,6 +2,9 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import { supabaseServer } from "@/lib/supabase";
 
+// Type helper for Prisma transaction client
+type PrismaTransactionClient = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
+
 // If your guards return this shape already, keep it.
 // Otherwise adjust fields to match your AppUser type.
 export type AdminActor = {
@@ -16,8 +19,8 @@ export type ConsoleContext = {
 };
 
 export type ConsoleResult =
-  | { ok: true; data: any }
-  | { ok: false; error: string; details?: any };
+  | { ok: true; data: unknown }
+  | { ok: false; error: string; details?: unknown };
 
 export type CommandDef = {
   id: string;
@@ -25,16 +28,16 @@ export type CommandDef = {
   description: string;
   usage: string;
   // args is always an object; UI sends JSON-ish.
-  handler: (ctx: ConsoleContext, args: Record<string, any>) => Promise<ConsoleResult>;
+  handler: (ctx: ConsoleContext, args: Record<string, unknown>) => Promise<ConsoleResult>;
 };
 
-function requireString(args: Record<string, any>, key: string) {
+function requireString(args: Record<string, unknown>, key: string) {
   const v = args?.[key];
   if (typeof v !== "string" || !v.trim()) throw new Error(`Missing/invalid argument: ${key}`);
   return v.trim();
 }
 
-function requireNumber(args: Record<string, any>, key: string) {
+function requireNumber(args: Record<string, unknown>, key: string) {
   const v = args?.[key];
   const n = typeof v === "number" ? v : Number(v);
   if (!Number.isFinite(n)) throw new Error(`Missing/invalid argument: ${key}`);
@@ -101,8 +104,9 @@ export const COMMANDS: CommandDef[] = [
             },
           },
         };
-      } catch (e: any) {
-        return { ok: false, error: "Prisma health check failed.", details: { message: e?.message } };
+      } catch (e: unknown) {
+        const errorMessage = e instanceof Error ? e.message : String(e);
+        return { ok: false, error: "Prisma health check failed.", details: { message: errorMessage } };
       }
     },
   },
@@ -114,7 +118,15 @@ export const COMMANDS: CommandDef[] = [
     usage: "migrations:status { limit?: number }",
     handler: async (_ctx, args) => {
       const limit = Math.min(Math.max(args?.limit ? requireNumber(args, "limit") : 25, 1), 200);
-      const rows = await prisma.$queryRawUnsafe<any[]>(`
+      type MigrationRow = {
+        id: string;
+        checksum: string;
+        finished_at: Date | null;
+        migration_name: string;
+        logs: string | null;
+        applied_steps_count: number;
+      };
+      const rows = await prisma.$queryRawUnsafe<MigrationRow[]>(`
         SELECT id, checksum, finished_at, migration_name, logs, applied_steps_count
         FROM "_prisma_migrations"
         ORDER BY finished_at DESC NULLS LAST
@@ -164,7 +176,7 @@ export const COMMANDS: CommandDef[] = [
     handler: async (ctx, args) => {
       const userId = requireString(args, "userId");
 
-      const updated = await prisma.$transaction(async (tx: any) => {
+      const updated = await prisma.$transaction(async (tx: PrismaTransactionClient) => {
         // Ensure profile exists
         const prof = await tx.attorneyProfile.upsert({
           where: { userId },
@@ -216,7 +228,7 @@ export const COMMANDS: CommandDef[] = [
     handler: async (ctx, args) => {
       const userId = requireString(args, "userId");
 
-      const updated = await prisma.$transaction(async (tx: any) => {
+      const updated = await prisma.$transaction(async (tx: PrismaTransactionClient) => {
         const prof = await tx.attorneyProfile.upsert({
           where: { userId },
           update: {
@@ -331,8 +343,16 @@ export const COMMANDS: CommandDef[] = [
         return { ok: false, error: "Failed to get or create organization for admin. Please ensure you have an organization set up." };
       }
 
-      const organizationId = orgMember.organizationId || (orgMember as any).organizations?.id;
-      const organizationName = (orgMember as any).organizations?.name || 'Your Firm';
+      type OrgMemberWithOrg = {
+        organizationId?: string;
+        organizations?: {
+          id?: string;
+          name?: string;
+        };
+      };
+      const orgMemberWithOrg = orgMember as OrgMemberWithOrg;
+      const organizationId = orgMember.organizationId || orgMemberWithOrg.organizations?.id;
+      const organizationName = orgMemberWithOrg.organizations?.name || 'Your Firm';
 
       if (!organizationId) {
         return { ok: false, error: "Organization ID not found" };
@@ -418,8 +438,9 @@ export const COMMANDS: CommandDef[] = [
           firmName: organizationName,
           inviteUrl,
         });
-      } catch (emailError: any) {
-        console.error('Failed to send invite email:', emailError);
+      } catch (emailError: unknown) {
+        const errorMessage = emailError instanceof Error ? emailError.message : String(emailError);
+        console.error('Failed to send invite email:', errorMessage);
       }
 
       // Audit
@@ -486,6 +507,16 @@ export const COMMANDS: CommandDef[] = [
       let resolvedCarrierNameRaw: string | null = null;
 
       if (insurerId) {
+        // Verify insurer exists before using it (prevents foreign key constraint errors)
+        const [insurerExists] = await db.select({ id: insurers.id })
+          .from(insurers)
+          .where(eq(insurers.id, insurerId))
+          .limit(1);
+
+        if (!insurerExists) {
+          return { ok: false, error: `Insurer not found with ID: ${insurerId}` };
+        }
+
         resolvedInsurerId = insurerId;
       } else if (insurerName) {
         const [existingInsurer] = await db.select()

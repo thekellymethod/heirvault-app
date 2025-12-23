@@ -10,10 +10,8 @@ import {
   Search,
   Eye,
   Flag,
-  Download,
   Building2,
   User,
-  Filter,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -96,7 +94,7 @@ export function AttorneyDashboardView({ policies, stats }: AttorneyDashboardView
       policy.client.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (policy.policyNumber && policy.policyNumber.toLowerCase().includes(searchQuery.toLowerCase())) ||
       (policy.insurer?.name && policy.insurer.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      ((policy as any).carrierNameRaw && (policy as any).carrierNameRaw.toLowerCase().includes(searchQuery.toLowerCase()));
+      (policy.carrierNameRaw && policy.carrierNameRaw.toLowerCase().includes(searchQuery.toLowerCase()));
 
     const matchesStatus = !statusFilter || policy.verificationStatus === statusFilter;
 
@@ -192,11 +190,14 @@ export function AttorneyDashboardView({ policies, stats }: AttorneyDashboardView
             />
           </div>
           <div className="flex gap-2">
+            <label htmlFor="status-filter" className="sr-only">Filter by verification status</label>
             <select
+              id="status-filter"
               value={statusFilter || ""}
               onChange={(e) => setStatusFilter(e.target.value || null)}
               className="input"
               aria-label="Filter by verification status"
+              title="Filter by verification status"
             >
               <option value="">All Statuses</option>
               <option value="PENDING">Pending</option>
@@ -285,9 +286,9 @@ export function AttorneyDashboardView({ policies, stats }: AttorneyDashboardView
                         <Building2 className="h-4 w-4 text-slateui-400" />
                         <div className="flex items-center gap-2">
                           <p className="text-sm text-ink-900">
-                            {policy.insurer?.name ?? (policy as any).carrierNameRaw ?? "Unknown"}
+                            {policy.insurer?.name ?? policy.carrierNameRaw ?? "Unknown"}
                           </p>
-                          {!policy.insurer?.name && (policy as any).carrierNameRaw && (
+                          {!policy.insurer?.name && policy.carrierNameRaw && (
                             <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-orange-100 text-orange-700">
                               Unresolved
                             </span>

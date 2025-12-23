@@ -1,4 +1,4 @@
-import pdfParse from "pdf-parse";
+import * as pdfParse from "pdf-parse";
 import { createWorker, PSM } from "tesseract.js";
 import { Buffer } from "buffer";
 

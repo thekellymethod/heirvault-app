@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { decodePassportForm } from "@/lib/ocr-form-decoder";
-import { storeFile } from "@/lib/storage";
+import { uploadDocument } from "@/lib/storage";
 import { renderToStream } from "@react-pdf/renderer";
 import { ClientReceiptPDF } from "@/pdfs/ClientReceiptPDF";
 import { sendClientReceiptEmail, sendAttorneyNotificationEmail } from "@/lib/email";
@@ -70,7 +70,13 @@ export async function POST(
     // Archive the scanned form
     let archivedDocument;
     try {
-      const { filePath } = await storeFile(file, invite.clientId);
+      const arrayBuffer = await file.arrayBuffer();
+      const { storagePath } = await uploadDocument({
+        fileBuffer: arrayBuffer,
+        filename: file.name,
+        contentType: file.type,
+      });
+      const filePath = storagePath;
       archivedDocument = await prisma.document.create({
         data: {
           clientId: invite.clientId,

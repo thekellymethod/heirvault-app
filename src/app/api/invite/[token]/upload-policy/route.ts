@@ -4,7 +4,7 @@ import { AuditAction } from "@/lib/db";
 import { ClientReceiptPDF } from "@/pdfs/ClientReceiptPDF";
 import { sendClientReceiptEmail, sendAttorneyNotificationEmail } from "@/lib/email";
 import { extractPolicyData } from "@/lib/ocr";
-import { storeFile } from "@/lib/storage";
+import { uploadDocument } from "@/lib/storage";
 import { prisma } from "@/lib/db";
 import { getOrCreateTestInvite } from "@/lib/test-invites";
 import { randomUUID } from "crypto";
@@ -119,7 +119,13 @@ export async function POST(
         };
 
         // Archive the original file
-        const { filePath } = await storeFile(file, invite.clientId);
+        const arrayBuffer = await file.arrayBuffer();
+        const { storagePath } = await uploadDocument({
+          fileBuffer: arrayBuffer,
+          filename: file.name,
+          contentType: file.type,
+        });
+        const filePath = storagePath;
         
         // Store document record in database
         archivedDocument = await prisma.document.create({
@@ -158,7 +164,13 @@ export async function POST(
         
         // Archive file even if OCR fails
         try {
-          const { filePath } = await storeFile(file, invite.clientId);
+          const arrayBuffer = await file.arrayBuffer();
+          const { storagePath } = await uploadDocument({
+            fileBuffer: arrayBuffer,
+            filename: file.name,
+            contentType: file.type,
+          });
+          const filePath = storagePath;
           archivedDocument = await prisma.document.create({
             data: {
               clientId: invite.clientId,

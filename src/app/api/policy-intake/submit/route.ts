@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { randomUUID } from "crypto";
 import { extractPolicyData } from "@/lib/ocr";
-import { storeFile } from "@/lib/storage";
+import { uploadDocument } from "@/lib/storage";
 import { generateDocumentHash } from "@/lib/document-hash";
 import { generateReceiptHash } from "@/lib/audit-hash";
 import { renderToStream } from "@react-pdf/renderer";
@@ -121,7 +121,13 @@ export async function POST(req: NextRequest) {
 
     // Store file if provided
     if (file) {
-      const { filePath } = await storeFile(file, clientId);
+      const arrayBuffer = await file.arrayBuffer();
+      const { storagePath } = await uploadDocument({
+        fileBuffer: arrayBuffer,
+        filename: file.name,
+        contentType: file.type,
+      });
+      const filePath = storagePath;
       documentId = randomUUID();
       await prisma.$executeRawUnsafe(`
         INSERT INTO documents (

@@ -16,6 +16,13 @@ const nextConfig = {
     remotePatterns: [],
     unoptimized: false,
   },
+  // Ensure build fails on TypeScript and ESLint errors
+  typescript: {
+    ignoreBuildErrors: false,
+  },
+  eslint: {
+    ignoreDuringBuilds: false,
+  },
   async headers() {
     return [
       {

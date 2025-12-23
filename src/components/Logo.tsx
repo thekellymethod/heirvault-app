@@ -19,9 +19,13 @@ export function Logo({ className = "", showTagline = false, size = "md", href = 
   const dimensions = sizeClasses[size];
   const isHorizontal = className.includes("flex-row");
 
+  const marginLeftClass = size === "sm" ? "-ml-16" : size === "md" ? "-ml-20" : "-ml-24";
+  const widthClass = size === "sm" ? "w-40" : size === "md" ? "w-60" : "w-80";
+  const heightClass = size === "sm" ? "h-[53px]" : size === "md" ? "h-20" : "h-[107px]";
+  
   const logoContent = (
     <div className={`flex ${isHorizontal ? "flex-row items-center gap-0" : "flex-col items-center"} ${className}`}>
-      <div className="relative" style={{ width: dimensions.width, height: dimensions.height, marginLeft: "-0.5rem" }}>
+      <div className={`relative -ml-2 ${widthClass} ${heightClass}`}>
         <Image
           src="/Designer.png"
           alt="HeirVault Logo"
@@ -36,14 +40,9 @@ export function Logo({ className = "", showTagline = false, size = "md", href = 
       <span
         className={`font-serif font-bold ${
           size === "sm" ? "text-lg" : size === "md" ? "text-2xl" : "text-3xl"
-        } tracking-tight relative z-10`}
-        style={{ 
-          fontFamily: "'Playfair Display', Georgia, serif", 
-          marginLeft: size === "sm" ? "-4rem" : size === "md" ? "-5rem" : "-6rem",
-          position: "relative"
-        }}
+        } tracking-tight relative z-10 ${marginLeftClass} font-['Playfair_Display',Georgia,serif]`}
       >
-        <span style={{ color: "#0f1f35" }}>Heir</span>
+        <span className="text-[#0f1f35]">Heir</span>
         <span className="text-gold-500">Vault</span>
       </span>
 

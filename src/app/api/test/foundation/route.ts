@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, sql, type RegistrySubmissionSource } from "@/lib/db";
-import { createRegistry, appendRegistryVersion } from "@/lib/db";
-import { sha256, sha256String } from "@/lib/hash";
-import { generateQRToken, verifyQRToken } from "@/lib/qr";
+import { createRegistryRecord, appendRegistryVersion } from "@/lib/db";
+import { sha256String } from "@/lib/hash";
+import { signToken, verifyToken } from "@/lib/qr";
 import { canAccessRegistry, canSearch, canViewAudit } from "@/lib/permissions";
 import { logAccess as auditLogAccess } from "@/lib/audit";
-import { Role, isRole } from "@/lib/roles";
+import { type Role, isRole } from "@/lib/roles";
 import { randomUUID } from "crypto";
 
 /**
@@ -43,8 +43,8 @@ export async function GET(req: NextRequest) {
     // 3. Test hashing
     const testString = "test-data-123";
     const testBuffer = Buffer.from(testString);
-    const stringHash = sha256String(testString);
-    const bufferHash = sha256(testBuffer);
+    const stringHash = await sha256String(testString);
+    const bufferHash = await sha256Buffer(testBuffer);
     results.hashing = {
       stringHash,
       bufferHash,
@@ -53,12 +53,12 @@ export async function GET(req: NextRequest) {
 
     // 4. Test QR token
     const testRegistryId = randomUUID();
-    const qrToken = generateQRToken(testRegistryId);
-    const verifiedPayload = verifyQRToken(qrToken);
+    const qrToken = signToken({ registryId: testRegistryId }, 3600);
+    const verifiedPayload = verifyToken(qrToken);
     results.qrToken = {
       generated: qrToken.length > 0,
-      verified: verifiedPayload !== null,
-      registryIdMatch: verifiedPayload?.registryId === testRegistryId,
+      verified: verifiedPayload.valid,
+      registryIdMatch: verifiedPayload.payload?.registryId === testRegistryId,
     };
 
     // 5. Test permissions (mock user ID)
@@ -73,7 +73,7 @@ export async function GET(req: NextRequest) {
     };
 
     // 6. Test registry creation
-    const registry = await createRegistry({
+    const registry = await createRegistryRecord({
       decedentName: "Test Foundation User",
       status: "PENDING_VERIFICATION",
       initialData: {
@@ -99,7 +99,7 @@ export async function GET(req: NextRequest) {
     
     // Note: uploadFile expects specific MIME types, so we'll test with a valid type
     // For this test, we'll skip actual file upload and just test the hash
-    const fileHash = sha256(testFileContent);
+    const fileHash = await sha256Buffer(testFileContent);
     results.fileUpload = {
       hashComputed: fileHash,
       hashLength: fileHash.length,
