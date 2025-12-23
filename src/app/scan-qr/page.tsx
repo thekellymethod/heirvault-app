@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Logo } from "@/components/Logo";
 import { QRScanner } from "@/components/QRScanner";
-import { QrCode, AlertCircle, CheckCircle, Loader2 } from "lucide-react";
+import { QrCode, AlertCircle, CheckCircle, Loader2, Camera } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function ScanQRPage() {
@@ -63,6 +63,7 @@ export default function ScanQRPage() {
       }
 
       // QR code validated successfully
+      setValidating(false);
       setValidated(true);
 
       // Redirect to the update form with the invite token

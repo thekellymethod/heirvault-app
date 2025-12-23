@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { renderToStream } from "@react-pdf/renderer";
 import { AuditAction } from "@/lib/db/enums";
-import { ClientReceiptPDF } from "@/pdfs/ClientReceiptPDF";
+import { ClientBallotPDF } from "@/pdfs/ClientBallotPDF";
+import QRCode from "qrcode";
 import { sendClientReceiptEmail, sendAttorneyNotificationEmail } from "@/lib/email";
 import { extractPolicyData } from "@/lib/ocr";
 import { uploadDocument } from "@/lib/storage";
@@ -549,10 +550,11 @@ export async function POST(
         id: p.id,
         policyNumber: p.policyNumber,
         policyType: p.policyType,
-        insurer: {
-          name: p.insurer.name,
-          contactPhone: p.insurer.contactPhone,
-          contactEmail: p.insurer.contactEmail,
+        // Use resolved insurer if available, otherwise fall back to carrierNameRaw (lazy insurers)
+        insurer: p.insurer || {
+          name: p.carrierNameRaw || "Unknown Insurer",
+          contactPhone: null,
+          contactEmail: null,
         },
       })) || [],
       organization: organization
@@ -570,24 +572,51 @@ export async function POST(
       receiptGeneratedAt: new Date(),
     };
 
-    // Generate receipt PDF
+    // Generate receipt PDF with ballot style
     let receiptPdfBuffer: Buffer | null = null;
     try {
       const baseUrl = process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin;
       const updateUrl = `${baseUrl}/qr-update/${token}`;
       
+      // Generate QR code data URL
+      let qrCodeDataUrl: string | undefined;
+      try {
+        qrCodeDataUrl = await QRCode.toDataURL(updateUrl, {
+          errorCorrectionLevel: "M",
+          type: "image/png",
+          width: 200,
+          margin: 1,
+        });
+      } catch (qrError) {
+        console.error("Error generating QR code:", qrError);
+        // Continue without QR code
+      }
+      
       const pdfStream = await renderToStream(
-        ClientReceiptPDF({ 
-          receiptData: {
+        ClientBallotPDF({ 
+          ballotData: {
             ...receiptData,
             updateUrl,
+            qrCodeDataUrl,
+            organization: organization
+              ? {
+                  name: organization.name,
+                  addressLine1: typeof organization.addressLine1 === "string" ? organization.addressLine1 : undefined,
+                  addressLine2: typeof organization.addressLine2 === "string" ? organization.addressLine2 : undefined,
+                  city: typeof organization.city === "string" ? organization.city : undefined,
+                  state: typeof organization.state === "string" ? organization.state : undefined,
+                  postalCode: typeof organization.postalCode === "string" ? organization.postalCode : undefined,
+                  phone: typeof organization.phone === "string" ? organization.phone : undefined,
+                }
+              : null,
           }
         })
       );
 
       // Convert stream to buffer
       const chunks: Uint8Array[] = [];
-      const reader = pdfStream.getReader();
+      const stream = pdfStream as unknown as ReadableStream<Uint8Array>;
+      const reader = stream.getReader();
       let done = false;
 
       while (!done) {

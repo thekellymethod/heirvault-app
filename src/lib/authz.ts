@@ -240,12 +240,12 @@ export async function requireAttorneyOrOwner() {
 export async function assertAttorneyCanAccessClient(clientId: string) {
   const { user, orgMember } = await getCurrentUserWithOrg()
 
-  if (!user || !orgMember) {
-    console.error('assertAttorneyCanAccessClient: No user or orgMember', { user: !!user, orgMember: !!orgMember })
+  if (!user) {
+    console.error('assertAttorneyCanAccessClient: No user', { user: !!user })
     throw new Error("Unauthorized")
   }
 
-  // Admin bypass - admins can access all clients
+  // Admin bypass - admins can access all clients (check FIRST, before orgMember requirement)
   // Check admin status using the new Prisma user system
   try {
     const { getOrCreateAppUser } = await import("@/lib/auth/CurrentUser");
@@ -256,7 +256,7 @@ export async function assertAttorneyCanAccessClient(clientId: string) {
         clientId,
         userId: user.id,
       });
-      return { user, orgMember };
+      return { user, orgMember: orgMember || null };
     }
   } catch (error) {
     // If admin check fails, continue with normal attorney check
@@ -273,15 +273,17 @@ export async function assertAttorneyCanAccessClient(clientId: string) {
 
   // Note: We don't verify client existence here - the API route will handle that
   // This function only verifies that the user has permission to access clients
+  // All attorneys have global access to all clients, even without orgMember
 
   console.log('assertAttorneyCanAccessClient: Global access granted for attorney', {
     clientId,
     userId: user.id,
-    orgId: orgMember.organizationId,
+    orgId: orgMember?.organizationId || null,
+    hasOrgMember: !!orgMember,
   })
 
   // All attorneys have global access to all clients
-  return { user, orgMember }
+  return { user, orgMember: orgMember || null }
 }
 
 // For client self-access via invitation token
