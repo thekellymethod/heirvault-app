@@ -35,12 +35,19 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ ok: false, error: "Cannot rotate revoked token" }, { status: 400 });
   }
 
+  // Check if old token is expired
+  const isExpired = oldToken.expiresAt && oldToken.expiresAt < new Date();
+  
+  // If expired, set new token expiry to null (no expiry) to prevent inheriting past date
+  // Otherwise, copy the expiry from the old token
+  const newExpiresAt = isExpired ? null : oldToken.expiresAt;
+
   // Create new token with same scopes and name (with " (rotated)" suffix)
   const { token, record: newToken } = await createApiToken({
     actorUserId: actor.id,
     name: `${oldToken.name} (rotated)`,
     scopes: oldToken.scopes,
-    expiresAt: oldToken.expiresAt, // Copy expiry from old token
+    expiresAt: newExpiresAt,
   });
 
   // Audit log
@@ -49,7 +56,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       id: crypto.randomUUID(),
       user_id: actor.id,
       action: "API_TOKEN_ROTATED",
-      message: `API token rotated: oldTokenId=${id}, newTokenId=${newToken.id}, name=${oldToken.name}`,
+      message: `API token rotated: oldTokenId=${id}, newTokenId=${newToken.id}, name=${oldToken.name}${isExpired ? " (expired token, new token has no expiry)" : ""}`,
       created_at: new Date(),
     },
   });
@@ -65,6 +72,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         scopes: newToken.scopes,
         expiresAt: newToken.expiresAt,
       },
+      warning: isExpired ? "Old token was expired. New token has no expiry." : undefined,
     },
   });
 }

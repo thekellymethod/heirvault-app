@@ -33,6 +33,9 @@ export async function GET() {
       createdAt: token.createdAt,
       expiresAt: token.expiresAt,
       revokedAt: token.revokedAt,
+      lastUsedAt: token.lastUsedAt,
+      lastUsedIp: token.lastUsedIp,
+      lastUsedPath: token.lastUsedPath,
       createdBy: {
         id: token.createdBy.id,
         email: token.createdBy.email,

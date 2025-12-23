@@ -311,12 +311,16 @@ model ApiToken {
   createdAt   DateTime @default(now())
   expiresAt   DateTime?
   revokedAt   DateTime?
+  lastUsedAt  DateTime?
+  lastUsedIp  String?
+  lastUsedPath String?
 
   createdBy   User     @relation(fields: [createdById], references: [id], onDelete: Cascade)
 
   @@index([createdById])
   @@index([expiresAt])
   @@index([revokedAt])
+  @@index([lastUsedAt])
   @@map("api_tokens")
 }
 

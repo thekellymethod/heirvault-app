@@ -12,6 +12,9 @@ type Token = {
   createdAt: string;
   expiresAt: string | null;
   revokedAt: string | null;
+  lastUsedAt: string | null;
+  lastUsedIp: string | null;
+  lastUsedPath: string | null;
   createdBy: {
     id: string;
     email: string;
@@ -41,6 +44,7 @@ export default function TokensClient() {
   const [tokenStored, setTokenStored] = useState(false);
   const [rotatedToken, setRotatedToken] = useState<string | null>(null);
   const [rotatedTokenId, setRotatedTokenId] = useState<string | null>(null);
+  const [rotateWarning, setRotateWarning] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -100,6 +104,7 @@ export default function TokensClient() {
 
   async function handleRotate(tokenId: string) {
     setError(null);
+    setRotateWarning(null);
     try {
       const res = await fetch(`/api/admin/tokens/${tokenId}/rotate`, {
         method: "POST",
@@ -109,6 +114,7 @@ export default function TokensClient() {
       if (json.ok) {
         setRotatedToken(json.data.token);
         setRotatedTokenId(json.data.newToken.id);
+        setRotateWarning(json.data.warning || null);
         setTokenStored(false);
         await loadTokens();
       } else {
@@ -188,6 +194,7 @@ export default function TokensClient() {
               <th className="px-4 py-3 text-left text-sm font-semibold text-ink-900">Name</th>
               <th className="px-4 py-3 text-left text-sm font-semibold text-ink-900">Scopes</th>
               <th className="px-4 py-3 text-left text-sm font-semibold text-ink-900">Created</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold text-ink-900">Last Used</th>
               <th className="px-4 py-3 text-left text-sm font-semibold text-ink-900">Expires</th>
               <th className="px-4 py-3 text-left text-sm font-semibold text-ink-900">Status</th>
               <th className="px-4 py-3 text-left text-sm font-semibold text-ink-900">Created By</th>
@@ -197,7 +204,7 @@ export default function TokensClient() {
           <tbody className="divide-y divide-slateui-200">
             {tokens.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-slateui-600">
+                <td colSpan={8} className="px-4 py-8 text-center text-slateui-600">
                   No tokens found. Create one to get started.
                 </td>
               </tr>
@@ -218,6 +225,21 @@ export default function TokensClient() {
                     </div>
                   </td>
                   <td className="px-4 py-3 text-sm text-slateui-600">{formatDate(token.createdAt)}</td>
+                  <td className="px-4 py-3 text-sm text-slateui-600">
+                    {token.lastUsedAt ? (
+                      <div>
+                        <div>{formatDate(token.lastUsedAt)}</div>
+                        {token.lastUsedPath && (
+                          <div className="text-xs text-slateui-500 mt-0.5">{token.lastUsedPath}</div>
+                        )}
+                        {token.lastUsedIp && (
+                          <div className="text-xs text-slateui-500">{token.lastUsedIp}</div>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-slateui-400 italic">Never</span>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-sm text-slateui-600">{formatDate(token.expiresAt)}</td>
                   <td className="px-4 py-3 text-sm">
                     {isRevoked(token) ? (
@@ -398,6 +420,12 @@ export default function TokensClient() {
 
             {rotatedToken ? (
               <div className="p-6">
+                {rotateWarning && (
+                  <div className="mb-4 p-4 bg-orange-50 border border-orange-200 rounded-md">
+                    <p className="text-sm font-medium text-ink-900 mb-1">ℹ️ Note</p>
+                    <p className="text-sm text-slateui-600">{rotateWarning}</p>
+                  </div>
+                )}
                 <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
                   <p className="text-sm font-medium text-ink-900 mb-2">⚠️ Store this new token securely</p>
                   <p className="text-sm text-slateui-600 mb-4">
@@ -429,6 +457,7 @@ export default function TokensClient() {
                     onClick={() => {
                       setRotatedToken(null);
                       setRotatedTokenId(null);
+                      setRotateWarning(null);
                       setShowRotateModal(null);
                       setTokenStored(false);
                     }}

@@ -12,6 +12,9 @@ export type ApiTokenRecord = {
   createdAt: Date;
   expiresAt: Date | null;
   revokedAt: Date | null;
+  lastUsedAt: Date | null;
+  lastUsedIp: string | null;
+  lastUsedPath: string | null;
   createdBy: {
     id: string;
     email: string;
@@ -102,6 +105,9 @@ export async function createApiToken(input: {
       createdAt: record.createdAt,
       expiresAt: record.expiresAt,
       revokedAt: record.revokedAt,
+      lastUsedAt: record.lastUsedAt,
+      lastUsedIp: record.lastUsedIp,
+      lastUsedPath: record.lastUsedPath,
       createdBy: {
         id: record.createdBy.id,
         email: record.createdBy.email,
@@ -155,6 +161,9 @@ export async function authenticateApiToken(bearerToken: string): Promise<ApiToke
     createdAt: record.createdAt,
     expiresAt: record.expiresAt,
     revokedAt: record.revokedAt,
+    lastUsedAt: record.lastUsedAt,
+    lastUsedIp: record.lastUsedIp,
+    lastUsedPath: record.lastUsedPath,
     createdBy: {
       id: record.createdBy.id,
       email: record.createdBy.email,
