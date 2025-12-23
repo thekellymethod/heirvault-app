@@ -287,7 +287,17 @@ export default function TokensClient() {
             <div className="p-6 border-b border-slateui-200">
               <div className="flex justify-between items-center">
                 <h3 className="text-lg font-semibold text-ink-900">Create API Token</h3>
-                <button onClick={() => setShowCreateModal(false)} className="text-slateui-500 hover:text-ink-900">
+                <button
+                  onClick={() => {
+                    setNewToken(null);
+                    setNewTokenName("");
+                    setSelectedScopes([]);
+                    setExpiresInDays(undefined);
+                    setShowCreateModal(false);
+                    setTokenStored(false);
+                  }}
+                  className="text-slateui-500 hover:text-ink-900"
+                >
                   <X className="h-5 w-5" />
                 </button>
               </div>
@@ -412,7 +422,16 @@ export default function TokensClient() {
             <div className="p-6 border-b border-slateui-200">
               <div className="flex justify-between items-center">
                 <h3 className="text-lg font-semibold text-ink-900">Rotate Token</h3>
-                <button onClick={() => setShowRotateModal(null)} className="text-slateui-500 hover:text-ink-900">
+                <button
+                  onClick={() => {
+                    setRotatedToken(null);
+                    setRotatedTokenId(null);
+                    setRotateWarning(null);
+                    setShowRotateModal(null);
+                    setTokenStored(false);
+                  }}
+                  className="text-slateui-500 hover:text-ink-900"
+                >
                   <X className="h-5 w-5" />
                 </button>
               </div>
@@ -470,6 +489,18 @@ export default function TokensClient() {
               </div>
             ) : (
               <div className="p-6">
+                {showRotateModal && (() => {
+                  const tokenToRotate = tokens.find((t) => t.id === showRotateModal);
+                  const isExpiredToken = tokenToRotate && isExpired(tokenToRotate);
+                  return isExpiredToken ? (
+                    <div className="mb-4 p-3 bg-orange-50 border border-orange-200 rounded-md">
+                      <p className="text-sm font-medium text-ink-900 mb-1">ℹ️ Expired Token</p>
+                      <p className="text-sm text-slateui-600">
+                        This token is expired. The new token will have no expiry date.
+                      </p>
+                    </div>
+                  ) : null;
+                })()}
                 <p className="text-sm text-slateui-600 mb-4">
                   This will create a new token with the same scopes. The old token will remain active until you revoke it.
                 </p>
