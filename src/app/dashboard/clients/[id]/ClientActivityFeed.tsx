@@ -74,6 +74,8 @@ function humanizeAuditAction(action: string): string {
       return "Client invite sent";
     case "INVITE_ACCEPTED":
       return "Client invite accepted";
+    case "INVITE_REACTIVATED":
+      return "Client invite reactivated";
     default:
       return action;
   }

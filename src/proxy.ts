@@ -31,6 +31,7 @@ const isPublicRoute = createRouteMatcher([
   "/api/qr-update(.*)",
   "/api/qr/validate(.*)", // Allow QR token validation
   "/api/policy-intake(.*)",
+  "/api/admin/samples(.*)", // Allow admin sample PDFs (protected by requireAdmin)
   "/api/intake(.*)",
   "/api/attorney/apply(.*)", // Allow attorney applications without authentication
   "/api/debug(.*)", // Allow all debug endpoints

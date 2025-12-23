@@ -5,9 +5,10 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/Logo";
 import Link from "next/link";
-import { Upload, FileText, CheckCircle, XCircle, Building2, QrCode, Printer, Download } from "lucide-react";
+import { Upload, FileText, CheckCircle, XCircle, Building2, QrCode, Printer, Download, Loader2 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { PassportStyleForm } from "@/components/PassportStyleForm";
+import { showSuccess, showError, showLoading } from "@/lib/toast";
 
 interface Props {
   inviteId: string;
@@ -59,18 +60,23 @@ export function InvitePortal(props: Props) {
       // Validate file type
       const validTypes = ["application/pdf", "image/jpeg", "image/png", "image/jpg"];
       if (!validTypes.includes(selectedFile.type)) {
-        setError("Invalid file type. Please upload a PDF or image file.");
+        const errorMsg = "Invalid file type. Please upload a PDF or image file.";
+        setError(errorMsg);
+        showError(errorMsg);
         return;
       }
 
       // Validate file size (max 10MB)
       if (selectedFile.size > 10 * 1024 * 1024) {
-        setError("File size must be less than 10MB");
+        const errorMsg = "File size must be less than 10MB";
+        setError(errorMsg);
+        showError(errorMsg);
         return;
       }
 
       setFile(selectedFile);
       setError(null);
+      showSuccess(`File selected: ${selectedFile.name}`);
     }
   }
 
@@ -97,7 +103,17 @@ export function InvitePortal(props: Props) {
     
     // Validate required fields
     if (!clientInfo.ssnLast4 || clientInfo.ssnLast4.length !== 4) {
-      setError("Please enter the last 4 digits of your SSN");
+      const errorMsg = "Please enter the last 4 digits of your SSN";
+      setError(errorMsg);
+      showError(errorMsg);
+      return;
+    }
+    
+    // Validate that either file or manual policy data is provided
+    if (!file && (!showManualEntry || !manualPolicyData.insurerName || !manualPolicyData.policyNumber)) {
+      const errorMsg = "Please upload a policy document or enter policy information manually";
+      setError(errorMsg);
+      showError(errorMsg);
       return;
     }
     
@@ -105,6 +121,7 @@ export function InvitePortal(props: Props) {
     // For now, we'll make it optional but note it's required for married women
     
     setStep("processing");
+    const loadingToast = showLoading("Uploading policy document and processing information...");
 
     try {
       const formData = new FormData();
@@ -153,6 +170,9 @@ export function InvitePortal(props: Props) {
         throw new Error(data.error || "Failed to submit information");
       }
 
+      // Show success toast
+      showSuccess("Policy information uploaded successfully! Generating receipt...");
+
       // Fetch receipt data
       const receiptRes = await fetch(`/api/invite/${token}/receipt`);
       if (receiptRes.ok) {
@@ -160,6 +180,7 @@ export function InvitePortal(props: Props) {
           const receipt = await receiptRes.json();
           setReceiptData(receipt);
           setStep("receipt");
+          showSuccess("Receipt generated successfully!");
         } catch (parseError) {
           throw new Error("Failed to fetch receipt - invalid response format");
         }
@@ -167,8 +188,10 @@ export function InvitePortal(props: Props) {
         throw new Error("Failed to fetch receipt");
       }
     } catch (e: any) {
-      setError(e.message || "Something went wrong");
+      const errorMsg = e.message || "Something went wrong";
+      setError(errorMsg);
       setStep("error");
+      showError(errorMsg);
     }
   }
 

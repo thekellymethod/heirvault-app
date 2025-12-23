@@ -210,7 +210,8 @@ export function ClientBallotPDF({ ballotData }: ClientBallotPDFProps) {
           {ballotData.receiptId.startsWith("INV-") ? (
             <Text style={styles.receiptId}>Invitation Code: {ballotData.receiptId}</Text>
           ) : (
-          <Text style={styles.receiptId}>Receipt: {ballotData.receiptId}</Text>
+            <Text style={styles.receiptId}>Receipt: {ballotData.receiptId}</Text>
+          )}
         </View>
 
         {/* Client Information Section */}
@@ -282,19 +283,43 @@ export function ClientBallotPDF({ ballotData }: ClientBallotPDFProps) {
 
         {/* Update Instructions */}
         <View style={styles.instructions}>
-          <Text style={styles.instructionTitle}>Update Instructions:</Text>
-          <Text style={styles.instructionItem}>
-            • To add a new policy: Fill in all policy boxes below
+          <Text style={styles.instructionTitle}>
+            {ballotData.receiptId.startsWith("INV-") ? "Registration Instructions:" : "Update Instructions:"}
           </Text>
-          <Text style={styles.instructionItem}>
-            • To change beneficiaries: Fill beneficiary name, relationship, and percentage boxes
-          </Text>
-          <Text style={styles.instructionItem}>
-            • To update policy information: Fill the corresponding policy boxes
-          </Text>
-          <Text style={styles.instructionItem}>
-            • To change contact info: Fill phone or email boxes above
-          </Text>
+          {ballotData.receiptId.startsWith("INV-") ? (
+            <>
+              <Text style={styles.instructionItem}>
+                • Scan the QR code below or visit the invitation URL to access the upload portal
+              </Text>
+              <Text style={styles.instructionItem}>
+                • Upload your policy documents (PDF or image files) - we'll extract the information automatically
+              </Text>
+              <Text style={styles.instructionItem}>
+                • Upload a photo of your government-issued ID (driver's license, passport, etc.)
+              </Text>
+              <Text style={styles.instructionItem}>
+                • Review and confirm the extracted policy information
+              </Text>
+              <Text style={styles.instructionItem}>
+                • Add any additional policies or beneficiary information as needed
+              </Text>
+            </>
+          ) : (
+            <>
+              <Text style={styles.instructionItem}>
+                • To add a new policy: Fill in all policy boxes below
+              </Text>
+              <Text style={styles.instructionItem}>
+                • To change beneficiaries: Fill beneficiary name, relationship, and percentage boxes
+              </Text>
+              <Text style={styles.instructionItem}>
+                • To update policy information: Fill the corresponding policy boxes
+              </Text>
+              <Text style={styles.instructionItem}>
+                • To change contact info: Fill phone or email boxes above
+              </Text>
+            </>
+          )}
         </View>
 
         {/* Blank Policy Boxes for Updates */}

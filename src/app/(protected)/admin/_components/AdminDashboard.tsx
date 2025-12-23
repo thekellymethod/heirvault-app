@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { ManualUpload } from "./ManualUpload";
 import { InviteManagement } from "./InviteManagement";
+import { ReceiptManagement } from "./ReceiptManagement";
 
 interface AdminDashboardProps {
   admin: AppUser;
@@ -65,7 +66,7 @@ interface AttorneyCredential {
  * Approvals, credential reviews, compliance
  */
 export function AdminDashboard({ admin }: AdminDashboardProps) {
-  const [activeTab, setActiveTab] = useState<"overview" | "approvals" | "credentials" | "compliance" | "manual-upload" | "invites">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "approvals" | "credentials" | "compliance" | "manual-upload" | "invites" | "receipts">("overview");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -213,6 +214,12 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
                   API Tokens
                 </Button>
               </Link>
+              <Link href="/admin/samples">
+                <Button variant="outline">
+                  <FileText className="h-4 w-4 mr-2" />
+                  Sample PDFs
+                </Button>
+              </Link>
             </div>
           </div>
         </div>
@@ -289,6 +296,26 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
               }`}
             >
               Manual Upload
+            </button>
+            <button
+              onClick={() => setActiveTab("invites")}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === "invites"
+                  ? "border-gold-500 text-gold-600"
+                  : "border-transparent text-slateui-500 hover:text-slateui-700 hover:border-slateui-300"
+              }`}
+            >
+              Invitation Codes
+            </button>
+            <button
+              onClick={() => setActiveTab("receipts")}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === "receipts"
+                  ? "border-gold-500 text-gold-600"
+                  : "border-transparent text-slateui-500 hover:text-slateui-700 hover:border-slateui-300"
+              }`}
+            >
+              Receipts
             </button>
           </nav>
         </div>
@@ -706,6 +733,10 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
 
         {activeTab === "invites" && (
           <InviteManagement />
+        )}
+
+        {activeTab === "receipts" && (
+          <ReceiptManagement />
         )}
 
         {activeTab === "manual-upload" && (

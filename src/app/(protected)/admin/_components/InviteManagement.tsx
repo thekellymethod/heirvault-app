@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Mail, RefreshCw, Copy, Check, Search, Plus, AlertCircle } from "lucide-react";
+import { Mail, RefreshCw, Copy, Check, Search, Plus, AlertCircle, FileText, Download } from "lucide-react";
 import { showSuccess, showError } from "@/lib/toast";
 
 interface Invite {
@@ -148,13 +148,31 @@ export function InviteManagement() {
             Generate, view, and manage client invitation codes for new policyholders
           </p>
         </div>
-        <Button
-          onClick={() => setShowGenerateForm(!showGenerateForm)}
-          className="btn-primary"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Generate New Invite
-        </Button>
+        <div className="flex gap-3">
+          <Button
+            onClick={() => window.open("/api/admin/samples/receipt-pdf", "_blank")}
+            className="btn-secondary"
+            title="View sample receipt PDF"
+          >
+            <FileText className="h-4 w-4 mr-2" />
+            Sample Receipt
+          </Button>
+          <Button
+            onClick={() => window.open("/api/admin/samples/invite-pdf", "_blank")}
+            className="btn-secondary"
+            title="View sample invite form PDF"
+          >
+            <FileText className="h-4 w-4 mr-2" />
+            Sample Invite Form
+          </Button>
+          <Button
+            onClick={() => setShowGenerateForm(!showGenerateForm)}
+            className="btn-primary"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Generate New Invite
+          </Button>
+        </div>
       </div>
 
       {/* Generate Form */}
