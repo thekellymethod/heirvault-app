@@ -103,7 +103,7 @@ export async function POST(req: NextRequest) {
 
     // Audit log the reactivation
     try {
-      await audit(AuditAction.INVITE_CREATED, {
+      await audit(AuditAction.INVITE_REACTIVATED, {
         message: `Admin ${admin.email} reactivated invite code ${token} for client ${invite.client_id}`,
         userId: admin.id,
         clientId: invite.client_id,
