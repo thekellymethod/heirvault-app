@@ -64,7 +64,7 @@ interface AttorneyCredential {
  * Approvals, credential reviews, compliance
  */
 export function AdminDashboard({ admin }: AdminDashboardProps) {
-  const [activeTab, setActiveTab] = useState<"overview" | "approvals" | "credentials" | "compliance" | "manual-upload">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "approvals" | "credentials" | "compliance" | "manual-upload" | "invites">("overview");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -701,6 +701,10 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
               </Link>
             </div>
           </div>
+        )}
+
+        {activeTab === "invites" && (
+          <InviteManagement />
         )}
 
         {activeTab === "manual-upload" && (
