@@ -196,6 +196,7 @@ export function AttorneyDashboardView({ policies, stats }: AttorneyDashboardView
               value={statusFilter || ""}
               onChange={(e) => setStatusFilter(e.target.value || null)}
               className="input"
+              aria-label="Filter by verification status"
             >
               <option value="">All Statuses</option>
               <option value="PENDING">Pending</option>

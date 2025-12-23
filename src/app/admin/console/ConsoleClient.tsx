@@ -286,6 +286,8 @@ export default function ConsoleClient() {
                 value={argsText}
                 onChange={(e) => setArgsText(e.target.value)}
                 rows={6}
+                aria-label="Command arguments (JSON)"
+                placeholder='Enter arguments as JSON (e.g., {"limit": 10})'
                 className="w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 font-mono text-xs text-zinc-100 outline-none focus:border-zinc-600"
                 spellCheck={false}
               />
@@ -301,6 +303,8 @@ export default function ConsoleClient() {
               value={nlText}
               onChange={(e) => setNlText(e.target.value)}
               rows={4}
+              aria-label="Natural language command"
+              placeholder="Describe what you want to do in plain English..."
               className="w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-zinc-600"
               placeholder='e.g., "Who am I?" or "Check database health" or "Lookup attorney john@example.com"'
             />

@@ -1,7 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { supabaseServer } from "@/lib/supabase";
-import { db, organizations, sql } from "@/lib/db";
 
 // If your guards return this shape already, keep it.
 // Otherwise adjust fields to match your AppUser type.
@@ -165,7 +164,7 @@ export const COMMANDS: CommandDef[] = [
     handler: async (ctx, args) => {
       const userId = requireString(args, "userId");
 
-      const updated = await prisma.$transaction(async (tx) => {
+      const updated = await prisma.$transaction(async (tx: any) => {
         // Ensure profile exists
         const prof = await tx.attorneyProfile.upsert({
           where: { userId },
@@ -217,7 +216,7 @@ export const COMMANDS: CommandDef[] = [
     handler: async (ctx, args) => {
       const userId = requireString(args, "userId");
 
-      const updated = await prisma.$transaction(async (tx) => {
+      const updated = await prisma.$transaction(async (tx: any) => {
         const prof = await tx.attorneyProfile.upsert({
           where: { userId },
           update: {
@@ -233,7 +232,7 @@ export const COMMANDS: CommandDef[] = [
         });
 
         const u = await tx.user.findUnique({ where: { id: userId }, select: { roles: true } });
-        const roles = (u?.roles ?? ["USER"]).filter((r) => r !== "ATTORNEY");
+        const roles = (u?.roles ?? ["USER"]).filter((r: string) => r !== "ATTORNEY");
 
         await tx.user.update({
           where: { id: userId },
@@ -340,118 +339,118 @@ export const COMMANDS: CommandDef[] = [
       }
 
       // Check if client already exists
-          const [existingClient] = await db.select()
+      const [existingClient] = await db.select()
+        .from(clients)
+        .where(eq(clients.email, email))
+        .limit(1);
+
+      let client = existingClient || null;
+
+      if (!client) {
+        const fingerprint = generateClientFingerprint({
+          email,
+          firstName,
+          lastName,
+          dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
+        });
+
+        const existingClientId = await findClientByFingerprint(fingerprint, db);
+        if (existingClientId) {
+          const [existing] = await db.select()
             .from(clients)
-            .where(eq(clients.email, email))
+            .where(eq(clients.id, existingClientId))
             .limit(1);
+          if (existing) client = existing;
+        }
 
-          let client = existingClient || null;
-
-          if (!client) {
-            const fingerprint = generateClientFingerprint({
+        if (!client) {
+          const [newClient] = await db.insert(clients)
+            .values({
               email,
               firstName,
               lastName,
-              dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
-            });
-
-            const existingClientId = await findClientByFingerprint(fingerprint, db);
-            if (existingClientId) {
-              const [existing] = await db.select()
-                .from(clients)
-                .where(eq(clients.id, existingClientId))
-                .limit(1);
-              if (existing) client = existing;
-            }
-
-            if (!client) {
-              const [newClient] = await db.insert(clients)
-                .values({
-                  email,
-                  firstName,
-                  lastName,
-                  phone: phone || null,
-                  dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
-                  orgId: organizationId,
-                  clientFingerprint: fingerprint,
-                })
-                .returning();
-              client = newClient;
-            }
-          }
-
-          // Grant attorney access
-          try {
-            await db.insert(attorneyClientAccess)
-              .values({
-                attorneyId: ctx.actor.id,
-                clientId: client.id,
-                organizationId: organizationId,
-                isActive: true,
-              });
-          } catch (error: any) {
-            // Access might already exist, ignore
-          }
-
-          // Create invite
-          const token = randomBytes(24).toString('hex');
-          const expiresAt = new Date();
-          expiresAt.setDate(expiresAt.getDate() + 14);
-
-          const [invite] = await db.insert(clientInvites)
-            .values({
-              clientId: client.id,
-              email,
-              token,
-              expiresAt,
-              invitedByUserId: ctx.actor.id,
+              phone: phone || null,
+              dateOfBirth: dateOfBirth ? (typeof dateOfBirth === 'string' ? dateOfBirth : new Date(dateOfBirth).toISOString().split('T')[0]) : null,
+              orgId: organizationId,
+              clientFingerprint: fingerprint,
             })
             .returning();
-
-          const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-          const inviteUrl = `${baseUrl}/invite/${invite.token}`;
-
-          // Send invite email
-          try {
-            await sendClientInviteEmail({
-              to: email,
-              clientName: `${client.firstName} ${client.lastName}`,
-              firmName: organizationName,
-              inviteUrl,
-            });
-          } catch (emailError: any) {
-            console.error('Failed to send invite email:', emailError);
-          }
-
-          // Audit
-          await prisma.audit_logs.create({
-            data: {
-              id: randomUUID(),
-              user_id: ctx.actor.id,
-              action: "INVITE_CREATED",
-              message: `Admin console sent client invitation to ${email}`,
-              created_at: new Date(),
-            },
-          });
-
-        return {
-          ok: true,
-          data: {
-            client: {
-              id: client.id,
-              email: client.email,
-              firstName: client.firstName,
-              lastName: client.lastName,
-            },
-            invite: {
-              id: invite.id,
-              inviteUrl,
-              expiresAt: invite.expiresAt,
-              token: invite.token,
-            },
-          },
-        };
+          client = newClient;
+        }
       }
+
+      // Grant attorney access
+      try {
+        await db.insert(attorneyClientAccess)
+          .values({
+            attorneyId: ctx.actor.id,
+            clientId: client.id,
+            organizationId: organizationId,
+            isActive: true,
+          });
+      } catch {
+        // Access might already exist, ignore
+      }
+
+      // Create invite
+      const token = randomBytes(24).toString('hex');
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 14);
+
+      const [invite] = await db.insert(clientInvites)
+        .values({
+          clientId: client.id,
+          email,
+          token,
+          expiresAt,
+          invitedByUserId: ctx.actor.id,
+        })
+        .returning();
+
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+      const inviteUrl = `${baseUrl}/invite/${invite.token}`;
+
+      // Send invite email
+      try {
+        await sendClientInviteEmail({
+          to: email,
+          clientName: `${client.firstName} ${client.lastName}`,
+          firmName: organizationName,
+          inviteUrl,
+        });
+      } catch (emailError: any) {
+        console.error('Failed to send invite email:', emailError);
+      }
+
+      // Audit
+      const { prisma: prismaClient } = await import("@/lib/prisma");
+      await prismaClient.audit_logs.create({
+        data: {
+          id: randomUUID(),
+          user_id: ctx.actor.id,
+          action: "INVITE_CREATED",
+          message: `Admin console sent client invitation to ${email}`,
+          created_at: new Date(),
+        },
+      });
+
+      return {
+        ok: true,
+        data: {
+          client: {
+            id: client.id,
+            email: client.email,
+            firstName: client.firstName,
+            lastName: client.lastName,
+          },
+          invite: {
+            id: invite.id,
+            inviteUrl,
+            expiresAt: invite.expiresAt,
+            token: invite.token,
+          },
+        },
+      };
     },
   },
 
@@ -469,9 +468,8 @@ export const COMMANDS: CommandDef[] = [
       const policyType = args?.policyType ? String(args.policyType).trim() : null;
 
       // Import dependencies
-      const { db, insurers, policies, clients, eq, AuditAction } = await import("@/lib/db");
-      const { audit } = await import("@/lib/audit");
-      const { randomUUID } = await import("crypto");
+      const { db, insurers, policies, clients, eq } = await import("@/lib/db");
+      const { audit, AuditAction } = await import("@/lib/audit");
 
       // Verify client exists
       const [clientExists] = await db.select({ id: clients.id })
