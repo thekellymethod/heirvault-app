@@ -59,11 +59,8 @@ export async function POST(req: NextRequest) {
     // Use case-insensitive email lookup to handle different OAuth providers
     const userByEmailResult = await prisma.$queryRawUnsafe<Array<{
       id: string;
-      email: string;
-      clerkId: string;
-      roles: string[];
     }>>(
-      `SELECT id, email, clerk_id as "clerkId", roles FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1`,
+      `SELECT id FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1`,
       email
     );
 
@@ -74,6 +71,26 @@ export async function POST(req: NextRequest) {
         })
       : null;
 
+    // SECURITY: Check if resubmission is allowed BEFORE updating any personal information
+    // This prevents unauthorized modification of user data via email enumeration
+    if (dbUser) {
+      const existingProfile = dbUser.attorneyProfile;
+      
+      // If profile exists and is not PENDING, don't allow resubmission
+      // Return early without modifying any user data
+      if (existingProfile && existingProfile.licenseStatus !== "PENDING") {
+        return NextResponse.json(
+          { 
+            error: "Attorney application already submitted",
+            status: existingProfile.licenseStatus,
+            message: `Your application status is: ${existingProfile.licenseStatus}. Please contact an administrator if you need to update your information.`
+          },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Only update/create user if we're actually going to process the application
     if (!dbUser) {
       // Create new user with placeholder clerkId
       // Format: pending_<uuid> to indicate they haven't signed in yet
@@ -91,7 +108,8 @@ export async function POST(req: NextRequest) {
         include: { attorneyProfile: true },
       });
     } else {
-      // Update existing user with provided information
+      // Only update personal information if we're processing the application
+      // (i.e., profile is PENDING or doesn't exist - checked above)
       dbUser = await prisma.user.update({
         where: { id: dbUser.id },
         data: {
@@ -104,20 +122,8 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Check if user already has an attorney profile
+    // Get the profile (should be null or PENDING at this point)
     const existingProfile = dbUser.attorneyProfile;
-
-    // If profile exists and is not PENDING, don't allow resubmission
-    if (existingProfile && existingProfile.licenseStatus !== "PENDING") {
-      return NextResponse.json(
-        { 
-          error: "Attorney application already submitted",
-          status: existingProfile.licenseStatus,
-          message: `Your application status is: ${existingProfile.licenseStatus}. Please contact an administrator if you need to update your information.`
-        },
-        { status: 400 }
-      );
-    }
 
     // Create or update attorney profile with PENDING status
     const profile = existingProfile

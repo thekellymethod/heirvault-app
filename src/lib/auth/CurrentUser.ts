@@ -43,17 +43,20 @@ export async function getOrCreateAppUser(): Promise<AppUser | null> {
   // Note: Email matching is case-insensitive - we normalize to lowercase
   if (!existingUser) {
     // Use case-insensitive email lookup via raw SQL since Prisma's findUnique is case-sensitive
+    // Query by id only, then use Prisma to get full user object with proper types
     const userByEmailResult = await prisma.$queryRawUnsafe<Array<{
       id: string;
-      roles: string[];
-      email: string;
-      clerkId: string;
     }>>(
-      `SELECT id, roles, email, clerk_id as "clerkId" FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1`,
+      `SELECT id FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1`,
       email
     );
 
-    const userByEmail = userByEmailResult.length > 0 ? userByEmailResult[0] : null;
+    const userByEmail = userByEmailResult.length > 0 
+      ? await prisma.user.findUnique({
+          where: { id: userByEmailResult[0].id },
+          select: { id: true, roles: true, email: true, clerkId: true },
+        })
+      : null;
 
     if (userByEmail) {
       // Check if the existing user has a placeholder clerkId (pending_*)
