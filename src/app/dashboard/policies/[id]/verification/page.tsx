@@ -3,6 +3,8 @@ import { requireAuth } from "@/lib/utils/clerk";
 import { assertAttorneyCanAccessClient } from "@/lib/authz";
 import { DocumentVerificationView } from "./_components/DocumentVerificationView";
 import { redirect } from "next/navigation";
+import { getOrCreateAppUser } from "@/lib/auth/CurrentUser";
+import { hasAdminRole } from "@/lib/auth/admin-bypass";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -100,6 +102,16 @@ export default async function DocumentVerificationPage({ params }: Props) {
 
   const policyData = policy[0];
 
+  // Check if current user is admin
+  let isAdmin = false;
+  try {
+    const appUser = await getOrCreateAppUser();
+    isAdmin = appUser ? hasAdminRole(appUser) : false;
+  } catch {
+    // If admin check fails, default to false
+    isAdmin = false;
+  }
+
   // Get documents for this policy
   const documents = await prisma.$queryRawUnsafe<Array<{
     id: string;
@@ -191,6 +203,7 @@ export default async function DocumentVerificationPage({ params }: Props) {
         processedAt: s.processed_at,
       }))}
       currentUserId={userId}
+      isAdmin={isAdmin}
     />
   );
 }

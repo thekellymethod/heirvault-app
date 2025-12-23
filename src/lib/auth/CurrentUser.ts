@@ -76,17 +76,22 @@ export async function getOrCreateAppUser(): Promise<AppUser | null> {
         });
         console.log(`[AUDIT] Linked Clerk account (${userId}) to existing user by email: ${email} (OAuth provider: ${cu?.externalAccounts?.[0]?.provider || 'unknown'})`);
       } else {
-        // User exists with a different clerkId - this shouldn't happen normally
-        // But if it does, we'll use the existing user and update the clerkId
-        existingUser = await prisma.user.update({
-          where: { id: userByEmail.id },
-          data: {
-            clerkId: userId, // Update to new Clerk ID
-            email: email, // Normalize email to lowercase
-          },
-          select: { id: true, roles: true, email: true, clerkId: true },
-        });
-        console.warn(`[AUDIT] User with email ${email} exists but had different clerkId: ${userByEmail.clerkId} -> ${userId} (OAuth provider: ${cu?.externalAccounts?.[0]?.provider || 'unknown'})`);
+        // SECURITY: User exists with a different (non-placeholder) clerkId
+        // This indicates the email is already associated with a different Clerk account
+        // For a legal application handling sensitive estate data, we should NOT automatically
+        // link accounts to prevent account takeover attacks
+        // 
+        // Instead, we should:
+        // 1. Log a security warning
+        // 2. Create a new user account for this Clerk ID (don't link)
+        // 3. Let the user contact support if they need accounts merged
+        console.error(`[SECURITY] Account linking blocked: User with email ${email} already has a different Clerk account (${userByEmail.clerkId}). Attempted sign-in with Clerk ID: ${userId} (OAuth provider: ${cu?.externalAccounts?.[0]?.provider || 'unknown'})`);
+        
+        // Don't link accounts - this prevents account takeover
+        // The user will need to contact support if they need accounts merged
+        // For now, we'll continue with creating/finding a user by clerkId only
+        // (which will create a new user if not found by clerkId)
+        existingUser = null;
       }
     }
   }

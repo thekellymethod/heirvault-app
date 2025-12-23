@@ -22,6 +22,7 @@ export default async function PoliciesPage({
           ilike(policies.policyNumber, `%${searchTerm}%`),
           ilike(policies.policyType, `%${searchTerm}%`),
           ilike(insurers.name, `%${searchTerm}%`),
+          ilike(policies.carrierNameRaw, `%${searchTerm}%`), // Search unresolved insurers too
           ilike(clients.firstName, `%${searchTerm}%`),
           ilike(clients.lastName, `%${searchTerm}%`),
           ilike(clients.email, `%${searchTerm}%`),

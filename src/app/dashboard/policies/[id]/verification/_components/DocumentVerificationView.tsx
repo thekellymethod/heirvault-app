@@ -72,6 +72,7 @@ interface DocumentVerificationViewProps {
   documents: Document[];
   submissions: Submission[];
   currentUserId: string;
+  isAdmin?: boolean;
 }
 
 export function DocumentVerificationView({
@@ -79,11 +80,48 @@ export function DocumentVerificationView({
   documents,
   submissions,
   currentUserId,
+  isAdmin = false,
 }: DocumentVerificationViewProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [verificationStatus, setVerificationStatus] = useState(policy.verificationStatus);
   const [verificationNotes, setVerificationNotes] = useState(policy.verificationNotes || "");
+  const [resolveInsurerOpen, setResolveInsurerOpen] = useState(false);
+  const [insurerName, setInsurerName] = useState(policy.carrierNameRaw || "");
+  const [resolving, setResolving] = useState(false);
+
+  const handleResolveInsurer = async () => {
+    if (!insurerName.trim()) {
+      setError("Insurer name is required");
+      return;
+    }
+
+    setResolving(true);
+    setError(null);
+
+    try {
+      const res = await fetch("/api/admin/policies/resolve-insurer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          policyId: policy.id,
+          insurerName: insurerName.trim(),
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to resolve insurer");
+      }
+
+      // Refresh the page to show updated policy
+      window.location.reload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to resolve insurer");
+    } finally {
+      setResolving(false);
+    }
+  };
 
   const handleVerify = async (status: Policy["verificationStatus"]) => {
     setLoading(true);
@@ -190,14 +228,26 @@ export function DocumentVerificationView({
               <label className="label">Insurer</label>
               <div className="flex items-center gap-2">
                 <Building2 className="h-4 w-4 text-slateui-400" />
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-1">
                   <p className="text-ink-900">
                     {policy.insurer?.name ?? policy.carrierNameRaw ?? "Unknown"}
                   </p>
                   {!policy.insurer && policy.carrierNameRaw && (
-                    <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-orange-100 text-orange-700">
-                      Unresolved
-                    </span>
+                    <>
+                      <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-orange-100 text-orange-700">
+                        Unresolved
+                      </span>
+                      {isAdmin && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setResolveInsurerOpen(true)}
+                          className="ml-2"
+                        >
+                          Resolve
+                        </Button>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
@@ -368,6 +418,66 @@ export function DocumentVerificationView({
           ))}
         </div>
       </div>
+
+      {/* Resolve Insurer Modal (Admin Only) */}
+      {resolveInsurerOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h2 className="text-xl font-semibold text-ink-900 mb-4">Resolve Insurer</h2>
+            <p className="text-sm text-slateui-600 mb-4">
+              Enter the canonical insurer name to link this policy to an insurer record.
+              If the insurer doesn't exist, it will be created.
+            </p>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-ink-900 mb-1">
+                  Insurer Name
+                </label>
+                <Input
+                  value={insurerName}
+                  onChange={(e) => setInsurerName(e.target.value)}
+                  placeholder="e.g., MetLife, Prudential, State Farm"
+                  className="w-full"
+                />
+                {policy.carrierNameRaw && (
+                  <p className="text-xs text-slateui-500 mt-1">
+                    Current: {policy.carrierNameRaw}
+                  </p>
+                )}
+              </div>
+              {error && (
+                <div className="text-sm text-red-600">{error}</div>
+              )}
+              <div className="flex gap-2 justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setResolveInsurerOpen(false);
+                    setError(null);
+                    setInsurerName(policy.carrierNameRaw || "");
+                  }}
+                  disabled={resolving}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleResolveInsurer}
+                  disabled={resolving || !insurerName.trim()}
+                >
+                  {resolving ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Resolving...
+                    </>
+                  ) : (
+                    "Resolve"
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

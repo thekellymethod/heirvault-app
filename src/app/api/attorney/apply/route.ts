@@ -88,6 +88,19 @@ export async function POST(req: NextRequest) {
           { status: 400 }
         );
       }
+
+      // SECURITY: If user exists but has NO attorney profile, do NOT allow modification
+      // This prevents attackers from overwriting existing users' personal data
+      // Users without attorney profiles should sign in first or contact support
+      if (!existingProfile) {
+        return NextResponse.json(
+          { 
+            error: "User account already exists",
+            message: "An account with this email already exists. Please sign in to submit an attorney application, or contact support if you need assistance."
+          },
+          { status: 400 }
+        );
+      }
     }
 
     // Only update/create user if we're actually going to process the application
@@ -109,7 +122,7 @@ export async function POST(req: NextRequest) {
       });
     } else {
       // Only update personal information if we're processing the application
-      // (i.e., profile is PENDING or doesn't exist - checked above)
+      // At this point, we know the user exists AND has a PENDING profile (checked above)
       dbUser = await prisma.user.update({
         where: { id: dbUser.id },
         data: {

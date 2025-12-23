@@ -23,6 +23,7 @@ export default async function RegistryRecordPage({ params }: Props) {
   await requireAuth();
 
   // Get policy with all related data
+  // Use LEFT JOIN for insurers to support unresolved insurers (lazy insurers)
   const policy = await prisma.$queryRawUnsafe<Array<{
     id: string;
     policy_number: string | null;
@@ -35,8 +36,9 @@ export default async function RegistryRecordPage({ params }: Props) {
     created_at: Date;
     updated_at: Date;
     client_id: string;
-    insurer_id: string;
-    insurer_name: string;
+    insurer_id: string | null;
+    carrier_name_raw: string | null;
+    insurer_name: string | null;
     client_first_name: string;
     client_last_name: string;
     client_email: string;
@@ -54,12 +56,13 @@ export default async function RegistryRecordPage({ params }: Props) {
       p.updated_at,
       p.client_id,
       p.insurer_id,
+      p.carrier_name_raw,
       i.name as insurer_name,
       c.first_name as client_first_name,
       c.last_name as client_last_name,
       c.email as client_email
     FROM policies p
-    INNER JOIN insurers i ON i.id = p.insurer_id
+    LEFT JOIN insurers i ON i.id = p.insurer_id
     INNER JOIN clients c ON c.id = p.client_id
     WHERE p.id = $1
     LIMIT 1
@@ -144,7 +147,7 @@ export default async function RegistryRecordPage({ params }: Props) {
         id: policyData.id,
         policyNumber: policyData.policy_number,
         policyType: policyData.policy_type,
-        verificationStatus: policyData.verification_status as any,
+        verificationStatus: policyData.verification_status as "PENDING" | "VERIFIED" | "DISCREPANCY" | "INCOMPLETE" | "REJECTED",
         verifiedAt: policyData.verified_at,
         verifiedByUserId: policyData.verified_by_user_id,
         verificationNotes: policyData.verification_notes,
@@ -157,10 +160,13 @@ export default async function RegistryRecordPage({ params }: Props) {
           lastName: policyData.client_last_name,
           email: policyData.client_email,
         },
-        insurer: {
-          id: policyData.insurer_id,
-          name: policyData.insurer_name,
-        },
+        insurer: policyData.insurer_id && policyData.insurer_name
+          ? {
+              id: policyData.insurer_id,
+              name: policyData.insurer_name,
+            }
+          : null,
+        carrierNameRaw: policyData.carrier_name_raw,
       }}
       documents={documents.map(d => ({
         id: d.id,

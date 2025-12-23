@@ -95,7 +95,8 @@ export function AttorneyDashboardView({ policies, stats }: AttorneyDashboardView
       policy.client.lastName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       policy.client.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (policy.policyNumber && policy.policyNumber.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      policy.insurer.name.toLowerCase().includes(searchQuery.toLowerCase());
+      (policy.insurer?.name && policy.insurer.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      ((policy as any).carrierNameRaw && (policy as any).carrierNameRaw.toLowerCase().includes(searchQuery.toLowerCase()));
 
     const matchesStatus = !statusFilter || policy.verificationStatus === statusFilter;
 
