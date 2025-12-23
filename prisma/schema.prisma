@@ -192,7 +192,7 @@ model org_members {
   organization_id String
   role            OrgRole       @default(ATTORNEY)
   created_at      DateTime      @default(now())
-  updated_at     DateTime
+  updated_at      DateTime
   organizations   organizations @relation(fields: [organization_id], references: [id], onDelete: Cascade)
   users           User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
@@ -286,36 +286,36 @@ model User {
 }
 
 model attorneyProfile {
-  id           String   @id @default(uuid())
-  userId       String   @unique
-  licenseStatus LicenseStatus @default(PENDING)
-  licenseState  String? @map("license_state")
-  verifiedAt   DateTime?
-  appliedAt    DateTime @default(now())
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
-  lawFirm      String?  @map("law_firm")
-  licenseDocumentPath String? @map("license_document_path")
-  licenseDocumentName String? @map("license_document_name")
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                  String        @id @default(uuid())
+  userId              String        @unique
+  licenseStatus       LicenseStatus @default(PENDING)
+  licenseState        String?       @map("license_state")
+  verifiedAt          DateTime?
+  appliedAt           DateTime      @default(now())
+  createdAt           DateTime      @default(now()) @map("created_at")
+  updatedAt           DateTime      @updatedAt @map("updated_at")
+  lawFirm             String?       @map("law_firm")
+  licenseDocumentPath String?       @map("license_document_path")
+  licenseDocumentName String?       @map("license_document_name")
+  user                User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("attorney_profiles")
 }
 
 model ApiToken {
-  id          String   @id @default(uuid())
-  name        String
-  hash        String   @unique
-  scopes      String[]
-  createdById String
-  createdAt   DateTime @default(now())
-  expiresAt   DateTime?
-  revokedAt   DateTime?
-  lastUsedAt  DateTime?
-  lastUsedIp  String?
+  id           String    @id @default(uuid())
+  name         String
+  hash         String    @unique
+  scopes       String[]
+  createdById  String
+  createdAt    DateTime  @default(now())
+  expiresAt    DateTime?
+  revokedAt    DateTime?
+  lastUsedAt   DateTime?
+  lastUsedIp   String?
   lastUsedPath String?
 
-  createdBy   User     @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  createdBy User @relation(fields: [createdById], references: [id], onDelete: Cascade)
 
   @@index([createdById])
   @@index([expiresAt])
