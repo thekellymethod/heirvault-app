@@ -27,6 +27,38 @@ function nlEnabled() {
   return process.env.ADMIN_CONSOLE_NL_ENABLED === "true";
 }
 
+/**
+ * Validate and normalize the plan from the model
+ * Ensures whitelist compliance and proper field defaults
+ */
+function validateAndNormalizePlan(plan: NLPlan, commandList: Array<{ id: string }>): NLPlan {
+  // Defensive post-processing
+  if (plan.cmd && !commandList.some((c) => c.id === plan.cmd)) {
+    plan.cmd = null;
+    plan.args = {};
+    plan.next = [];
+    plan.requiresConfirm = false;
+    plan.confidence = 0;
+    plan.explanation = "Model proposed a non-whitelisted command; blocked.";
+    plan.safetyFlags = [...(plan.safetyFlags ?? []), "NON_WHITELIST_CMD"];
+  }
+
+  if (plan.cmd && WRITE_COMMANDS.has(plan.cmd)) {
+    plan.requiresConfirm = true;
+  }
+
+  // Ensure all required fields are present
+  return {
+    cmd: plan.cmd ?? null,
+    args: plan.args ?? {},
+    next: plan.next ?? [],
+    requiresConfirm: plan.requiresConfirm ?? (plan.cmd ? WRITE_COMMANDS.has(plan.cmd) : false),
+    confidence: plan.confidence ?? 0,
+    explanation: plan.explanation ?? "",
+    safetyFlags: plan.safetyFlags ?? [],
+  };
+}
+
 export async function translateNLToPlan(input: {
   text: string;
   commands: CommandMeta[];
@@ -89,18 +121,27 @@ export async function translateNLToPlan(input: {
   const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
   try {
-    // Use chat.completions with structured outputs (JSON mode)
-    // Note: OpenAI Responses API may not be available yet, so we use chat.completions
+    // Use chat.completions with Structured Outputs (JSON Schema)
+    // This ensures the model MUST return valid JSON matching our schema
+    // Note: If Responses API becomes available, we can migrate to client.responses.create()
     const response = await client.chat.completions.create({
-      model: "gpt-4o", // Using gpt-4o as gpt-5 may not be available
+      model: "gpt-4o", // Using gpt-4o (gpt-5 may not be available yet)
       messages: [
         { role: "system", content: system },
         { role: "user", content: user },
       ],
-      response_format: { type: "json_object" },
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: NL_PLAN_SCHEMA.name,
+          schema: NL_PLAN_SCHEMA.schema,
+          strict: true, // Enforce strict schema compliance
+        },
+      },
       temperature: 0.1, // Low temperature for more deterministic output
     });
 
+    // With structured outputs, the content should be valid JSON matching our schema
     const content = response.choices[0]?.message?.content;
     if (!content) {
       throw new Error("No response content from OpenAI");
@@ -108,31 +149,7 @@ export async function translateNLToPlan(input: {
 
     const plan = JSON.parse(content) as NLPlan;
 
-    // Defensive post-processing
-    if (plan.cmd && !commandList.some((c) => c.id === plan.cmd)) {
-      plan.cmd = null;
-      plan.args = {};
-      plan.next = [];
-      plan.requiresConfirm = false;
-      plan.confidence = 0;
-      plan.explanation = "Model proposed a non-whitelisted command; blocked.";
-      plan.safetyFlags = [...(plan.safetyFlags ?? []), "NON_WHITELIST_CMD"];
-    }
-
-    if (plan.cmd && WRITE_COMMANDS.has(plan.cmd)) {
-      plan.requiresConfirm = true;
-    }
-
-    // Ensure all required fields are present
-    return {
-      cmd: plan.cmd ?? null,
-      args: plan.args ?? {},
-      next: plan.next ?? [],
-      requiresConfirm: plan.requiresConfirm ?? (plan.cmd ? WRITE_COMMANDS.has(plan.cmd) : false),
-      confidence: plan.confidence ?? 0,
-      explanation: plan.explanation ?? "",
-      safetyFlags: plan.safetyFlags ?? [],
-    };
+    return validateAndNormalizePlan(plan, commandList);
   } catch (error: any) {
     console.error("NL translation error:", error);
     return {

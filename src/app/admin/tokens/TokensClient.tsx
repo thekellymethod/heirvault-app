@@ -402,7 +402,17 @@ export default function TokensClient() {
                 </div>
 
                 <div className="flex justify-end gap-2">
-                  <Button onClick={() => setShowCreateModal(false)} variant="outline">
+                  <Button
+                    onClick={() => {
+                      setNewToken(null);
+                      setNewTokenName("");
+                      setSelectedScopes([]);
+                      setExpiresInDays(undefined);
+                      setShowCreateModal(false);
+                      setTokenStored(false);
+                    }}
+                    variant="outline"
+                  >
                     Cancel
                   </Button>
                   <Button onClick={handleCreate} className="btn-primary" disabled={!newTokenName || selectedScopes.length === 0}>
@@ -505,7 +515,16 @@ export default function TokensClient() {
                   This will create a new token with the same scopes. The old token will remain active until you revoke it.
                 </p>
                 <div className="flex justify-end gap-2">
-                  <Button onClick={() => setShowRotateModal(null)} variant="outline">
+                  <Button
+                    onClick={() => {
+                      setRotatedToken(null);
+                      setRotatedTokenId(null);
+                      setRotateWarning(null);
+                      setShowRotateModal(null);
+                      setTokenStored(false);
+                    }}
+                    variant="outline"
+                  >
                     Cancel
                   </Button>
                   <Button onClick={() => handleRotate(showRotateModal)} className="btn-primary">
