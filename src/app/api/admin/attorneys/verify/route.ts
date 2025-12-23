@@ -155,7 +155,16 @@ export async function GET(req: NextRequest) {
 
     const profiles = await prisma.attorneyProfile.findMany({
       where,
-      include: {
+      select: {
+        id: true,
+        userId: true,
+        licenseStatus: true,
+        licenseState: true,
+        lawFirm: true,
+        licenseDocumentPath: true,
+        licenseDocumentName: true,
+        appliedAt: true,
+        verifiedAt: true,
         user: {
           select: {
             id: true,

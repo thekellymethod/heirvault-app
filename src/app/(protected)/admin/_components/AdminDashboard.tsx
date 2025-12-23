@@ -98,7 +98,24 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
         const res = await fetch("/api/admin/attorneys/verify?status=PENDING");
         if (!res.ok) throw new Error("Failed to load attorney applications");
         const data = await res.json();
-        setAttorneyCredentials(data.profiles || []);
+        // Transform nested user data to flat structure
+        const flattened = (data.profiles || []).map((profile: any) => ({
+          id: profile.id,
+          userId: profile.userId,
+          email: profile.user?.email || null,
+          firstName: profile.user?.firstName || null,
+          lastName: profile.user?.lastName || null,
+          phone: profile.user?.phone || null,
+          barNumber: profile.user?.barNumber || null,
+          lawFirm: profile.lawFirm || null,
+          licenseState: profile.licenseState || null,
+          licenseStatus: profile.licenseStatus,
+          licenseDocumentPath: profile.licenseDocumentPath || null,
+          licenseDocumentName: profile.licenseDocumentName || null,
+          appliedAt: profile.appliedAt,
+          verifiedAt: profile.verifiedAt || null,
+        }));
+        setAttorneyCredentials(flattened);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load data");

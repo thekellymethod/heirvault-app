@@ -61,10 +61,15 @@ export async function POST(req: NextRequest) {
         }
 
         // Create user with ATTORNEY role
+        // Generate a placeholder clerkId for manually created users (format: manual_<uuid>)
+        // This satisfies the required unique constraint and can be updated later if the user signs up with Clerk
         const userId = randomUUID();
+        const placeholderClerkId = `manual_${randomUUID()}`;
+        
         const user = await prisma.user.create({
           data: {
             id: userId,
+            clerkId: placeholderClerkId,
             email,
             firstName,
             lastName,
@@ -79,6 +84,7 @@ export async function POST(req: NextRequest) {
           data: {
             userId: user.id,
             licenseStatus: "ACTIVE",
+            licenseState: licenseState || undefined,
             lawFirm: lawFirm || undefined,
             verifiedAt: new Date(),
             appliedAt: new Date(),
@@ -89,7 +95,16 @@ export async function POST(req: NextRequest) {
           action: "ATTORNEY_CREATED",
           resourceType: "attorney",
           resourceId: user.id,
-          details: { email, firstName, lastName, barNumber, createdBy: admin.id },
+          details: { 
+            email, 
+            firstName, 
+            lastName, 
+            barNumber, 
+            createdBy: admin.id,
+            manuallyCreated: true,
+            placeholderClerkId: placeholderClerkId,
+            note: "Manually created by admin. User will need to sign up with Clerk to link their account."
+          },
           userId: admin.id,
         });
 

@@ -288,6 +288,7 @@ model attorneyProfile {
   id           String   @id @default(uuid())
   userId       String   @unique
   licenseStatus LicenseStatus @default(PENDING)
+  licenseState  String? @map("license_state")
   verifiedAt   DateTime?
   appliedAt    DateTime @default(now())
   createdAt    DateTime @default(now()) @map("created_at")

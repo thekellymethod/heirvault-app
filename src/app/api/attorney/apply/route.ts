@@ -86,6 +86,7 @@ export async function POST(req: NextRequest) {
           where: { userId: user.id },
           data: {
             licenseStatus: "PENDING",
+            licenseState: licenseState || undefined,
             lawFirm: lawFirm || undefined,
             licenseDocumentPath: licenseDocumentPath || undefined,
             licenseDocumentName: licenseDocumentName || undefined,
@@ -96,6 +97,7 @@ export async function POST(req: NextRequest) {
           data: {
             userId: user.id,
             licenseStatus: "PENDING",
+            licenseState: licenseState || undefined,
             lawFirm: lawFirm || undefined,
             licenseDocumentPath: licenseDocumentPath || undefined,
             licenseDocumentName: licenseDocumentName || undefined,
