@@ -18,6 +18,7 @@ import {
   Scale,
   Eye,
   Download,
+  Key,
 } from "lucide-react";
 import { ManualUpload } from "./ManualUpload";
 
@@ -203,6 +204,12 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
                 <Button variant="outline">
                   <FileText className="h-4 w-4 mr-2" />
                   Admin Console
+                </Button>
+              </Link>
+              <Link href="/admin/tokens">
+                <Button variant="outline">
+                  <Key className="h-4 w-4 mr-2" />
+                  API Tokens
                 </Button>
               </Link>
             </div>

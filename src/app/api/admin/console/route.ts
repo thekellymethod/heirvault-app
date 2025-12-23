@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { COMMAND_MAP } from "@/lib/admin/console/commands";
-import { requireAdmin } from "@/lib/auth/guards";
+import { getActorFromRequest } from "@/lib/security/requireApiToken";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
@@ -37,7 +37,18 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "Admin console is disabled." }, { status: 404 });
   }
 
-  const actor = await requireAdmin(); // must return {id, clerkId, email, roles}
+  // Support both Clerk session (requireAdmin) and API token auth
+  // getActorFromRequest tries token first, then falls back to Clerk
+  // For console, require "console:exec" or "admin" scope
+  let actor;
+  try {
+    actor = await getActorFromRequest(req, { requiredScopes: ["console:exec", "admin"] });
+  } catch (error: any) {
+    return NextResponse.json(
+      { ok: false, error: error.message || "Authentication required." },
+      { status: error.status || 401 }
+    );
+  }
 
   const rl = rateLimit(actor.id);
   if (!rl.allowed) {
@@ -91,11 +102,23 @@ export async function POST(req: Request) {
   }
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   if (!isConsoleEnabled()) {
     return NextResponse.json({ ok: false, error: "Admin console is disabled." }, { status: 404 });
   }
-  const actor = await requireAdmin();
+
+  // Support both Clerk session and API token auth
+  // For console, require "console:exec" or "admin" scope
+  let actor;
+  try {
+    actor = await getActorFromRequest(req, { requiredScopes: ["console:exec", "admin"] });
+  } catch (error: any) {
+    return NextResponse.json(
+      { ok: false, error: error.message || "Authentication required." },
+      { status: error.status || 401 }
+    );
+  }
+
   // Lightweight info endpoint
   return NextResponse.json({
     ok: true,
