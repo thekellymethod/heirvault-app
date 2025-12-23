@@ -207,6 +207,9 @@ export function ClientBallotPDF({ ballotData }: ClientBallotPDFProps) {
         <View style={styles.header}>
           <Text style={styles.title}>HeirVault Registry Ballot</Text>
           <Text style={styles.subtitle}>Life Insurance & Beneficiary Registry</Text>
+          {ballotData.receiptId.startsWith("INV-") ? (
+            <Text style={styles.receiptId}>Invitation Code: {ballotData.receiptId}</Text>
+          ) : (
           <Text style={styles.receiptId}>Receipt: {ballotData.receiptId}</Text>
         </View>
 
