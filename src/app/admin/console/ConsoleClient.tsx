@@ -292,6 +292,7 @@ export default function ConsoleClient() {
             {hint && <p className="mt-2 text-xs text-red-400">{hint}</p>}
           </div>
         </div>
+        </>
       ) : (
         <>
           <div>

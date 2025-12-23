@@ -278,6 +278,7 @@ model User {
   clientRecord         clients?                 @relation("UserClient")
   auditLogs            audit_logs[]
   attorneyProfile      attorneyProfile?
+  apiTokens            ApiToken[]
 
   @@index([firstName, lastName])
   @@index([address_line1, city, state, postal_code])
@@ -301,6 +302,24 @@ model attorneyProfile {
   @@map("attorney_profiles")
 }
 
+model ApiToken {
+  id          String   @id @default(uuid())
+  name        String
+  hash        String   @unique
+  scopes      String[]
+  createdById String
+  createdAt   DateTime @default(now())
+  expiresAt   DateTime?
+  revokedAt   DateTime?
+
+  createdBy   User     @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([createdById])
+  @@index([expiresAt])
+  @@index([revokedAt])
+  @@map("api_tokens")
+}
+
 enum AccessGrantStatus {
   ACTIVE
   REVOKED
@@ -322,6 +341,10 @@ enum AuditAction {
   DOCUMENT_UPLOADED
   DOCUMENT_PROCESSED
   ATTORNEY_VERIFIED
+  API_TOKEN_CREATED
+  API_TOKEN_REVOKED
+  API_TOKEN_ROTATED
+  API_TOKEN_USED
 }
 
 enum BillingPlan {
