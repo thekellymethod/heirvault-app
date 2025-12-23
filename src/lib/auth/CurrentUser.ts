@@ -9,6 +9,15 @@ export type AppUser = {
   roles: string[];
 };
 
+// Local HttpError class to avoid circular dependency with guards.ts
+class HttpError extends Error {
+  status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.status = status;
+  }
+}
+
 export async function getOrCreateAppUser(): Promise<AppUser | null> {
   const { userId } = await auth();
   if (!userId) return null;
@@ -81,20 +90,22 @@ export async function getOrCreateAppUser(): Promise<AppUser | null> {
         // For a legal application handling sensitive estate data, we should NOT automatically
         // link accounts to prevent account takeover attacks
         // 
-        // We throw an error here instead of trying to create a new user, because:
+        // We throw an HttpError here instead of trying to create a new user, because:
         // 1. Creating a new user with the same email would violate the unique constraint
         // 2. Users should use their original sign-in method or contact support
+        const attemptedProvider = cu?.externalAccounts?.[0]?.provider || 'unknown';
         const originalProvider = userByEmail.clerkId.startsWith("pending_") 
           ? "pending application" 
           : "a different sign-in method";
         
-        console.error(`[SECURITY] Account linking blocked: User with email ${email} already has a different Clerk account (${userByEmail.clerkId}). Attempted sign-in with Clerk ID: ${userId} (OAuth provider: ${cu?.externalAccounts?.[0]?.provider || 'unknown'})`);
+        console.error(`[SECURITY] Account linking blocked: User with email ${email} already has a different Clerk account (${userByEmail.clerkId}). Attempted sign-in with Clerk ID: ${userId} (OAuth provider: ${attemptedProvider})`);
         
-        // Throw a helpful error that will be caught by the caller
-        throw new Error(
-          `This email address is already associated with an account. ` +
-          `Please sign in using your original sign-in method, or contact support if you need to link accounts. ` +
-          `Original account was created via: ${originalProvider}`
+        // Throw an HttpError that will be properly handled by Next.js error boundaries
+        throw new HttpError(
+          409, // Conflict - email already associated with different account
+          `This email address is already associated with an account created via ${originalProvider}. ` +
+          `Please sign in using your original sign-in method (not ${attemptedProvider}). ` +
+          `If you need to link accounts, please contact support.`
         );
       }
     }
