@@ -12,6 +12,7 @@ const isPublicRoute = createRouteMatcher([
   "/invite(.*)",
   "/qr-update(.*)",
   "/update-policy(.*)",
+  "/scan-qr(.*)",
   "/policy-intake(.*)",
   "/intake(.*)",
   "/login(.*)",
@@ -28,6 +29,7 @@ const isPublicRoute = createRouteMatcher([
   // Only include specific endpoints that must be callable pre-auth.
   "/api/invite(.*)",
   "/api/qr-update(.*)",
+  "/api/qr/validate(.*)", // Allow QR token validation
   "/api/policy-intake(.*)",
   "/api/intake(.*)",
   "/api/attorney/apply(.*)", // Allow attorney applications without authentication
