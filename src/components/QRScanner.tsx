@@ -1,5 +1,7 @@
 "use client";
 
+"use client";
+
 import { useEffect, useRef, useState } from "react";
 import { X, Camera, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -40,23 +42,27 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
       }
 
       // Check if we're on HTTPS or localhost (required for camera access)
-      const isSecureContext = window.isSecureContext || location.protocol === "https:" || location.hostname === "localhost";
-      if (!isSecureContext) {
+      const isSecure = window.location.protocol === "https:" || 
+                       window.location.hostname === "localhost" || 
+                       window.location.hostname === "127.0.0.1";
+      
+      if (!isSecure) {
         throw new Error("Camera access requires a secure connection (HTTPS). Please use HTTPS or localhost.");
       }
 
-      // Check existing permissions (if supported)
+      // Check permissions API if available (for better error messages)
+      let permissionStatus: PermissionStatus | null = null;
       if (navigator.permissions && navigator.permissions.query) {
         try {
-          const permissionStatus = await navigator.permissions.query({ name: "camera" as PermissionName });
+          permissionStatus = await navigator.permissions.query({ name: "camera" as PermissionName });
           if (permissionStatus.state === "denied") {
-            setError("Camera permission denied. Please allow camera access in your browser settings.");
+            setError("Camera permission was previously denied. Please enable it in your browser settings.");
             setPermissionStatus("denied");
             setScanning(false);
             return;
           }
         } catch (permError) {
-          // Permission query not supported or failed, continue with getUserMedia
+          // Permissions API might not support 'camera' in all browsers, continue anyway
         }
       }
 
@@ -67,6 +73,12 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
           width: { ideal: 1280 },
           height: { ideal: 720 },
         },
+      }).catch((err: any) => {
+        // Suppress console error for NotAllowedError (we handle it below)
+        if (err.name !== "NotAllowedError" && err.name !== "PermissionDeniedError") {
+          console.error("Error accessing camera:", err);
+        }
+        throw err;
       });
 
       streamRef.current = stream;
@@ -82,24 +94,14 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
     } catch (err: any) {
       setScanning(false);
       
-      // Handle specific error types with user-friendly messages
       if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
-        // Suppress console error for expected permission denials
-        // Only log if in development mode for debugging
-        if (process.env.NODE_ENV === "development") {
-          console.warn("Camera permission denied by user");
-        }
-        setError("Camera permission denied. Please allow camera access in your browser settings.");
+        setError("Camera permission denied. Please allow camera access in your browser settings and try again.");
         setPermissionStatus("denied");
       } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
-        console.error("Camera not found:", err);
         setError("No camera found. Please ensure your device has a camera.");
       } else if (err.name === "NotReadableError" || err.name === "TrackStartError") {
-        console.error("Camera in use:", err);
-        setError("Camera is already in use by another application.");
+        setError("Camera is already in use by another application. Please close other apps using the camera.");
       } else {
-        // Log unexpected errors for debugging
-        console.error("Unexpected camera error:", err);
         setError(err.message || "Failed to access camera. Please try again.");
       }
     }
@@ -243,16 +245,20 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
         </div>
 
         {permissionStatus === "denied" && (
-          <div className="text-xs text-slateui-600 space-y-1">
-            <p className="font-semibold">Camera permission denied</p>
+          <div className="rounded-lg border border-orange-200 bg-orange-50 p-4 text-xs text-slateui-700 space-y-2">
+            <p className="font-semibold text-orange-900">Camera permission denied</p>
             <p>
               To enable camera access:
             </p>
             <ul className="list-disc list-inside ml-2 space-y-1">
-              <li>Click the camera icon in your browser&apos;s address bar</li>
-              <li>Select &quot;Allow&quot; for camera access</li>
+              <li>Look for a camera icon in your browser&apos;s address bar</li>
+              <li>Click it and select &quot;Allow&quot; for camera access</li>
+              <li>Or go to your browser settings and enable camera permissions for this site</li>
               <li>Refresh the page and try again</li>
             </ul>
+            <p className="text-xs text-orange-700 mt-2">
+              <strong>Note:</strong> Camera access requires HTTPS (or localhost for development).
+            </p>
           </div>
         )}
       </div>
