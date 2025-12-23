@@ -6,7 +6,7 @@ import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { QRCodeSVG } from "qrcode.react";
-import { QrCode, FileText, Search, AlertCircle } from "lucide-react";
+import { QrCode, FileText, Search, AlertCircle, Camera } from "lucide-react";
 import { QRScanner } from "@/components/QRScanner";
 
 export default function UpdatePolicyPage() {

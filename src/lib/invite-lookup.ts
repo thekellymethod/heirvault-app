@@ -35,6 +35,7 @@ export async function lookupClientInvite(token: string) {
       FROM client_invites ci
       INNER JOIN clients c ON c.id = ci.client_id
       WHERE ci.token = ${token}
+        AND (ci.used_at IS NULL OR ci.used_at IS NOT NULL)
       LIMIT 1
     `;
 
