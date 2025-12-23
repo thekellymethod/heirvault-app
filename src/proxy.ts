@@ -30,6 +30,7 @@ const isPublicRoute = createRouteMatcher([
   "/api/qr-update(.*)",
   "/api/policy-intake(.*)",
   "/api/intake(.*)",
+  "/api/attorney/apply(.*)", // Allow attorney applications without authentication
   "/api/debug(.*)", // Allow all debug endpoints
 ]);
 

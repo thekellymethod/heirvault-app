@@ -75,27 +75,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Try to find existing insurer (lazy insurers: don't auto-create)
-    let insurerId: string | null = null;
-    let carrierNameRaw: string | null = null;
-    let carrierConfidence: number | null = null;
-    
-    const existingInsurer = await prisma.$queryRawUnsafe<Array<{ id: string }>>(`
-      SELECT id FROM insurers WHERE name = $1 LIMIT 1
-    `, policyData.insurerName);
-
-    if (existingInsurer.length > 0) {
-      insurerId = existingInsurer[0].id;
-    } else {
-      // Insurer not found - store raw name instead (lazy insurers)
-      carrierNameRaw = policyData.insurerName;
-      // If we have OCR data, use its confidence
-      if (extractedData && extractedData.insurerName) {
-        carrierConfidence = 0.8; // OCR confidence estimate
-      }
-    }
-
-    // Process document if provided
+    // Process document if provided (do this first to get extractedData for insurer confidence)
     let documentId: string | null = null;
     let documentHash: string | null = null;
     let extractedData: any = null;
@@ -117,8 +97,30 @@ export async function POST(req: NextRequest) {
         console.error("OCR extraction failed:", ocrError);
         // Continue without extracted data
       }
+    }
 
-      // Store file
+    // Try to find existing insurer (lazy insurers: don't auto-create)
+    let insurerId: string | null = null;
+    let carrierNameRaw: string | null = null;
+    let carrierConfidence: number | null = null;
+    
+    const existingInsurer = await prisma.$queryRawUnsafe<Array<{ id: string }>>(`
+      SELECT id FROM insurers WHERE name = $1 LIMIT 1
+    `, policyData.insurerName);
+
+    if (existingInsurer.length > 0) {
+      insurerId = existingInsurer[0].id;
+    } else {
+      // Insurer not found - store raw name instead (lazy insurers)
+      carrierNameRaw = policyData.insurerName;
+      // If we have OCR data, use its confidence
+      if (extractedData && extractedData.insurerName) {
+        carrierConfidence = 0.8; // OCR confidence estimate
+      }
+    }
+
+    // Store file if provided
+    if (file) {
       const { filePath } = await storeFile(file, clientId);
       documentId = randomUUID();
       await prisma.$executeRawUnsafe(`

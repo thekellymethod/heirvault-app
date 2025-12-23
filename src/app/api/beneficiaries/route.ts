@@ -51,9 +51,8 @@ export async function GET(req: NextRequest) {
           id: p.policy.id,
           policyNumber: p.policy.policyNumber,
           policyType: p.policy.policyType,
-          insurer: {
-            name: p.insurer.name,
-          },
+          // Handle null insurer from leftJoin - return null instead of { name: null }
+          insurer: p.insurer?.name ? { name: p.insurer.name } : null,
         }));
 
       return {

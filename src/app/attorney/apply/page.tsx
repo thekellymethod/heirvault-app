@@ -19,7 +19,7 @@ export default function AttorneyApplyPage() {
   const [error, setError] = React.useState<string | null>(null);
   const [success, setSuccess] = React.useState(false);
 
-  // Pre-fill from Clerk user
+  // Pre-fill from Clerk user if signed in (optional)
   React.useEffect(() => {
     if (user) {
       setFirstName(user.firstName || "");
@@ -27,12 +27,6 @@ export default function AttorneyApplyPage() {
       setEmail(user.emailAddresses?.[0]?.emailAddress || "");
     }
   }, [user]);
-
-  React.useEffect(() => {
-    if (isLoaded && !user) {
-      router.push("/attorney/sign-in");
-    }
-  }, [user, isLoaded, router]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -68,10 +62,8 @@ export default function AttorneyApplyPage() {
       }
 
       setSuccess(true);
-      // Redirect after a short delay
-      setTimeout(() => {
-        router.push("/dashboard");
-      }, 2000);
+      // Show success message - user will be notified when approved
+      // They can sign in after admin approval
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Something went wrong";
       setError(message);
@@ -80,20 +72,7 @@ export default function AttorneyApplyPage() {
     }
   }
 
-  if (!isLoaded) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-slate-50 to-white">
-        <div className="text-center">
-          <div className="mb-4 h-8 w-8 animate-spin rounded-full border-4 border-emerald-500 border-t-transparent mx-auto"></div>
-          <p className="text-sm text-slate-600">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return null;
-  }
+  // No authentication required - anyone can apply
 
   if (success) {
     return (
@@ -104,11 +83,22 @@ export default function AttorneyApplyPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-slate-900">Application Submitted</h1>
+          <h1 className="text-2xl font-bold text-slate-900">Application Submitted Successfully!</h1>
           <p className="text-slate-600">
-            Your attorney application has been submitted. An administrator will review it shortly.
+            Your attorney application has been submitted and is pending review by an administrator.
           </p>
-          <p className="text-sm text-slate-500">Redirecting to dashboard...</p>
+          <p className="text-sm text-slate-500 mt-2">
+            You will receive an email notification once your application has been reviewed. 
+            After approval, you'll be able to sign in to access the attorney dashboard.
+          </p>
+          <div className="mt-6">
+            <button
+              onClick={() => router.push("/")}
+              className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+            >
+              Return to Home
+            </button>
+          </div>
         </div>
       </div>
     );
