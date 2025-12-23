@@ -598,12 +598,16 @@ export async function POST(
         dateOfBirth: updatedClient?.dateOfBirth || invite.client.dateOfBirth,
       },
       policies: updatedClient?.policies
-        .filter((p) => p.insurer !== null)
         .map((p) => ({
           id: p.id,
           policyNumber: p.policyNumber,
           policyType: p.policyType,
-          insurer: p.insurer!,
+          // Use resolved insurer if available, otherwise fall back to carrierNameRaw (lazy insurers)
+          insurer: p.insurer || {
+            name: p.carrierNameRaw || "Unknown Insurer",
+            contactPhone: null,
+            contactEmail: null,
+          },
         })) || [],
       organization: organization
         ? {
