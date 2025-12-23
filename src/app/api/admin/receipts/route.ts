@@ -139,9 +139,18 @@ export async function GET(req: NextRequest) {
 
       const total = Number(countResult[0]?.count || 0);
 
+      // Get archived count (total archived receipts, not just current page)
+      const archivedCountResult = await prisma.$queryRawUnsafe<Array<{ count: number }>>(`
+        SELECT COUNT(*)::int as count
+        FROM client_invites ci
+        WHERE ci.used_at IS NOT NULL
+      `);
+      const archivedCount = Number(archivedCountResult[0]?.count || 0);
+
       return NextResponse.json({
         receipts,
         total,
+        archivedCount,
         limit,
         offset,
       });

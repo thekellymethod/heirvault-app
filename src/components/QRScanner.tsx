@@ -1,7 +1,5 @@
 "use client";
 
-"use client";
-
 import { useEffect, useRef, useState } from "react";
 import { X, Camera, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -41,6 +39,27 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
         throw new Error("Camera access is not supported in this browser");
       }
 
+      // Check if we're on HTTPS or localhost (required for camera access)
+      const isSecureContext = window.isSecureContext || location.protocol === "https:" || location.hostname === "localhost";
+      if (!isSecureContext) {
+        throw new Error("Camera access requires a secure connection (HTTPS). Please use HTTPS or localhost.");
+      }
+
+      // Check existing permissions (if supported)
+      if (navigator.permissions && navigator.permissions.query) {
+        try {
+          const permissionStatus = await navigator.permissions.query({ name: "camera" as PermissionName });
+          if (permissionStatus.state === "denied") {
+            setError("Camera permission denied. Please allow camera access in your browser settings.");
+            setPermissionStatus("denied");
+            setScanning(false);
+            return;
+          }
+        } catch (permError) {
+          // Permission query not supported or failed, continue with getUserMedia
+        }
+      }
+
       // Request camera permission
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
@@ -61,17 +80,26 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
         startQRScanning();
       }
     } catch (err: any) {
-      console.error("Error accessing camera:", err);
       setScanning(false);
       
+      // Handle specific error types with user-friendly messages
       if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+        // Suppress console error for expected permission denials
+        // Only log if in development mode for debugging
+        if (process.env.NODE_ENV === "development") {
+          console.warn("Camera permission denied by user");
+        }
         setError("Camera permission denied. Please allow camera access in your browser settings.");
         setPermissionStatus("denied");
       } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
+        console.error("Camera not found:", err);
         setError("No camera found. Please ensure your device has a camera.");
       } else if (err.name === "NotReadableError" || err.name === "TrackStartError") {
+        console.error("Camera in use:", err);
         setError("Camera is already in use by another application.");
       } else {
+        // Log unexpected errors for debugging
+        console.error("Unexpected camera error:", err);
         setError(err.message || "Failed to access camera. Please try again.");
       }
     }

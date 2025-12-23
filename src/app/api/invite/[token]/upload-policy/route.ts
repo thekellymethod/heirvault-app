@@ -10,6 +10,7 @@ import { prisma } from "@/lib/prisma";
 import { getOrCreateTestInvite } from "@/lib/test-invites";
 import { randomUUID } from "crypto";
 import { lookupClientInvite } from "@/lib/invite-lookup";
+import { generateDocumentHash } from "@/lib/document-hash";
 
 export const runtime = "nodejs";
 
@@ -116,45 +117,91 @@ export async function POST(
         // Convert file to buffer for OCR processing
         const arrayBuffer = await file.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
-
-        // Extract data using OCR
-        const ocrResult = await extractPolicyData(file, buffer);
-        extractedData = {
-          firstName: ocrResult.firstName,
-          lastName: ocrResult.lastName,
-          email: ocrResult.email,
-          phone: ocrResult.phone,
-          dateOfBirth: ocrResult.dateOfBirth,
-          policyNumber: ocrResult.policyNumber,
-          policyType: ocrResult.policyType,
-          insurerName: ocrResult.insurerName,
-          insurerPhone: ocrResult.insurerPhone,
-          insurerEmail: ocrResult.insurerEmail,
-        };
-
-        // Archive the original file
-        const fileArrayBuffer = await file.arrayBuffer();
-        const { storagePath } = await uploadDocument({
-          fileBuffer: fileArrayBuffer,
-          filename: file.name,
-          contentType: file.type,
-        });
-        const filePath = storagePath;
         
-        // Store document record in database
-        archivedDocument = await prisma.document.create({
-          data: {
-            clientId: invite.clientId,
-            fileName: file.name,
-            fileType: file.type,
-            fileSize: file.size,
-            filePath: filePath,
-            mimeType: file.type,
-            uploadedVia: "invite",
-            extractedData: extractedData,
-            ocrConfidence: ocrResult.confidence,
-          },
-        });
+        // Generate document hash for duplicate detection
+        const documentHash = generateDocumentHash(buffer);
+
+        // Check for existing document with same hash for THIS client only
+        // This prevents cross-client document reuse while allowing same-client deduplication
+        const existingDocResult = await prisma.$queryRawUnsafe<Array<{
+          id: string;
+          client_id: string;
+          policy_id: string | null;
+        }>>(`
+          SELECT id, client_id, policy_id
+          FROM documents
+          WHERE document_hash = $1 AND client_id = $2
+          LIMIT 1
+        `, documentHash, invite.clientId);
+
+        if (existingDocResult && existingDocResult.length > 0) {
+          // Document with same hash exists for this client - reuse it
+          archivedDocument = {
+            id: existingDocResult[0].id,
+            clientId: existingDocResult[0].client_id,
+            policyId: existingDocResult[0].policy_id,
+          };
+          console.log(`Reusing existing document ${archivedDocument.id} for client ${invite.clientId} (hash match)`);
+        } else {
+          // Check if hash exists for a DIFFERENT client (security warning)
+          const otherClientDocResult = await prisma.$queryRawUnsafe<Array<{
+            id: string;
+            client_id: string;
+          }>>(`
+            SELECT id, client_id
+            FROM documents
+            WHERE document_hash = $1 AND client_id != $2
+            LIMIT 1
+          `, documentHash, invite.clientId);
+
+          if (otherClientDocResult && otherClientDocResult.length > 0) {
+            // Hash collision with different client - log warning but create new document
+            console.warn(
+              `Document hash collision detected: Hash ${documentHash.substring(0, 16)}... ` +
+              `exists for client ${otherClientDocResult[0].client_id} but creating new document for client ${invite.clientId}`
+            );
+          }
+
+          // Extract data using OCR
+          const ocrResult = await extractPolicyData(file, buffer);
+          extractedData = {
+            firstName: ocrResult.firstName,
+            lastName: ocrResult.lastName,
+            email: ocrResult.email,
+            phone: ocrResult.phone,
+            dateOfBirth: ocrResult.dateOfBirth,
+            policyNumber: ocrResult.policyNumber,
+            policyType: ocrResult.policyType,
+            insurerName: ocrResult.insurerName,
+            insurerPhone: ocrResult.insurerPhone,
+            insurerEmail: ocrResult.insurerEmail,
+          };
+
+          // Archive the original file
+          const fileArrayBuffer = await file.arrayBuffer();
+          const { storagePath } = await uploadDocument({
+            fileBuffer: fileArrayBuffer,
+            filename: file.name,
+            contentType: file.type,
+          });
+          const filePath = storagePath;
+          
+          // Store document record in database with hash
+          archivedDocument = await prisma.document.create({
+            data: {
+              clientId: invite.clientId,
+              fileName: file.name,
+              fileType: file.type,
+              fileSize: file.size,
+              filePath: filePath,
+              mimeType: file.type,
+              uploadedVia: "invite",
+              extractedData: extractedData,
+              ocrConfidence: ocrResult.confidence,
+              documentHash: documentHash,
+            },
+          });
+        }
 
         // Log document upload (public route - no user context)
         await prisma.audit_logs.create({
@@ -182,25 +229,51 @@ export async function POST(
         // Archive file even if OCR fails
         try {
           const fileArrayBuffer = await file.arrayBuffer();
-          const { storagePath } = await uploadDocument({
-            fileBuffer: fileArrayBuffer,
-            filename: file.name,
-            contentType: file.type,
-          });
-          const filePath = storagePath;
-          archivedDocument = await prisma.document.create({
-            data: {
-              clientId: invite.clientId,
-              fileName: file.name,
-              fileType: file.type,
-              fileSize: file.size,
-              filePath: filePath,
-              mimeType: file.type,
-              uploadedVia: "invite",
-              extractedData: null,
-              ocrConfidence: 0,
-            },
-          });
+          const buffer = Buffer.from(fileArrayBuffer);
+          const documentHash = generateDocumentHash(buffer);
+          
+          // Check for existing document with same hash for THIS client only
+          const existingDocResult = await prisma.$queryRawUnsafe<Array<{
+            id: string;
+            client_id: string;
+            policy_id: string | null;
+          }>>(`
+            SELECT id, client_id, policy_id
+            FROM documents
+            WHERE document_hash = $1 AND client_id = $2
+            LIMIT 1
+          `, documentHash, invite.clientId);
+
+          if (existingDocResult && existingDocResult.length > 0) {
+            // Reuse existing document for this client
+            archivedDocument = {
+              id: existingDocResult[0].id,
+              clientId: existingDocResult[0].client_id,
+              policyId: existingDocResult[0].policy_id,
+            };
+            console.log(`Reusing existing document ${archivedDocument.id} for client ${invite.clientId} (hash match, OCR failed)`);
+          } else {
+            const { storagePath } = await uploadDocument({
+              fileBuffer: fileArrayBuffer,
+              filename: file.name,
+              contentType: file.type,
+            });
+            const filePath = storagePath;
+            archivedDocument = await prisma.document.create({
+              data: {
+                clientId: invite.clientId,
+                fileName: file.name,
+                fileType: file.type,
+                fileSize: file.size,
+                filePath: filePath,
+                mimeType: file.type,
+                uploadedVia: "invite",
+                extractedData: null,
+                ocrConfidence: 0,
+                documentHash: documentHash,
+              },
+            });
+          }
         } catch (archiveError) {
           console.error("Failed to archive file:", archiveError);
         }
@@ -287,11 +360,26 @@ export async function POST(
     }
 
     // Update document record with policy ID if policy was created - use raw SQL
+    // Only update if the document doesn't already have a policy_id (prevents overwriting existing associations)
     if (archivedDocument && policy) {
       try {
-        await prisma.$executeRaw`
-          UPDATE documents SET policy_id = ${policy.id}, updated_at = NOW() WHERE id = ${archivedDocument.id}
-        `;
+        // Check if document already has a policy_id to prevent overwriting
+        const docCheck = await prisma.$queryRawUnsafe<Array<{ policy_id: string | null }>>(`
+          SELECT policy_id FROM documents WHERE id = $1 LIMIT 1
+        `, archivedDocument.id);
+        
+        if (docCheck && docCheck.length > 0 && !docCheck[0].policy_id) {
+          // Only update if policy_id is null (document not yet associated with a policy)
+          await prisma.$executeRaw`
+            UPDATE documents SET policy_id = ${policy.id}, updated_at = NOW() WHERE id = ${archivedDocument.id} AND policy_id IS NULL
+          `;
+        } else if (docCheck && docCheck.length > 0 && docCheck[0].policy_id && docCheck[0].policy_id !== policy.id) {
+          // Document already associated with a different policy - log warning
+          console.warn(
+            `Document ${archivedDocument.id} already associated with policy ${docCheck[0].policy_id}, ` +
+            `not updating to policy ${policy.id}`
+          );
+        }
       } catch (sqlError: any) {
         console.error("Upload policy: Raw SQL document update failed:", sqlError.message);
         // Continue - document update is not critical
