@@ -10,6 +10,8 @@ import { getOrCreateTestInvite } from "@/lib/test-invites";
 import { randomUUID } from "crypto";
 import { lookupClientInvite } from "@/lib/invite-lookup";
 
+export const runtime = "nodejs";
+
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ token: string }> }

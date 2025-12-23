@@ -9,6 +9,8 @@ import { renderToStream } from "@react-pdf/renderer";
 import { ClientReceiptPDF } from "@/pdfs/ClientReceiptPDF";
 import { sendClientReceiptEmail, sendAttorneyNotificationEmail } from "@/lib/email";
 
+export const runtime = "nodejs";
+
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ token: string }> }

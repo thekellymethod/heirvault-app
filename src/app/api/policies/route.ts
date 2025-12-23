@@ -4,6 +4,8 @@ import { getCurrentUserWithOrg, assertAttorneyCanAccessClient, assertClientSelfA
 import { audit } from '@/lib/audit'
 import { sendPolicyAddedEmail } from '@/lib/email'
 
+export const runtime = "nodejs";
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()

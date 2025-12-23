@@ -4,6 +4,8 @@ import { randomUUID } from "crypto";
 import { getOrCreateTestInvite } from "@/lib/test-invites";
 import { lookupClientInvite } from "@/lib/invite-lookup";
 
+export const runtime = "nodejs";
+
 /**
  * Submit a versioned update via QR code
  * Creates a new version entry preserving historical chain

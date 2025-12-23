@@ -5,10 +5,13 @@ import { extractPolicyData } from "@/lib/ocr";
 import { uploadDocument } from "@/lib/storage";
 import { generateDocumentHash } from "@/lib/document-hash";
 import { generateReceiptHash } from "@/lib/audit-hash";
-import { renderToStream } from "@react-pdf/renderer";
-import { ClientReceiptPDF } from "@/pdfs/ClientReceiptPDF";
+// PDF generation imports - currently unused but may be needed for future receipt generation
+// import { renderToStream } from "@react-pdf/renderer";
+// import { ClientReceiptPDF } from "@/pdfs/ClientReceiptPDF";
 import { signToken } from "@/lib/qr";
 import QRCode from "qrcode";
+
+export const runtime = "nodejs";
 
 /**
  * Submit policy intake (public, no authentication required)
@@ -78,7 +81,12 @@ export async function POST(req: NextRequest) {
     // Process document if provided (do this first to get extractedData for insurer confidence)
     let documentId: string | null = null;
     let documentHash: string | null = null;
-    let extractedData: any = null;
+    let extractedData: {
+      insurerName?: string;
+      policyNumber?: string;
+      policyType?: string;
+      [key: string]: unknown;
+    } | null = null;
 
     if (file) {
       const arrayBuffer = await file.arrayBuffer();

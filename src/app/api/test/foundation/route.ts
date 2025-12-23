@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db, sql, type RegistrySubmissionSource } from "@/lib/db";
-import { createRegistryRecord, appendRegistryVersion } from "@/lib/db";
-import { sha256String } from "@/lib/hash";
+import { db, sql } from "@/lib/db";
+import { createRegistryRecord, appendRegistryVersion, getRegistryById, getRegistryVersions } from "@/lib/db";
+import { sha256String, sha256Buffer } from "@/lib/hash";
 import { signToken, verifyToken } from "@/lib/qr";
 import { canAccessRegistry, canSearch, canViewAudit } from "@/lib/permissions";
 import { logAccess as auditLogAccess } from "@/lib/audit";
-import { type Role, isRole } from "@/lib/roles";
+import { Roles, isRole } from "@/lib/roles";
 import { randomUUID } from "crypto";
+
+export const runtime = "nodejs";
 
 /**
  * Foundation Test Route
@@ -25,7 +27,7 @@ import { randomUUID } from "crypto";
  * - Permissions
  * - Roles
  */
-export async function GET(req: NextRequest) {
+export async function GET(_req: NextRequest) {
   try {
     const results: Record<string, unknown> = {};
 
@@ -35,9 +37,9 @@ export async function GET(req: NextRequest) {
 
     // 2. Test roles
     results.roles = {
-      defaultRole: Role.ATTORNEY,
-      isValid: Role.ATTORNEY === "ATTORNEY",
-      isRoleCheck: isRole(Role.ATTORNEY),
+      defaultRole: Roles.ATTORNEY,
+      isValid: Roles.ATTORNEY === "ATTORNEY",
+      isRoleCheck: isRole(Roles.ATTORNEY),
     };
 
     // 3. Test hashing
@@ -53,7 +55,7 @@ export async function GET(req: NextRequest) {
 
     // 4. Test QR token
     const testRegistryId = randomUUID();
-    const qrToken = signToken({ registryId: testRegistryId }, 3600);
+    const qrToken = signToken({ registryId: testRegistryId, purpose: "update" }, 3600);
     const verifiedPayload = verifyToken(qrToken);
     results.qrToken = {
       generated: qrToken.length > 0,
@@ -63,9 +65,10 @@ export async function GET(req: NextRequest) {
 
     // 5. Test permissions (mock user ID)
     const testUserId = randomUUID();
-    const canAccess = await canAccessRegistry(testUserId, testRegistryId);
-    const canSearchResult = await canSearch(testUserId);
-    const canViewAuditResult = await canViewAudit(testUserId);
+    const mockUser = { id: testUserId, email: "test@example.com", roles: ["ATTORNEY"], clerkId: testUserId, role: "ATTORNEY" as const };
+    const canAccess = await canAccessRegistry({ user: mockUser, registryId: testRegistryId });
+    const canSearchResult = canSearch({ user: mockUser });
+    const canViewAuditResult = canViewAudit({ user: mockUser });
     results.permissions = {
       canAccessRegistry: canAccess,
       canSearch: canSearchResult,
@@ -74,28 +77,18 @@ export async function GET(req: NextRequest) {
 
     // 6. Test registry creation
     const registry = await createRegistryRecord({
-      decedentName: "Test Foundation User",
-      status: "PENDING_VERIFICATION",
-      initialData: {
-        test: true,
-        foundation: "phase-0",
-        timestamp: new Date().toISOString(),
-      },
-      submittedBy: "SYSTEM" as RegistrySubmissionSource,
+      insured_name: "Test Foundation User",
+      carrier_guess: "Test Carrier",
     });
     results.registry = {
       created: true,
       id: registry.id,
-      decedentName: registry.decedentName,
+      insuredName: registry.insured_name,
       status: registry.status,
-      hasVersion: registry.latestVersion !== null,
     };
 
     // 7. Test file upload (create a test file buffer)
     const testFileContent = Buffer.from("Test file content for foundation test");
-    const testFile = new File([testFileContent], "test-foundation.txt", {
-      type: "text/plain",
-    });
     
     // Note: uploadFile expects specific MIME types, so we'll test with a valid type
     // For this test, we'll skip actual file upload and just test the hash
@@ -107,33 +100,47 @@ export async function GET(req: NextRequest) {
     };
 
     // 8. Test version appending
+    const versionData = {
+      test: true,
+      foundation: "phase-0",
+      timestamp: new Date().toISOString(),
+      updated: true,
+      version: 2,
+    };
+    const versionDataString = JSON.stringify(versionData);
+    const versionHash = await sha256String(versionDataString);
     const newVersion = await appendRegistryVersion({
-      registryId: registry.id,
-      data: {
-        test: true,
-        foundation: "phase-0",
-        timestamp: new Date().toISOString(),
-        updated: true,
-        version: 2,
-      },
-      submittedBy: "SYSTEM" as RegistrySubmissionSource,
+      registry_id: registry.id,
+      submitted_by: "SYSTEM",
+      data_json: versionData,
+      hash: versionHash,
     });
     results.version = {
       appended: true,
       versionId: newVersion.id,
-      registryId: newVersion.registryId,
+      registryId: newVersion.registry_id,
       hash: newVersion.hash,
     };
 
     // 9. Test audit logging
-    await auditLogAccess(null, registry.id, "CREATED", {
-      test: true,
-      foundation: "phase-0",
+    await auditLogAccess({
+      userId: null,
+      registryId: registry.id,
+      action: "INTAKE_SUBMITTED",
+      metadata: {
+        test: true,
+        foundation: "phase-0",
+      },
     });
-    await auditLogAccess(null, registry.id, "UPDATED", {
-      test: true,
-      foundation: "phase-0",
-      versionId: newVersion.id,
+    await auditLogAccess({
+      userId: null,
+      registryId: registry.id,
+      action: "REGISTRY_UPDATED_BY_TOKEN",
+      metadata: {
+        test: true,
+        foundation: "phase-0",
+        versionId: newVersion.id,
+      },
     });
     results.audit = {
       logged: true,
@@ -141,13 +148,12 @@ export async function GET(req: NextRequest) {
     };
 
     // 10. Verify registry has versions and logs
-    const { getRegistryById } = await import("@/lib/db");
     const fullRegistry = await getRegistryById(registry.id);
+    const versions = fullRegistry ? await getRegistryVersions(registry.id) : [];
     results.verification = {
-      registryExists: true,
-      versionCount: fullRegistry.versions.length,
-      accessLogCount: fullRegistry.accessLogs.length,
-      hasLatestVersion: fullRegistry.latestVersion !== null,
+      registryExists: fullRegistry !== null,
+      versionCount: versions.length,
+      note: "Access logs are stored separately and can be queried via audit API",
     };
 
     return NextResponse.json({

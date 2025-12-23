@@ -9,6 +9,8 @@ import { AuditAction } from "@/lib/db";
 import { getOrCreateTestInvite } from "@/lib/test-invites";
 import { lookupClientInvite } from "@/lib/invite-lookup";
 
+export const runtime = "nodejs";
+
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ token: string }> }

@@ -2,6 +2,8 @@ import "server-only";
 // @ts-expect-error - PrismaClient is generated and may not be in types until after generation
 import { PrismaClient } from "@prisma/client";
 import { withAccelerate } from "@prisma/extension-accelerate";
+// Validate environment on module load
+import "@/lib/env";
 
 declare global {
   var __prisma: ReturnType<typeof createClient> | undefined;

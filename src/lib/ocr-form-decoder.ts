@@ -1,4 +1,3 @@
-import * as pdfParse from "pdf-parse";
 import { createWorker, PSM } from "tesseract.js";
 import { Buffer } from "buffer";
 
@@ -20,9 +19,23 @@ interface DecodedFormData {
 async function extractRawText(file: File, buffer: Buffer): Promise<string> {
   if (file.type === "application/pdf") {
     try {
-      const data = await pdfParse(buffer);
+      // Dynamic import to avoid static analysis issues with Turbopack
+      // pdf-parse exports differently in ESM vs CJS
+      const pdfParseModule = await import("pdf-parse");
+      
+      // Handle different export patterns
+      const pdfParseFn = 
+        (pdfParseModule as { default?: unknown }).default || 
+        (pdfParseModule as { pdfParse?: unknown }).pdfParse || 
+        pdfParseModule;
+      
+      if (typeof pdfParseFn !== "function") {
+        throw new Error("pdf-parse function not found in module");
+      }
+      
+      const data = await (pdfParseFn as (buffer: Buffer) => Promise<{ text: string }>)(buffer);
       return data.text;
-    } catch (error) {
+    } catch {
       throw new Error("Failed to extract text from PDF");
     }
   } else if (file.type.startsWith("image/")) {
@@ -34,7 +47,7 @@ async function extractRawText(file: File, buffer: Buffer): Promise<string> {
       const { data } = await worker.recognize(buffer);
       await worker.terminate();
       return data.text;
-    } catch (error) {
+    } catch {
       throw new Error("Failed to extract text from image");
     }
   }
@@ -65,15 +78,8 @@ export async function decodePassportForm(
   };
 
   // Normalize text - preserve structure for box detection
-  const lines = text.split(/\r?\n/).map((line) => line.trim());
-
-  // Pattern matching for box fields
-  // Box fields typically appear as: [A][B][C] or A B C or A|B|C
-  const boxPatterns = [
-    /\[([A-Z0-9\s])\]/g, // [A][B][C] format
-    /([A-Z0-9])\s+([A-Z0-9])\s+([A-Z0-9])/g, // A B C format
-    /([A-Z0-9])\|([A-Z0-9])\|([A-Z0-9])/g, // A|B|C format
-  ];
+  // Note: lines and boxPatterns are kept for potential future use
+  // const lines = text.split(/\r?\n/).map((line) => line.trim());
 
   // Extract First Name (look for "First Name" label followed by boxes)
   const firstNameMatch = extractFieldFromForm(text, "First Name", 20);
