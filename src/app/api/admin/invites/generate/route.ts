@@ -55,36 +55,19 @@ export async function POST(req: NextRequest) {
     } catch (sqlError: unknown) {
       const errorMessage = sqlError instanceof Error ? sqlError.message : String(sqlError);
       console.error("Generate invite: Raw SQL client lookup failed:", errorMessage);
-      
-      // Fallback to Prisma
-      try {
-        const prismaClient = await prisma.client.findUnique({
-          where: { email: normalizedEmail },
-        });
-        if (prismaClient) {
-          client = {
-            id: prismaClient.id,
-            email: prismaClient.email,
-            first_name: prismaClient.firstName,
-            last_name: prismaClient.lastName,
-          };
-        }
-      } catch (prismaError: unknown) {
-        const prismaErrorMessage = prismaError instanceof Error ? prismaError.message : String(prismaError);
-        console.error("Generate invite: Prisma client lookup also failed:", prismaErrorMessage);
-      }
+      // Continue - client will be null and we'll create it
     }
 
     // Create client if they don't exist
     if (!client) {
       try {
-        const newClientResult = await prisma.$executeRawUnsafe(`
+        // Insert client and get the ID
+        await prisma.$executeRawUnsafe(`
           INSERT INTO clients (id, email, first_name, last_name, phone, date_of_birth, created_at, updated_at)
           VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, NOW(), NOW())
-          RETURNING id, email, first_name, last_name
         `, normalizedEmail, firstName, lastName, phone || null, dateOfBirth || null);
 
-        // For executeRawUnsafe with RETURNING, we need to query again
+        // Query the created client
         const createdClientResult = await prisma.$queryRawUnsafe<Array<{
           id: string;
           email: string;
@@ -99,27 +82,19 @@ export async function POST(req: NextRequest) {
 
         if (createdClientResult && createdClientResult.length > 0) {
           client = createdClientResult[0];
+        } else {
+          return NextResponse.json(
+            { error: "Failed to create client" },
+            { status: 500 }
+          );
         }
       } catch (sqlError: unknown) {
         const errorMessage = sqlError instanceof Error ? sqlError.message : String(sqlError);
         console.error("Generate invite: Raw SQL client creation failed:", errorMessage);
-        
-        // Fallback to Prisma
-        const prismaClient = await prisma.client.create({
-          data: {
-            email: normalizedEmail,
-            firstName,
-            lastName,
-            phone: phone || null,
-            dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
-          },
-        });
-        client = {
-          id: prismaClient.id,
-          email: prismaClient.email,
-          first_name: prismaClient.firstName,
-          last_name: prismaClient.lastName,
-        };
+        return NextResponse.json(
+          { error: `Failed to create client: ${errorMessage}` },
+          { status: 500 }
+        );
       }
 
       // Audit log client creation
@@ -150,10 +125,10 @@ export async function POST(req: NextRequest) {
     } | null = null;
 
     try {
-      const inviteResult = await prisma.$executeRawUnsafe(`
+      // Insert invite
+      await prisma.$executeRawUnsafe(`
         INSERT INTO client_invites (id, client_id, token, email, expires_at, invited_by_user_id, created_at, updated_at)
         VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, NOW(), NOW())
-        RETURNING id, token, email, expires_at, created_at
       `, client.id, token, normalizedEmail, expiresAt, admin.id);
 
       // Query the created invite
@@ -172,33 +147,17 @@ export async function POST(req: NextRequest) {
 
       if (createdInviteResult && createdInviteResult.length > 0) {
         invite = createdInviteResult[0];
+      } else {
+        return NextResponse.json(
+          { error: "Failed to create invite" },
+          { status: 500 }
+        );
       }
     } catch (sqlError: unknown) {
       const errorMessage = sqlError instanceof Error ? sqlError.message : String(sqlError);
       console.error("Generate invite: Raw SQL invite creation failed:", errorMessage);
-      
-      // Fallback to Prisma
-      const prismaInvite = await prisma.clientInvite.create({
-        data: {
-          clientId: client.id,
-          token,
-          email: normalizedEmail,
-          expiresAt,
-          invitedByUserId: admin.id,
-        },
-      });
-      invite = {
-        id: prismaInvite.id,
-        token: prismaInvite.token,
-        email: prismaInvite.email,
-        expires_at: prismaInvite.expiresAt,
-        created_at: prismaInvite.createdAt,
-      };
-    }
-
-    if (!invite) {
       return NextResponse.json(
-        { error: "Failed to create invite" },
+        { error: `Failed to create invite: ${errorMessage}` },
         { status: 500 }
       );
     }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { type User } from "@/lib/auth";
+import { type AppUser } from "@/lib/auth/CurrentUser";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
@@ -21,9 +21,10 @@ import {
   Key,
 } from "lucide-react";
 import { ManualUpload } from "./ManualUpload";
+import { InviteManagement } from "./InviteManagement";
 
 interface AdminDashboardProps {
-  admin: User;
+  admin: AppUser;
 }
 
 interface AccessRequest {

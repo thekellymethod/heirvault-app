@@ -38,7 +38,16 @@ export async function POST(
     }
 
     const now = new Date();
-    // Allow updates even after invite is used, but check expiration (with 30 day grace period)
+    
+    // Check if invite has been used (one-time use enforcement)
+    if (invite.usedAt) {
+      return NextResponse.json(
+        { error: "This invitation code has already been used. Please request a new code from your attorney." },
+        { status: 400 }
+      );
+    }
+    
+    // Check expiration (with 30 day grace period for updates)
     const daysSinceExpiration = (now.getTime() - invite.expiresAt.getTime()) / (1000 * 60 * 60 * 24);
     if (daysSinceExpiration > 30) {
       return NextResponse.json(

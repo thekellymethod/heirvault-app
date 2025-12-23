@@ -40,6 +40,7 @@ export function InviteManagement() {
 
   useEffect(() => {
     loadInvites();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchQuery, showArchived]);
 
   async function loadInvites() {

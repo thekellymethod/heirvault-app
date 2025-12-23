@@ -3,7 +3,6 @@ import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth/guards";
 import { audit } from "@/lib/audit";
 import { AuditAction } from "@/lib/db/enums";
-import { randomUUID } from "crypto";
 
 /**
  * Reactivate or reissue an invitation code (admin only)
@@ -65,26 +64,11 @@ export async function POST(req: NextRequest) {
       const errorMessage = sqlError instanceof Error ? sqlError.message : String(sqlError);
       console.error("Reactivate invite: Raw SQL lookup failed:", errorMessage);
       
-      // Fallback to Prisma
-      try {
-        const prismaInvite = await prisma.clientInvite.findUnique({
-          where: { token },
-        });
-        if (prismaInvite) {
-          invite = {
-            id: prismaInvite.id,
-            client_id: prismaInvite.clientId,
-            token: prismaInvite.token,
-            email: prismaInvite.email,
-            expires_at: prismaInvite.expiresAt,
-            used_at: prismaInvite.usedAt,
-            created_at: prismaInvite.createdAt,
-          };
-        }
-      } catch (prismaError: unknown) {
-        const prismaErrorMessage = prismaError instanceof Error ? prismaError.message : String(prismaError);
-        console.error("Reactivate invite: Prisma lookup also failed:", prismaErrorMessage);
-      }
+      // If raw SQL fails, return error
+      return NextResponse.json(
+        { error: `Failed to lookup invite: ${errorMessage}` },
+        { status: 500 }
+      );
     }
 
     if (!invite) {
@@ -111,15 +95,10 @@ export async function POST(req: NextRequest) {
     } catch (sqlError: unknown) {
       const errorMessage = sqlError instanceof Error ? sqlError.message : String(sqlError);
       console.error("Reactivate invite: Raw SQL update failed:", errorMessage);
-      
-      // Fallback to Prisma
-      await prisma.clientInvite.updateMany({
-        where: { token },
-        data: {
-          usedAt: null,
-          expiresAt: newExpiresAt,
-        },
-      });
+      return NextResponse.json(
+        { error: `Failed to reactivate invite: ${errorMessage}` },
+        { status: 500 }
+      );
     }
 
     // Audit log the reactivation
