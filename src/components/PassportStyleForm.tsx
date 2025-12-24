@@ -110,12 +110,28 @@ interface PassportStyleFormProps {
 }
 
 export function PassportStyleForm({ initialData, onSubmit, onPrint }: PassportStyleFormProps) {
+  // Convert dateOfBirth from ISO format (YYYY-MM-DD) to MMDDYYYY format
+  const formatDateOfBirth = (dateStr: string | undefined): string => {
+    if (!dateStr) return "";
+    
+    // Check if it's in ISO format (YYYY-MM-DD)
+    const isoMatch = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (isoMatch) {
+      const [, year, month, day] = isoMatch;
+      // Convert to MMDDYYYY format
+      return `${month}${day}${year}`;
+    }
+    
+    // If not ISO format, just strip non-digits (assumes already in MMDDYYYY or similar)
+    return dateStr.replace(/\D/g, "").slice(0, 8);
+  };
+
   const [formData, setFormData] = React.useState<PassportFormData>({
     firstName: initialData?.firstName ?? "",
     lastName: initialData?.lastName ?? "",
     email: initialData?.email ?? "",
     phone: (initialData?.phone ?? "").replace(/\D/g, ""),
-    dateOfBirth: (initialData?.dateOfBirth ?? "").replace(/\D/g, "").slice(0, 8),
+    dateOfBirth: formatDateOfBirth(initialData?.dateOfBirth),
     policyNumber: initialData?.policyNumber ?? "",
     insurerName: initialData?.insurerName ?? "",
     policyType: initialData?.policyType ?? "",

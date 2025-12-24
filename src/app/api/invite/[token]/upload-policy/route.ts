@@ -16,7 +16,7 @@ import { generateDocumentHash } from "@/lib/document-hash";
 
 export const runtime = "nodejs";
 
-type RouteParams = { token: string };
+type RouteParams = Promise<{ token: string }>;
 
 type InviteLookupResult =
   | Awaited<ReturnType<typeof getOrCreateTestInvite>>
@@ -138,7 +138,7 @@ function validateUploadFile(file: File) {
 
 export async function POST(req: NextRequest, { params }: { params: RouteParams }) {
   try {
-    const { token } = params;
+    const { token } = await params;
 
     let invite: InviteLookupResult | null = await getOrCreateTestInvite(token);
     if (!invite) invite = await lookupClientInvite(token);
