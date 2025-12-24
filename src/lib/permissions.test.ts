@@ -7,23 +7,10 @@
  * TODO: Set up Jest/Vitest test framework
  */
 
-import { canAccessRegistry, requireAccessRegistry } from "./permissions";
-import { type AppUser } from "./auth";
 
 // Mock data
-const mockUser: AppUser = {
-  id: "user_123",
-  email: "attorney@example.com",
-  role: "ATTORNEY",
-};
 
-const mockAdmin: AppUser = {
-  id: "admin_123",
-  email: "admin@example.com",
-  role: "ADMIN",
-};
 
-const mockRegistryId = "registry_abc123";
 
 /**
  * Test: Unauthorized access returns false

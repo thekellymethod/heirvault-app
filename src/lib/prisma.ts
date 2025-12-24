@@ -1,39 +1,38 @@
 import "server-only";
-// @ts-expect-error - PrismaClient is generated and may not be in types until after generation
 import { PrismaClient } from "@prisma/client";
 import { withAccelerate } from "@prisma/extension-accelerate";
-// Validate environment on module load
 import "@/lib/env";
 
+// Create a stable exported type that matches whatever $extends returns.
+type ExtendedPrismaClient = ReturnType<PrismaClient["$extends"]>;
+
 declare global {
-  var __prisma: ReturnType<typeof createClient> | undefined;
+   
+  var __prisma: ExtendedPrismaClient | undefined;
 }
 
-function createClient() {
-  // Prisma 7: Use accelerateUrl option if available, otherwise use empty object
-  // (Prisma reads DATABASE_URL from environment automatically)
+function createClient(): ExtendedPrismaClient {
+  // Prisma reads DATABASE_URL automatically.
+  // Prisma Accelerate uses PRISMA_ACCELERATE_URL if present.
   const options: { accelerateUrl?: string } = {};
-  
+
   if (process.env.PRISMA_ACCELERATE_URL) {
     options.accelerateUrl = process.env.PRISMA_ACCELERATE_URL;
   } else if (!process.env.DATABASE_URL) {
     throw new Error(
-      "Missing database connection. Please set either DATABASE_URL or PRISMA_ACCELERATE_URL in your environment variables."
+      "Missing database connection. Set DATABASE_URL or PRISMA_ACCELERATE_URL."
     );
   }
-  
-  // Create client with options
-  const client = new PrismaClient(options);
-  
-  // If using Accelerate, extend with Accelerate extension
-  if (process.env.PRISMA_ACCELERATE_URL) {
-    return client.$extends(withAccelerate());
-  }
-  
-  return client;
+
+  const base = new PrismaClient(options);
+
+  // Always extend so the returned type is consistent (prevents union headaches).
+  return process.env.PRISMA_ACCELERATE_URL
+    ? base.$extends(withAccelerate())
+    : base.$extends({});
 }
 
-export const prisma = globalThis.__prisma ?? createClient();
+export const prisma: ExtendedPrismaClient = globalThis.__prisma ?? createClient();
 
 if (process.env.NODE_ENV !== "production") {
   globalThis.__prisma = prisma;
