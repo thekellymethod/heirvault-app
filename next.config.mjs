@@ -30,7 +30,8 @@ const nextConfig = {
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           {
             key: "Permissions-Policy",
-            value: "camera=(), microphone=(), geolocation=(), interest-cohort=()",
+            value:
+              "camera=(), microphone=(), geolocation=(), interest-cohort=()",
           },
         ],
       },
@@ -38,12 +39,11 @@ const nextConfig = {
   },
 };
 
-// Only enable Sentry release/sourcemap upload when explicitly configured.
-// This prevents Vercel builds from failing due to missing/wrong tokens or project config.
+// Enable Sentry ONLY when env vars are present
 const sentryEnabled =
-  !!process.env.SENTRY_AUTH_TOKEN &&
-  !!process.env.SENTRY_ORG &&
-  !!process.env.SENTRY_PROJECT;
+  Boolean(process.env.SENTRY_AUTH_TOKEN) &&
+  Boolean(process.env.SENTRY_ORG) &&
+  Boolean(process.env.SENTRY_PROJECT);
 
 const sentryWebpackPluginOptions = {
   org: process.env.SENTRY_ORG,
