@@ -71,9 +71,9 @@ async function createTestInvites() {
       },
     });
 
-    const url = `${baseUrl}/invite/${token}`;
+    const url = `${baseUrl}/invite/${invite.token}`;
     invites.push({
-      token,
+      token: invite.token,
       email: clientData.email,
       name: `${clientData.firstName} ${clientData.lastName}`,
       url,
