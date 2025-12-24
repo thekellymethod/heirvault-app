@@ -125,7 +125,8 @@ export async function POST(req: NextRequest) {
         `4. Or directly visit: ${inviteUrl}`,
       ],
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Unknown error";
     console.error("Error creating test invite:", error);
     return NextResponse.json(
       { error: error.message || "Failed to create test invite" },

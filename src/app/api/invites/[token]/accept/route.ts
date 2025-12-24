@@ -17,8 +17,9 @@ export async function POST(
     const client = await acceptInvite(token, user.id)
 
     return NextResponse.json(client, { status: 200 })
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 400 })
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return NextResponse.json({ error: message }, { status: 400 })
   }
 }
 

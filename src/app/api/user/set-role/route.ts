@@ -84,7 +84,8 @@ export async function POST(req: NextRequest) {
             role,
           },
         });
-      } catch (error: any) {
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : "Unknown error";
         console.error("Create user error:", error);
         // Handle unique constraint violation on email
         const isEmailConstraintError = 

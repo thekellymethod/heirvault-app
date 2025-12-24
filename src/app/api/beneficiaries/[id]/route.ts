@@ -30,7 +30,18 @@ export async function PUT(req: NextRequest, { params }: Params) {
     }
 
     // Use raw SQL first for reliability
-    let updated: any = null;
+    let updated: {
+      id: string;
+      clientId: string;
+      firstName: string;
+      lastName: string;
+      relationship: string | null;
+      email: string | null;
+      phone: string | null;
+      dateOfBirth: Date | null;
+      createdAt: Date;
+      updatedAt: Date;
+    } | null = null;
     try {
       // Check if beneficiary exists
       const existsResult = await prisma.$queryRaw<Array<{ id: string; client_id: string }>>`

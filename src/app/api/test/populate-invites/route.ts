@@ -80,10 +80,11 @@ export async function GET(req: NextRequest) {
       message: "Test invitation codes created successfully",
       invites,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Failed to create test invites";
     console.error("Error creating test invites:", error);
     return NextResponse.json(
-      { error: error.message || "Failed to create test invites" },
+      { error: message },
       { status: 500 }
     );
   }
@@ -99,10 +100,11 @@ export async function POST(req: NextRequest) {
       message: "Test invitation codes created successfully",
       invites,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Failed to create test invites";
     console.error("Error creating test invites:", error);
     return NextResponse.json(
-      { error: error.message || "Failed to create test invites" },
+      { error: message },
       { status: 500 }
     );
   }

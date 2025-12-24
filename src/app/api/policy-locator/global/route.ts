@@ -46,7 +46,11 @@ export async function GET(req: NextRequest) {
     }
 
     // Build search query - search across ALL organizations
-    const where: any = {
+    const where: {
+      firstName: { contains: string; mode: "insensitive" };
+      lastName: { contains: string; mode: "insensitive" };
+      dateOfBirth?: Date;
+    } = {
       firstName: {
         contains: firstName,
         mode: "insensitive",
@@ -151,7 +155,8 @@ export async function GET(req: NextRequest) {
       },
       disclaimer: "This search queries the private, voluntary registry database across all organizations. Results only include information that has been voluntarily registered. This is not a comprehensive database and does not search insurer records.",
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Unknown error";
     console.error("Error in global policy locator:", error);
     return NextResponse.json(
       { error: error.message || "Internal server error" },

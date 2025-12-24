@@ -42,7 +42,8 @@ export async function GET(req: NextRequest) {
         isValid: !isExpired,
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Unknown error";
     console.error("Error checking invite:", error);
     return NextResponse.json(
       { error: error.message || "Failed to check invite" },

@@ -20,7 +20,19 @@ export async function GET(
     const clientId = match[1];
 
     // Find the most recent invite for this client - use raw SQL first
-    let invite: any = null;
+    let invite: {
+      id: string;
+      clientId: string;
+      email: string;
+      token: string;
+      expiresAt: Date;
+      usedAt: Date | null;
+      createdAt: Date;
+      client: {
+        firstName: string;
+        lastName: string;
+      };
+    } | null = null;
     try {
       const rawResult = await prisma.$queryRaw<Array<{
         id: string;

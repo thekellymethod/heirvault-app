@@ -77,8 +77,9 @@ export async function GET(
               percentage: b.percentage,
             })),
           };
-        } catch (sqlError: any) {
-          console.error("Client data: Failed to fetch policies/beneficiaries:", sqlError.message);
+        } catch (sqlError: unknown) {
+          const sqlErrorMessage = sqlError instanceof Error ? sqlError.message : "Unknown error";
+          console.error("Client data: Failed to fetch policies/beneficiaries:", sqlErrorMessage);
           // Continue with empty arrays
           invite.client = {
             ...invite.client,
@@ -119,7 +120,8 @@ export async function GET(
         zipCode: invite.client.postalCode || "",
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Unknown error";
     console.error("Error fetching client data:", error);
     return NextResponse.json(
       { error: "Internal server error" },

@@ -38,7 +38,18 @@ export async function POST(req: NextRequest) {
     // Extract data using OCR
     const ocrResult = await extractPolicyData(file, buffer);
     
-    const extracted: any = {
+    const extracted: {
+      firstName: string | null;
+      lastName: string | null;
+      email: string | null;
+      phone: string | null;
+      dateOfBirth: Date | null;
+      policyNumber: string | null;
+      policyType: string | null;
+      insurerName: string | null;
+      insurerPhone: string | null;
+      insurerEmail: string | null;
+    } = {
       firstName: ocrResult.firstName,
       lastName: ocrResult.lastName,
       email: ocrResult.email,
@@ -56,10 +67,11 @@ export async function POST(req: NextRequest) {
       extracted,
       message: "Document processed. Please review and fill in any missing information manually.",
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Failed to process document";
     console.error("Error in document extraction:", error);
     return NextResponse.json(
-      { error: error.message || "Failed to process document" },
+      { error: message },
       { status: 500 }
     );
   }
