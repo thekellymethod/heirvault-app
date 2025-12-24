@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Get organization ID from orgMember
-    const organizationId = (orgMember as any).organizationId || orgMember.organizations?.id
+    const organizationId = (orgMember && typeof orgMember === "object" && "organizationId" in orgMember && typeof orgMember.organizationId === "string" ? orgMember.organizationId : null) || orgMember.organizations?.id
     const organizationName = orgMember.organizations?.name || 'Your Firm'
     
     if (!organizationId) {
@@ -107,8 +107,9 @@ export async function POST(req: NextRequest) {
             organizationId: organizationId,
             isActive: true,
           });
-      } catch (error: any) {
-        console.error("Client invite: Access grant failed:", error.message);
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        console.error("Client invite: Access grant failed:", errorMessage);
       }
 
       await logAuditEvent({
@@ -156,7 +157,8 @@ export async function POST(req: NextRequest) {
           firmName: organizationName,
           inviteUrl,
         })
-      } catch (emailError: any) {
+      } catch (emailError: unknown) {
+        const emailErrorMessage = emailError instanceof Error ? emailError.message : "Unknown error";
         console.error('Failed to send invite email:', emailError)
       }
 
@@ -188,10 +190,11 @@ export async function POST(req: NextRequest) {
       },
       { status: 201 }
     )
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Failed to create client invite';
     console.error('Error creating client invite:', error)
     return NextResponse.json(
-      { error: error.message || 'Failed to create client invite' },
+      { error: message },
       { status: 500 }
     )
   }

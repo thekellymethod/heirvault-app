@@ -74,7 +74,8 @@ export async function POST(req: NextRequest, { params }: Params) {
         firmName: organizationName,
         inviteUrl,
       })
-    } catch (emailError: any) {
+    } catch (emailError: unknown) {
+      const emailErrorMessage = emailError instanceof Error ? emailError.message : "Unknown error";
       console.error('Failed to send invite email:', emailError)
       // Continue even if email fails - we still return the URL
     }
@@ -94,10 +95,11 @@ export async function POST(req: NextRequest, { params }: Params) {
       },
       { status: 201 }
     )
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Failed to create invite';
     console.error('Error creating client invite:', error)
     return NextResponse.json(
-      { error: error.message || 'Failed to create invite' },
+      { error: message },
       { status: error.message === 'Unauthorized' || error.message === 'Forbidden' ? 401 : 500 }
     )
   }

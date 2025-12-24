@@ -66,12 +66,15 @@ export async function GET(
           },
         };
       }
-    } catch (sqlError: any) {
-      console.error("Receipt lookup: Raw SQL failed, trying Prisma:", sqlError.message);
+    } catch (sqlError: unknown) {
+      const sqlErrorMessage = sqlError instanceof Error ? sqlError.message : "Unknown error";
+      console.error("Receipt lookup: Raw SQL failed, trying Prisma:", sqlErrorMessage);
       // Fallback to Prisma
       try {
-        if ((prisma as any).client_invites) {
-          const prismaInvite = await (prisma as any).client_invites.findFirst({
+        const prismaAny = prisma as unknown as Record<string, unknown>;
+        if (prismaAny.client_invites && typeof prismaAny.client_invites === "object") {
+          const clientInvites = prismaAny.client_invites as { findFirst: (args: { where: unknown; orderBy: unknown; include: unknown }) => Promise<unknown> };
+          const prismaInvite = await clientInvites.findFirst({
             where: {
               client_id: clientId,
               used_at: { not: null },
@@ -79,15 +82,23 @@ export async function GET(
             orderBy: { created_at: "desc" },
             include: { clients: true },
           });
-          if (prismaInvite) {
+          if (prismaInvite && typeof prismaInvite === "object" && "clients" in prismaInvite) {
+            const inviteAny = prismaInvite as Record<string, unknown>;
             invite = {
-              ...prismaInvite,
-              client: prismaInvite.clients,
+              id: String(inviteAny.id || ""),
+              clientId: String(inviteAny.client_id || ""),
+              email: String(inviteAny.email || ""),
+              token: String(inviteAny.token || ""),
+              expiresAt: (inviteAny.expires_at as Date) || new Date(),
+              usedAt: (inviteAny.used_at as Date | null) || null,
+              createdAt: (inviteAny.created_at as Date) || new Date(),
+              client: (inviteAny.clients as { firstName: string; lastName: string }) || { firstName: "", lastName: "" },
             };
           }
         }
-      } catch (prismaError: any) {
-        console.error("Receipt lookup: Prisma also failed:", prismaError.message);
+      } catch (prismaError: unknown) {
+        const prismaErrorMessage = prismaError instanceof Error ? prismaError.message : "Unknown error";
+        console.error("Receipt lookup: Prisma also failed:", prismaErrorMessage);
       }
     }
 
@@ -103,7 +114,8 @@ export async function GET(
       token: invite.token,
       clientName: `${invite.client.firstName} ${invite.client.lastName}`,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Unknown error";
     console.error("Error looking up receipt:", error);
     return NextResponse.json(
       { error: "Internal server error" },

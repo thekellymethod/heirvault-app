@@ -58,8 +58,9 @@ export async function GET(
               })),
             };
           }
-        } catch (sqlError: any) {
-          console.error("Receipt: Failed to fetch policies:", sqlError.message);
+        } catch (sqlError: unknown) {
+          const sqlErrorMessage = sqlError instanceof Error ? sqlError.message : "Unknown error";
+          console.error("Receipt: Failed to fetch policies:", sqlErrorMessage);
           // Continue without policies
           invite.client = {
             ...invite.client,
@@ -77,7 +78,17 @@ export async function GET(
     }
 
     // Get organization info if available - use raw SQL first
-    let organization: any = null;
+    let organization: {
+      id: string;
+      name: string;
+      addressLine1: string | null;
+      addressLine2: string | null;
+      city: string | null;
+      state: string | null;
+      postalCode: string | null;
+      country: string | null;
+      phone: string | null;
+    } | null = null;
     try {
       const accessResult = await prisma.$queryRaw<Array<{
         org_id: string;
@@ -121,8 +132,9 @@ export async function GET(
           phone: row.org_phone,
         };
       }
-    } catch (sqlError: any) {
-      console.error("Receipt: Raw SQL organization lookup failed:", sqlError.message);
+    } catch (sqlError: unknown) {
+      const sqlErrorMessage = sqlError instanceof Error ? sqlError.message : "Unknown error";
+      console.error("Receipt: Raw SQL organization lookup failed:", sqlErrorMessage);
       // Continue without organization info
       organization = null;
     }
@@ -137,7 +149,16 @@ export async function GET(
         phone: invite.client.phone,
         dateOfBirth: invite.client.dateOfBirth,
       },
-      policies: (invite.client.policies || []).map((p: any) => ({
+      policies: (invite.client.policies || []).map((p: {
+        id: string;
+        policyNumber: string | null;
+        policyType: string | null;
+        insurer: {
+          name: string;
+          contactPhone: string | null;
+          contactEmail: string | null;
+        } | null;
+      }) => ({
         id: p.id,
         policyNumber: p.policyNumber,
         policyType: p.policyType,
@@ -163,7 +184,7 @@ export async function GET(
       registeredAt: invite.client.createdAt,
       receiptGeneratedAt: new Date(),
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error generating receipt:", error);
     return NextResponse.json(
       { error: error.message || "Internal server error" },

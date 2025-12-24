@@ -27,7 +27,15 @@ export async function PUT(req: NextRequest) {
     }
 
     // Use raw SQL first for reliability
-    let updated: any = null;
+    let updated: {
+      id: string;
+      email: string;
+      firstName: string | null;
+      lastName: string | null;
+      barNumber: string | null;
+      createdAt: Date;
+      updatedAt: Date;
+    } | null = null;
     try {
       // Update user using raw SQL
       await prisma.$executeRaw`
@@ -67,8 +75,9 @@ export async function PUT(req: NextRequest) {
           updatedAt: row.updated_at,
         };
       }
-    } catch (sqlError: any) {
-      console.error("User profile update: Raw SQL failed, trying Prisma:", sqlError.message);
+    } catch (sqlError: unknown) {
+      const sqlErrorMessage = sqlError instanceof Error ? sqlError.message : "Unknown error";
+      console.error("User profile update: Raw SQL failed, trying Prisma:", sqlErrorMessage);
       // Fallback to Prisma
       try {
         updated = await prisma.user.update({
@@ -79,8 +88,9 @@ export async function PUT(req: NextRequest) {
             barNumber: barNumber?.trim() || null,
           },
         });
-      } catch (prismaError: any) {
-        console.error("User profile update: Prisma also failed:", prismaError.message);
+      } catch (prismaError: unknown) {
+        const prismaErrorMessage = prismaError instanceof Error ? prismaError.message : "Unknown error";
+        console.error("User profile update: Prisma also failed:", prismaErrorMessage);
         throw prismaError;
       }
     }
@@ -93,7 +103,8 @@ export async function PUT(req: NextRequest) {
     }
 
     return NextResponse.json(updated);
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Unknown error";
     console.error("Error updating user profile:", error);
     return NextResponse.json(
       { error: error.message || "Failed to update profile" },

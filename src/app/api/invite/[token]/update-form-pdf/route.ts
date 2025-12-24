@@ -12,7 +12,7 @@ export async function GET(
     const { token } = await params;
 
     // Try to get or create test invite first
-    let invite: any = await getOrCreateTestInvite(token);
+    let invite: Awaited<ReturnType<typeof getOrCreateTestInvite>> | Awaited<ReturnType<typeof lookupClientInvite>> | null = await getOrCreateTestInvite(token);
 
     // If not a test code, do normal lookup
     if (!invite) {
@@ -47,14 +47,15 @@ export async function GET(
       `attachment; filename="update-form-${receiptId}.pdf"`
     );
 
-    return new NextResponse(pdfStream as any, {
+    return new NextResponse(pdfStream as unknown as ReadableStream, {
       status: 200,
       headers,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Internal server error";
     console.error("Error generating update form PDF:", error);
     return NextResponse.json(
-      { error: error.message || "Internal server error" },
+      { error: message },
       { status: 500 }
     );
   }
