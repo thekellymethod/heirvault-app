@@ -12,6 +12,7 @@ type DbUser = {
   firstName: string | null;
   lastName: string | null;
   role: Role | string;
+  barNumber: string | null;
 };
 
 const UNAUTHORIZED_ERROR = "Unauthorized";
@@ -62,6 +63,7 @@ export async function getCurrentUser(): Promise<DbUser | null> {
       first_name: string | null;
       last_name: string | null;
       role: string;
+      bar_number: string | null;
     }>>(`
       INSERT INTO "users" ("id", "clerkId", "email", "first_name", "last_name", "role", "updated_at")
       VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -72,7 +74,7 @@ export async function getCurrentUser(): Promise<DbUser | null> {
         "last_name" = $5,
         "role" = $6,
         "updated_at" = $7
-      RETURNING "id", "clerkId", "email", "first_name", "last_name", "role"
+      RETURNING "id", "clerkId", "email", "first_name", "last_name", "role", "bar_number"
     `,
       randomUUID(),
       userId,
@@ -93,6 +95,7 @@ export async function getCurrentUser(): Promise<DbUser | null> {
       firstName: row.first_name,
       lastName: row.last_name,
       role: row.role as Role,
+      barNumber: row.bar_number,
     };
   } catch (error: unknown) {
     // Minimal, safe error logging that won't throw

@@ -6,21 +6,31 @@ import { ProfileForm } from "./ProfileForm";
 
 export default async function ProfilePage() {
   // Clerk middleware handles authentication - no need for manual redirects
-  const { userId } = await auth();
+  await auth();
 
   // Use getCurrentUser to ensure user exists in database
   const currentUser = await getCurrentUser();
   if (!currentUser) redirect("/dashboard");
 
-  // Use raw SQL first for reliability to get org membership
-  const user = currentUser;
-  let orgMember: {
-    organizationId: string;
-    role: string;
-    organizations: {
-      id: string;
-      name: string;
-    };
+  // Map to User interface expected by ProfileForm
+  const user = {
+    id: currentUser.id,
+    firstName: currentUser.firstName,
+    lastName: currentUser.lastName,
+    email: currentUser.email,
+    barNumber: currentUser.barNumber,
+  };
+
+  let organization: {
+    id: string;
+    name: string;
+    addressLine1: string | null;
+    addressLine2: string | null;
+    city: string | null;
+    state: string | null;
+    postalCode: string | null;
+    country: string | null;
+    phone: string | null;
   } | null = null;
   
   try {
@@ -28,12 +38,24 @@ export default async function ProfilePage() {
     const rawResult = await prisma.$queryRaw<Array<{
       organization_id: string;
       org_name: string;
-      org_role: string;
+      address_line1: string | null;
+      address_line2: string | null;
+      city: string | null;
+      state: string | null;
+      postal_code: string | null;
+      country: string | null;
+      phone: string | null;
     }>>`
       SELECT 
-        om.organization_id,
+        o.id as organization_id,
         o.name as org_name,
-        om.role as org_role
+        o.address_line1,
+        o.address_line2,
+        o.city,
+        o.state,
+        o.postal_code,
+        o.country,
+        o.phone
       FROM org_members om
       INNER JOIN organizations o ON o.id = om.organization_id
       WHERE om.user_id = ${currentUser.id}
@@ -42,36 +64,26 @@ export default async function ProfilePage() {
     
     if (rawResult && rawResult.length > 0) {
       const row = rawResult[0];
-      orgMember = {
-        organizations: {
-          id: row.organization_id,
-          name: row.org_name,
-        },
+      organization = {
+        id: row.organization_id,
+        name: row.org_name,
+        addressLine1: row.address_line1,
+        addressLine2: row.address_line2,
+        city: row.city,
+        state: row.state,
+        postalCode: row.postal_code,
+        country: row.country,
+        phone: row.phone,
       };
     }
-  } catch (sqlError: any) {
-    console.error("Profile page: Raw SQL failed, trying Prisma:", sqlError.message);
-    // If raw SQL fails, try Prisma as fallback
-    try {
-      const userWithOrg = await prisma.user.findUnique({
-        where: { id: currentUser.id },
-        include: {
-          orgMemberships: {
-            include: {
-              organizations: true,
-            },
-          },
-        },
-      });
-      orgMember = userWithOrg?.orgMemberships?.[0];
-    } catch (prismaError: any) {
-      console.error("Profile page: Prisma also failed:", prismaError.message);
-      // If both fail, redirect to dashboard
-      redirect("/dashboard");
-    }
+  } catch (sqlError: unknown) {
+    const sqlErrorMessage = sqlError instanceof Error ? sqlError.message : "Unknown error";
+    console.error("Profile page: Raw SQL failed:", sqlErrorMessage);
+    // If query fails, redirect to dashboard
+    redirect("/dashboard");
   }
 
-  if (!user) redirect("/dashboard");
+  if (!currentUser) redirect("/dashboard");
 
   return (
     <div className="space-y-6">
@@ -93,7 +105,7 @@ export default async function ProfilePage() {
           </a>
         </div>
 
-        <ProfileForm user={user} organization={orgMember?.organizations || null} />
+        <ProfileForm user={user} organization={organization} />
       </div>
   );
 }

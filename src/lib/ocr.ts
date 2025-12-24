@@ -23,11 +23,14 @@ async function extractTextFromPDF(buffer: Buffer): Promise<string> {
   try {
     // Dynamic import to avoid static analysis issues with Turbopack
     // pdf-parse exports differently in ESM vs CJS
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const pdfParseModule = await import("pdf-parse" as any);
     
     // Handle different export patterns
     const pdfParseFn = 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (pdfParseModule as any).default || 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (pdfParseModule as any).pdfParse || 
       pdfParseModule;
     
@@ -273,7 +276,7 @@ export async function extractPolicyData(
       try {
         text = await extractTextFromPDF(buffer);
         confidence = 0.8; // PDFs with text layers are usually more accurate
-      } catch (pdfError) {
+      } catch (_pdfError) {
         // If PDF text extraction fails (scanned PDF), try OCR on first page
         console.log("PDF text extraction failed, attempting OCR on first page...");
         // For scanned PDFs, we'd need to convert to image first

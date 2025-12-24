@@ -65,7 +65,7 @@ export default function PolicyBeneficiariesPage() {
     dateOfBirth: "",
   });
 
-  async function loadPolicyInfo() {
+  const loadPolicyInfo = React.useCallback(async () => {
     try {
       const res = await fetch(`/api/policies/${policyId}`);
       const data = await res.json();
@@ -74,9 +74,9 @@ export default function PolicyBeneficiariesPage() {
     } catch (e) {
       console.error("Failed to load policy info:", e);
     }
-  }
+  }, [policyId]);
 
-  async function load() {
+  const load = React.useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -90,12 +90,12 @@ export default function PolicyBeneficiariesPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [policyId]);
 
   React.useEffect(() => {
     loadPolicyInfo();
     load();
-  }, [policyId]);
+  }, [loadPolicyInfo, load]);
 
   async function attachBeneficiary(beneficiaryId: string) {
     setBusyId(beneficiaryId);
@@ -250,6 +250,7 @@ export default function PolicyBeneficiariesPage() {
                   });
                 }}
                 className="text-slateui-400 hover:text-ink-900 transition"
+                aria-label="Close form"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -283,8 +284,9 @@ export default function PolicyBeneficiariesPage() {
                   />
                 </div>
                 <div>
-                  <label className="label mb-1 block">Relationship</label>
+                  <label htmlFor="beneficiary-relationship" className="label mb-1 block">Relationship</label>
                   <select
+                    id="beneficiary-relationship"
                     value={newBeneficiary.relationship}
                     onChange={(e) => setNewBeneficiary((s) => ({ ...s, relationship: e.target.value }))}
                     className="input"
@@ -322,8 +324,9 @@ export default function PolicyBeneficiariesPage() {
                   />
                 </div>
                 <div>
-                  <label className="label mb-1 block">Date of Birth</label>
+                  <label htmlFor="beneficiary-dob" className="label mb-1 block">Date of Birth</label>
                   <input
+                    id="beneficiary-dob"
                     type="date"
                     value={newBeneficiary.dateOfBirth}
                     onChange={(e) => setNewBeneficiary((s) => ({ ...s, dateOfBirth: e.target.value }))}

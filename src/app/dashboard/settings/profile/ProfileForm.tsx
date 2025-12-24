@@ -69,8 +69,9 @@ export function ProfileForm({ user, organization }: Props) {
       setSuccess(true);
       router.refresh();
       setTimeout(() => setSuccess(false), 3000);
-    } catch (err: any) {
-      setError(err.message || "Something went wrong.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Something went wrong.";
+      setError(message);
     } finally {
       setSubmitting(false);
     }
@@ -110,8 +111,9 @@ export function ProfileForm({ user, organization }: Props) {
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <label className="label">First Name <span className="text-red-500">*</span></label>
+              <label htmlFor="profile-first-name" className="label">First Name <span className="text-red-500">*</span></label>
               <input
+                id="profile-first-name"
                 className="input"
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
@@ -119,8 +121,9 @@ export function ProfileForm({ user, organization }: Props) {
               />
             </div>
             <div>
-              <label className="label">Last Name <span className="text-red-500">*</span></label>
+              <label htmlFor="profile-last-name" className="label">Last Name <span className="text-red-500">*</span></label>
               <input
+                id="profile-last-name"
                 className="input"
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}

@@ -1,4 +1,7 @@
 import { createHash } from "crypto";
+import { clients, eq } from "@/lib/db";
+import type { NodePgDatabase } from "drizzle-orm/node-postgres";
+import type * as schema from "@/lib/db/schema";
 
 /**
  * Generate a unique fingerprint for a client based on identifying information.
@@ -60,15 +63,13 @@ export function generateClientFingerprint(clientData: {
   return createHash('sha256').update(combined).digest('hex');
 }
 
-import { clients, eq } from "@/lib/db";
-
 /**
  * Check if a client with the same fingerprint already exists.
  * Returns the existing client ID if found, null otherwise.
  */
 export async function findClientByFingerprint(
   fingerprint: string,
-  db: any
+  db: NodePgDatabase<typeof schema>
 ): Promise<string | null> {
   try {
     const [client] = await db.select({ id: clients.id })
@@ -77,8 +78,9 @@ export async function findClientByFingerprint(
       .limit(1);
     
     return client?.id || null;
-  } catch (error: any) {
-    console.error("Client fingerprint lookup failed:", error.message);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    console.error("Client fingerprint lookup failed:", message);
     return null;
   }
 }

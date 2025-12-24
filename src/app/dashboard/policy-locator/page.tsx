@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Search, HelpCircle, Calendar, MapPin, User, Globe, FileText, Shield, Users } from "lucide-react";
+import { Search, HelpCircle, Calendar, MapPin, User, Globe, FileText, Users } from "lucide-react";
 import Link from "next/link";
 
 type SearchResult = {
@@ -17,6 +17,40 @@ type SearchResult = {
 };
 
 type SearchMode = "organization" | "global";
+
+type GlobalClient = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string | null;
+  dateOfBirth?: string | null;
+  organization?: {
+    name: string;
+  } | null;
+};
+
+type GlobalPolicy = {
+  id: string;
+  policyNumber?: string | null;
+  policyType?: string | null;
+  carrierName?: string | null;
+  insurerName?: string;
+  client: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    organization?: {
+      name: string;
+    } | null;
+  };
+};
+
+type GlobalResults = {
+  disclaimer?: string;
+  clients?: GlobalClient[];
+  policies?: GlobalPolicy[];
+} | null;
 
 export default function PolicyLocatorPage() {
   const router = useRouter();
@@ -32,7 +66,7 @@ export default function PolicyLocatorPage() {
   
   // Global search state (for simple text search)
   const [globalQuery, setGlobalQuery] = React.useState("");
-  const [globalResults, setGlobalResults] = React.useState<any>(null);
+  const [globalResults, setGlobalResults] = React.useState<GlobalResults>(null);
 
   // Basic search fields
   const [firstName, setFirstName] = React.useState("");
@@ -505,7 +539,7 @@ export default function PolicyLocatorPage() {
                 </div>
               </div>
               <div className="divide-y divide-slateui-200">
-                {globalResults.clients.map((client: any) => (
+                {globalResults.clients.map((client) => (
                   <button
                     key={client.id}
                     onClick={() => router.push(`/dashboard/clients/${client.id}`)}
@@ -563,7 +597,7 @@ export default function PolicyLocatorPage() {
                 </div>
               </div>
               <div className="divide-y divide-slateui-200">
-                {globalResults.policies.map((policy: any) => (
+                {globalResults.policies.map((policy) => (
                   <button
                     key={policy.id}
                     onClick={() => router.push(`/dashboard/policies/${policy.id}`)}

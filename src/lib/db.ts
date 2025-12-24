@@ -1,4 +1,5 @@
 import { supabaseServer } from "@/lib/supabase";
+import { isRecord } from "@/lib/typeguards";
 
 // Re-export everything from db/index (Drizzle ORM, schema, query helpers)
 // This allows existing code to import { prisma, db, clients, policies, eq, ... } from "@/lib/db"
@@ -16,7 +17,7 @@ export type RegistryVersion = {
   id: string;
   registry_id: string;
   submitted_by: string;
-  data_json: Record<string, any>;
+  data_json: Record<string, unknown>;
   hash: string;
   created_at: string;
 };
@@ -36,7 +37,7 @@ export type AccessLogRow = {
   user_id: string | null;
   registry_id: string | null;
   action: string;
-  metadata: Record<string, any> | null;
+  metadata: Record<string, unknown> | null;
   created_at: string;
 };
 
@@ -61,7 +62,7 @@ export async function createRegistryRecord(input: {
 export async function appendRegistryVersion(input: {
   registry_id: string;
   submitted_by: "INTAKE" | "TOKEN" | "ATTORNEY" | "SYSTEM";
-  data_json: Record<string, any>;
+  data_json: Record<string, unknown>;
   hash: string;
 }): Promise<RegistryVersion> {
   const sb = supabaseServer();
@@ -133,15 +134,18 @@ export async function getDocumentsForRegistry(registryId: string): Promise<Docum
 
   if (error) throw error;
   // Supabase returns join shape; keep only DocumentRow fields
-  return (data ?? []).map((d: any) => ({
-    id: d.id,
-    registry_version_id: d.registry_version_id,
-    storage_path: d.storage_path,
-    content_type: d.content_type,
-    size_bytes: d.size_bytes,
-    sha256: d.sha256,
-    created_at: d.created_at,
-  })) as DocumentRow[];
+  return (data ?? []).map((d: unknown) => {
+    if (!isRecord(d)) throw new Error("Invalid document row");
+    return {
+      id: String(d.id ?? ""),
+      registry_version_id: String(d.registry_version_id ?? ""),
+      storage_path: String(d.storage_path ?? ""),
+      content_type: String(d.content_type ?? ""),
+      size_bytes: Number(d.size_bytes ?? 0),
+      sha256: String(d.sha256 ?? ""),
+      created_at: String(d.created_at ?? ""),
+    };
+  }) as DocumentRow[];
 }
 
 export async function listRegistries(limit = 50): Promise<RegistryRecord[]> {
@@ -160,7 +164,7 @@ export async function logAccess(input: {
   user_id: string | null;
   registry_id?: string | null;
   action: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }): Promise<void> {
   const sb = supabaseServer();
   const { error } = await sb.from("access_logs").insert({
@@ -223,5 +227,10 @@ export async function listAuthorizedRegistries(userId: string, limit = 50): Prom
 
   if (error) throw error;
   // Supabase returns objects with a registry_records property
-  return (data ?? []).map((row: any) => row.registry_records as RegistryRecord);
+  return (data ?? []).map((row: unknown) => {
+    if (!isRecord(row) || !isRecord(row.registry_records)) {
+      throw new Error("Invalid registry record row");
+    }
+    return row.registry_records as RegistryRecord;
+  });
 }

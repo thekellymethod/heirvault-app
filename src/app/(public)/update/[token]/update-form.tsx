@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import styles from "./update-form.module.css";
 
 export default function UpdateForm(props: { token: string; defaultInsured: string; defaultCarrier: string }) {
   const [loading, setLoading] = useState(false);
@@ -30,8 +31,8 @@ export default function UpdateForm(props: { token: string; defaultInsured: strin
   }
 
   return (
-    <section style={{ marginTop: 16 }}>
-      <form onSubmit={onSubmit} style={{ display: "grid", gap: 12 }}>
+    <section className={styles.section}>
+      <form onSubmit={onSubmit} className={styles.form}>
         <label htmlFor="insured_name">Insured Name</label>
         <input id="insured_name" name="insured_name" defaultValue={props.defaultInsured} aria-label="Insured Name" title="Insured Name" />
         <label htmlFor="carrier_guess">Carrier</label>
@@ -47,9 +48,9 @@ export default function UpdateForm(props: { token: string; defaultInsured: strin
         </button>
       </form>
 
-      {error && <p style={{ color: "crimson", marginTop: 16 }}>{error}</p>}
+      {error && <p className={styles.error}>{error}</p>}
       {receipt && (
-        <div style={{ marginTop: 16, padding: 12, border: "1px solid #ddd", borderRadius: 8 }}>
+        <div className={styles.receipt}>
           <p><strong>Receipt ID:</strong> {String(receipt.receiptId ?? "")}</p>
           <p><strong>Timestamp:</strong> {String(receipt.createdAt ?? "")}</p>
         </div>

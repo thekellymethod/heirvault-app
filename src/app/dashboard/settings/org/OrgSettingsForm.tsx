@@ -72,8 +72,9 @@ export function OrgSettingsForm({ org }: Props) {
       setSuccess(true)
       router.refresh()
       setTimeout(() => setSuccess(false), 3000)
-    } catch (err: any) {
-      setError(err.message || "Something went wrong.")
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Something went wrong.";
+      setError(message)
     } finally {
       setSubmitting(false)
     }
@@ -96,10 +97,11 @@ export function OrgSettingsForm({ org }: Props) {
       )}
 
       <div>
-        <label className="label">
+        <label htmlFor="org-name" className="label">
           Organization name <span className="text-red-500">*</span>
         </label>
         <input
+          id="org-name"
           className="input"
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -108,10 +110,11 @@ export function OrgSettingsForm({ org }: Props) {
       </div>
 
       <div>
-        <label className="label">
+        <label htmlFor="org-address-line1" className="label">
           Address line 1
         </label>
         <input
+          id="org-address-line1"
           className="input"
           value={addressLine1}
           onChange={(e) => setAddressLine1(e.target.value)}
@@ -119,10 +122,11 @@ export function OrgSettingsForm({ org }: Props) {
       </div>
 
       <div>
-        <label className="label">
+        <label htmlFor="org-address-line2" className="label">
           Address line 2
         </label>
         <input
+          id="org-address-line2"
           className="input"
           value={addressLine2}
           onChange={(e) => setAddressLine2(e.target.value)}
@@ -131,20 +135,22 @@ export function OrgSettingsForm({ org }: Props) {
 
       <div className="grid gap-4 md:grid-cols-2">
         <div>
-          <label className="label">
+          <label htmlFor="org-city" className="label">
             City
           </label>
           <input
+            id="org-city"
             className="input"
             value={city}
             onChange={(e) => setCity(e.target.value)}
           />
         </div>
         <div>
-          <label className="label">
+          <label htmlFor="org-state" className="label">
             State
           </label>
           <input
+            id="org-state"
             className="input"
             value={state}
             onChange={(e) => setState(e.target.value)}
@@ -154,20 +160,22 @@ export function OrgSettingsForm({ org }: Props) {
 
       <div className="grid gap-4 md:grid-cols-2">
         <div>
-          <label className="label">
+          <label htmlFor="org-postal-code" className="label">
             Postal code
           </label>
           <input
+            id="org-postal-code"
             className="input"
             value={postalCode}
             onChange={(e) => setPostalCode(e.target.value)}
           />
         </div>
         <div>
-          <label className="label">
+          <label htmlFor="org-country" className="label">
             Country
           </label>
           <input
+            id="org-country"
             className="input"
             value={country}
             onChange={(e) => setCountry(e.target.value)}
@@ -176,10 +184,11 @@ export function OrgSettingsForm({ org }: Props) {
       </div>
 
       <div>
-        <label className="label">
+        <label htmlFor="org-phone" className="label">
           Phone
         </label>
         <input
+          id="org-phone"
           type="tel"
           className="input"
           value={phone}

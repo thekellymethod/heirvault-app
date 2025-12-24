@@ -16,6 +16,7 @@ const eslintConfig = defineConfig([
     "scripts/**",
     "tests/**",
     "e2e/**",
+    "src/lib/__tests__/**",
   ]),
   {
     rules: {

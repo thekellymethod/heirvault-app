@@ -8,11 +8,29 @@ interface Props {
   params: Promise<{ token: string }>
 }
 
+type ClientInvite = {
+  id: string;
+  clientId: string;
+  email: string;
+  token: string;
+  expiresAt: Date;
+  usedAt: Date | null;
+  createdAt: Date;
+  client: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string | null;
+    dateOfBirth: Date | null;
+  };
+};
+
 export default async function InvitePage({ params }: Props) {
   const { token } = await params
 
   // Try to get or create test invite first
-  let invite: any = await getOrCreateTestInvite(token)
+  let invite: ClientInvite | null = await getOrCreateTestInvite(token)
 
   // If not a test code, do normal lookup - use raw SQL first
   if (!invite) {
@@ -69,32 +87,10 @@ export default async function InvitePage({ params }: Props) {
           },
         };
       }
-    } catch (sqlError: any) {
-      console.error("Invite page: Raw SQL failed, trying Prisma:", sqlError.message);
-      // Fallback to Prisma
-      try {
-        // Try both possible model names
-        if ((prisma as any).client_invites) {
-          const prismaInvite = await (prisma as any).client_invites.findUnique({
-            where: { token },
-            include: { clients: true },
-          });
-          if (prismaInvite) {
-            invite = {
-              ...prismaInvite,
-              client: prismaInvite.clients,
-            };
-          }
-        } else if ((prisma as any).clientInvite) {
-          invite = await (prisma as any).clientInvite.findUnique({
-            where: { token },
-            include: { client: true },
-          });
-        }
-      } catch (prismaError: any) {
-        console.error("Invite page: Prisma also failed:", prismaError.message);
-        // invite remains null
-      }
+    } catch (sqlError: unknown) {
+      const sqlErrorMessage = sqlError instanceof Error ? sqlError.message : "Unknown error";
+      console.error("Invite page: Raw SQL failed:", sqlErrorMessage);
+      // invite remains null
     }
   }
 

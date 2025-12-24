@@ -1,0 +1,21 @@
+.section {
+  margin-top: 16px;
+}
+
+.form {
+  display: grid;
+  gap: 12px;
+}
+
+.error {
+  color: crimson;
+  margin-top: 16px;
+}
+
+.receipt {
+  margin-top: 16px;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+}
+
