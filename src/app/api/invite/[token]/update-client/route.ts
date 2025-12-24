@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { randomUUID } from "crypto";
-import { AuditAction } from "@/lib/db";
+import { AuditAction } from "@/lib/db/enums";
 import { verifyConfirmationCode } from "../send-confirmation/route";
 import { getOrCreateTestInvite } from "@/lib/test-invites";
 import { lookupClientInvite } from "@/lib/invite-lookup";
@@ -69,7 +69,8 @@ export async function POST(
           WHERE id = ${invite.clientId}
         `;
       } catch (sqlError: unknown) {
-        console.error("Update client: Raw SQL address update failed, trying Prisma:", sqlError.message);
+        const sqlErrorMessage = sqlError instanceof Error ? sqlError.message : "Unknown error";
+        console.error("Update client: Raw SQL address update failed, trying Prisma:", sqlErrorMessage);
         // Fallback to Prisma
         try {
           const prismaAny = prisma as unknown as Record<string, unknown>;
@@ -97,7 +98,8 @@ export async function POST(
             });
           }
         } catch (prismaError: unknown) {
-          console.error("Update client: Prisma address update also failed:", prismaError.message);
+          const prismaErrorMessage = prismaError instanceof Error ? prismaError.message : "Unknown error";
+          console.error("Update client: Prisma address update also failed:", prismaErrorMessage);
           // Continue - address update is not critical
         }
       }
@@ -130,7 +132,8 @@ export async function POST(
                 carrierNameRaw = policy.insurerName;
               }
             } catch (insurerError: unknown) {
-              console.error("Update client: Insurer lookup failed:", insurerError.message);
+              const insurerErrorMessage = insurerError instanceof Error ? insurerError.message : "Unknown error";
+              console.error("Update client: Insurer lookup failed:", insurerErrorMessage);
               // Store raw name as fallback
               carrierNameRaw = policy.insurerName;
             }
@@ -144,7 +147,8 @@ export async function POST(
           }
         }
       } catch (sqlError: unknown) {
-        console.error("Update client: Raw SQL policy update failed:", sqlError.message);
+        const sqlErrorMessage = sqlError instanceof Error ? sqlError.message : "Unknown error";
+        console.error("Update client: Raw SQL policy update failed:", sqlErrorMessage);
         // Fallback to Prisma (but this will likely also fail due to model name issues)
       }
     }
@@ -168,7 +172,8 @@ export async function POST(
           }
         }
       } catch (sqlError: unknown) {
-        console.error("Update client: Raw SQL beneficiary update failed:", sqlError.message);
+        const sqlErrorMessage = sqlError instanceof Error ? sqlError.message : "Unknown error";
+        console.error("Update client: Raw SQL beneficiary update failed:", sqlErrorMessage);
         // Fallback to Prisma (but this will likely also fail)
       }
     }
@@ -183,7 +188,8 @@ export async function POST(
         userId: null,
       });
     } catch (auditError: unknown) {
-      console.error("Update client: Audit logging failed:", auditError.message);
+      const auditErrorMessage = auditError instanceof Error ? auditError.message : "Unknown error";
+      console.error("Update client: Audit logging failed:", auditErrorMessage);
       // Continue - audit is non-critical
     }
 
@@ -262,8 +268,9 @@ export async function POST(
           phone: row.org_phone,
         };
       }
-    } catch (sqlError: any) {
-      console.error("Update client: Raw SQL access lookup failed:", sqlError.message);
+    } catch (sqlError: unknown) {
+      const sqlErrorMessage = sqlError instanceof Error ? sqlError.message : "Unknown error";
+      console.error("Update client: Raw SQL access lookup failed:", sqlErrorMessage);
       // Continue without org/attorney info - emails will be skipped
     }
 
@@ -340,8 +347,9 @@ export async function POST(
           })),
         };
       }
-    } catch (sqlError: any) {
-      console.error("Update client: Raw SQL client/policies lookup failed:", sqlError.message);
+    } catch (sqlError: unknown) {
+      const sqlErrorMessage = sqlError instanceof Error ? sqlError.message : "Unknown error";
+      console.error("Update client: Raw SQL client/policies lookup failed:", sqlErrorMessage);
       // Fallback to invite.client data
       updatedClient = null;
     }
@@ -356,7 +364,7 @@ export async function POST(
         phone: updatedClient?.phone || invite.client.phone,
         dateOfBirth: updatedClient?.dateOfBirth || invite.client.dateOfBirth,
       },
-      policies: updatedClient?.policies.map((p: any) => ({
+      policies: updatedClient?.policies?.map((p) => ({
         id: p.id,
         policyNumber: p.policyNumber,
         policyType: p.policyType,
@@ -466,10 +474,10 @@ export async function POST(
       receiptId,
       receiptData,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error updating client:", error);
     return NextResponse.json(
-      { error: error.message || "Internal server error" },
+      { error: error instanceof Error ? error.message : "Internal server error" },
       { status: 500 }
     );
   }
