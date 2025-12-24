@@ -31,13 +31,15 @@ Use these codes to test the client invitation portal at `/client/invite-code`
 
 ## How to Create These Codes
 
-Run this command to create the test codes in your database:
+**Option 1: Web UI (Recommended)**
+Visit: http://localhost:3000/test/invites and click "Create 5 Test Invites"
 
+**Option 2: API Endpoint**
 ```bash
-npx tsx scripts/create-test-invites.ts
+curl -X POST http://localhost:3000/api/test/populate-invites
 ```
 
-Or visit: http://localhost:3000/test/invites and click "Create 5 Test Invites"
+Or visit: http://localhost:3000/api/test/populate-invites in your browser
 
 ## Quick Test
 
