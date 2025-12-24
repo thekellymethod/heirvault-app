@@ -1,14 +1,13 @@
+// next.config.mjs
 import { withSentryConfig } from "@sentry/nextjs";
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Allow webhook routes to access raw body for Stripe signature verification
   experimental: {
     serverActions: {
       bodySizeLimit: "2mb",
     },
   },
-  // Set workspace root to silence lockfile warning
   turbopack: {
     root: process.cwd(),
   },
@@ -16,7 +15,6 @@ const nextConfig = {
     remotePatterns: [],
     unoptimized: false,
   },
-  // Ensure build fails on TypeScript and ESLint errors
   typescript: {
     ignoreBuildErrors: false,
   },
@@ -28,22 +26,12 @@ const nextConfig = {
       {
         source: "/(.*)",
         headers: [
-          {
-            key: "X-Frame-Options",
-            value: "SAMEORIGIN",
-          },
-          {
-            key: "X-Content-Type-Options",
-            value: "nosniff",
-          },
-          {
-            key: "Referrer-Policy",
-            value: "strict-origin-when-cross-origin",
-          },
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           {
             key: "Permissions-Policy",
-            value:
-              "camera=(), microphone=(), geolocation=(), interest-cohort=()",
+            value: "camera=(), microphone=(), geolocation=(), interest-cohort=()",
           },
         ],
       },
@@ -51,39 +39,41 @@ const nextConfig = {
   },
 };
 
-export default withSentryConfig(nextConfig, {
-  // For all available options, see:
-  // https://www.npmjs.com/package/@sentry/webpack-plugin#options
+const isProd =
+  process.env.VERCEL_ENV === "production" || process.env.NODE_ENV === "production";
 
-  org: "robert-kelly-dc-llc",
+const hasAuthToken =
+  typeof process.env.SENTRY_AUTH_TOKEN === "string" &&
+  process.env.SENTRY_AUTH_TOKEN.length > 0;
 
-  project: "javascript-nextjs",
+// If there is no token, do not apply Sentry config at all (prevents build failure)
+const finalConfig = hasAuthToken
+  ? withSentryConfig(
+      nextConfig,
+      {
+        authToken: process.env.SENTRY_AUTH_TOKEN,
+        org: process.env.SENTRY_ORG || "robert-kelly-dc-llc",
+        project: process.env.SENTRY_PROJECT || "javascript-nextjs",
 
-  // Only print logs for uploading source maps in CI
-  silent: !process.env.CI,
+        // Only upload in production
+        dryRun: !isProd,
 
-  // For all available options, see:
-  // https://docs.sentry.io/platforms/javascript/guides/nextjs/manual-setup/
+        // Only print logs for uploading source maps in CI
+        silent: !process.env.CI,
+      },
+      {
+        widenClientFileUpload: true,
+        hideSourceMaps: true,
+        silent: !process.env.CI,
 
-  // Upload a larger set of source maps for prettier stack traces (increases build time)
-  widenClientFileUpload: true,
+        webpack: {
+          treeshake: {
+            removeDebugLogging: true,
+          },
+          automaticVercelMonitors: true,
+        },
+      }
+    )
+  : nextConfig;
 
-  // Uncomment to route browser requests to Sentry through a Next.js rewrite to circumvent ad-blockers.
-  // This can increase your server load as well as your hosting bill.
-  // Note: Check that the configured route will not match with your Next.js middleware, otherwise reporting of client-
-  // side errors will fail.
-  // tunnelRoute: "/monitoring",
-
-  // Automatically tree-shake Sentry logger statements to reduce bundle size
-  webpack: {
-    treeshake: {
-      removeDebugLogging: true,
-    },
-    // Enables automatic instrumentation of Vercel Cron Monitors. (Does not yet work with App Router route handlers.)
-    // See the following for more information:
-    // https://docs.sentry.io/product/crons/
-    // https://vercel.com/docs/cron-jobs
-    automaticVercelMonitors: true,
-  },
-});
-
+export default finalConfig;
