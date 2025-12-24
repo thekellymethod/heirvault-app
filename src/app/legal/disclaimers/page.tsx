@@ -226,7 +226,20 @@ export default function LegalDisclaimersPage() {
             </section>
 
             <section>
-              <h2 className="font-display text-2xl font-semibold text-ink-900 mb-4">12. Contact Information</h2>
+              <h2 className="font-display text-2xl font-semibold text-ink-900 mb-4">12. Professional Non-Advice Disclaimer</h2>
+              <p className="text-slateui-700 leading-relaxed mb-4">
+                HeirVault does not provide legal, insurance, financial, or tax advice.
+              </p>
+              <p className="text-slateui-700 leading-relaxed mb-4">
+                Use of the Service creates <strong>no fiduciary, advisory, or attorney-client relationship</strong>.
+              </p>
+              <p className="text-slateui-700 leading-relaxed">
+                Users must consult qualified professionals for advice regarding their specific circumstances.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="font-display text-2xl font-semibold text-ink-900 mb-4">13. Contact Information</h2>
               <p className="text-slateui-700 leading-relaxed">
                 For questions regarding information release procedures, documentation requirements, or compliance matters, contact:
               </p>

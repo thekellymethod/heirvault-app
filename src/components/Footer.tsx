@@ -17,18 +17,33 @@ export function Footer() {
             <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-3">Legal</h3>
             <ul className="space-y-2">
               <li>
-                <Link href="/legal/privacy" className="text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100">
-                  Privacy Policy
-                </Link>
-              </li>
-              <li>
                 <Link href="/legal/terms" className="text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100">
                   Terms of Service
                 </Link>
               </li>
               <li>
+                <Link href="/legal/privacy" className="text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100">
+                  Privacy Policy
+                </Link>
+              </li>
+              <li>
                 <Link href="/legal/disclaimers" className="text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100">
                   Legal Disclaimers
+                </Link>
+              </li>
+              <li>
+                <Link href="/legal/information-release" className="text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100">
+                  Information Release Policy
+                </Link>
+              </li>
+              <li>
+                <Link href="/legal/acceptable-use" className="text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100">
+                  Acceptable Use Policy
+                </Link>
+              </li>
+              <li>
+                <Link href="/legal/attorney-agreement" className="text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100">
+                  Attorney Use Agreement
                 </Link>
               </li>
             </ul>
