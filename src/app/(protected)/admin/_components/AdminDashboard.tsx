@@ -23,7 +23,7 @@ import {
 import { ManualUpload } from "./ManualUpload";
 
 interface AdminDashboardProps {
-  admin: User;
+  admin: AppUser;
 }
 
 interface AccessRequest {

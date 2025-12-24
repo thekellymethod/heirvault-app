@@ -1,4 +1,4 @@
-import { type User } from "@/lib/auth";
+import { type AppUser } from "@/lib/auth/CurrentUser";
 import { logAccess, type AccessLogAction } from "@/lib/db";
 
 /**
@@ -19,7 +19,7 @@ import { logAccess, type AccessLogAction } from "@/lib/db";
  * @param metadata - Optional metadata for audit trail
  */
 export async function logAccessWithUser(
-  user: User,
+  user: AppUser,
   registryId: string,
   action: AccessLogAction,
   metadata?: Record<string, unknown>

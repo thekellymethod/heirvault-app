@@ -1,6 +1,6 @@
 "use client";
 
-import { type User } from "@/lib/auth";
+import { type AppUser } from "@/lib/auth/CurrentUser";
 import { type RegistryRecord } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -10,7 +10,7 @@ import { useState } from "react";
 
 interface DashboardViewProps {
   registries: RegistryRecord[];
-  user: User;
+  user: AppUser;
 }
 
 export function DashboardView({ registries }: DashboardViewProps) {

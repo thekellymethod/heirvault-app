@@ -1,6 +1,6 @@
 "use client";
 
-import { type User } from "@/lib/auth";
+import { type AppUser } from "@/lib/auth/CurrentUser";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { FileText, Clock, CheckCircle, AlertCircle, Search, Filter } from "lucide-react";
@@ -23,7 +23,7 @@ interface RegistrySummary {
 
 interface RecordsListViewProps {
   registries: RegistrySummary[];
-  user: User;
+  user: AppUser;
 }
 
 type StatusFilter = "ALL" | "PENDING_VERIFICATION" | "VERIFIED" | "DISPUTED" | "ARCHIVED" | "ACTIVE";
