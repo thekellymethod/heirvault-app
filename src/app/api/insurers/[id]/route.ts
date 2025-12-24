@@ -172,14 +172,16 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
       console.error("Insurers PATCH: Raw SQL failed, trying Prisma:", sqlErrorMessage);
       // Fallback to Prisma
       try {
-        if ((prisma as any).insurers) {
-          const exists = await (prisma as any).insurers.findUnique({
+        const prismaAny = prisma as unknown as Record<string, unknown>;
+        if (prismaAny.insurers && typeof prismaAny.insurers === "object") {
+          const insurers = prismaAny.insurers as { findUnique: (args: { where: { id: string }; select: unknown }) => Promise<unknown>; update: (args: { where: { id: string }; data: unknown; select: unknown }) => Promise<unknown> };
+          const exists = await insurers.findUnique({
             where: { id },
             select: { id: true },
           });
           if (!exists) return NextResponse.json({ error: "Insurer not found" }, { status: 404 });
 
-          const updated = await (prisma as any).insurers.update({
+          const updated = await insurers.update({
             where: { id },
             data: {
               ...(name !== undefined ? { name } : {}),
@@ -189,9 +191,11 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
             },
             select: { id: true },
           });
-          return NextResponse.json({ ok: true, insurerId: updated.id }, { status: 200 });
-        } else if ((prisma as any).insurer) {
-          const exists = await (prisma as any).insurer.findUnique({
+          const updatedAny = updated as { id: string };
+          return NextResponse.json({ ok: true, insurerId: updatedAny.id }, { status: 200 });
+        } else if (prismaAny.insurer && typeof prismaAny.insurer === "object") {
+          const insurerModel = prismaAny.insurer as { findUnique: (args: { where: { id: string }; select: unknown }) => Promise<unknown>; update: (args: { where: { id: string }; data: unknown; select: unknown }) => Promise<unknown> };
+          const exists = await insurerModel.findUnique({
             where: { id },
             select: { id: true },
           });
