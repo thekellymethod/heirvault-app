@@ -183,8 +183,9 @@ export async function POST(
       const { logAuditEvent } = await import("@/lib/audit");
       await logAuditEvent({
         action: AuditAction.CLIENT_UPDATED,
-        message: "Client information updated via update portal",
-        clientId: invite.clientId,
+        resourceType: "client",
+        resourceId: invite.clientId,
+        details: { source: "update portal" },
         userId: null,
       });
     } catch (auditError: unknown) {
