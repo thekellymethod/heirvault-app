@@ -72,9 +72,8 @@ export default function UpdatePolicyPage() {
         setAddress(data.address);
       }
     } catch (e: unknown) {
-  const message = e instanceof Error ? e.message : "Unknown error";
-} {
-      setError(e.message);
+      const message = e instanceof Error ? e.message : "Unknown error";
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -157,9 +156,8 @@ export default function UpdatePolicyPage() {
         setSuccess(true);
       }
     } catch (e: unknown) {
-  const message = e instanceof Error ? e.message : "Unknown error";
-} {
-      setError(e.message);
+      const message = e instanceof Error ? e.message : "Unknown error";
+      setError(message);
     } finally {
       setSaving(false);
     }

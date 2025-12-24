@@ -41,7 +41,7 @@ export async function POST(
     }
 
     // Try to get or create test invite first
-    let invite: any = await getOrCreateTestInvite(token);
+    let invite: Awaited<ReturnType<typeof getOrCreateTestInvite>> | Awaited<ReturnType<typeof lookupClientInvite>> | null = await getOrCreateTestInvite(token);
 
     // If not a test code, do normal lookup
     if (!invite) {
@@ -68,12 +68,14 @@ export async function POST(
             updated_at = NOW()
           WHERE id = ${invite.clientId}
         `;
-      } catch (sqlError: any) {
+      } catch (sqlError: unknown) {
         console.error("Update client: Raw SQL address update failed, trying Prisma:", sqlError.message);
         // Fallback to Prisma
         try {
-          if ((prisma as any).clients) {
-            await (prisma as any).clients.update({
+          const prismaAny = prisma as unknown as Record<string, unknown>;
+          if (prismaAny.clients && typeof prismaAny.clients === "object") {
+            const clients = prismaAny.clients as { update: (args: { where: { id: string }; data: unknown }) => Promise<unknown> };
+            await clients.update({
               where: { id: invite.clientId },
               data: {
                 address_line1: address.street || null,
@@ -82,8 +84,9 @@ export async function POST(
                 postal_code: address.zipCode || null,
               },
             });
-          } else if ((prisma as any).client) {
-            await (prisma as any).client.update({
+          } else if (prismaAny.client && typeof prismaAny.client === "object") {
+            const client = prismaAny.client as { update: (args: { where: { id: string }; data: unknown }) => Promise<unknown> };
+            await client.update({
               where: { id: invite.clientId },
               data: {
                 addressLine1: address.street || null,
@@ -93,7 +96,7 @@ export async function POST(
               },
             });
           }
-        } catch (prismaError: any) {
+        } catch (prismaError: unknown) {
           console.error("Update client: Prisma address update also failed:", prismaError.message);
           // Continue - address update is not critical
         }
@@ -126,7 +129,7 @@ export async function POST(
                 // Insurer not found - store raw name instead (lazy insurers)
                 carrierNameRaw = policy.insurerName;
               }
-            } catch (insurerError: any) {
+            } catch (insurerError: unknown) {
               console.error("Update client: Insurer lookup failed:", insurerError.message);
               // Store raw name as fallback
               carrierNameRaw = policy.insurerName;
@@ -140,7 +143,7 @@ export async function POST(
             `;
           }
         }
-      } catch (sqlError: any) {
+      } catch (sqlError: unknown) {
         console.error("Update client: Raw SQL policy update failed:", sqlError.message);
         // Fallback to Prisma (but this will likely also fail due to model name issues)
       }
@@ -164,7 +167,7 @@ export async function POST(
             `;
           }
         }
-      } catch (sqlError: any) {
+      } catch (sqlError: unknown) {
         console.error("Update client: Raw SQL beneficiary update failed:", sqlError.message);
         // Fallback to Prisma (but this will likely also fail)
       }
@@ -179,7 +182,7 @@ export async function POST(
         clientId: invite.clientId,
         userId: null,
       });
-    } catch (auditError: any) {
+    } catch (auditError: unknown) {
       console.error("Update client: Audit logging failed:", auditError.message);
       // Continue - audit is non-critical
     }
@@ -188,8 +191,22 @@ export async function POST(
     const receiptId = `REC-${invite.clientId}-${Date.now()}`;
 
     // Get organization and attorney info for emails - use raw SQL first
-    let organization: any = null;
-    let attorney: any = null;
+    let organization: {
+      id: string;
+      name: string;
+      addressLine1: string | null;
+      addressLine2: string | null;
+      city: string | null;
+      state: string | null;
+      postalCode: string | null;
+      phone: string | null;
+    } | null = null;
+    let attorney: {
+      id: string;
+      email: string;
+      firstName: string | null;
+      lastName: string | null;
+    } | null = null;
     try {
       const accessResult = await prisma.$queryRaw<Array<{
         attorney_id: string;
@@ -251,7 +268,18 @@ export async function POST(
     }
 
     // Get updated client with policies for receipt - use raw SQL
-    let updatedClient: any = null;
+    let updatedClient: {
+      id: string;
+      firstName: string;
+      lastName: string;
+      email: string;
+      policies?: Array<{
+        id: string;
+        policyNumber: string | null;
+        policyType: string | null;
+        insurerId: string | null;
+      }>;
+    } | null = null;
     try {
       const [clientResult, policiesResult] = await Promise.all([
         prisma.$queryRaw<Array<{

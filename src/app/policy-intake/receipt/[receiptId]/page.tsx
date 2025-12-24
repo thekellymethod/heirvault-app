@@ -82,9 +82,8 @@ export default function PolicyIntakeReceiptPage() {
         // These are only available for the new registry-based intake system
       });
     } catch (e: unknown) {
-  const message = e instanceof Error ? e.message : "Unknown error";
-} {
-      setError(e.message || "Failed to load receipt");
+      const message = e instanceof Error ? e.message : "Unknown error";
+      setError(message);
     } finally {
       setLoading(false);
     }

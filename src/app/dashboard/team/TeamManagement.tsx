@@ -41,9 +41,8 @@ export function TeamManagement({
       // In v1: just clear; you can later refresh list
       setEmail("");
     } catch (e: unknown) {
-  const message = e instanceof Error ? e.message : "Unknown error";
-} {
-      setError(e.message || "Something went wrong.");
+      const message = e instanceof Error ? e.message : "Unknown error";
+      setError(message);
     } finally {
       setLoading(false);
     }

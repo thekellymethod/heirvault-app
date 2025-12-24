@@ -19,7 +19,7 @@ export async function POST(
     const { token } = await params;
 
     // Try to get or create test invite first
-    let invite: any = await getOrCreateTestInvite(token);
+    let invite: Awaited<ReturnType<typeof getOrCreateTestInvite>> | Awaited<ReturnType<typeof lookupClientInvite>> | null = await getOrCreateTestInvite(token);
 
     // If not a test code, do normal lookup
     if (!invite) {
@@ -61,10 +61,11 @@ export async function POST(
     let decodedData;
     try {
       decodedData = await decodePassportForm(file, buffer);
-    } catch (ocrError: any) {
+    } catch (ocrError: unknown) {
+      const message = ocrError instanceof Error ? ocrError.message : "Unknown error";
       console.error("Error decoding form:", ocrError);
       return NextResponse.json(
-        { error: `Failed to process form: ${ocrError.message}` },
+        { error: `Failed to process form: ${message}` },
         { status: 400 }
       );
     }
@@ -339,10 +340,11 @@ export async function POST(
       message: "Form processed successfully. Updated receipt has been sent to your email.",
       decodedData,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Internal server error";
     console.error("Error processing update form:", error);
     return NextResponse.json(
-      { error: error.message || "Internal server error" },
+      { error: message },
       { 
         status: 500,
         headers: {

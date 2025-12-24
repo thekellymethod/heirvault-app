@@ -53,11 +53,9 @@ export function InviteClientButton({ clientId, defaultEmail, clientName }: Props
       setSuccess(true);
       showSuccess(`Invitation sent successfully to ${email}`);
     } catch (e: unknown) {
-  const message = e instanceof Error ? e.message : "Unknown error";
-} {
-      const errorMessage = e.message || "Something went wrong.";
-      setError(errorMessage);
-      showError(errorMessage);
+      const message = e instanceof Error ? e.message : "Unknown error";
+      setError(message);
+      showError(message);
     } finally {
       setLoading(false);
     }
