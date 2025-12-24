@@ -9,7 +9,6 @@ import {
   Upload,
   FileText,
   User,
-  Building2,
   CheckCircle,
   AlertCircle,
   Loader2,
@@ -32,7 +31,7 @@ export default function PolicyIntakePage() {
   const [receiptId, setReceiptId] = useState<string | null>(null);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [extracting, setExtracting] = useState(false);
-  const [extractedData, setExtractedData] = useState<any>(null);
+  const [extractedData, setExtractedData] = useState<Record<string, unknown> | null>(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -264,7 +263,7 @@ export default function PolicyIntakePage() {
               Upload Policy Document (Optional)
             </h2>
             <p className="text-sm text-slateui-600 mb-4">
-              Upload a PDF or image of your policy document. We'll automatically extract the information for you.
+              {"Upload a PDF or image of your policy document. We'll automatically extract the information for you."}
             </p>
             
             <div className="border-2 border-dashed border-slateui-300 rounded-lg p-6 text-center">

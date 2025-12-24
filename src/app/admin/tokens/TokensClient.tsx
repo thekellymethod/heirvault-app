@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Copy, Key, Trash2, RotateCw, X, Check, AlertCircle } from "lucide-react";
+import { Copy, Key, Trash2, RotateCw, X, AlertCircle } from "lucide-react";
 
 type Token = {
   id: string;
@@ -43,7 +43,6 @@ export default function TokensClient() {
   const [expiresInDays, setExpiresInDays] = useState<number | undefined>(undefined);
   const [tokenStored, setTokenStored] = useState(false);
   const [rotatedToken, setRotatedToken] = useState<string | null>(null);
-  const [rotatedTokenId, setRotatedTokenId] = useState<string | null>(null);
   const [rotateWarning, setRotateWarning] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -61,9 +60,8 @@ export default function TokensClient() {
         setError(json.error || "Failed to load tokens");
       }
     } catch (e: unknown) {
-  const message = e instanceof Error ? e.message : "Unknown error";
-} {
-      setError(e.message || "Failed to load tokens");
+      const message = e instanceof Error ? e.message : "Failed to load tokens";
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -100,9 +98,8 @@ export default function TokensClient() {
         setError(json.error || "Failed to create token");
       }
     } catch (e: unknown) {
-  const message = e instanceof Error ? e.message : "Unknown error";
-} {
-      setError(e.message || "Failed to create token");
+      const message = e instanceof Error ? e.message : "Failed to create token";
+      setError(message);
     }
   }
 
@@ -117,7 +114,6 @@ export default function TokensClient() {
       const json = await res.json();
       if (json.ok) {
         setRotatedToken(json.data.token);
-        setRotatedTokenId(json.data.newToken.id);
         setRotateWarning(json.data.warning || null);
         setTokenStored(false);
         await loadTokens();
@@ -125,9 +121,8 @@ export default function TokensClient() {
         setError(json.error || "Failed to rotate token");
       }
     } catch (e: unknown) {
-  const message = e instanceof Error ? e.message : "Unknown error";
-} {
-      setError(e.message || "Failed to rotate token");
+      const message = e instanceof Error ? e.message : "Failed to rotate token";
+      setError(message);
     }
   }
 
@@ -146,9 +141,8 @@ export default function TokensClient() {
         setError(json.error || "Failed to revoke token");
       }
     } catch (e: unknown) {
-  const message = e instanceof Error ? e.message : "Unknown error";
-} {
-      setError(e.message || "Failed to revoke token");
+      const message = e instanceof Error ? e.message : "Failed to revoke token";
+      setError(message);
     }
   }
 
@@ -296,6 +290,7 @@ export default function TokensClient() {
               <div className="flex justify-between items-center">
                 <h3 className="text-lg font-semibold text-ink-900">Create API Token</h3>
                 <button
+                  title="Close dialog"
                   onClick={() => {
                     setNewToken(null);
                     setNewTokenName("");
@@ -316,7 +311,7 @@ export default function TokensClient() {
                 <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
                   <p className="text-sm font-medium text-ink-900 mb-2">⚠️ Store this token securely</p>
                   <p className="text-sm text-slateui-600 mb-4">
-                    This is the only time you'll see this token in plaintext. Copy it now and store it securely.
+                    {"This is the only time you'll see this token in plaintext. Copy it now and store it securely."}
                   </p>
                   <div className="flex gap-2 mb-4">
                     <Input
@@ -441,9 +436,9 @@ export default function TokensClient() {
               <div className="flex justify-between items-center">
                 <h3 className="text-lg font-semibold text-ink-900">Rotate Token</h3>
                 <button
+                  title="Close dialog"
                   onClick={() => {
                     setRotatedToken(null);
-                    setRotatedTokenId(null);
                     setRotateWarning(null);
                     setShowRotateModal(null);
                     setTokenStored(false);
@@ -466,7 +461,7 @@ export default function TokensClient() {
                 <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
                   <p className="text-sm font-medium text-ink-900 mb-2">⚠️ Store this new token securely</p>
                   <p className="text-sm text-slateui-600 mb-4">
-                    This is the only time you'll see this token in plaintext. The old token remains active until you revoke it.
+                    {"This is the only time you'll see this token in plaintext. The old token remains active until you revoke it."}
                   </p>
                   <div className="flex gap-2 mb-4">
                     <Input
@@ -493,7 +488,7 @@ export default function TokensClient() {
                   <Button
                     onClick={() => {
                       setRotatedToken(null);
-                      setRotatedTokenId(null);
+                      // Removed unused state(null);
                       setRotateWarning(null);
                       setShowRotateModal(null);
                       setTokenStored(false);
@@ -526,7 +521,7 @@ export default function TokensClient() {
                   <Button
                     onClick={() => {
                       setRotatedToken(null);
-                      setRotatedTokenId(null);
+                      // Removed unused state(null);
                       setRotateWarning(null);
                       setShowRotateModal(null);
                       setTokenStored(false);

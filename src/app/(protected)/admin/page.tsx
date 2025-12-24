@@ -12,12 +12,9 @@ import { AdminSignIn } from "./_components/AdminSignIn";
  * Exit criteria: You can reconstruct "who did what when" for any record.
  */
 export default async function AdminPage() {
-  try {
-    // Require admin authentication
-    const admin = await requireAdmin();
-    return <AdminDashboard admin={admin} />;
-  } catch (error: any) {
-    // If not authenticated or not admin, show sign-in page
-    return <AdminSignIn />;
-  }
+  const admin = await requireAdmin().catch(() => null);
+
+  if (!admin) return <AdminSignIn />;
+
+  return <AdminDashboard admin={admin} />;
 }

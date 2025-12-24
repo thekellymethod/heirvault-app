@@ -58,30 +58,35 @@ export async function lookupClientInvite(token: string) {
         },
       };
     }
-  } catch (sqlError: any) {
-    console.error("lookupClientInvite: Raw SQL failed, trying Prisma:", sqlError.message);
+  } catch (sqlError: unknown) {
+    const sqlErrorMessage = sqlError instanceof Error ? sqlError.message : "Unknown error";
+    console.error("lookupClientInvite: Raw SQL failed, trying Prisma:", sqlErrorMessage);
     // Fallback to Prisma
     try {
       // Try both possible model names
-      if ((prisma as any).client_invites) {
-        const prismaInvite = await (prisma as any).client_invites.findUnique({
+      const prismaAny = prisma as unknown as Record<string, unknown>;
+      if (prismaAny.client_invites && typeof prismaAny.client_invites === "object") {
+        const clientInvites = prismaAny.client_invites as { findUnique: (args: { where: { token: string }; include: { clients: boolean } }) => Promise<unknown> };
+        const prismaInvite = await clientInvites.findUnique({
           where: { token },
           include: { clients: true },
         });
-        if (prismaInvite) {
+        if (prismaInvite && typeof prismaInvite === "object" && "clients" in prismaInvite) {
           return {
-            ...prismaInvite,
-            client: prismaInvite.clients,
+            ...(prismaInvite as Record<string, unknown>),
+            client: (prismaInvite as { clients: unknown }).clients,
           };
         }
-      } else if ((prisma as any).clientInvite) {
-        return await (prisma as any).clientInvite.findUnique({
+      } else if (prismaAny.clientInvite && typeof prismaAny.clientInvite === "object") {
+        const clientInvite = prismaAny.clientInvite as { findUnique: (args: { where: { token: string }; include: { client: boolean } }) => Promise<unknown> };
+        return await clientInvite.findUnique({
           where: { token },
           include: { client: true },
         });
       }
-    } catch (prismaError: any) {
-      console.error("lookupClientInvite: Prisma also failed:", prismaError.message);
+    } catch (prismaError: unknown) {
+      const prismaErrorMessage = prismaError instanceof Error ? prismaError.message : "Unknown error";
+      console.error("lookupClientInvite: Prisma also failed:", prismaErrorMessage);
       return null;
     }
   }

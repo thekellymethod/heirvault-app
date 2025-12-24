@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/db";
 import { redirect } from "next/navigation";
+import Link from "next/link";
+import { XCircle } from "lucide-react";
 import { getOrCreateTestInvite } from "@/lib/test-invites";
 import { lookupClientInvite } from "@/lib/invite-lookup";
 
@@ -11,7 +13,7 @@ export default async function InviteUpdatePage({ params }: Props) {
   const { token } = await params;
 
   // Try to get or create test invite first
-  let invite: any = await getOrCreateTestInvite(token);
+  let invite: Awaited<ReturnType<typeof getOrCreateTestInvite>> | Awaited<ReturnType<typeof lookupClientInvite>> | null = await getOrCreateTestInvite(token);
 
   // If not a test code, do normal lookup - use raw SQL first
   if (!invite) {
@@ -68,12 +70,15 @@ export default async function InviteUpdatePage({ params }: Props) {
           },
         };
       }
-    } catch (sqlError: any) {
-      console.error("Invite update page: Raw SQL failed, trying Prisma:", sqlError.message);
+    } catch (sqlError: unknown) {
+      const message = sqlError instanceof Error ? sqlError.message : "Unknown error";
+      console.error("Invite update page: Raw SQL failed, trying Prisma:", message);
       // Fallback to Prisma
       try {
         // Try both possible model names
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         if ((prisma as any).client_invites) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const prismaInvite = await (prisma as any).client_invites.findUnique({
             where: { token },
             include: { clients: true },
@@ -84,14 +89,17 @@ export default async function InviteUpdatePage({ params }: Props) {
               client: prismaInvite.clients,
             };
           }
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } else if ((prisma as any).clientInvite) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           invite = await (prisma as any).clientInvite.findUnique({
             where: { token },
             include: { client: true },
           });
         }
-      } catch (prismaError: any) {
-        console.error("Invite update page: Prisma also failed:", prismaError.message);
+      } catch (prismaError: unknown) {
+        const prismaMessage = prismaError instanceof Error ? prismaError.message : "Unknown error";
+        console.error("Invite update page: Prisma also failed:", prismaMessage);
         // invite remains null
       }
     }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUserWithOrg } from "@/lib/authz";
-import { OrgRole } from "@/lib/db";
+import { randomUUID } from "crypto";
 
 export async function POST(req: NextRequest) {
   try {
@@ -22,15 +22,19 @@ export async function POST(req: NextRequest) {
     // Verify user has permission to invite to this organization
     if (organizationId !== orgMember.organizationId) {
       // Check if user is owner of the requested organization
-      const requesterMembership = await prisma.orgMember.findFirst({
-        where: {
-          userId: user.id,
-          organizationId: organizationId,
-          role: "OWNER",
-        },
-      });
+      const requesterMembershipResult = await prisma.$queryRawUnsafe<Array<{
+        id: string;
+        user_id: string;
+        organization_id: string;
+        role: string;
+      }>>(
+        `SELECT id, user_id, organization_id, role FROM org_members WHERE user_id = $1 AND organization_id = $2 AND role = $3 LIMIT 1`,
+        user.id,
+        organizationId,
+        "OWNER"
+      );
       
-      if (!requesterMembership) {
+      if (!requesterMembershipResult || requesterMembershipResult.length === 0) {
         return NextResponse.json(
           { error: "You can only invite members to your own organization" },
           { status: 403 }
@@ -53,9 +57,15 @@ export async function POST(req: NextRequest) {
     }
 
     // Check if user already exists
-    let targetUser = await prisma.user.findUnique({
-      where: { email },
-    });
+    const targetUserResult = await prisma.$queryRawUnsafe<Array<{
+      id: string;
+      email: string;
+    }>>(
+      `SELECT id, email FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1`,
+      email
+    );
+    
+    const targetUser = targetUserResult && targetUserResult.length > 0 ? targetUserResult[0] : null;
 
     // If user doesn't exist, we could create them or just return an error
     // For now, require the user to exist (they need to sign up first)
@@ -67,12 +77,18 @@ export async function POST(req: NextRequest) {
     }
 
     // Check if current user is owner (only owners can invite)
-    const currentMember = await prisma.orgMember.findFirst({
-      where: {
-        userId: user.id,
-        organizationId: organizationId,
-      },
-    });
+    const currentMemberResult = await prisma.$queryRawUnsafe<Array<{
+      id: string;
+      user_id: string;
+      organization_id: string;
+      role: string;
+    }>>(
+      `SELECT id, user_id, organization_id, role FROM org_members WHERE user_id = $1 AND organization_id = $2 LIMIT 1`,
+      user.id,
+      organizationId
+    );
+
+    const currentMember = currentMemberResult && currentMemberResult.length > 0 ? currentMemberResult[0] : null;
 
     if (currentMember?.role !== "OWNER") {
       return NextResponse.json(
@@ -82,14 +98,15 @@ export async function POST(req: NextRequest) {
     }
 
     // Check if user is already a member
-    const existingMember = await prisma.orgMember.findFirst({
-      where: {
-        userId: targetUser.id,
-        organizationId: organizationId,
-      },
-    });
+    const existingMemberResult = await prisma.$queryRawUnsafe<Array<{
+      id: string;
+    }>>(
+      `SELECT id FROM org_members WHERE user_id = $1 AND organization_id = $2 LIMIT 1`,
+      targetUser.id,
+      organizationId
+    );
 
-    if (existingMember) {
+    if (existingMemberResult && existingMemberResult.length > 0) {
       return NextResponse.json(
         { error: "User is already a member of this organization" },
         { status: 400 }
@@ -97,20 +114,23 @@ export async function POST(req: NextRequest) {
     }
 
     // Add user to organization
-    await prisma.orgMember.create({
-      data: {
-        userId: targetUser.id,
-        organizationId: organizationId,
-        role: role as OrgRole,
-      },
-    });
+    await prisma.$executeRawUnsafe(
+      `INSERT INTO org_members (id, user_id, organization_id, role, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6)`,
+      randomUUID(),
+      targetUser.id,
+      organizationId,
+      role,
+      new Date(),
+      new Date()
+    );
 
     return NextResponse.json({ success: true }, { status: 201 });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Unknown error";
+    const statusCode = message === "Unauthorized" || message === "Forbidden" ? 401 : 400;
     return NextResponse.json(
       { error: message },
-      { status: error.message === "Unauthorized" || error.message === "Forbidden" ? 401 : 400 }
+      { status: statusCode }
     );
   }
 }

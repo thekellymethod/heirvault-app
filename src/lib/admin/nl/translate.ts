@@ -13,8 +13,8 @@ type CommandMeta = {
 
 export type NLPlan = {
   cmd: string | null;
-  args: Record<string, any>;
-  next: Array<{ cmd: string; args: Record<string, any> }>;
+  args: Record<string, unknown>;
+  next: Array<{ cmd: string; args: Record<string, unknown> }>;
   requiresConfirm: boolean;
   confidence: number;
   explanation: string;
@@ -152,7 +152,8 @@ export async function translateNLToPlan(input: {
     const plan = JSON.parse(content) as NLPlan;
 
     return validateAndNormalizePlan(plan, commandList);
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error("NL translation error:", error);
     return {
       cmd: null,
@@ -160,7 +161,7 @@ export async function translateNLToPlan(input: {
       next: [],
       requiresConfirm: false,
       confidence: 0,
-      explanation: `Translation failed: ${error?.message ?? "Unknown error"}`,
+      explanation: `Translation failed: ${errorMessage}`,
       safetyFlags: ["TRANSLATION_ERROR"],
     };
   }

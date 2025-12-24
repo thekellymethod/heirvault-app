@@ -4,15 +4,9 @@ import { FileText, Download, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { useEffect, useState } from "react";
 
 export default function SamplePDFsClient() {
-  const [baseUrl, setBaseUrl] = useState("");
-
-  // Set baseUrl only on client side after hydration to avoid mismatch
-  useEffect(() => {
-    setBaseUrl(window.location.origin);
-  }, []);
+  const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
 
   return (
     <div className="min-h-screen bg-paper-50 py-6">

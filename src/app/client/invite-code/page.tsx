@@ -25,8 +25,9 @@ export default function ClientInviteCodePage() {
     try {
       // Redirect to invite page with the token
       router.push(`/invite/${inviteCode.trim()}`);
-    } catch (err: any) {
-      setError(err.message || "Something went wrong");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Something went wrong";
+      setError(message);
       setSubmitting(false);
     }
   }
@@ -83,7 +84,7 @@ export default function ClientInviteCodePage() {
                   autoFocus
                 />
                 <p className="mt-2 text-xs text-slateui-500">
-                  This code was provided by your attorney. If you don't have a code, please contact your attorney.
+                  {"This code was provided by your attorney. If you don't have a code, please contact your attorney."}
                 </p>
               </div>
 

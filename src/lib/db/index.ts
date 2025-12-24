@@ -4,7 +4,11 @@ import * as schema from "./schema";
 import { eq, and, or, inArray, sql, desc, asc, like, ilike } from "drizzle-orm";
 
 // Configure pool with SSL for Prisma/cloud databases
-const connectionConfig: any = {
+const connectionConfig: {
+  connectionString: string | undefined;
+  connectionTimeoutMillis: number;
+  ssl?: { rejectUnauthorized: boolean };
+} = {
   connectionString: process.env.DATABASE_URL,
   connectionTimeoutMillis: 30000, // 30 second timeout
 };
@@ -24,8 +28,15 @@ export const db = drizzle(pool, { schema });
 // Export schema for use in queries
 export * from "./schema";
 
-// Export enums for compatibility
-export * from "./enums";
+// Export enum constants for compatibility (types are already exported from schema)
+export {
+  AuditAction,
+  OrgRole,
+  BillingPlan,
+  UserRole,
+  InviteStatus,
+  AccessGrantStatus,
+} from "./enums";
 
 // Export common query helpers
 export { eq, and, or, inArray, sql, desc, asc, like, ilike };

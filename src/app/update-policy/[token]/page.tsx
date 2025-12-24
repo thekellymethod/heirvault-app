@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Plus, Trash2, Mail, Phone, CheckCircle, AlertCircle, Save } from "lucide-react";
 
 interface Policy {
@@ -42,7 +41,16 @@ export default function UpdatePolicyPage() {
   const [confirmationSent, setConfirmationSent] = useState(false);
   const [confirmationMethod, setConfirmationMethod] = useState<"email" | "phone" | null>(null);
   const [confirmationCode, setConfirmationCode] = useState("");
-  const [clientData, setClientData] = useState<any>(null);
+  const [clientData, setClientData] = useState<{
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string | null;
+    policies?: Policy[];
+    beneficiaries?: Beneficiary[];
+    address?: Address;
+  } | null>(null);
 
   const [policies, setPolicies] = useState<Policy[]>([]);
   const [beneficiaries, setBeneficiaries] = useState<Beneficiary[]>([]);
@@ -53,13 +61,9 @@ export default function UpdatePolicyPage() {
     zipCode: "",
   });
 
-  useEffect(() => {
-    if (token) {
-      loadClientData();
-    }
-  }, [token]);
-
-  const loadClientData = async () => {
+  const loadClientData = useCallback(async () => {
+    if (!token) return;
+    
     try {
       const res = await fetch(`/api/invite/${token}/client-data`);
       const data = await res.json();
@@ -77,7 +81,11 @@ export default function UpdatePolicyPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token]);
+
+  useEffect(() => {
+    loadClientData();
+  }, [loadClientData]);
 
   const handleAddPolicy = () => {
     setPolicies([...policies, { policyNumber: "", insurerName: "", policyType: "" }]);
@@ -107,9 +115,8 @@ export default function UpdatePolicyPage() {
       if (!res.ok) throw new Error(data.error || "Failed to send confirmation");
       setConfirmationSent(true);
     } catch (e: unknown) {
-  const message = e instanceof Error ? e.message : "Unknown error";
-} {
-      setError(e.message);
+      const message = e instanceof Error ? e.message : "Unknown error";
+      setError(message);
     }
   };
 
@@ -288,7 +295,7 @@ export default function UpdatePolicyPage() {
               ))}
               {policies.length === 0 && (
                 <p className="text-sm text-slateui-500 text-center py-4">
-                  No policies added. Click "Add Policy" to add one.
+                  {"No policies added. Click \"Add Policy\" to add one."}
                 </p>
               )}
             </div>
@@ -380,7 +387,7 @@ export default function UpdatePolicyPage() {
               ))}
               {beneficiaries.length === 0 && (
                 <p className="text-sm text-slateui-500 text-center py-4">
-                  No beneficiaries added. Click "Add Beneficiary" to add one.
+                  {"No beneficiaries added. Click \"Add Beneficiary\" to add one."}
                 </p>
               )}
             </div>
@@ -431,7 +438,7 @@ export default function UpdatePolicyPage() {
               Confirm Changes
             </h2>
             <p className="text-sm text-slateui-600 mb-4">
-              For security, we need to verify your identity. Choose how you'd like to receive your confirmation code:
+              {"For security, we need to verify your identity. Choose how you'd like to receive your confirmation code:"}
             </p>
 
             {!confirmationSent ? (

@@ -49,9 +49,8 @@ function safeJsonParse(input: string): { ok: true; value: unknown } | { ok: fals
     const v = JSON.parse(input);
     return { ok: true, value: v };
   } catch (e: unknown) {
-  const message = e instanceof Error ? e.message : "Unknown error";
-} {
-    return { ok: false, error: e?.message ?? "Invalid JSON" };
+    const message = e instanceof Error ? e.message : "Unknown error";
+    return { ok: false, error: message };
   }
 }
 
@@ -107,9 +106,8 @@ export default function ConsoleClient() {
         setHint(json.error || "Failed to generate plan.");
       }
     } catch (e: unknown) {
-  const message = e instanceof Error ? e.message : "Unknown error";
-} {
-      setHint(`Network error: ${e?.message}`);
+      const message = e instanceof Error ? e.message : "Unknown error";
+      setHint(`Network error: ${message}`);
     } finally {
       setPlanning(false);
     }
@@ -159,18 +157,20 @@ export default function ConsoleClient() {
         setNlText("");
       }
     } catch (e: unknown) {
-  const message = e instanceof Error ? e.message : "Unknown error";
-} {
-      const json: ExecResponse = { ok: false, error: "Network error.", details: { message: e?.message } };
+      const message = e instanceof Error ? e.message : "Unknown error";
+      const json: ExecResponse = { ok: false, error: "Network error.", details: { message } };
       setHistory((h) => h.map((x) => (x.id === item.id ? { ...x, res: json } : x)));
     } finally {
       setBusy(false);
     }
   }
 
-  async function runCommand(inputCmd?: string, inputArgs?: Record<string, any>) {
+  async function runCommand(inputCmd?: string, inputArgs?: Record<string, unknown>) {
     const c = (inputCmd ?? cmd).trim();
-    const a = inputArgs ?? (argsObj && typeof argsObj === "object" ? argsObj : null);
+    const parsedArgs = argsObj && typeof argsObj === "object" && !Array.isArray(argsObj) && argsObj !== null
+      ? (argsObj as Record<string, unknown>)
+      : null;
+    const a = inputArgs ?? parsedArgs;
 
     if (!c) {
       setHint("Command is required.");
@@ -203,9 +203,8 @@ export default function ConsoleClient() {
       const json = (await res.json()) as ExecResponse;
       setHistory((h) => h.map((x) => (x.id === item.id ? { ...x, res: json } : x)));
     } catch (e: unknown) {
-  const message = e instanceof Error ? e.message : "Unknown error";
-} {
-      const json: ExecResponse = { ok: false, error: "Network error.", details: { message: e?.message } };
+      const message = e instanceof Error ? e.message : "Unknown error";
+      const json: ExecResponse = { ok: false, error: "Network error.", details: { message } };
       setHistory((h) => h.map((x) => (x.id === item.id ? { ...x, res: json } : x)));
     } finally {
       setBusy(false);
@@ -314,9 +313,8 @@ export default function ConsoleClient() {
               onChange={(e) => setNlText(e.target.value)}
               rows={4}
               aria-label="Natural language command"
-              placeholder="Describe what you want to do in plain English..."
-              className="w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-zinc-600"
               placeholder='e.g., "Who am I?" or "Check database health" or "Lookup attorney john@example.com"'
+              className="w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-zinc-600"
             />
             {hint && <p className="mt-2 text-xs text-red-400">{hint}</p>}
           </div>

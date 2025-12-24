@@ -65,11 +65,13 @@ export function TeamManagement({
             className="flex-1 rounded-full border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-50 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            aria-label="Work email"
           />
           <select
             className="rounded-full border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-50 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
             value={role}
             onChange={(e) => setRole(e.target.value as OrgRole)}
+            aria-label="Team member role"
           >
             <option value="ATTORNEY">Attorney</option>
             <option value="STAFF">Staff</option>

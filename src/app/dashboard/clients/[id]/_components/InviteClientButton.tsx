@@ -97,13 +97,15 @@ export function InviteClientButton({ clientId, defaultEmail, clientName }: Props
 
         <div className="space-y-3">
           <div>
-            <label className="label mb-1 block">Invitation Link</label>
+            <label htmlFor="invite-url" className="label mb-1 block">Invitation Link</label>
             <div className="flex gap-2">
               <input
+                id="invite-url"
                 type="text"
                 readOnly
                 value={inviteUrl}
                 className="input flex-1 font-mono text-sm"
+                aria-label="Invitation link"
               />
               <Button
                 onClick={() => copyToClipboard(inviteUrl)}
@@ -124,13 +126,15 @@ export function InviteClientButton({ clientId, defaultEmail, clientName }: Props
 
           {inviteCode && (
             <div>
-              <label className="label mb-1 block">Invitation Code</label>
+              <label htmlFor="invite-code" className="label mb-1 block">Invitation Code</label>
               <div className="flex gap-2">
                 <input
+                  id="invite-code"
                   type="text"
                   readOnly
                   value={inviteCode}
                   className="input flex-1 font-mono text-sm font-semibold text-gold-700"
+                  aria-label="Invitation code"
                 />
                 <Button
                   onClick={() => copyToClipboard(inviteCode)}
