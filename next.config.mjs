@@ -10,6 +10,14 @@ const nextConfig = {
   turbopack: {
     root: process.cwd(),
   },
+  // Exclude development scripts from build
+  webpack: (config) => {
+    config.watchOptions = {
+      ...config.watchOptions,
+      ignored: ["**/_devscripts/**"],
+    };
+    return config;
+  },
   images: {
     remotePatterns: [],
     unoptimized: false,
