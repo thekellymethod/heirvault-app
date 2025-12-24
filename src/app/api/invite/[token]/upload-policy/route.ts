@@ -441,13 +441,16 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
     }
 
     // Attach policy to document if document.policy_id is NULL
-    if (archivedDocument?.id && policyId) {
+    // CRITICAL: Only update documents that belong to the current client to prevent cross-client corruption
+    if (archivedDocument?.id && policyId && archivedDocument.clientId === invite.clientId) {
       try {
         await prisma.$executeRaw(
           Prisma.sql`
             UPDATE documents
             SET policy_id = ${policyId}, updated_at = NOW()
-            WHERE id = ${archivedDocument.id} AND policy_id IS NULL
+            WHERE id = ${archivedDocument.id} 
+              AND client_id = ${invite.clientId}
+              AND policy_id IS NULL
           `
         );
       } catch (e: unknown) {

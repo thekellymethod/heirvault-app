@@ -26,8 +26,14 @@ export function ReceiptManagement() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const [total, setTotal] = useState(0);
+  const [archivedCount, setArchivedCount] = useState(0);
   const [offset, setOffset] = useState(0);
   const limit = 50;
+
+  // Reset offset when search query or archive filter changes
+  useEffect(() => {
+    setOffset(0);
+  }, [searchQuery, showArchived]);
 
   useEffect(() => {
     loadReceipts();
@@ -49,6 +55,7 @@ export function ReceiptManagement() {
       const data = await res.json();
       setReceipts(data.receipts || []);
       setTotal(data.total || 0);
+      setArchivedCount(data.archivedCount || 0);
     } catch (err) {
       showError(err instanceof Error ? err.message : "Failed to load receipts");
     } finally {
@@ -239,7 +246,7 @@ export function ReceiptManagement() {
         <div className="card p-4">
           <div className="text-sm text-slateui-600">Archived</div>
           <div className="text-2xl font-semibold text-ink-900 mt-1">
-            {receipts.filter((r) => r.isArchived).length}
+            {archivedCount}
           </div>
         </div>
       </div>

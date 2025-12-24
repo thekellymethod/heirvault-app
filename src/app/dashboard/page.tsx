@@ -15,10 +15,10 @@ import { AttorneyDashboardView } from "./_components/AttorneyDashboardView";
 export default async function DashboardPage() {
   // requireVerifiedAttorney will throw if user is not authenticated or not verified
   try {
-    var user = await requireVerifiedAttorney();
-  } catch (error: any) {
+    const user = await requireVerifiedAttorney();
+  } catch (error: unknown) {
     // If error has redirectTo property, redirect there
-    if (error?.redirectTo) {
+    if (error && typeof error === "object" && "redirectTo" in error && typeof error.redirectTo === "string") {
       redirect(error.redirectTo);
     }
     // Otherwise redirect to apply page
@@ -154,7 +154,7 @@ export default async function DashboardPage() {
         id: p.id,
         policyNumber: p.policy_number,
         policyType: p.policy_type,
-        verificationStatus: p.verification_status as any,
+        verificationStatus: p.verification_status,
         updatedAt: p.updated_at,
         createdAt: p.created_at,
         client: {

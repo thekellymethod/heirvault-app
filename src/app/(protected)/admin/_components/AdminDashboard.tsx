@@ -100,7 +100,16 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
         if (!res.ok) throw new Error("Failed to load attorney applications");
         const data = await res.json();
         // Transform nested user data to flat structure
-        const flattened = (data.profiles || []).map((profile: any) => ({
+        const flattened = (data.profiles || []).map((profile: {
+          id: string;
+          userId: string;
+          user?: {
+            email?: string | null;
+            firstName?: string | null;
+            lastName?: string | null;
+            phone?: string | null;
+          };
+        }) => ({
           id: profile.id,
           userId: profile.userId,
           email: profile.user?.email || null,

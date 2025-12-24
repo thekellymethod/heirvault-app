@@ -55,7 +55,9 @@ export async function POST(req: Request) {
   try {
     const result = await def.handler({ actor }, args);
     return NextResponse.json({ ...result, meta: { auditId } }, { status: result.ok ? 200 : 400 });
-  } catch (e: any) {
+  } catch (e: unknown) {
+  const message = e instanceof Error ? e.message : "Unknown error";
+} {
     return NextResponse.json(
       {
         ok: false,

@@ -89,7 +89,9 @@ export default function ReceiptPage() {
         receiptId: receiptId || data.receiptId,
         ...data,
       });
-    } catch (e: any) {
+    } catch (e: unknown) {
+  const message = e instanceof Error ? e.message : "Unknown error";
+} {
       setError(e.message || "Failed to load receipt");
     } finally {
       setLoading(false);
@@ -118,7 +120,9 @@ export default function ReceiptPage() {
       } else {
         throw new Error("Invalid receipt ID format");
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
+  const message = e instanceof Error ? e.message : "Unknown error";
+} {
       setError(e.message || "Failed to load receipt");
     } finally {
       setLoading(false);

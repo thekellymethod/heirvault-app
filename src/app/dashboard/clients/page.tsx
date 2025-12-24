@@ -1,59 +1,65 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { db, attorneyClientAccess, clients, eq, desc, and } from "@/lib/db";
 import { requireAuth } from "@/lib/utils/clerk";
 import { Button } from "@/components/ui/button";
 import { EmptyListState } from "@/components/ui/empty-state";
 
 export default async function ClientsPage() {
-  try {
-    const user = await requireAuth();
+  const user = await requireAuth();
 
-    // Use Drizzle ORM to fetch clients
-    const rows = await db
-      .select({
-        grantedAt: attorneyClientAccess.grantedAt,
-        id: clients.id,
-        firstName: clients.firstName,
-        lastName: clients.lastName,
-        email: clients.email,
-        phone: clients.phone,
-        updatedAt: clients.updatedAt,
-        createdAt: clients.createdAt,
-      })
-      .from(attorneyClientAccess)
-      .innerJoin(clients, eq(attorneyClientAccess.clientId, clients.id))
-      .where(
-        and(
-          eq(attorneyClientAccess.attorneyId, user.id),
-          eq(attorneyClientAccess.isActive, true)
-        )
+  // Use Drizzle ORM to fetch clients
+  const rows = await db
+    .select({
+      grantedAt: attorneyClientAccess.grantedAt,
+      id: clients.id,
+      firstName: clients.firstName,
+      lastName: clients.lastName,
+      email: clients.email,
+      phone: clients.phone,
+      updatedAt: clients.updatedAt,
+      createdAt: clients.createdAt,
+    })
+    .from(attorneyClientAccess)
+    .innerJoin(clients, eq(attorneyClientAccess.clientId, clients.id))
+    .where(
+      and(
+        eq(attorneyClientAccess.attorneyId, user.id),
+        eq(attorneyClientAccess.isActive, true)
       )
-      .orderBy(desc(attorneyClientAccess.grantedAt));
+    )
+    .orderBy(desc(attorneyClientAccess.grantedAt))
+    .catch((error) => {
+      console.error("ClientsPage error:", error);
+      return null;
+    });
 
-    const clientList = rows.map((r) => ({
-      id: r.id,
-      firstName: r.firstName,
-      lastName: r.lastName,
-      email: r.email,
-      phone: r.phone,
-      updatedAt: r.updatedAt,
-      createdAt: r.createdAt,
-    }));
+  if (!rows) notFound();
+
+  const clientList = rows.map((r) => ({
+    id: r.id,
+    firstName: r.firstName,
+    lastName: r.lastName,
+    email: r.email,
+    phone: r.phone,
+    updatedAt: r.updatedAt,
+    createdAt: r.createdAt,
+  }));
 
   return (
-      <div className="space-y-6">
-        <div className="flex items-start justify-between gap-4">
-          <div>
+    <div className="space-y-6">
+      <div className="flex items-start justify-between gap-4">
+        <div>
           <h1 className="text-2xl font-semibold text-ink-900">Clients</h1>
           <p className="text-sm text-slateui-600">
             Create and manage client registry profiles.
           </p>
-          </div>
-
-            <Link href="/dashboard/clients/new">
-          <Button size="lg">New Client</Button>
-            </Link>
         </div>
+
+        <Link href="/dashboard/clients/new">
+          <Button size="lg">New Client</Button>
+        </Link>
+      </div>
 
       <div className="rounded-xl border border-slateui-200 bg-white overflow-x-auto">
         <div className="grid grid-cols-12 gap-2 border-b border-slateui-200 px-4 py-3 text-xs font-semibold text-ink-900 min-w-[800px]">
@@ -97,31 +103,12 @@ export default async function ClientsPage() {
                     <span className="hidden sm:inline">{new Date(c.updatedAt).toLocaleDateString()}</span>
                     <span className="sm:hidden">{new Date(c.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
                   </div>
-            </div>
+                </div>
               </Link>
-              ))}
-            </div>
-          )}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
+    </div>
   );
-  } catch (error) {
-    console.error("ClientsPage error:", error);
-    // Don't redirect on error - let middleware handle authentication
-    // If unauthorized, middleware will redirect to sign-in
-    // Otherwise show error message
-  return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-semibold text-ink-900">Error</h1>
-          <p className="text-sm text-slateui-600">
-            Failed to load clients. Please try refreshing the page.
-          </p>
-          <p className="mt-2 text-xs text-slateui-600">
-            {error instanceof Error ? error.message : "Unknown error"}
-          </p>
-        </div>
-      </div>
-  );
-  }
 }

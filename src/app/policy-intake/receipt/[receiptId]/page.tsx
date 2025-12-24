@@ -81,7 +81,9 @@ export default function PolicyIntakeReceiptPage() {
         // QR token and QR code are not available for old policy-intake submissions
         // These are only available for the new registry-based intake system
       });
-    } catch (e: any) {
+    } catch (e: unknown) {
+  const message = e instanceof Error ? e.message : "Unknown error";
+} {
       setError(e.message || "Failed to load receipt");
     } finally {
       setLoading(false);

@@ -26,7 +26,9 @@ export function BillingActions({ currentPlan }: { currentPlan: Plan }) {
 
       const data = await res.json();
       window.location.href = data.url;
-    } catch (e: any) {
+    } catch (e: unknown) {
+  const message = e instanceof Error ? e.message : "Unknown error";
+} {
       setError(e.message || "Something went wrong.");
       setLoadingPlan(null);
     }

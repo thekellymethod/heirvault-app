@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 
 type Body = {
   cmd: string;
-  args?: Record<string, any>;
+  args?: Record<string, unknown>;
 };
 
 function isConsoleEnabled() {
@@ -43,10 +43,12 @@ export async function POST(req: Request) {
   let actor;
   try {
     actor = await getActorFromRequest(req, { requiredScopes: ["console:exec", "admin"] });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Authentication required.";
+    const status = error && typeof error === "object" && "status" in error && typeof error.status === "number" ? error.status : 401;
     return NextResponse.json(
-      { ok: false, error: error.message || "Authentication required." },
-      { status: error.status || 401 }
+      { ok: false, error: message },
+      { status }
     );
   }
 
@@ -66,7 +68,7 @@ export async function POST(req: Request) {
   }
 
   const cmd = (body.cmd ?? "").trim();
-  const args = (body.args ?? {}) as Record<string, any>;
+  const args = (body.args ?? {}) as Record<string, unknown>;
 
   const def = COMMAND_MAP[cmd];
   if (!def) {
@@ -89,12 +91,13 @@ export async function POST(req: Request) {
   try {
     const result = await def.handler({ actor }, args);
     return NextResponse.json({ ...result, meta: { auditId, rate: rl } }, { status: result.ok ? 200 : 400 });
-  } catch (e: any) {
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : "Unknown error";
     return NextResponse.json(
       {
         ok: false,
         error: "Command execution failed.",
-        details: { message: e?.message, cmd, args },
+        details: { message, cmd, args },
         meta: { auditId, rate: rl },
       },
       { status: 500 }
@@ -112,10 +115,12 @@ export async function GET(req: Request) {
   let actor;
   try {
     actor = await getActorFromRequest(req, { requiredScopes: ["console:exec", "admin"] });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Authentication required.";
+    const status = error && typeof error === "object" && "status" in error && typeof error.status === "number" ? error.status : 401;
     return NextResponse.json(
-      { ok: false, error: error.message || "Authentication required." },
-      { status: error.status || 401 }
+      { ok: false, error: message },
+      { status }
     );
   }
 

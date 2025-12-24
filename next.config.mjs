@@ -10,14 +10,6 @@ const nextConfig = {
   turbopack: {
     root: process.cwd(),
   },
-  // Exclude development scripts from build
-  webpack: (config) => {
-    config.watchOptions = {
-      ...config.watchOptions,
-      ignored: ["**/_devscripts/**"],
-    };
-    return config;
-  },
   images: {
     remotePatterns: [],
     unoptimized: false,
@@ -35,8 +27,7 @@ const nextConfig = {
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           {
             key: "Permissions-Policy",
-            value:
-              "camera=(), microphone=(), geolocation=(), interest-cohort=()",
+            value: "camera=(), microphone=(), geolocation=(), interest-cohort=()",
           },
         ],
       },
@@ -44,11 +35,12 @@ const nextConfig = {
   },
 };
 
-// Enable Sentry ONLY when env vars are present
+// Only enable Sentry release/sourcemap upload when explicitly configured.
+// Prevents Vercel builds from failing due to missing/wrong tokens or project config.
 const sentryEnabled =
-  Boolean(process.env.SENTRY_AUTH_TOKEN) &&
-  Boolean(process.env.SENTRY_ORG) &&
-  Boolean(process.env.SENTRY_PROJECT);
+  !!process.env.SENTRY_AUTH_TOKEN &&
+  !!process.env.SENTRY_ORG &&
+  !!process.env.SENTRY_PROJECT;
 
 const sentryWebpackPluginOptions = {
   org: process.env.SENTRY_ORG,

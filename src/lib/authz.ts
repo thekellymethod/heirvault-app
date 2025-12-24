@@ -14,8 +14,29 @@ export async function getCurrentUserWithOrg() {
   if (!user) return { clerkId: userId, user: null, orgMember: null };
 
   // Get user with org memberships
-  let userWithOrg: any = null;
-  let orgMember: any = null;
+  let userWithOrg: {
+    id: string;
+    email: string;
+    firstName: string | null;
+    lastName: string | null;
+    role: string;
+    orgMemberships: Array<{
+      organizationId: string;
+      role: string;
+      organizations: {
+        id: string;
+        name: string;
+      };
+    }>;
+  } | null = null;
+  let orgMember: {
+    organizationId: string;
+    role: string;
+    organizations: {
+      id: string;
+      name: string;
+    };
+  } | null = null;
 
   try {
     const result = await db
@@ -54,8 +75,9 @@ export async function getCurrentUserWithOrg() {
       };
       orgMember = userWithOrg.orgMemberships[0];
     }
-  } catch (error: any) {
-    console.error("getCurrentUserWithOrg: Error fetching org membership:", error.message);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    console.error("getCurrentUserWithOrg: Error fetching org membership:", message);
     // Return user without org if query fails
     userWithOrg = user;
     orgMember = null;
@@ -168,7 +190,7 @@ export async function getCurrentUserWithOrg() {
         };
         orgMember = userWithOrg.orgMemberships[0];
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("getCurrentUserWithOrg: Error creating personal organization:", error.message);
       // Continue without org if creation fails
     }
@@ -200,14 +222,14 @@ export async function requireOrgRole(required: OrgRole | OrgRole[]) {
   const { user, orgMember } = await getCurrentUserWithOrg();
 
   if (!user || !orgMember) {
-    const err: any = new Error("Unauthorized");
+    const err = new Error("Unauthorized");
     err.status = 401;
     throw err;
   }
 
   const ok = hasOrgRole(orgMember, required);
   if (!ok) {
-    const err: any = new Error("Forbidden");
+    const err = new Error("Forbidden");
     err.status = 403;
     throw err;
   }
@@ -220,13 +242,13 @@ export async function requireAttorneyOrOwner() {
   const { user, orgMember } = await getCurrentUserWithOrg();
 
   if (!user || !orgMember) {
-    const err: any = new Error("Unauthorized");
+    const err = new Error("Unauthorized");
     err.status = 401;
     throw err;
   }
 
   if (!hasAtLeastAttorney(orgMember)) {
-    const err: any = new Error("Forbidden");
+    const err = new Error("Forbidden");
     err.status = 403;
     throw err;
   }
@@ -301,7 +323,7 @@ export async function requireOrgScope() {
   const { user, orgMember } = await getCurrentUserWithOrg();
 
   if (!user || !orgMember) {
-    const err: any = new Error("Unauthorized");
+    const err = new Error("Unauthorized");
     err.status = 401;
     throw err;
   }

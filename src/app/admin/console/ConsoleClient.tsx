@@ -3,21 +3,21 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 type ExecResponse =
-  | { ok: true; data: any; meta?: any }
-  | { ok: false; error: string; details?: any; meta?: any };
+  | { ok: true; data: unknown; meta?: unknown }
+  | { ok: false; error: string; details?: unknown; meta?: unknown };
 
 type HistoryItem = {
   id: string;
   ts: number;
   cmd: string;
-  args: Record<string, any>;
+  args: Record<string, unknown>;
   res?: ExecResponse;
 };
 
 type NLPlan = {
   cmd: string | null;
-  args: Record<string, any>;
-  next: Array<{ cmd: string; args: Record<string, any> }>;
+  args: Record<string, unknown>;
+  next: Array<{ cmd: string; args: Record<string, unknown> }>;
   requiresConfirm: boolean;
   confidence: number;
   explanation: string;
@@ -35,7 +35,7 @@ type PlanResponse = {
   error: string;
 };
 
-const PRESETS: Array<{ cmd: string; args: Record<string, any> }> = [
+const PRESETS: Array<{ cmd: string; args: Record<string, unknown> }> = [
   { cmd: "help", args: {} },
   { cmd: "auth:whoami", args: {} },
   { cmd: "db:health", args: {} },
@@ -44,11 +44,13 @@ const PRESETS: Array<{ cmd: string; args: Record<string, any> }> = [
   { cmd: "attorney:lookup", args: { email: "admin@heirvault.app" } },
 ];
 
-function safeJsonParse(input: string): { ok: true; value: any } | { ok: false; error: string } {
+function safeJsonParse(input: string): { ok: true; value: unknown } | { ok: false; error: string } {
   try {
     const v = JSON.parse(input);
     return { ok: true, value: v };
-  } catch (e: any) {
+  } catch (e: unknown) {
+  const message = e instanceof Error ? e.message : "Unknown error";
+} {
     return { ok: false, error: e?.message ?? "Invalid JSON" };
   }
 }
@@ -104,7 +106,9 @@ export default function ConsoleClient() {
       } else {
         setHint(json.error || "Failed to generate plan.");
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
+  const message = e instanceof Error ? e.message : "Unknown error";
+} {
       setHint(`Network error: ${e?.message}`);
     } finally {
       setPlanning(false);
@@ -154,7 +158,9 @@ export default function ConsoleClient() {
         setConfirmed(false);
         setNlText("");
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
+  const message = e instanceof Error ? e.message : "Unknown error";
+} {
       const json: ExecResponse = { ok: false, error: "Network error.", details: { message: e?.message } };
       setHistory((h) => h.map((x) => (x.id === item.id ? { ...x, res: json } : x)));
     } finally {
@@ -196,7 +202,9 @@ export default function ConsoleClient() {
 
       const json = (await res.json()) as ExecResponse;
       setHistory((h) => h.map((x) => (x.id === item.id ? { ...x, res: json } : x)));
-    } catch (e: any) {
+    } catch (e: unknown) {
+  const message = e instanceof Error ? e.message : "Unknown error";
+} {
       const json: ExecResponse = { ok: false, error: "Network error.", details: { message: e?.message } };
       setHistory((h) => h.map((x) => (x.id === item.id ? { ...x, res: json } : x)));
     } finally {

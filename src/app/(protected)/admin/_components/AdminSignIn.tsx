@@ -3,17 +3,12 @@
 import { SignIn, useAuth } from "@clerk/nextjs";
 import { Logo } from "@/components/Logo";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 export function AdminSignIn() {
-  const [mounted, setMounted] = useState(false);
   const { isSignedIn, isLoaded } = useAuth();
   const router = useRouter();
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   // Disable autofill on Clerk input fields
   useEffect(() => {
@@ -43,7 +38,7 @@ export function AdminSignIn() {
       clearTimeout(timer);
       observer.disconnect();
     };
-  }, [mounted]);
+  }, [isLoaded]);
 
   // Add meta tags to prevent caching
   useEffect(() => {
@@ -92,8 +87,8 @@ export function AdminSignIn() {
     }
   }, [isLoaded, isSignedIn, router]);
 
-  // Show loading while checking auth or mounting
-  if (!mounted || (isLoaded && isSignedIn)) {
+  // Show loading while checking auth
+  if (!isLoaded || (isLoaded && isSignedIn)) {
     return (
       <main className="min-h-screen bg-gradient-to-b from-slate-50 to-white flex items-center justify-center px-4 py-8">
         <div className="w-full max-w-md">
@@ -158,7 +153,7 @@ export function AdminSignIn() {
         {/* Footer */}
         <div className="mt-6 text-center space-y-2">
           <p className="text-xs text-slateui-500">
-            Don't have an account?{" "}
+            {"Don't have an account?"}{" "}
             <Link href="/sign-up" className="text-ink-900 hover:text-ink-800 font-medium underline">
               Sign up here
             </Link>

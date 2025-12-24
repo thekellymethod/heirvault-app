@@ -46,8 +46,9 @@ export default function PolicyBeneficiariesManager({
 
       setAttached(data.attached || []);
       setAvailable(data.available || []);
-    } catch (e: any) {
-      setError(e?.message || "Unknown error");
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Unknown error";
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -69,7 +70,9 @@ export default function PolicyBeneficiariesManager({
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Attach failed");
       await refresh();
-    } catch (e: any) {
+    } catch (e: unknown) {
+  const message = e instanceof Error ? e.message : "Unknown error";
+} {
       setError(e?.message || "Attach failed");
     }
   }
@@ -85,7 +88,9 @@ export default function PolicyBeneficiariesManager({
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Detach failed");
       await refresh();
-    } catch (e: any) {
+    } catch (e: unknown) {
+  const message = e instanceof Error ? e.message : "Unknown error";
+} {
       setError(e?.message || "Detach failed");
     }
   }
@@ -127,7 +132,9 @@ export default function PolicyBeneficiariesManager({
       setRelationship("");
       setEmail("");
       setPhone("");
-    } catch (e: any) {
+    } catch (e: unknown) {
+  const message = e instanceof Error ? e.message : "Unknown error";
+} {
       setError(e?.message || "Create failed");
     }
   }

@@ -18,7 +18,19 @@ export async function GET(req: NextRequest) {
     const offset = parseInt(searchParams.get("offset") || "0");
 
     // Search receipts by receipt ID, client name, email, or token
-    let receipts: any[] = [];
+    let receipts: Array<{
+      id: string;
+      receiptId: string;
+      token: string;
+      clientId: string;
+      clientName: string;
+      email: string;
+      phone: string | null;
+      expiresAt: Date;
+      usedAt: Date | null;
+      createdAt: Date;
+      isArchived: boolean;
+    }> = [];
 
     try {
       if (q.trim()) {
@@ -154,8 +166,9 @@ export async function GET(req: NextRequest) {
         limit,
         offset,
       });
-    } catch (sqlError: any) {
-      console.error("Admin receipts search: Raw SQL failed, trying Prisma:", sqlError.message);
+    } catch (sqlError: unknown) {
+      const sqlErrorMessage = sqlError instanceof Error ? sqlError.message : "Unknown error";
+      console.error("Admin receipts search: Raw SQL failed, trying Prisma:", sqlErrorMessage);
       
       // Fallback to Prisma (may not work due to schema issues, but try anyway)
       const invites = await prisma.clientInvite.findMany({
@@ -189,7 +202,8 @@ export async function GET(req: NextRequest) {
         offset,
       });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Unknown error";
     console.error("Error searching receipts:", error);
     return NextResponse.json(
       { error: error.message || "Failed to search receipts" },
@@ -238,8 +252,9 @@ export async function POST(req: NextRequest) {
       }
 
       return NextResponse.json({ success: true });
-    } catch (sqlError: any) {
-      console.error("Archive receipt: Raw SQL failed, trying Prisma:", sqlError.message);
+    } catch (sqlError: unknown) {
+      const sqlErrorMessage = sqlError instanceof Error ? sqlError.message : "Unknown error";
+      console.error("Archive receipt: Raw SQL failed, trying Prisma:", sqlErrorMessage);
       
       // Fallback to Prisma
       if (token) {
@@ -251,10 +266,11 @@ export async function POST(req: NextRequest) {
 
       return NextResponse.json({ success: true });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Failed to archive receipt";
     console.error("Error archiving receipt:", error);
     return NextResponse.json(
-      { error: error.message || "Failed to archive receipt" },
+      { error: message },
       { status: 500 }
     );
   }

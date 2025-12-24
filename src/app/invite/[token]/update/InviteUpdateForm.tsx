@@ -78,7 +78,9 @@ export function InviteUpdateForm({ token, clientName }: Props) {
         setUpdateForm({ changes: "", newFile: null });
         setTimeout(() => setSuccess(false), 5000);
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
+  const message = e instanceof Error ? e.message : "Unknown error";
+} {
       setError(e.message || "Failed to submit update");
     } finally {
       setSubmittingUpdate(false);

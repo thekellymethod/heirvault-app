@@ -27,7 +27,9 @@ const createClientSchema = z.object({
 export async function POST(req: Request) {
   try {
     await requireAttorneyOrOwner();
-  } catch (e: any) {
+  } catch (e: unknown) {
+  const message = e instanceof Error ? e.message : "Unknown error";
+} {
     console.error("requireAttorneyOrOwner error:", e);
     return jsonError(e.message || "Unauthorized", e.status || 401);
   }
@@ -35,7 +37,9 @@ export async function POST(req: Request) {
   let orgInfo;
   try {
     orgInfo = await assertCanCreateClient();
-  } catch (e: any) {
+  } catch (e: unknown) {
+  const message = e instanceof Error ? e.message : "Unknown error";
+} {
     console.error("assertCanCreateClient error:", e);
     if (e.code === "PLAN_LIMIT") {
       return jsonError(
@@ -165,12 +169,11 @@ export async function POST(req: Request) {
     });
 
     return jsonOk(client, { status: 201 });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Internal server error";
+    const status = error && typeof error === "object" && "status" in error && typeof error.status === "number" ? error.status : 500;
     console.error("Error creating client:", error);
-    return jsonError(
-      error.message || "Internal server error",
-      error.status || 500,
-    );
+    return jsonError(message, status);
   }
 }
 
@@ -184,7 +187,16 @@ export async function GET(req: NextRequest) {
     
     // Get ALL clients globally - all attorneys can see all clients
     // Use raw SQL first for reliability
-    let clients: any[] = [];
+    let clients: Array<{
+      id: string;
+      firstName: string;
+      lastName: string;
+      email: string;
+      phone: string | null;
+      dateOfBirth: Date | null;
+      createdAt: Date;
+      updatedAt: Date;
+    }> = [];
     try {
       const rawResult = await prisma.$queryRaw<Array<{
         id: string;
@@ -219,8 +231,9 @@ export async function GET(req: NextRequest) {
         createdAt: row.created_at,
         updatedAt: row.updated_at,
       }));
-    } catch (sqlError: any) {
-      console.error("Client list: Raw SQL failed, trying Prisma:", sqlError.message);
+    } catch (sqlError: unknown) {
+      const sqlErrorMessage = sqlError instanceof Error ? sqlError.message : "Unknown error";
+      console.error("Client list: Raw SQL failed, trying Prisma:", sqlErrorMessage);
       // Fallback to Prisma
       try {
         const prismaClients = await prisma.client.findMany({
@@ -228,9 +241,19 @@ export async function GET(req: NextRequest) {
             createdAt: "desc",
           },
         });
-        clients = prismaClients;
-      } catch (prismaError: any) {
-        console.error("Client list: Prisma also failed:", prismaError.message);
+        clients = prismaClients.map(c => ({
+          id: c.id,
+          firstName: c.firstName,
+          lastName: c.lastName,
+          email: c.email,
+          phone: c.phone,
+          dateOfBirth: c.dateOfBirth,
+          createdAt: c.createdAt,
+          updatedAt: c.updatedAt,
+        }));
+      } catch (prismaError: unknown) {
+        const prismaErrorMessage = prismaError instanceof Error ? prismaError.message : "Unknown error";
+        console.error("Client list: Prisma also failed:", prismaErrorMessage);
         throw prismaError;
       }
     }
@@ -242,7 +265,7 @@ export async function GET(req: NextRequest) {
     })
 
     return NextResponse.json(clients)
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
       { error: error.message },
       { status: error.message === 'Unauthorized' || error.message === 'Forbidden' ? 401 : 400 }

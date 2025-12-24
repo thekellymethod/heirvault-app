@@ -14,10 +14,12 @@ type InsuranceCompany = {
 export async function GET(req: NextRequest) {
   try {
     await requireAuth("attorney");
-  } catch (e: any) {
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : "Unauthorized";
+    const status = e && typeof e === "object" && "status" in e && typeof e.status === "number" ? e.status : 401;
     return NextResponse.json(
-      { error: e.message || "Unauthorized" },
-      { status: e.status || 401 }
+      { error: message },
+      { status }
     );
   }
 
@@ -60,10 +62,11 @@ export async function GET(req: NextRequest) {
       })),
       total: filtered.length,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Failed to search companies";
     console.error("Error searching insurance companies:", error);
     return NextResponse.json(
-      { error: error.message || "Failed to search companies" },
+      { error: message },
       { status: 500 }
     );
   }

@@ -84,7 +84,9 @@ export async function POST(req: Request) {
       createdAt: version.created_at,
       confirmationMessage: "Update recorded successfully.",
     });
-  } catch (e: any) {
+  } catch (e: unknown) {
+  const message = e instanceof Error ? e.message : "Unknown error";
+} {
     return NextResponse.json(
       { error: "update_failed", details: String(e?.message ?? e) },
       { status: 500 }

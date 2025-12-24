@@ -14,7 +14,9 @@ export async function POST(req: NextRequest, { params }: Params) {
   let ctx;
   try {
     ctx = await requireAttorneyOrOwner();
-  } catch (e: any) {
+  } catch (e: unknown) {
+  const message = e instanceof Error ? e.message : "Unknown error";
+} {
     return NextResponse.json(
       { error: e.message || "Unauthorized" },
       { status: e.status || 401 }
@@ -124,10 +126,11 @@ export async function POST(req: NextRequest, { params }: Params) {
       success: true,
       message: "PDF report has been sent successfully",
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Failed to email PDF";
     console.error("Error emailing PDF:", error);
     return NextResponse.json(
-      { error: error.message || "Failed to email PDF" },
+      { error: message },
       { status: 500 }
     );
   }

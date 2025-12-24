@@ -60,7 +60,9 @@ export default function TokensClient() {
       } else {
         setError(json.error || "Failed to load tokens");
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
+  const message = e instanceof Error ? e.message : "Unknown error";
+} {
       setError(e.message || "Failed to load tokens");
     } finally {
       setLoading(false);
@@ -97,7 +99,9 @@ export default function TokensClient() {
       } else {
         setError(json.error || "Failed to create token");
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
+  const message = e instanceof Error ? e.message : "Unknown error";
+} {
       setError(e.message || "Failed to create token");
     }
   }
@@ -120,7 +124,9 @@ export default function TokensClient() {
       } else {
         setError(json.error || "Failed to rotate token");
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
+  const message = e instanceof Error ? e.message : "Unknown error";
+} {
       setError(e.message || "Failed to rotate token");
     }
   }
@@ -139,7 +145,9 @@ export default function TokensClient() {
       } else {
         setError(json.error || "Failed to revoke token");
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
+  const message = e instanceof Error ? e.message : "Unknown error";
+} {
       setError(e.message || "Failed to revoke token");
     }
   }

@@ -3,17 +3,12 @@
 import { SignUp, useAuth } from "@clerk/nextjs";
 import { Logo } from "@/components/Logo";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 export default function SignUpPage() {
-  const [mounted, setMounted] = useState(false);
   const { isSignedIn, isLoaded } = useAuth();
   const router = useRouter();
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   // Redirect if already signed in
   useEffect(() => {
@@ -22,8 +17,8 @@ export default function SignUpPage() {
     }
   }, [isLoaded, isSignedIn, router]);
 
-  // Show loading while checking auth or mounting
-  if (!mounted || (isLoaded && isSignedIn)) {
+  // Show loading while checking auth
+  if (!isLoaded || (isLoaded && isSignedIn)) {
     return (
       <main className="min-h-screen bg-gradient-to-b from-slate-50 to-white flex items-center justify-center px-4 py-8">
         <div className="w-full max-w-md">

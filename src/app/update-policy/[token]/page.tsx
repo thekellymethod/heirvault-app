@@ -71,7 +71,9 @@ export default function UpdatePolicyPage() {
       if (data.address) {
         setAddress(data.address);
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
+  const message = e instanceof Error ? e.message : "Unknown error";
+} {
       setError(e.message);
     } finally {
       setLoading(false);
@@ -105,7 +107,9 @@ export default function UpdatePolicyPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to send confirmation");
       setConfirmationSent(true);
-    } catch (e: any) {
+    } catch (e: unknown) {
+  const message = e instanceof Error ? e.message : "Unknown error";
+} {
       setError(e.message);
     }
   };
@@ -152,7 +156,9 @@ export default function UpdatePolicyPage() {
       } else {
         setSuccess(true);
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
+  const message = e instanceof Error ? e.message : "Unknown error";
+} {
       setError(e.message);
     } finally {
       setSaving(false);

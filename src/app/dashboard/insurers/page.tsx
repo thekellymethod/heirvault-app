@@ -4,6 +4,9 @@ import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { ListSkeleton } from "@/components/ui/skeleton";
+import { EmptyListState } from "@/components/ui/empty-state";
+import { Building2 } from "lucide-react";
 
 type InsurerRow = {
   id: string;
@@ -155,7 +158,7 @@ export default function DashboardInsurersPage() {
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1">
               <h3 className="text-base font-semibold text-emerald-900">
-                Insurer "{newlyCreatedInsurer.name}" created successfully!
+                Insurer &quot;{newlyCreatedInsurer.name}&quot; created successfully!
               </h3>
               <p className="mt-1 text-sm text-emerald-700">
                 Would you like to create a policy with this insurer?

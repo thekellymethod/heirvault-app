@@ -271,6 +271,7 @@ export function InvitePortal(props: Props) {
       const text = await res.text();
 
       if (isHtmlResponse(text)) {
+        dismissToast(loadingId);
         throw new Error(
           res.status === 404
             ? "Invalid invitation code. Please check your link and try again."
@@ -281,8 +282,12 @@ export function InvitePortal(props: Props) {
       }
 
       const data = safeJson<UploadPolicyResponse & ApiErrorResponse>(text);
-      if (!res.ok) throw new Error(data.error || data.message || "Failed to submit information");
+      if (!res.ok) {
+        dismissToast(loadingId);
+        throw new Error(data.error || data.message || "Failed to submit information");
+      }
 
+      dismissToast(loadingId);
       showSuccess("Policy information uploaded successfully! Generating receipt...");
 
       const receipt = await fetchReceipt();
@@ -294,8 +299,6 @@ export function InvitePortal(props: Props) {
       setError(msg);
       setStep("error");
       showError(msg);
-    } finally {
-      dismissToast(loadingId);
     }
   }
 

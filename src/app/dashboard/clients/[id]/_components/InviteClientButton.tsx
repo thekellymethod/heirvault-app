@@ -52,7 +52,9 @@ export function InviteClientButton({ clientId, defaultEmail, clientName }: Props
       setInviteCode(code);
       setSuccess(true);
       showSuccess(`Invitation sent successfully to ${email}`);
-    } catch (e: any) {
+    } catch (e: unknown) {
+  const message = e instanceof Error ? e.message : "Unknown error";
+} {
       const errorMessage = e.message || "Something went wrong.";
       setError(errorMessage);
       showError(errorMessage);
