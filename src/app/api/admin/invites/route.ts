@@ -18,7 +18,19 @@ export async function GET(req: NextRequest) {
     const offset = parseInt(searchParams.get("offset") || "0");
 
     // Search invitation codes by token, email, or client name
-    let invites: any[] = [];
+    let invites: Array<{
+      id: string;
+      token: string;
+      clientId: string;
+      clientName: string;
+      email: string;
+      phone: string | null;
+      expiresAt: Date;
+      usedAt: Date | null;
+      createdAt: Date;
+      isArchived: boolean;
+      isExpired: boolean;
+    }> = [];
 
     try {
       if (q.trim()) {
@@ -139,8 +151,9 @@ export async function GET(req: NextRequest) {
         limit,
         offset,
       });
-    } catch (sqlError: any) {
-      console.error("Admin invites search: Raw SQL failed, trying Prisma:", sqlError.message);
+    } catch (sqlError: unknown) {
+      const sqlErrorMessage = sqlError instanceof Error ? sqlError.message : "Unknown error";
+      console.error("Admin invites search: Raw SQL failed, trying Prisma:", sqlErrorMessage);
       
       // Fallback to Prisma
       const invitesData = await prisma.clientInvite.findMany({
@@ -174,10 +187,11 @@ export async function GET(req: NextRequest) {
         offset,
       });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Failed to search invites";
     console.error("Error searching invites:", error);
     return NextResponse.json(
-      { error: error.message || "Failed to search invites" },
+      { error: message },
       { status: 500 }
     );
   }
@@ -208,8 +222,9 @@ export async function POST(req: NextRequest) {
       `, token);
 
       return NextResponse.json({ success: true });
-    } catch (sqlError: any) {
-      console.error("Archive invite: Raw SQL failed, trying Prisma:", sqlError.message);
+    } catch (sqlError: unknown) {
+      const sqlErrorMessage = sqlError instanceof Error ? sqlError.message : "Unknown error";
+      console.error("Archive invite: Raw SQL failed, trying Prisma:", sqlErrorMessage);
       
       // Fallback to Prisma
       await prisma.clientInvite.updateMany({
@@ -219,10 +234,11 @@ export async function POST(req: NextRequest) {
 
       return NextResponse.json({ success: true });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Failed to archive invite";
     console.error("Error archiving invite:", error);
     return NextResponse.json(
-      { error: error.message || "Failed to archive invite" },
+      { error: message },
       { status: 500 }
     );
   }

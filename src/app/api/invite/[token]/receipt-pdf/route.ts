@@ -13,7 +13,7 @@ export async function GET(
     const { token } = await params;
 
     // Try to get or create test invite first
-    let invite: any = await getOrCreateTestInvite(token);
+    let invite: Awaited<ReturnType<typeof getOrCreateTestInvite>> | Awaited<ReturnType<typeof lookupClientInvite>> | null = await getOrCreateTestInvite(token);
 
     // If not a test code, do normal lookup
     if (!invite) {
@@ -57,8 +57,9 @@ export async function GET(
               })),
             };
           }
-        } catch (sqlError: any) {
-          console.error("Receipt PDF: Failed to fetch policies:", sqlError.message);
+        } catch (sqlError: unknown) {
+          const sqlErrorMessage = sqlError instanceof Error ? sqlError.message : "Unknown error";
+          console.error("Receipt PDF: Failed to fetch policies:", sqlErrorMessage);
           // Continue without policies
           invite.client = {
             ...invite.client,
@@ -76,7 +77,16 @@ export async function GET(
     }
 
     // Get organization info if available - use raw SQL first
-    let organization: any = null;
+    let organization: {
+      id: string;
+      name: string;
+      addressLine1: string | null;
+      addressLine2: string | null;
+      city: string | null;
+      state: string | null;
+      postalCode: string | null;
+      phone: string | null;
+    } | null = null;
     try {
       const accessResult = await prisma.$queryRaw<Array<{
         org_id: string;
@@ -117,8 +127,9 @@ export async function GET(
           phone: row.org_phone,
         };
       }
-    } catch (sqlError: any) {
-      console.error("Receipt PDF: Raw SQL organization lookup failed:", sqlError.message);
+    } catch (sqlError: unknown) {
+      const sqlErrorMessage = sqlError instanceof Error ? sqlError.message : "Unknown error";
+      console.error("Receipt PDF: Raw SQL organization lookup failed:", sqlErrorMessage);
       // Continue without organization info
       organization = null;
     }
@@ -170,14 +181,15 @@ export async function GET(
       `attachment; filename="heirvault-receipt-${receiptData.receiptId}.pdf"`
     );
 
-    return new NextResponse(pdfStream as any, {
+    return new NextResponse(pdfStream as unknown as ReadableStream, {
       status: 200,
       headers,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Internal server error";
     console.error("Error generating receipt PDF:", error);
     return NextResponse.json(
-      { error: error.message || "Internal server error" },
+      { error: errorMessage },
       { status: 500 }
     );
   }

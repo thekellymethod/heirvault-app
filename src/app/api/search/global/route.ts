@@ -30,8 +30,29 @@ export async function GET(req: Request) {
 
     // Global search - search across ALL organizations and ALL clients
     // Use raw SQL first for reliability
-    let clients: any[] = [];
-    let policies: any[] = [];
+    let clients: Array<{
+      id: string;
+      firstName: string;
+      lastName: string;
+      email: string;
+      phone: string | null;
+      createdAt: Date;
+      org: { id: string; name: string | null } | null;
+    }> = [];
+    let policies: Array<{
+      id: string;
+      policyNumber: string | null;
+      policyType: string | null;
+      createdAt: Date;
+      client: {
+        id: string;
+        firstName: string;
+        lastName: string;
+        email: string;
+        org: { id: string; name: string | null } | null;
+      };
+      insurer: { name: string };
+    }> = [];
     
     try {
       // Create search pattern once for reuse
@@ -139,8 +160,9 @@ export async function GET(req: Request) {
           name: row.insurer_name,
         },
       }));
-    } catch (sqlError: any) {
-      console.error("Global search: Raw SQL failed:", sqlError.message);
+    } catch (sqlError: unknown) {
+      const sqlErrorMessage = sqlError instanceof Error ? sqlError.message : "Unknown error";
+      console.error("Global search: Raw SQL failed:", sqlErrorMessage);
       // Return empty results if query fails
       clients = [];
       policies = [];
@@ -195,7 +217,8 @@ export async function GET(req: Request) {
       // Include disclaimer about global search
       disclaimer: "This search queries the private, voluntary registry database across ALL organizations. All clients entered into the system are included in this search. Results only include information that has been voluntarily registered. This is not a comprehensive database and does not search insurer records.",
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Unknown error";
     console.error("Error in global search:", error);
     return NextResponse.json(
       { error: error.message || "Unauthorized" },

@@ -132,7 +132,7 @@ export async function POST(req: NextRequest) {
         verifiedAt: updatedProfile.verifiedAt,
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Attorney verify error:", error);
     return NextResponse.json(
       { error: error.message || "Failed to verify attorney" },
@@ -148,7 +148,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const status = searchParams.get("status");
 
-    const where: any = {};
+    const where: { licenseStatus?: string } = {};
     if (status) {
       where.licenseStatus = status;
     }
@@ -182,7 +182,7 @@ export async function GET(req: NextRequest) {
     });
 
     return NextResponse.json({ profiles });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Attorney list error:", error);
     return NextResponse.json(
       { error: error.message || "Failed to list attorneys" },

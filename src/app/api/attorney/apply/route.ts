@@ -44,7 +44,8 @@ export async function POST(req: NextRequest) {
         });
         licenseDocumentPath = uploaded.storagePath;
         licenseDocumentName = licenseFile.name;
-      } catch (uploadError: any) {
+      } catch (uploadError: unknown) {
+        const message = uploadError instanceof Error ? uploadError.message : "Unknown error";
         console.error("License document upload error:", uploadError);
         return NextResponse.json(
           { error: `Failed to upload license document: ${uploadError.message}` },
@@ -183,10 +184,11 @@ export async function POST(req: NextRequest) {
       },
       { status: 201 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Failed to submit attorney application";
     console.error("Attorney apply error:", error);
     return NextResponse.json(
-      { error: error.message || "Failed to submit attorney application" },
+      { error: message },
       { status: error.status || 500 }
     );
   }

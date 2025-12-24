@@ -156,7 +156,7 @@ export async function GET(
       `attachment; filename="receipt-${receiptNumber}.pdf"`
     );
 
-    return new NextResponse(pdfStream as any, {
+    return new NextResponse(pdfStream as unknown as ReadableStream, {
       status: 200,
       headers,
     });

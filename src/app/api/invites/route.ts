@@ -36,14 +36,16 @@ export async function POST(request: NextRequest) {
         firmName,
         inviteUrl,
       })
-    } catch (emailError: any) {
+    } catch (emailError: unknown) {
+      const emailErrorMessage = emailError instanceof Error ? emailError.message : "Unknown error";
       console.error('Failed to send invite email:', emailError)
       // Continue even if email fails - we still return the invite
     }
 
     return NextResponse.json(invite, { status: 201 })
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: error.message === 'Unauthorized' || error.message === 'Forbidden' ? 401 : 400 })
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return NextResponse.json({ error: message }, { status: message === 'Unauthorized' || message === 'Forbidden' ? 401 : 400 })
   }
 }
 

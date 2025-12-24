@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
         AND LOWER(c.last_name) LIKE LOWER($3)
     `;
     
-    const params: any[] = [
+    const params: Array<string | Date> = [
       orgMember.organizationId,
       `%${firstName}%`,
       `%${lastName}%`,
@@ -107,7 +107,7 @@ export async function GET(req: NextRequest) {
     }
 
     return NextResponse.json({ results });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error in policy locator search:", error);
     return NextResponse.json(
       { error: error.message || "Internal server error" },

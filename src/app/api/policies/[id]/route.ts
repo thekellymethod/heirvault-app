@@ -58,7 +58,7 @@ export async function GET(req: NextRequest, { params }: Params) {
     })
 
     return NextResponse.json(policy)
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
       { error: error.message },
       { status: error.message === 'Unauthorized' || error.message === 'Forbidden' ? 401 : 400 }
@@ -148,7 +148,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
     })
 
     return NextResponse.json(policy)
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
       { error: error.message },
       { status: error.message === 'Unauthorized' || error.message === 'Forbidden' ? 401 : 400 }
@@ -196,7 +196,7 @@ export async function DELETE(req: NextRequest, { params }: Params) {
     })
 
     return new NextResponse(null, { status: 204 })
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
       { error: error.message },
       { status: error.message === 'Unauthorized' || error.message === 'Forbidden' ? 401 : 400 }

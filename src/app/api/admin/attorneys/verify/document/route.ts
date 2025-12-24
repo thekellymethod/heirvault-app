@@ -76,7 +76,8 @@ export async function GET(req: NextRequest) {
         "Content-Disposition": `inline; filename="${profile.licenseDocumentName || "license-document"}"`,
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Unknown error";
     console.error("License document download error:", error);
     return NextResponse.json(
       { error: error.message || "Failed to download license document" },

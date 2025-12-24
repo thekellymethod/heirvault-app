@@ -42,7 +42,21 @@ export async function PUT(req: NextRequest, { params }: Params) {
     }
 
     // Use raw SQL first for reliability
-    let organization: any = null;
+    let organization: {
+      id: string;
+      name: string;
+      slug: string;
+      addressLine1: string | null;
+      addressLine2: string | null;
+      city: string | null;
+      state: string | null;
+      postalCode: string | null;
+      country: string | null;
+      phone: string | null;
+      logoUrl: string | null;
+      createdAt: Date;
+      updatedAt: Date;
+    } | null = null;
     try {
       // Check if organization exists
       const existsResult = await prisma.$queryRaw<Array<{ id: string }>>`
@@ -111,12 +125,15 @@ export async function PUT(req: NextRequest, { params }: Params) {
           updatedAt: row.updated_at,
         };
       }
-    } catch (sqlError: any) {
-      console.error("Organization update: Raw SQL failed, trying Prisma:", sqlError.message);
+    } catch (sqlError: unknown) {
+      const sqlErrorMessage = sqlError instanceof Error ? sqlError.message : "Unknown error";
+      console.error("Organization update: Raw SQL failed, trying Prisma:", sqlErrorMessage);
       // Fallback to Prisma
       try {
-        if ((prisma as any).organizations) {
-          organization = await (prisma as any).organizations.update({
+        const prismaAny = prisma as unknown as Record<string, unknown>;
+        if (prismaAny.organizations && typeof prismaAny.organizations === "object") {
+          const organizations = prismaAny.organizations as { update: (args: { where: { id: string }; data: unknown }) => Promise<unknown> };
+          const updated = await organizations.update({
             where: { id },
             data: {
               name,
@@ -140,8 +157,9 @@ export async function PUT(req: NextRequest, { params }: Params) {
             createdAt: organization.created_at,
             updatedAt: organization.updated_at,
           };
-        } else if ((prisma as any).organization) {
-          organization = await (prisma as any).organization.update({
+        } else if (prismaAny.organization && typeof prismaAny.organization === "object") {
+          const organizationModel = prismaAny.organization as { update: (args: { where: { id: string }; data: unknown }) => Promise<unknown> };
+          const updatedOrg = await organizationModel.update({
             where: { id },
             data: {
               name,
@@ -155,11 +173,13 @@ export async function PUT(req: NextRequest, { params }: Params) {
               logoUrl: logoUrl || null,
             },
           });
+          organization = updatedOrg as typeof organization;
         } else {
           throw new Error("Neither organizations nor organization model found");
         }
-      } catch (prismaError: any) {
-        console.error("Organization update: Prisma also failed:", prismaError.message);
+      } catch (prismaError: unknown) {
+        const prismaErrorMessage = prismaError instanceof Error ? prismaError.message : "Unknown error";
+        console.error("Organization update: Prisma also failed:", prismaErrorMessage);
         throw prismaError;
       }
     }
@@ -172,10 +192,11 @@ export async function PUT(req: NextRequest, { params }: Params) {
     // Audit logging skipped to prevent silent failures
 
     return NextResponse.json(organization)
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
-      { error: error.message },
-      { status: error.message === "Unauthorized" || error.message === "Forbidden" ? 401 : 400 }
+      { error: message },
+      { status: message === "Unauthorized" || message === "Forbidden" ? 401 : 400 }
     )
   }
 }
@@ -234,21 +255,27 @@ export async function DELETE(req: NextRequest, { params }: Params) {
       // Audit logging skipped to prevent silent failures
 
       return new NextResponse(null, { status: 204 });
-    } catch (sqlError: any) {
-      console.error("Organization delete: Raw SQL failed, trying Prisma:", sqlError.message);
+    } catch (sqlError: unknown) {
+      const sqlErrorMessage = sqlError instanceof Error ? sqlError.message : "Unknown error";
+      console.error("Organization delete: Raw SQL failed, trying Prisma:", sqlErrorMessage);
       // Fallback to Prisma
       try {
-        let organization: any = null;
-        if ((prisma as any).organizations) {
-          organization = await (prisma as any).organizations.findUnique({
+        const prismaAny = prisma as unknown as Record<string, unknown>;
+        let organization: { id: string; name: string } | null = null;
+        if (prismaAny.organizations && typeof prismaAny.organizations === "object") {
+          const organizations = prismaAny.organizations as { findUnique: (args: { where: { id: string }; select: unknown }) => Promise<unknown> };
+          const orgResult = await organizations.findUnique({
             where: { id },
             select: { id: true, name: true },
           });
-        } else if ((prisma as any).organization) {
-          organization = await (prisma as any).organization.findUnique({
+          organization = orgResult as typeof organization;
+        } else if (prismaAny.organization && typeof prismaAny.organization === "object") {
+          const organizationModel = prismaAny.organization as { findUnique: (args: { where: { id: string }; select: unknown }) => Promise<unknown> };
+          const orgResult = await organizationModel.findUnique({
             where: { id },
             select: { id: true, name: true },
           });
+          organization = orgResult as typeof organization;
         } else {
           throw new Error("Neither organizations nor organization model found");
         }
@@ -257,12 +284,14 @@ export async function DELETE(req: NextRequest, { params }: Params) {
           return NextResponse.json({ error: "Organization not found" }, { status: 404 });
         }
 
-        if ((prisma as any).organizations) {
-          await (prisma as any).organizations.delete({
+        if (prismaAny.organizations && typeof prismaAny.organizations === "object") {
+          const organizations = prismaAny.organizations as { delete: (args: { where: { id: string } }) => Promise<unknown> };
+          await organizations.delete({
             where: { id },
           });
-        } else if ((prisma as any).organization) {
-          await (prisma as any).organization.delete({
+        } else if (prismaAny.organization && typeof prismaAny.organization === "object") {
+          const organizationModel = prismaAny.organization as { delete: (args: { where: { id: string } }) => Promise<unknown> };
+          await organizationModel.delete({
             where: { id },
           });
         }
@@ -271,10 +300,11 @@ export async function DELETE(req: NextRequest, { params }: Params) {
         // Audit logging skipped to prevent silent failures
 
         return new NextResponse(null, { status: 204 });
-      } catch (prismaError: any) {
-        console.error("Organization delete: Prisma also failed:", prismaError.message);
+      } catch (prismaError: unknown) {
+        const prismaErrorMessage = prismaError instanceof Error ? prismaError.message : "Unknown error";
+        console.error("Organization delete: Prisma also failed:", prismaErrorMessage);
         // Check if it's a foreign key constraint error
-        const errorMessage = prismaError.message || "";
+        const errorMessage = prismaErrorMessage;
         if (errorMessage.toLowerCase().includes("foreign key") || errorMessage.toLowerCase().includes("constraint")) {
           return NextResponse.json(
             { error: "Cannot delete organization: it has associated data (clients, members, etc.). Please remove all associated data first." },
@@ -284,9 +314,10 @@ export async function DELETE(req: NextRequest, { params }: Params) {
         throw prismaError;
       }
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Unable to delete organization";
     return NextResponse.json(
-      { error: error.message || "Unable to delete organization" },
+      { error: message },
       { status: error.message === "Unauthorized" || error.message === "Forbidden" ? 401 : error.message?.includes("Cannot delete") ? 409 : 400 }
     )
   }

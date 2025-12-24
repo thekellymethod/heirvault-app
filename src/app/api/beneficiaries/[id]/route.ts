@@ -103,8 +103,9 @@ export async function PUT(req: NextRequest, { params }: Params) {
           updatedAt: row.updated_at,
         };
       }
-    } catch (sqlError: any) {
-      console.error("Beneficiary update: Raw SQL failed, trying Prisma:", sqlError.message);
+    } catch (sqlError: unknown) {
+      const sqlErrorMessage = sqlError instanceof Error ? sqlError.message : "Unknown error";
+      console.error("Beneficiary update: Raw SQL failed, trying Prisma:", sqlErrorMessage);
       // Fallback to Prisma
       try {
         // Parse dateOfBirth if provided
@@ -129,8 +130,9 @@ export async function PUT(req: NextRequest, { params }: Params) {
             dateOfBirth: parsedDateOfBirth,
           },
         });
-      } catch (prismaError: any) {
-        console.error("Beneficiary update: Prisma also failed:", prismaError.message);
+      } catch (prismaError: unknown) {
+        const prismaErrorMessage = prismaError instanceof Error ? prismaError.message : "Unknown error";
+        console.error("Beneficiary update: Prisma also failed:", prismaErrorMessage);
         throw prismaError;
       }
     }
@@ -150,10 +152,11 @@ export async function PUT(req: NextRequest, { params }: Params) {
     });
 
     return NextResponse.json(updated);
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Unable to update beneficiary";
     return NextResponse.json(
-      { error: error.message || "Unable to update beneficiary" },
-      { status: error.message === "Unauthorized" || error.message === "Forbidden" ? 401 : 400 }
+      { error: message },
+      { status: message === "Unauthorized" || message === "Forbidden" ? 401 : 400 }
     );
   }
 }
@@ -188,8 +191,9 @@ export async function DELETE(req: NextRequest, { params }: Params) {
       });
 
       return new NextResponse(null, { status: 204 });
-    } catch (sqlError: any) {
-      console.error("Beneficiary delete: Raw SQL failed, trying Prisma:", sqlError.message);
+    } catch (sqlError: unknown) {
+      const sqlErrorMessage = sqlError instanceof Error ? sqlError.message : "Unknown error";
+      console.error("Beneficiary delete: Raw SQL failed, trying Prisma:", sqlErrorMessage);
       // Fallback to Prisma
       try {
         // Get beneficiary for audit before deleting
@@ -214,15 +218,17 @@ export async function DELETE(req: NextRequest, { params }: Params) {
         });
 
         return new NextResponse(null, { status: 204 });
-      } catch (prismaError: any) {
-        console.error("Beneficiary delete: Prisma also failed:", prismaError.message);
+      } catch (prismaError: unknown) {
+        const prismaErrorMessage = prismaError instanceof Error ? prismaError.message : "Unknown error";
+        console.error("Beneficiary delete: Prisma also failed:", prismaErrorMessage);
         throw prismaError;
       }
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Unable to delete beneficiary";
     return NextResponse.json(
-      { error: error.message || "Unable to delete beneficiary" },
-      { status: error.message === "Unauthorized" || error.message === "Forbidden" ? 401 : 400 }
+      { error: message },
+      { status: message === "Unauthorized" || message === "Forbidden" ? 401 : 400 }
     );
   }
 }

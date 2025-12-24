@@ -280,7 +280,8 @@ export async function POST(req: NextRequest) {
           { status: 400 }
         );
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Unknown error";
     console.error("Manual upload error:", error);
     return NextResponse.json(
       { error: error.message || "Failed to create record" },

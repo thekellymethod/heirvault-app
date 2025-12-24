@@ -106,9 +106,10 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({ success: true }, { status: 201 });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
-      { error: error.message },
+      { error: message },
       { status: error.message === "Unauthorized" || error.message === "Forbidden" ? 401 : 400 }
     );
   }

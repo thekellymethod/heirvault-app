@@ -46,7 +46,7 @@ export async function GET(
     const receiptData = receipt[0];
 
     // Fetch submission data to get policy/client details
-    let submissionData: any = null;
+    let submissionData: Record<string, unknown> | null = null;
     if (receiptData.submission_id) {
       const submission = await prisma.$queryRawUnsafe<Array<{
         submitted_data: string;

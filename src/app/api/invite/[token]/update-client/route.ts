@@ -281,11 +281,18 @@ export async function POST(
       firstName: string;
       lastName: string;
       email: string;
+      phone: string | null;
+      dateOfBirth: Date | null;
+      createdAt: Date;
       policies?: Array<{
         id: string;
         policyNumber: string | null;
         policyType: string | null;
-        insurerId: string | null;
+        insurer: {
+          name: string;
+          contactPhone: string | null;
+          contactEmail: string | null;
+        } | null;
       }>;
     } | null = null;
     try {
@@ -307,7 +314,8 @@ export async function POST(
           id: string;
           policy_number: string | null;
           policy_type: string | null;
-          insurer_name: string;
+          carrier_name_raw: string | null;
+          insurer_name: string | null;
           insurer_contact_phone: string | null;
           insurer_contact_email: string | null;
         }>>`
@@ -339,7 +347,6 @@ export async function POST(
             id: p.id,
             policyNumber: p.policy_number,
             policyType: p.policy_type,
-            carrierNameRaw: p.carrier_name_raw,
             insurer: p.insurer_name ? {
               name: p.insurer_name,
               contactPhone: p.insurer_contact_phone,
@@ -369,21 +376,25 @@ export async function POST(
         id: p.id,
         policyNumber: p.policyNumber,
         policyType: p.policyType,
-        insurer: {
+        insurer: p.insurer ? {
           name: p.insurer.name,
           contactPhone: p.insurer.contactPhone,
           contactEmail: p.insurer.contactEmail,
+        } : {
+          name: "Unknown",
+          contactPhone: null,
+          contactEmail: null,
         },
       })) || [],
       organization: organization
         ? {
             name: organization.name,
-            addressLine1: organization.addressLine1,
-            addressLine2: organization.addressLine2,
-            city: organization.city,
-            state: organization.state,
-            postalCode: organization.postalCode,
-            phone: organization.phone,
+            addressLine1: organization.addressLine1 ?? undefined,
+            addressLine2: organization.addressLine2 ?? undefined,
+            city: organization.city ?? undefined,
+            state: organization.state ?? undefined,
+            postalCode: organization.postalCode ?? undefined,
+            phone: organization.phone ?? undefined,
           }
         : null,
       registeredAt: updatedClient?.createdAt || invite.client.createdAt,
@@ -406,19 +417,25 @@ export async function POST(
       );
 
       // Convert stream to buffer
-      const chunks: Uint8Array[] = [];
-      const reader = pdfStream.getReader();
-      let done = false;
-
-      while (!done) {
-        const { value, done: streamDone } = await reader.read();
-        done = streamDone;
-        if (value) {
-          chunks.push(value);
+      const maybeWeb = pdfStream as { getReader?: () => ReadableStreamDefaultReader<Uint8Array> };
+      if (typeof maybeWeb?.getReader === "function") {
+        const reader = maybeWeb.getReader();
+        const chunks: Uint8Array[] = [];
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          if (value) chunks.push(value);
         }
+        receiptPdfBuffer = Buffer.concat(chunks);
+      } else {
+        const nodeStream = pdfStream as NodeJS.ReadableStream;
+        receiptPdfBuffer = await new Promise<Buffer>((resolve, reject) => {
+          const chunks: Buffer[] = [];
+          nodeStream.on("data", (c: Buffer) => chunks.push(Buffer.isBuffer(c) ? c : Buffer.from(c)));
+          nodeStream.on("end", () => resolve(Buffer.concat(chunks)));
+          nodeStream.on("error", reject);
+        });
       }
-
-      receiptPdfBuffer = Buffer.concat(chunks);
     } catch (pdfError) {
       console.error("Error generating receipt PDF:", pdfError);
       // Continue without PDF - emails will still be sent

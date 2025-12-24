@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
     });
 
     return NextResponse.json(beneficiariesWithPolicies);
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
       { error: error.message || "Unable to fetch beneficiaries" },
       { status: 400 }

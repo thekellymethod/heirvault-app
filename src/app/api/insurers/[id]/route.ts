@@ -10,7 +10,15 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     const { id } = await params;
 
     // Use raw SQL first for reliability
-    let insurer: any = null;
+    let insurer: {
+      id: string;
+      name: string;
+      contactPhone: string | null;
+      contactEmail: string | null;
+      website: string | null;
+      createdAt: Date;
+      updatedAt: Date;
+    } | null = null;
     try {
       const rawResult = await prisma.$queryRaw<Array<{
         id: string;
@@ -39,12 +47,15 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
           updatedAt: row.updated_at,
         };
       }
-    } catch (sqlError: any) {
-      console.error("Insurers GET [id]: Raw SQL failed, trying Prisma:", sqlError.message);
+    } catch (sqlError: unknown) {
+      const sqlErrorMessage = sqlError instanceof Error ? sqlError.message : "Unknown error";
+      console.error("Insurers GET [id]: Raw SQL failed, trying Prisma:", sqlErrorMessage);
       // Fallback to Prisma
       try {
-        if ((prisma as any).insurers) {
-          const prismaInsurer = await (prisma as any).insurers.findUnique({
+        const prismaAny = prisma as unknown as Record<string, unknown>;
+        if (prismaAny.insurers && typeof prismaAny.insurers === "object") {
+          const insurers = prismaAny.insurers as { findUnique: (args: { where: { id: string }; select: unknown }) => Promise<unknown> };
+          const prismaInsurer = await insurers.findUnique({
             where: { id },
             select: {
               id: true,
@@ -67,8 +78,9 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
               updatedAt: prismaInsurer.updated_at,
             };
           }
-        } else if ((prisma as any).insurer) {
-          insurer = await (prisma as any).insurer.findUnique({
+        } else if (prismaAny.insurer && typeof prismaAny.insurer === "object") {
+          const insurerModel = prismaAny.insurer as { findUnique: (args: { where: { id: string }; select: unknown }) => Promise<unknown> };
+          const insurerResult = await insurerModel.findUnique({
             where: { id },
             select: {
               id: true,
@@ -80,9 +92,11 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
               updatedAt: true,
             },
           });
+          insurer = insurerResult as typeof insurer;
         }
-      } catch (prismaError: any) {
-        console.error("Insurers GET [id]: Prisma also failed:", prismaError.message);
+      } catch (prismaError: unknown) {
+        const prismaErrorMessage = prismaError instanceof Error ? prismaError.message : "Unknown error";
+        console.error("Insurers GET [id]: Prisma also failed:", prismaErrorMessage);
         throw prismaError;
       }
     }
@@ -125,7 +139,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 
       // Build update query dynamically
       const updates: string[] = [];
-      const values: any[] = [];
+      const values: Array<string | null> = [];
       
       if (name !== undefined) {
         updates.push(`name = $${values.length + 1}`);
@@ -153,8 +167,9 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
           id
         );
       }
-    } catch (sqlError: any) {
-      console.error("Insurers PATCH: Raw SQL failed, trying Prisma:", sqlError.message);
+    } catch (sqlError: unknown) {
+      const sqlErrorMessage = sqlError instanceof Error ? sqlError.message : "Unknown error";
+      console.error("Insurers PATCH: Raw SQL failed, trying Prisma:", sqlErrorMessage);
       // Fallback to Prisma
       try {
         if ((prisma as any).insurers) {
@@ -182,7 +197,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
           });
           if (!exists) return NextResponse.json({ error: "Insurer not found" }, { status: 404 });
 
-          const updated = await (prisma as any).insurer.update({
+          const updated = await insurerModel.update({
             where: { id },
             data: {
               ...(name !== undefined ? { name } : {}),
@@ -192,10 +207,12 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
             },
             select: { id: true },
           });
-          return NextResponse.json({ ok: true, insurerId: updated.id }, { status: 200 });
+          const updatedAny = updated as { id: string };
+          return NextResponse.json({ ok: true, insurerId: updatedAny.id }, { status: 200 });
         }
-      } catch (prismaError: any) {
-        console.error("Insurers PATCH: Prisma also failed:", prismaError.message);
+      } catch (prismaError: unknown) {
+        const prismaErrorMessage = prismaError instanceof Error ? prismaError.message : "Unknown error";
+        console.error("Insurers PATCH: Prisma also failed:", prismaErrorMessage);
         throw prismaError;
       }
     }
@@ -228,8 +245,8 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
       // NOTE: This will fail if policies reference the insurer (FK constraint).
       // That's good: it prevents accidental data loss. We surface the error cleanly.
       await prisma.$executeRaw`DELETE FROM insurers WHERE id = ${id}`;
-    } catch (sqlError: any) {
-      const errorMessage = sqlError.message || "Unknown error";
+    } catch (sqlError: unknown) {
+      const errorMessage = sqlError instanceof Error ? sqlError.message : "Unknown error";
       const isFk = typeof errorMessage === "string" && errorMessage.toLowerCase().includes("foreign key");
       if (isFk) {
         return NextResponse.json(
@@ -241,26 +258,30 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
       console.error("Insurers DELETE: Raw SQL failed, trying Prisma:", sqlError.message);
       // Fallback to Prisma
       try {
-        if ((prisma as any).insurers) {
-          const exists = await (prisma as any).insurers.findUnique({
+        const prismaAny = prisma as unknown as Record<string, unknown>;
+        if (prismaAny.insurers && typeof prismaAny.insurers === "object") {
+          const insurers = prismaAny.insurers as { findUnique: (args: { where: { id: string }; select: unknown }) => Promise<unknown>; delete: (args: { where: { id: string } }) => Promise<unknown> };
+          const exists = await insurers.findUnique({
             where: { id },
             select: { id: true },
           });
           if (!exists) return NextResponse.json({ error: "Insurer not found" }, { status: 404 });
 
-          await (prisma as any).insurers.delete({ where: { id } });
-        } else if ((prisma as any).insurer) {
-          const exists = await (prisma as any).insurer.findUnique({
+          await insurers.delete({ where: { id } });
+        } else if (prismaAny.insurer && typeof prismaAny.insurer === "object") {
+          const insurerModel = prismaAny.insurer as { findUnique: (args: { where: { id: string }; select: unknown }) => Promise<unknown>; delete: (args: { where: { id: string } }) => Promise<unknown> };
+          const exists = await insurerModel.findUnique({
             where: { id },
             select: { id: true },
           });
           if (!exists) return NextResponse.json({ error: "Insurer not found" }, { status: 404 });
 
-          await (prisma as any).insurer.delete({ where: { id } });
+          await insurerModel.delete({ where: { id } });
         }
-      } catch (prismaError: any) {
-        console.error("Insurers DELETE: Prisma also failed:", prismaError.message);
-        const errorMessage = prismaError.message || "Unknown error";
+      } catch (prismaError: unknown) {
+        const prismaErrorMessage = prismaError instanceof Error ? prismaError.message : "Unknown error";
+        console.error("Insurers DELETE: Prisma also failed:", prismaErrorMessage);
+        const errorMessage = prismaErrorMessage;
         const isFk = typeof errorMessage === "string" && errorMessage.toLowerCase().includes("foreign key");
         return NextResponse.json(
           { error: isFk ? "Cannot delete: insurer is referenced by one or more policies." : errorMessage },
