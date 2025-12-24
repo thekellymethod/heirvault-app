@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Ignore scripts, tests, and e2e directories
+    "scripts/**",
+    "tests/**",
+    "e2e/**",
   ]),
   {
     rules: {
