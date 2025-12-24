@@ -1,75 +1,93 @@
-import { Resend } from "resend";
-import type { CreateEmailOptions } from "resend";
+// src/lib/email.ts
+import { sendEmail } from "./email/send";     // your low-level sender
 
-const resend = new Resend(process.env.RESEND_API_KEY || "");
+import { clientInviteTemplate } from "./email/templates/clientInvites";
+import { accessGrantedTemplate } from "./email/templates/accessGranted";
+import { clientReceiptTemplate } from "./email/templates/clientReceipt";
+import { attorneyNotificationTemplate } from "./email/templates/attorneyNotification";
+import { policyAddedTemplate } from "./email/templates/policyAdded";
 
-export type EmailAttachment = {
-  filename: string;
-  content: Buffer;
-  contentType?: string; // kept for your own metadata; Resend may ignore depending on SDK version
-};
-
-export type SendEmailOpts = {
+type SendArgs = {
   to: string;
-  subject: string;
-  html: string;
+  from?: string;
   replyTo?: string;
-  attachments?: EmailAttachment[];
-  // optional metadata fields you may want later
-  tags?: Array<{ name: string; value: string }>;
 };
 
-function isSendEnabled() {
-  return process.env.RESEND_SEND_ENABLED === "true";
+function assertEmail(to: string, label = "to") {
+  if (!to || !to.includes("@")) throw new Error(`Invalid email for ${label}: ${to}`);
 }
 
-function toErrorMessage(err: unknown): string {
-  if (err instanceof Error) return err.message;
-  try {
-    return JSON.stringify(err);
-  } catch {
-    return String(err);
-  }
+export async function sendClientInviteEmail(args: SendArgs & {
+  clientName?: string;
+  inviteUrl: string;
+  inviteCode?: string;
+  attorneyName?: string;
+}) {
+  assertEmail(args.to);
+  if (!args.inviteUrl) throw new Error("inviteUrl is required");
+
+  const tpl = clientInviteTemplate(args);
+  return sendEmail({
+    to: args.to,
+    subject: tpl.subject,
+    text: tpl.text,
+    html: tpl.html,
+    from: args.from,
+    replyTo: args.replyTo,
+  });
 }
 
-export async function sendEmail(opts: SendEmailOpts) {
-  if (!process.env.RESEND_API_KEY) {
-    console.warn("RESEND_API_KEY not set; skipping email send.");
-    return { skipped: true as const, reason: "missing_api_key" as const };
-  }
+export async function sendAccessGrantedEmail(args: SendArgs & {
+  clientName?: string;
+  portalUrl: string;
+}) {
+  assertEmail(args.to);
+  if (!args.portalUrl) throw new Error("portalUrl is required");
 
-  if (!isSendEnabled()) {
-    console.warn("RESEND_SEND_ENABLED is false; skipping email send.");
-    return { skipped: true as const, reason: "disabled" as const };
-  }
-
-  const from =
-    process.env.RESEND_FROM_EMAIL || "HeirVault <no-reply@heirvault.app>";
-  const replyTo = opts.replyTo || process.env.RESEND_REPLY_TO;
-
-  const payload: CreateEmailOptions = {
-    from,
-    to: opts.to,
-    subject: opts.subject,
-    html: opts.html,
-    ...(replyTo ? { replyTo } : {}),
-    ...(opts.attachments?.length
-      ? {
-          attachments: opts.attachments.map((a) => ({
-            filename: a.filename,
-            content: a.content.toString("base64"),
-          })),
-        }
-      : {}),
-    // tags support depends on SDK version. If yours supports it, keep this:
-    ...(opts.tags?.length ? { tags: opts.tags } : {}),
-  };
-
-  try {
-    const res = await resend.emails.send(payload);
-    return { skipped: false as const, res };
-  } catch (error: unknown) {
-    console.error("Resend send failed:", toErrorMessage(error));
-    throw error;
-  }
+  const tpl = accessGrantedTemplate(args);
+  return sendEmail({ to: args.to, subject: tpl.subject, text: tpl.text, html: tpl.html, from: args.from, replyTo: args.replyTo });
 }
+
+export async function sendClientReceiptEmail(args: SendArgs & {
+  clientName?: string;
+  receiptId: string;
+  receiptPdfUrl?: string; // or attachment approach
+  summaryLines: string[];
+}) {
+  assertEmail(args.to);
+  if (!args.receiptId) throw new Error("receiptId is required");
+
+  const tpl = clientReceiptTemplate(args);
+  return sendEmail({ to: args.to, subject: tpl.subject, text: tpl.text, html: tpl.html, from: args.from, replyTo: args.replyTo });
+}
+
+export async function sendAttorneyNotificationEmail(args: SendArgs & {
+  attorneyEmail: string;         // allow `to` or `attorneyEmail`, but be consistent
+  clientName?: string;
+  action: "UPLOAD_POLICY" | "UPDATE_INFO" | "NEW_CLIENT" | "OTHER";
+  details?: Record<string, string>;
+  dashboardUrl?: string;
+}) {
+  const to = args.attorneyEmail ?? args.to;
+  assertEmail(to, "attorneyEmail/to");
+
+  const tpl = attorneyNotificationTemplate({ ...args, to });
+  return sendEmail({ to, subject: tpl.subject, text: tpl.text, html: tpl.html, from: args.from, replyTo: args.replyTo });
+}
+
+export async function sendPolicyAddedEmail(args: SendArgs & {
+  attorneyEmail: string;
+  clientName?: string;
+  insurerName?: string;
+  policyNumberMasked?: string;
+  dashboardUrl?: string;
+}) {
+  const to = args.attorneyEmail ?? args.to;
+  assertEmail(to, "attorneyEmail/to");
+
+  const tpl = policyAddedTemplate({ ...args, to });
+  return sendEmail({ to, subject: tpl.subject, text: tpl.text, html: tpl.html, from: args.from, replyTo: args.replyTo });
+}
+
+// Keep generic available for other callers
+export { sendEmail };
