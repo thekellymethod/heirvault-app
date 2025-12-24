@@ -89,7 +89,7 @@ export default function AttorneyApplyPage() {
           </p>
           <p className="text-sm text-slate-500 mt-2">
             You will receive an email notification once your application has been reviewed. 
-            After approval, you'll be able to sign in to access the attorney dashboard.
+            {"After approval, you'll be able to sign in to access the attorney dashboard."}
           </p>
           <div className="mt-6">
             <button

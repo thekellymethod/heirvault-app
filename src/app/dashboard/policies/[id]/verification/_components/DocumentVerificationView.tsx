@@ -49,7 +49,7 @@ interface Document {
   fileSize: number;
   filePath: string;
   mimeType: string;
-  extractedData: any;
+  extractedData: Record<string, unknown>;
   ocrConfidence: number | null;
   documentHash: string;
   verifiedAt: Date | null;
@@ -62,7 +62,7 @@ interface Submission {
   id: string;
   status: string;
   submissionType: string;
-  submittedData: any;
+  submittedData: Record<string, unknown>;
   createdAt: Date;
   processedAt: Date | null;
 }
@@ -426,7 +426,7 @@ export function DocumentVerificationView({
             <h2 className="text-xl font-semibold text-ink-900 mb-4">Resolve Insurer</h2>
             <p className="text-sm text-slateui-600 mb-4">
               Enter the canonical insurer name to link this policy to an insurer record.
-              If the insurer doesn't exist, it will be created.
+              {"If the insurer doesn't exist, it will be created."}
             </p>
             <div className="space-y-4">
               <div>

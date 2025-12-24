@@ -189,7 +189,7 @@ export default function PolicyIntakeReceiptPage() {
             <p className="text-sm font-semibold text-ink-900 mb-1">Receipt ID:</p>
             <p className="text-sm text-slateui-600 font-mono break-all">{receiptData.receiptId}</p>
             <p className="text-xs text-slateui-500 mt-2">
-              Save this receipt ID for your records. You'll need it to reference your submission.
+              {"Save this receipt ID for your records. You'll need it to reference your submission."}
             </p>
           </div>
 

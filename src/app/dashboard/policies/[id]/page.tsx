@@ -431,7 +431,7 @@ export default function PolicyBeneficiariesPage() {
                 <div className="p-8 text-center text-slateui-600">
                   <p className="mb-2">No available beneficiaries.</p>
                   <p className="text-xs text-slateui-500">
-                    Click "Add New Beneficiary" above to create one for this policy.
+                    {"Click \"Add New Beneficiary\" above to create one for this policy."}
                   </p>
                 </div>
               ) : (

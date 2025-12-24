@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth/guards";
 import { COMMAND_MAP } from "@/lib/admin/console/commands";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/db";
+import { randomUUID } from "crypto";
 
 export const runtime = "nodejs";
 
@@ -18,15 +19,23 @@ export async function POST(req: Request) {
 
   const actor = await requireAdmin();
 
-  const body = (await req.json().catch(() => null)) as {
-    cmd?: string;
-    args?: Record<string, any>;
-    confirmed?: boolean;
-  } | null;
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    body = null;
+  }
 
-  const cmd = (body?.cmd ?? "").trim();
-  const args = (body?.args ?? {}) as Record<string, any>;
-  const confirmed = body?.confirmed === true;
+  if (!body || typeof body !== "object") {
+    return NextResponse.json({ ok: false, error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  const bodyObj = body as { cmd?: unknown; args?: unknown; confirmed?: unknown };
+  const cmd = typeof bodyObj.cmd === "string" ? bodyObj.cmd.trim() : "";
+  const args = (bodyObj.args && typeof bodyObj.args === "object" && bodyObj.args !== null && !Array.isArray(bodyObj.args))
+    ? (bodyObj.args as Record<string, unknown>)
+    : {};
+  const confirmed = bodyObj.confirmed === true;
 
   const def = COMMAND_MAP[cmd];
   if (!def) {
@@ -41,28 +50,30 @@ export async function POST(req: Request) {
   }
 
   // Audit log the execution
-  const auditId = crypto.randomUUID();
-  await prisma.audit_logs.create({
-    data: {
-      id: auditId,
-      user_id: actor.id,
-      action: "GLOBAL_POLICY_SEARCH_PERFORMED", // TODO: Add ADMIN_CONSOLE_NL_EXECUTE to AuditAction enum
-      message: `AdminNLExecute cmd=${cmd} confirmed=${confirmed}`,
-      created_at: new Date(),
-    },
-  });
+  const auditId = randomUUID();
+  try {
+    await prisma.$executeRawUnsafe(
+      `INSERT INTO audit_logs (id, user_id, action, message, created_at) VALUES ($1, $2, $3, $4, NOW())`,
+      auditId,
+      actor.id,
+      "GLOBAL_POLICY_SEARCH_PERFORMED", // TODO: Add ADMIN_CONSOLE_NL_EXECUTE to AuditAction enum
+      `AdminNLExecute cmd=${cmd} confirmed=${confirmed}`
+    );
+  } catch (auditError: unknown) {
+    console.error("Failed to log audit event:", auditError);
+    // Don't fail the request if audit logging fails
+  }
 
   try {
     const result = await def.handler({ actor }, args);
     return NextResponse.json({ ...result, meta: { auditId } }, { status: result.ok ? 200 : 400 });
   } catch (e: unknown) {
-  const message = e instanceof Error ? e.message : "Unknown error";
-} {
+    const message = e instanceof Error ? e.message : "Unknown error";
     return NextResponse.json(
       {
         ok: false,
         error: "Command execution failed.",
-        details: { message: e?.message, cmd, args },
+        details: { message, cmd, args },
         meta: { auditId },
       },
       { status: 500 }

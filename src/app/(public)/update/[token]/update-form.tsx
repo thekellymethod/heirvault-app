@@ -4,7 +4,7 @@ import { useState } from "react";
 
 export default function UpdateForm(props: { token: string; defaultInsured: string; defaultCarrier: string }) {
   const [loading, setLoading] = useState(false);
-  const [receipt, setReceipt] = useState<any>(null);
+  const [receipt, setReceipt] = useState<Record<string, unknown> | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -21,8 +21,9 @@ export default function UpdateForm(props: { token: string; defaultInsured: strin
       const json = await res.json();
       if (!res.ok) throw new Error(json?.details || json?.error || "Update failed");
       setReceipt(json);
-    } catch (err: any) {
-      setError(String(err?.message ?? err));
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -49,8 +50,8 @@ export default function UpdateForm(props: { token: string; defaultInsured: strin
       {error && <p style={{ color: "crimson", marginTop: 16 }}>{error}</p>}
       {receipt && (
         <div style={{ marginTop: 16, padding: 12, border: "1px solid #ddd", borderRadius: 8 }}>
-          <p><strong>Receipt ID:</strong> {receipt.receiptId}</p>
-          <p><strong>Timestamp:</strong> {receipt.createdAt}</p>
+          <p><strong>Receipt ID:</strong> {String(receipt.receiptId ?? "")}</p>
+          <p><strong>Timestamp:</strong> {String(receipt.createdAt ?? "")}</p>
         </div>
       )}
     </section>

@@ -292,7 +292,7 @@ export default function TestInvitesPage() {
             How to Use Test Invites
           </h3>
           <ol className="list-decimal list-inside space-y-2 text-sm text-slateui-700">
-            <li>Click "Create Single Invite" or "Create 5 Test Invites" to generate test codes</li>
+            <li>{"Click \"Create Single Invite\" or \"Create 5 Test Invites\" to generate test codes"}</li>
             <li>Copy the invitation token or click the URL to test the client invitation flow</li>
             <li>Visit the invitation URL to see the client portal form</li>
             <li>Test submitting policy information with the form</li>

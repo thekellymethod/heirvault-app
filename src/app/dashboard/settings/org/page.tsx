@@ -6,15 +6,33 @@ import { OrgSettingsForm } from "./OrgSettingsForm"
 
 export default async function OrgSettingsPage() {
   // Clerk middleware handles authentication - no need for manual redirects
-  const { userId } = await auth()
+  await auth()
 
   // Use getCurrentUser to ensure user exists in database
   const currentUser = await getCurrentUser()
   if (!currentUser) redirect("/dashboard")
 
   // Use raw SQL first for reliability to get org membership
-  let user: any = currentUser
-  let orgMember: any = null
+  const user = currentUser;
+  let orgMember: {
+    organizationId: string;
+    role: string;
+    organizations: {
+      id: string;
+      name: string;
+      slug: string;
+      addressLine1: string | null;
+      addressLine2: string | null;
+      city: string | null;
+      state: string | null;
+      postalCode: string | null;
+      country: string | null;
+      phone: string | null;
+      logoUrl: string | null;
+      createdAt: Date;
+      updatedAt: Date;
+    };
+  } | null = null;
   
   try {
     // Try raw SQL first - it's more reliable when Prisma client is broken
@@ -58,6 +76,8 @@ export default async function OrgSettingsPage() {
     if (rawResult && rawResult.length > 0) {
       const row = rawResult[0]
       orgMember = {
+        organizationId: row.organization_id,
+        role: row.org_role,
         organizations: {
           id: row.organization_id,
           name: row.org_name,
@@ -75,26 +95,11 @@ export default async function OrgSettingsPage() {
         },
       }
     }
-  } catch (sqlError: any) {
-    console.error("Org settings page: Raw SQL failed, trying Prisma:", sqlError.message)
-    // If raw SQL fails, try Prisma as fallback
-    try {
-      const userWithOrg = await prisma.user.findUnique({
-        where: { id: currentUser.id },
-        include: {
-          orgMemberships: {
-            include: {
-              organizations: true,
-            },
-          },
-        },
-      })
-      orgMember = userWithOrg?.orgMemberships?.[0]
-    } catch (prismaError: any) {
-      console.error("Org settings page: Prisma also failed:", prismaError.message)
-      // If both fail, redirect to dashboard
-      redirect("/dashboard")
-    }
+  } catch (sqlError: unknown) {
+    const sqlErrorMessage = sqlError instanceof Error ? sqlError.message : "Unknown error";
+    console.error("Org settings page: Raw SQL failed:", sqlErrorMessage);
+    // If query fails, redirect to dashboard
+    redirect("/dashboard")
   }
 
   if (!user) redirect("/dashboard")
@@ -111,7 +116,7 @@ export default async function OrgSettingsPage() {
           </div>
           <div className="card p-6">
             <p className="text-slateui-600 mb-4">
-              You don't have an organization yet. Create one to get started.
+              {"You don't have an organization yet. Create one to get started."}
             </p>
             <a
               href="/attorney/onboard"

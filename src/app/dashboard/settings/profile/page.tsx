@@ -13,8 +13,15 @@ export default async function ProfilePage() {
   if (!currentUser) redirect("/dashboard");
 
   // Use raw SQL first for reliability to get org membership
-  let user: any = currentUser;
-  let orgMember: any = null;
+  const user = currentUser;
+  let orgMember: {
+    organizationId: string;
+    role: string;
+    organizations: {
+      id: string;
+      name: string;
+    };
+  } | null = null;
   
   try {
     // Try raw SQL first - it's more reliable when Prisma client is broken

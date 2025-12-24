@@ -62,8 +62,9 @@ export default function EditClientPage() {
           phone: data.phone || '',
           dateOfBirth: formattedDate,
         })
-      } catch (err: any) {
-        setError(err.message || 'Failed to load client data')
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Failed to load client data';
+        setError(message);
       } finally {
         setLoading(false)
       }
@@ -101,8 +102,9 @@ export default function EditClientPage() {
 
       // Redirect back to client detail page
       router.push(`/dashboard/clients/${id}`)
-    } catch (err: any) {
-      setError(err.message || 'Failed to update client')
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to update client';
+      setError(message);
       setSaving(false)
     }
   }

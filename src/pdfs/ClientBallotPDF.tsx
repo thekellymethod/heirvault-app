@@ -292,10 +292,10 @@ export function ClientBallotPDF({ ballotData }: ClientBallotPDFProps) {
                 • Scan the QR code below or visit the invitation URL to access the upload portal
               </Text>
               <Text style={styles.instructionItem}>
-                • Upload your policy documents (PDF or image files) - we'll extract the information automatically
+                • {"Upload your policy documents (PDF or image files) - we'll extract the information automatically"}
               </Text>
               <Text style={styles.instructionItem}>
-                • Upload a photo of your government-issued ID (driver's license, passport, etc.)
+                • {"Upload a photo of your government-issued ID (driver's license, passport, etc.)"}
               </Text>
               <Text style={styles.instructionItem}>
                 • Review and confirm the extracted policy information

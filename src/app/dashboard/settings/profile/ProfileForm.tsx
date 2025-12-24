@@ -202,7 +202,7 @@ export function ProfileForm({ user, organization }: Props) {
             Firm Information
           </h2>
           <p className="text-slateui-600 mb-4">
-            You don't have an organization yet. Create one to manage team members and billing.
+            {"You don't have an organization yet. Create one to manage team members and billing."}
           </p>
           <Button
             onClick={() => router.push("/attorney/onboard")}
