@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
   User,
@@ -60,11 +60,44 @@ export function QRUpdateForm({ token, clientId, currentData }: QRUpdateFormProps
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [policyDocuments, setPolicyDocuments] = useState<File[]>([]);
 
-  // Form state
+  // Form state - client demographics are read-only (prefilled from currentData)
   const [client, setClient] = useState(currentData.client);
   const [policies, setPolicies] = useState<Policy[]>(currentData.policies);
   const [beneficiaries, setBeneficiaries] = useState<Beneficiary[]>(currentData.beneficiaries);
+
+  // Check if policies or beneficiaries have changed
+  const hasPolicyChanges = useMemo(() => {
+    if (policies.length !== currentData.policies.length) return true;
+    return policies.some((policy, index) => {
+      const current = currentData.policies[index];
+      if (!current) return true;
+      return (
+        policy.policyNumber !== current.policyNumber ||
+        policy.policyType !== current.policyType ||
+        policy.insurerName !== current.insurerName
+      );
+    });
+  }, [policies, currentData.policies]);
+
+  const hasBeneficiaryChanges = useMemo(() => {
+    if (beneficiaries.length !== currentData.beneficiaries.length) return true;
+    return beneficiaries.some((beneficiary, index) => {
+      const current = currentData.beneficiaries[index];
+      if (!current) return true;
+      return (
+        beneficiary.firstName !== current.firstName ||
+        beneficiary.lastName !== current.lastName ||
+        beneficiary.relationship !== current.relationship ||
+        beneficiary.email !== current.email ||
+        beneficiary.phone !== current.phone ||
+        beneficiary.dateOfBirth !== current.dateOfBirth
+      );
+    });
+  }, [beneficiaries, currentData.beneficiaries]);
+
+  const requiresDocumentUpload = hasPolicyChanges || hasBeneficiaryChanges;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,15 +105,29 @@ export function QRUpdateForm({ token, clientId, currentData }: QRUpdateFormProps
     setLoading(true);
 
     try {
+      // Validate document upload requirement
+      if (requiresDocumentUpload && policyDocuments.length === 0) {
+        throw new Error(
+          "Policy document upload is required when making changes to policies or beneficiaries. " +
+          "Please upload the new policy document(s) that reflect your changes."
+        );
+      }
+
+      // Create FormData to support file uploads
+      const formData = new FormData();
+      formData.append("clientId", clientId);
+      formData.append("client", JSON.stringify(client));
+      formData.append("policies", JSON.stringify(policies));
+      formData.append("beneficiaries", JSON.stringify(beneficiaries));
+      
+      // Append policy documents
+      policyDocuments.forEach((file, index) => {
+        formData.append(`policyDocument_${index}`, file);
+      });
+
       const res = await fetch(`/api/qr-update/${token}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          clientId,
-          client,
-          policies,
-          beneficiaries,
-        }),
+        body: formData, // Use FormData instead of JSON
       });
 
       const data = await res.json();
@@ -104,6 +151,18 @@ export function QRUpdateForm({ token, clientId, currentData }: QRUpdateFormProps
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDocumentUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length > 0) {
+      setPolicyDocuments([...policyDocuments, ...files]);
+      setError(null);
+    }
+  };
+
+  const removeDocument = (index: number) => {
+    setPolicyDocuments(policyDocuments.filter((_, i) => i !== index));
   };
 
   const addPolicy = () => {
@@ -167,105 +226,153 @@ export function QRUpdateForm({ token, clientId, currentData }: QRUpdateFormProps
         </div>
       )}
 
-      {/* Client Information */}
+      {/* Client Information - Prefilled and Read-Only */}
       <div className="card p-6">
         <h2 className="font-display text-lg font-semibold text-ink-900 mb-4 flex items-center gap-2">
           <User className="h-5 w-5 text-gold-500" />
           Client Information
         </h2>
+        <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3">
+          <p className="text-sm text-blue-900">
+            <strong>Note:</strong> Your demographic information is prefilled from your registry record. 
+            Email and phone number cannot be changed through this form. To update your email or phone number, 
+            please contact customer service or your attorney.
+          </p>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="label">First Name <span className="text-red-500">*</span></label>
+            <label htmlFor="client-first-name" className="label">First Name <span className="text-red-500">*</span></label>
             <input
-              className="input"
+              id="client-first-name"
+              className="input bg-slate-50 cursor-not-allowed"
               value={client.firstName}
-              onChange={(e) => setClient({ ...client, firstName: e.target.value })}
-              required
+              readOnly
+              disabled
+              aria-label="First Name (read-only)"
+              title="First Name (read-only)"
             />
           </div>
           <div>
-            <label className="label">Last Name <span className="text-red-500">*</span></label>
+            <label htmlFor="client-last-name" className="label">Last Name <span className="text-red-500">*</span></label>
             <input
-              className="input"
+              id="client-last-name"
+              className="input bg-slate-50 cursor-not-allowed"
               value={client.lastName}
-              onChange={(e) => setClient({ ...client, lastName: e.target.value })}
-              required
+              readOnly
+              disabled
+              aria-label="Last Name (read-only)"
+              title="Last Name (read-only)"
             />
           </div>
           <div>
-            <label className="label">Email <span className="text-red-500">*</span></label>
+            <label htmlFor="client-email" className="label">Email <span className="text-red-500">*</span></label>
             <input
+              id="client-email"
               type="email"
-              className="input"
+              className="input bg-slate-50 cursor-not-allowed"
               value={client.email}
-              onChange={(e) => setClient({ ...client, email: e.target.value })}
-              required
+              readOnly
+              disabled
+              aria-label="Email Address (read-only, cannot be changed)"
+              title="Email Address (read-only, cannot be changed)"
             />
+            <p className="text-xs text-slateui-500 mt-1">
+              Cannot be changed. Contact customer service or your attorney to update.
+            </p>
           </div>
           <div>
-            <label className="label">Phone</label>
+            <label htmlFor="client-phone" className="label">Phone</label>
             <input
+              id="client-phone"
               type="tel"
-              className="input"
+              className="input bg-slate-50 cursor-not-allowed"
               value={client.phone}
-              onChange={(e) => setClient({ ...client, phone: e.target.value })}
+              readOnly
+              disabled
+              aria-label="Phone Number (read-only, cannot be changed)"
+              title="Phone Number (read-only, cannot be changed)"
             />
+            <p className="text-xs text-slateui-500 mt-1">
+              Cannot be changed. Contact customer service or your attorney to update.
+            </p>
           </div>
           <div>
-            <label className="label">Date of Birth</label>
+            <label htmlFor="client-date-of-birth" className="label">Date of Birth</label>
             <input
+              id="client-date-of-birth"
               type="date"
-              className="input"
+              className="input bg-slate-50 cursor-not-allowed"
               value={client.dateOfBirth}
-              onChange={(e) => setClient({ ...client, dateOfBirth: e.target.value })}
+              readOnly
+              disabled
+              aria-label="Date of Birth (read-only)"
+              title="Date of Birth (read-only)"
             />
           </div>
           <div>
-            <label className="label">Address Line 1</label>
+            <label htmlFor="client-address-line1" className="label">Address Line 1</label>
             <input
+              id="client-address-line1"
               className="input"
               value={client.addressLine1}
               onChange={(e) => setClient({ ...client, addressLine1: e.target.value })}
+              aria-label="Address Line 1"
+              placeholder="Street address"
             />
           </div>
           <div>
-            <label className="label">Address Line 2</label>
+            <label htmlFor="client-address-line2" className="label">Address Line 2</label>
             <input
+              id="client-address-line2"
               className="input"
               value={client.addressLine2}
               onChange={(e) => setClient({ ...client, addressLine2: e.target.value })}
+              aria-label="Address Line 2"
+              placeholder="Apartment, suite, etc."
             />
           </div>
           <div>
-            <label className="label">City</label>
+            <label htmlFor="client-city" className="label">City</label>
             <input
+              id="client-city"
               className="input"
               value={client.city}
               onChange={(e) => setClient({ ...client, city: e.target.value })}
+              aria-label="City"
+              placeholder="City"
             />
           </div>
           <div>
-            <label className="label">State</label>
+            <label htmlFor="client-state" className="label">State</label>
             <input
+              id="client-state"
               className="input"
               value={client.state}
               onChange={(e) => setClient({ ...client, state: e.target.value })}
+              aria-label="State"
+              placeholder="State"
             />
           </div>
           <div>
-            <label className="label">Postal Code</label>
+            <label htmlFor="client-postal-code" className="label">Postal Code</label>
             <input
+              id="client-postal-code"
               className="input"
               value={client.postalCode}
               onChange={(e) => setClient({ ...client, postalCode: e.target.value })}
+              aria-label="Postal Code"
+              placeholder="ZIP or postal code"
             />
           </div>
           <div>
-            <label className="label">Country</label>
+            <label htmlFor="client-country" className="label">Country</label>
             <input
+              id="client-country"
               className="input"
               value={client.country}
               onChange={(e) => setClient({ ...client, country: e.target.value })}
+              aria-label="Country"
+              placeholder="Country"
             />
           </div>
         </div>
@@ -305,8 +412,9 @@ export function QRUpdateForm({ token, clientId, currentData }: QRUpdateFormProps
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="label">Policy Number</label>
+                  <label htmlFor={`policy-number-${policy.id}`} className="label">Policy Number</label>
                   <input
+                    id={`policy-number-${policy.id}`}
                     className="input"
                     value={policy.policyNumber}
                     onChange={(e) =>
@@ -316,11 +424,14 @@ export function QRUpdateForm({ token, clientId, currentData }: QRUpdateFormProps
                         )
                       )
                     }
+                    aria-label={`Policy Number for Policy ${index + 1}`}
+                    placeholder="Policy number"
                   />
                 </div>
                 <div>
-                  <label className="label">Policy Type</label>
+                  <label htmlFor={`policy-type-${policy.id}`} className="label">Policy Type</label>
                   <input
+                    id={`policy-type-${policy.id}`}
                     className="input"
                     value={policy.policyType}
                     onChange={(e) =>
@@ -330,13 +441,16 @@ export function QRUpdateForm({ token, clientId, currentData }: QRUpdateFormProps
                         )
                       )
                     }
+                    aria-label={`Policy Type for Policy ${index + 1}`}
+                    placeholder="Term, Whole Life, etc."
                   />
                 </div>
                 <div>
-                  <label className="label">
+                  <label htmlFor={`insurer-name-${policy.id}`} className="label">
                     Insurance Company <span className="text-red-500">*</span>
                   </label>
                   <input
+                    id={`insurer-name-${policy.id}`}
                     className="input"
                     required
                     value={policy.insurerName}
@@ -347,6 +461,7 @@ export function QRUpdateForm({ token, clientId, currentData }: QRUpdateFormProps
                         )
                       )
                     }
+                    aria-label={`Insurance Company for Policy ${index + 1} (required)`}
                     placeholder="Required - Insurance company name"
                   />
                 </div>
@@ -390,10 +505,11 @@ export function QRUpdateForm({ token, clientId, currentData }: QRUpdateFormProps
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="label">
+                  <label htmlFor={`beneficiary-first-name-${beneficiary.id}`} className="label">
                     First Name <span className="text-red-500">*</span>
                   </label>
                   <input
+                    id={`beneficiary-first-name-${beneficiary.id}`}
                     className="input"
                     required
                     value={beneficiary.firstName}
@@ -404,14 +520,16 @@ export function QRUpdateForm({ token, clientId, currentData }: QRUpdateFormProps
                         )
                       )
                     }
+                    aria-label={`First Name for Beneficiary ${index + 1} (required)`}
                     placeholder="Required"
                   />
                 </div>
                 <div>
-                  <label className="label">
+                  <label htmlFor={`beneficiary-last-name-${beneficiary.id}`} className="label">
                     Last Name <span className="text-red-500">*</span>
                   </label>
                   <input
+                    id={`beneficiary-last-name-${beneficiary.id}`}
                     className="input"
                     required
                     value={beneficiary.lastName}
@@ -422,12 +540,14 @@ export function QRUpdateForm({ token, clientId, currentData }: QRUpdateFormProps
                         )
                       )
                     }
+                    aria-label={`Last Name for Beneficiary ${index + 1} (required)`}
                     placeholder="Required"
                   />
                 </div>
                 <div>
-                  <label className="label">Relationship</label>
+                  <label htmlFor={`beneficiary-relationship-${beneficiary.id}`} className="label">Relationship</label>
                   <input
+                    id={`beneficiary-relationship-${beneficiary.id}`}
                     className="input"
                     value={beneficiary.relationship}
                     onChange={(e) =>
@@ -437,11 +557,14 @@ export function QRUpdateForm({ token, clientId, currentData }: QRUpdateFormProps
                         )
                       )
                     }
+                    aria-label={`Relationship for Beneficiary ${index + 1}`}
+                    placeholder="Spouse, Child, etc."
                   />
                 </div>
                 <div>
-                  <label className="label">Email</label>
+                  <label htmlFor={`beneficiary-email-${beneficiary.id}`} className="label">Email</label>
                   <input
+                    id={`beneficiary-email-${beneficiary.id}`}
                     type="email"
                     className="input"
                     value={beneficiary.email}
@@ -452,11 +575,14 @@ export function QRUpdateForm({ token, clientId, currentData }: QRUpdateFormProps
                         )
                       )
                     }
+                    aria-label={`Email for Beneficiary ${index + 1}`}
+                    placeholder="Email address"
                   />
                 </div>
                 <div>
-                  <label className="label">Phone</label>
+                  <label htmlFor={`beneficiary-phone-${beneficiary.id}`} className="label">Phone</label>
                   <input
+                    id={`beneficiary-phone-${beneficiary.id}`}
                     type="tel"
                     className="input"
                     value={beneficiary.phone}
@@ -467,11 +593,14 @@ export function QRUpdateForm({ token, clientId, currentData }: QRUpdateFormProps
                         )
                       )
                     }
+                    aria-label={`Phone for Beneficiary ${index + 1}`}
+                    placeholder="Phone number"
                   />
                 </div>
                 <div>
-                  <label className="label">Date of Birth</label>
+                  <label htmlFor={`beneficiary-date-of-birth-${beneficiary.id}`} className="label">Date of Birth</label>
                   <input
+                    id={`beneficiary-date-of-birth-${beneficiary.id}`}
                     type="date"
                     className="input"
                     value={beneficiary.dateOfBirth}
@@ -482,6 +611,8 @@ export function QRUpdateForm({ token, clientId, currentData }: QRUpdateFormProps
                         )
                       )
                     }
+                    aria-label={`Date of Birth for Beneficiary ${index + 1}`}
+                    title={`Date of Birth for Beneficiary ${index + 1}`}
                   />
                 </div>
               </div>
@@ -489,6 +620,71 @@ export function QRUpdateForm({ token, clientId, currentData }: QRUpdateFormProps
           ))}
         </div>
       </div>
+
+      {/* Policy Document Upload - Required when changes are made */}
+      {requiresDocumentUpload && (
+        <div className="card p-6 bg-orange-50 border-orange-200">
+          <div className="flex items-start gap-3 mb-4">
+            <AlertCircle className="h-5 w-5 text-orange-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <h3 className="font-semibold text-ink-900 mb-1">Policy Document Upload Required</h3>
+              <p className="text-sm text-slateui-600">
+                Since you have made changes to your policies or beneficiaries, you must upload 
+                the new policy document(s) that reflect these changes. This ensures the registry 
+                has the most current documentation.
+              </p>
+            </div>
+          </div>
+          <div className="space-y-3">
+            <label htmlFor="policy-document-upload" className="block">
+              <span className="label mb-1 block">
+                Upload Policy Document(s) <span className="text-red-500">*</span>
+              </span>
+              <input
+                id="policy-document-upload"
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png"
+                multiple
+                onChange={handleDocumentUpload}
+                className="input"
+                aria-label="Upload Policy Document(s)"
+                title="Upload Policy Document(s)"
+              />
+              <p className="text-xs text-slateui-500 mt-1">
+                Accepted formats: PDF, JPG, PNG (max 10MB per file)
+              </p>
+            </label>
+            {policyDocuments.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-ink-900">Uploaded Documents:</p>
+                {policyDocuments.map((file, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center justify-between bg-white border border-slateui-200 rounded-lg p-3"
+                  >
+                    <div className="flex items-center gap-2">
+                      <FileText className="h-4 w-4 text-gold-500" />
+                      <span className="text-sm text-ink-900">{file.name}</span>
+                      <span className="text-xs text-slateui-500">
+                        ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeDocument(index)}
+                      className="text-red-600 hover:text-red-700 text-sm"
+                      aria-label={`Remove ${file.name}`}
+                      title={`Remove ${file.name}`}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Submit Button */}
       <div className="card p-6 bg-gold-50 border-gold-200">
@@ -504,8 +700,8 @@ export function QRUpdateForm({ token, clientId, currentData }: QRUpdateFormProps
         </div>
         <button
           type="submit"
-          disabled={loading}
-          className="btn-primary w-full py-3 flex items-center justify-center gap-2"
+          disabled={loading || (requiresDocumentUpload && policyDocuments.length === 0)}
+          className="btn-primary w-full py-3 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? (
             <>
@@ -519,6 +715,11 @@ export function QRUpdateForm({ token, clientId, currentData }: QRUpdateFormProps
             </>
           )}
         </button>
+        {requiresDocumentUpload && policyDocuments.length === 0 && (
+          <p className="text-sm text-red-600 mt-2 text-center">
+            Please upload policy document(s) before submitting.
+          </p>
+        )}
       </div>
     </form>
   );

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { randomUUID } from "crypto";
 import { getOrCreateTestInvite } from "@/lib/test-invites";
 import { lookupClientInvite } from "@/lib/invite-lookup";
+import { uploadDocument } from "@/lib/storage";
 
 export const runtime = "nodejs";
 
@@ -17,8 +18,62 @@ export async function POST(
 ) {
   try {
     const { token } = await params;
-    const body = await req.json();
-    const { clientId, client, policies, beneficiaries } = body;
+    
+    // Handle FormData (for file uploads) or JSON
+    const contentType = req.headers.get("content-type") || "";
+    let clientId: string;
+    let client: {
+      firstName: string;
+      lastName: string;
+      email: string;
+      phone: string;
+      dateOfBirth: string;
+      addressLine1: string;
+      addressLine2: string;
+      city: string;
+      state: string;
+      postalCode: string;
+      country: string;
+    };
+    let policies: Array<{
+      id: string;
+      policyNumber: string;
+      policyType: string;
+      insurerName: string;
+    }>;
+    let beneficiaries: Array<{
+      id: string;
+      firstName: string;
+      lastName: string;
+      relationship: string;
+      email: string;
+      phone: string;
+      dateOfBirth: string;
+    }>;
+    const policyDocuments: File[] = [];
+
+    if (contentType.includes("multipart/form-data")) {
+      const formData = await req.formData();
+      clientId = formData.get("clientId") as string;
+      client = JSON.parse(formData.get("client") as string);
+      policies = JSON.parse(formData.get("policies") as string);
+      beneficiaries = JSON.parse(formData.get("beneficiaries") as string);
+      
+      // Extract policy documents
+      const documentKeys = Array.from(formData.keys()).filter(key => key.startsWith("policyDocument_"));
+      for (const key of documentKeys) {
+        const file = formData.get(key);
+        if (file instanceof File) {
+          policyDocuments.push(file);
+        }
+      }
+    } else {
+      const body = await req.json();
+      clientId = body.clientId;
+      client = body.client;
+      policies = body.policies;
+      beneficiaries = body.beneficiaries;
+    }
 
     // Verify token matches client
     let invite: Awaited<ReturnType<typeof getOrCreateTestInvite>> | Awaited<ReturnType<typeof lookupClientInvite>> | null = await getOrCreateTestInvite(token);
@@ -52,6 +107,83 @@ export async function POST(
     `, clientId);
 
     const previousVersionId = previousVersion.length > 0 ? previousVersion[0].id : null;
+
+    // Check if policies or beneficiaries have changed
+    const currentPolicies = await prisma.$queryRawUnsafe<Array<{
+      id: string;
+      policy_number: string | null;
+      policy_type: string | null;
+      insurer_name: string;
+    }>>(`
+      SELECT 
+        p.id,
+        p.policy_number,
+        p.policy_type,
+        COALESCE(i.name, p.carrier_name_raw) as insurer_name
+      FROM policies p
+      LEFT JOIN insurers i ON i.id = p.insurer_id
+      WHERE p.client_id = $1
+      ORDER BY p.created_at DESC
+    `, clientId);
+
+    const currentBeneficiaries = await prisma.$queryRawUnsafe<Array<{
+      id: string;
+      first_name: string;
+      last_name: string;
+      relationship: string | null;
+      email: string | null;
+      phone: string | null;
+      date_of_birth: Date | null;
+    }>>(`
+      SELECT 
+        id, first_name, last_name, relationship, email, phone, date_of_birth
+      FROM beneficiaries
+      WHERE client_id = $1
+      ORDER BY created_at DESC
+    `, clientId);
+
+    // Check if policies changed
+    const hasPolicyChanges = 
+      policies.length !== currentPolicies.length ||
+      policies.some((policy, index) => {
+        const current = currentPolicies[index];
+        if (!current) return true;
+        return (
+          policy.policyNumber !== current.policy_number ||
+          policy.policyType !== current.policy_type ||
+          policy.insurerName !== current.insurer_name
+        );
+      });
+
+    // Check if beneficiaries changed
+    const hasBeneficiaryChanges =
+      beneficiaries.length !== currentBeneficiaries.length ||
+      beneficiaries.some((beneficiary, index) => {
+        const current = currentBeneficiaries[index];
+        if (!current) return true;
+        return (
+          beneficiary.firstName !== current.first_name ||
+          beneficiary.lastName !== current.last_name ||
+          beneficiary.relationship !== current.relationship ||
+          beneficiary.email !== current.email ||
+          beneficiary.phone !== current.phone ||
+          beneficiary.dateOfBirth !== (current.date_of_birth ? new Date(current.date_of_birth).toISOString().split("T")[0] : "")
+        );
+      });
+
+    // Validate document upload requirement
+    if ((hasPolicyChanges || hasBeneficiaryChanges) && policyDocuments.length === 0) {
+      return NextResponse.json(
+        {
+          error: "Policy document upload is required when making changes to policies or beneficiaries.",
+          details: [
+            "Please upload the new policy document(s) that reflect your changes. " +
+            "This ensures the registry has the most current documentation."
+          ],
+        },
+        { status: 400 }
+      );
+    }
 
     // Get current client data to calculate changes
     const currentClient = await prisma.$queryRawUnsafe<Array<{
@@ -88,8 +220,15 @@ export async function POST(
       if (current.email !== client.email) {
         changes.email = { from: current.email, to: client.email };
       }
-      if (current.phone !== client.phone) {
-        changes.phone = { from: current.phone, to: client.phone };
+      // Email and phone cannot be changed via this form - use original values
+      // This prevents unauthorized modification of contact information
+      if (current.email !== client.email) {
+        // Revert to original email - this form cannot change it
+        client.email = current.email;
+      }
+      if (current.phone !== (client.phone || null)) {
+        // Revert to original phone - this form cannot change it
+        client.phone = current.phone || "";
       }
       if (current.address_line1 !== client.addressLine1) {
         changes.addressLine1 = { from: current.address_line1, to: client.addressLine1 };
@@ -346,6 +485,43 @@ export async function POST(
       );
     }
 
+    // Upload policy documents if provided
+    const uploadedDocumentIds: string[] = [];
+    for (const file of policyDocuments) {
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        const { storagePath } = await uploadDocument({
+          fileBuffer: arrayBuffer,
+          filename: file.name,
+          contentType: file.type,
+        });
+
+        const documentId = randomUUID();
+        await prisma.$executeRawUnsafe(`
+          INSERT INTO documents (
+            id, client_id, file_name, file_type, file_size, file_path, mime_type,
+            uploaded_via, created_at, updated_at
+          ) VALUES (
+            $1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW()
+          )
+        `,
+          documentId,
+          clientId,
+          file.name,
+          file.type,
+          file.size,
+          storagePath,
+          file.type,
+          "qr_update"
+        );
+
+        uploadedDocumentIds.push(documentId);
+      } catch (uploadError) {
+        console.error("Error uploading policy document:", uploadError);
+        // Continue with other documents even if one fails
+      }
+    }
+
     // Note: Audit logging is handled by the versioning system
     // The client_versions table preserves the complete audit trail
 
@@ -353,6 +529,7 @@ export async function POST(
       success: true,
       versionNumber,
       versionId,
+      uploadedDocuments: uploadedDocumentIds.length,
       message: "Update submitted successfully. A new version entry has been created.",
     });
   } catch (error: unknown) {

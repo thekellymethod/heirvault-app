@@ -20,16 +20,15 @@ export default function PrivacyPolicyPage() {
       {/* Content */}
       <div className="mx-auto max-w-4xl px-4 sm:px-6 py-8 sm:py-12">
         <div className="card p-6 sm:p-8 md:p-10">
-          <h1 className="font-display text-3xl md:text-4xl font-bold text-ink-900 mb-2">Privacy Policy</h1>
-          <p className="text-sm text-slateui-600 mb-8">Last updated: {new Date().toLocaleDateString()}</p>
+          <h1 className="font-display text-3xl md:text-4xl font-bold text-ink-900 mb-2">HeirVault</h1>
+          <h2 className="font-display text-2xl md:text-3xl font-semibold text-ink-900 mb-2">Privacy Policy</h2>
+          <p className="text-sm text-slateui-600 mb-8">Last updated: 12/23/2025</p>
 
           <div className="prose prose-slate max-w-none space-y-8">
             <section>
               <h2 className="font-display text-2xl font-semibold text-ink-900 mb-4">1. Introduction</h2>
               <p className="text-slateui-700 leading-relaxed">
-                HeirVault ("we," "our," or "us") operates a private, voluntary registry service that allows 
-                clients to securely record their life insurance policy information and beneficiary designations. 
-                This Privacy Policy explains how we collect, use, disclose, and safeguard your information.
+                HeirVault (&quot;we,&quot; &quot;our,&quot; or &quot;us&quot;) operates a private, voluntary registry service that allows clients to securely record their life insurance policy information and beneficiary designations. This Privacy Policy explains how we collect, use, disclose, and safeguard your information.
               </p>
             </section>
 
@@ -96,8 +95,7 @@ export default function PrivacyPolicyPage() {
                 <div>
                   <h3 className="text-xl font-semibold text-ink-900 mb-2">4.3 Service Providers</h3>
                   <p className="text-slateui-700 leading-relaxed">
-                    We may share information with trusted service providers who assist in operating our service, 
-                    subject to confidentiality agreements.
+                    We may share information with trusted service providers who assist in operating our service, subject to confidentiality agreements.
                   </p>
                 </div>
               </div>
@@ -106,9 +104,7 @@ export default function PrivacyPolicyPage() {
             <section>
               <h2 className="font-display text-2xl font-semibold text-ink-900 mb-4">5. Data Security</h2>
               <p className="text-slateui-700 leading-relaxed">
-                We implement industry-standard security measures to protect your information, including encryption, 
-                secure authentication, and access controls. However, no method of transmission over the internet 
-                is 100% secure.
+                We implement industry-standard security measures to protect your information, including encryption, secure authentication, and access controls. However, no method of transmission over the internet is 100% secure.
               </p>
             </section>
 
@@ -126,25 +122,21 @@ export default function PrivacyPolicyPage() {
             <section>
               <h2 className="font-display text-2xl font-semibold text-ink-900 mb-4">7. Data Retention</h2>
               <p className="text-slateui-700 leading-relaxed">
-                We retain your information for as long as necessary to provide our services and comply with legal 
-                obligations. You may request deletion of your account and data, subject to applicable legal 
-                requirements for record retention.
+                We retain your information for as long as necessary to provide our services and comply with legal obligations. You may request deletion of your account and data, subject to applicable legal requirements for record retention.
               </p>
             </section>
 
             <section>
-              <h2 className="font-display text-2xl font-semibold text-ink-900 mb-4">8. Children's Privacy</h2>
+              <h2 className="font-display text-2xl font-semibold text-ink-900 mb-4">8. Children&apos;s Privacy</h2>
               <p className="text-slateui-700 leading-relaxed">
-                Our service is not intended for individuals under 18 years of age. We do not knowingly collect 
-                information from children.
+                Our service is not intended for individuals under 18 years of age. We do not knowingly collect information from children.
               </p>
             </section>
 
             <section>
               <h2 className="font-display text-2xl font-semibold text-ink-900 mb-4">9. Changes to This Policy</h2>
               <p className="text-slateui-700 leading-relaxed">
-                We may update this Privacy Policy from time to time. We will notify you of any material changes 
-                by posting the new policy on this page and updating the "Last updated" date.
+                We may update this Privacy Policy from time to time. We will notify you of any material changes by posting the new policy on this page and updating the &quot;Last updated&quot; date.
               </p>
             </section>
 
@@ -152,7 +144,7 @@ export default function PrivacyPolicyPage() {
               <h2 className="font-display text-2xl font-semibold text-ink-900 mb-4">10. Contact Us</h2>
               <p className="text-slateui-700 leading-relaxed">
                 If you have questions about this Privacy Policy, please contact us at{" "}
-                <a href="mailto:privacy@heirvault.com" className="text-gold-600 hover:text-gold-700 underline">
+                <a href="mailto:privacy@heirvault.com" className="text-gold-600 hover:text-gold-700 underline font-semibold">
                   privacy@heirvault.com
                 </a>
               </p>
