@@ -230,12 +230,14 @@ export function InviteManagement() {
               />
             </div>
             <div>
-              <label className="label mb-1 block">Date of Birth</label>
+              <label htmlFor="dateOfBirth" className="label mb-1 block">Date of Birth</label>
               <input
+                id="dateOfBirth"
                 type="date"
                 value={formData.dateOfBirth}
                 onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
                 className="input"
+                aria-label="Date of Birth"
               />
             </div>
             <div className="flex items-center">

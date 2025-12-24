@@ -1,7 +1,5 @@
 "use client";
 
-"use client";
-
 import { useEffect, useRef, useState } from "react";
 import { X, Camera, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -41,12 +39,9 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
         throw new Error("Camera access is not supported in this browser");
       }
 
-      // Check if we're on HTTPS or localhost (required for camera access)
-      const isSecure = window.location.protocol === "https:" || 
-                       window.location.hostname === "localhost" || 
-                       window.location.hostname === "127.0.0.1";
-      
-      if (!isSecure) {
+      // Check if we're in a secure context (required for camera access)
+      // This handles HTTPS, localhost (IPv4 and IPv6), file:// URLs, and secure iframes
+      if (typeof window !== "undefined" && !window.isSecureContext) {
         throw new Error("Camera access requires a secure connection (HTTPS). Please use HTTPS or localhost.");
       }
 
@@ -61,7 +56,7 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
             setScanning(false);
             return;
           }
-        } catch (permError) {
+        } catch {
           // Permissions API might not support 'camera' in all browsers, continue anyway
         }
       }
@@ -73,9 +68,10 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
           width: { ideal: 1280 },
           height: { ideal: 720 },
         },
-      }).catch((err: any) => {
+      }).catch((err: unknown) => {
         // Suppress console error for NotAllowedError (we handle it below)
-        if (err.name !== "NotAllowedError" && err.name !== "PermissionDeniedError") {
+        const error = err as { name?: string };
+        if (error.name !== "NotAllowedError" && error.name !== "PermissionDeniedError") {
           console.error("Error accessing camera:", err);
         }
         throw err;
@@ -91,18 +87,19 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
         // Start QR code scanning
         startQRScanning();
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setScanning(false);
       
-      if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+      const error = err as { name?: string; message?: string };
+      if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
         setError("Camera permission denied. Please allow camera access in your browser settings and try again.");
         setPermissionStatus("denied");
-      } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
+      } else if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") {
         setError("No camera found. Please ensure your device has a camera.");
-      } else if (err.name === "NotReadableError" || err.name === "TrackStartError") {
+      } else if (error.name === "NotReadableError" || error.name === "TrackStartError") {
         setError("Camera is already in use by another application. Please close other apps using the camera.");
       } else {
-        setError(err.message || "Failed to access camera. Please try again.");
+        setError(error.message || "Failed to access camera. Please try again.");
       }
     }
   };
@@ -124,10 +121,11 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
 
   const startQRScanning = async () => {
     // Dynamically import jsQR to avoid SSR issues
-    let jsQR: any;
+    type JsQRFunction = (data: Uint8ClampedArray, width: number, height: number) => { data: string } | null;
+    let jsQR: JsQRFunction | null = null;
     try {
       const jsQRModule = await import("jsqr");
-      jsQR = jsQRModule.default || jsQRModule;
+      jsQR = (jsQRModule.default || jsQRModule) as JsQRFunction;
     } catch (err) {
       console.error("Failed to load jsQR:", err);
       setError("QR scanning library failed to load. Please refresh the page.");
@@ -154,7 +152,7 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
 
       // Try to decode QR code using jsQR
       try {
-        if (jsQR && typeof jsQR === "function") {
+        if (jsQR) {
           const code = jsQR(imageData.data, imageData.width, imageData.height);
           
           if (code && code.data) {
@@ -162,7 +160,7 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
             onScan(code.data);
           }
         }
-      } catch (err) {
+      } catch {
         // Continue scanning - errors are expected during normal operation
       }
     }, 300); // Scan every 300ms
@@ -257,7 +255,7 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
               <li>Refresh the page and try again</li>
             </ul>
             <p className="text-xs text-orange-700 mt-2">
-              <strong>Note:</strong> Camera access requires HTTPS (or localhost for development).
+              <strong>Note:</strong> Camera access requires a secure context (HTTPS or localhost).
             </p>
           </div>
         )}

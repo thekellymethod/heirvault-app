@@ -324,7 +324,7 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
                     Audit Trail
                   </h3>
                   <p className="text-sm text-slateui-600">
-                    View complete access logs and reconstruct "who did what when" for any record.
+                    View complete access logs and reconstruct &quot;who did what when&quot; for any record.
                   </p>
                 </div>
               </Link>
@@ -398,11 +398,14 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
             {/* Filter */}
             <div className="card p-4">
               <div className="flex items-center gap-4">
-                <label className="text-sm font-medium text-ink-900">Filter by Status:</label>
+                <label htmlFor="statusFilter" className="text-sm font-medium text-ink-900">Filter by Status:</label>
                 <select
+                  id="statusFilter"
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
                   className="px-3 py-2 border border-slateui-300 rounded-lg"
+                  aria-label="Filter by Status"
+                  title="Filter by Status"
                 >
                   <option value="PENDING">Pending</option>
                   <option value="APPROVED">Approved</option>

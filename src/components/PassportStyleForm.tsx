@@ -1,6 +1,18 @@
+// src/components/PassportStyleForm.tsx
 "use client";
 
 import React from "react";
+
+type PassportFormData = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string; // digits only
+  dateOfBirth: string; // digits only MMDDYYYY
+  policyNumber: string;
+  insurerName: string;
+  policyType: string;
+};
 
 interface BoxFieldProps {
   label: string;
@@ -9,54 +21,81 @@ interface BoxFieldProps {
   maxLength: number;
   required?: boolean;
   className?: string;
+  inputClassName?: string;
 }
 
 /**
- * Passport-style box field - one box per character
+ * Passport-style box field - one box per character.
+ * No inline styles (satisfies no-inline-styles hint).
  */
-function BoxField({ label, value, onChange, maxLength, required, className = "" }: BoxFieldProps) {
-  const boxes = Array(maxLength).fill("");
+function BoxField({
+  label,
+  value,
+  onChange,
+  maxLength,
+  required,
+  className = "",
+  inputClassName = "",
+}: BoxFieldProps) {
+  const boxes = Array.from({ length: maxLength });
 
   const handleChange = (index: number, char: string) => {
-    // Only allow alphanumeric and common characters
+    // allow alphanumeric + space + common punctuation, force uppercase
     const sanitized = char.replace(/[^A-Za-z0-9\s\-.,]/g, "").toUpperCase();
-    if (sanitized.length > 1) return; // Only single character
+    if (sanitized.length > 1) return;
 
-    const newValue = value.split("");
-    newValue[index] = sanitized;
-    onChange(newValue.join("").substring(0, maxLength));
+    const next = value.split("");
+    next[index] = sanitized;
+
+    // keep length fixed-ish, but trim to maxLength
+    onChange(next.join("").substring(0, maxLength));
   };
 
   const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    const prev = e.currentTarget.previousElementSibling as HTMLInputElement | null;
+    const next = e.currentTarget.nextElementSibling as HTMLInputElement | null;
+
     if (e.key === "Backspace" && !value[index] && index > 0) {
-      // Move to previous box on backspace
-      const prevInput = e.currentTarget.previousElementSibling as HTMLInputElement;
-      if (prevInput) prevInput.focus();
-    } else if (e.key === "ArrowLeft" && index > 0) {
-      const prevInput = e.currentTarget.previousElementSibling as HTMLInputElement;
-      if (prevInput) prevInput.focus();
-    } else if (e.key === "ArrowRight" && index < maxLength - 1) {
-      const nextInput = e.currentTarget.nextElementSibling as HTMLInputElement;
-      if (nextInput) nextInput.focus();
+      prev?.focus();
+      return;
+    }
+
+    if (e.key === "ArrowLeft" && index > 0) {
+      prev?.focus();
+      return;
+    }
+
+    if (e.key === "ArrowRight" && index < maxLength - 1) {
+      next?.focus();
+      return;
     }
   };
 
   return (
     <div className={`mb-4 ${className}`}>
       <label className="block text-xs font-semibold text-ink-900 mb-2">
-        {label} {required && <span className="text-red-500">*</span>}
+        {label} {required ? <span className="text-red-500">*</span> : null}
       </label>
+
       <div className="flex gap-1 flex-wrap">
         {boxes.map((_, index) => (
           <input
             key={index}
+            title={label}
+            placeholder={label}
             type="text"
+            inputMode="text"
             maxLength={1}
             value={value[index] || ""}
             onChange={(e) => handleChange(index, e.target.value)}
             onKeyDown={(e) => handleKeyDown(index, e)}
-            className="w-8 h-10 text-center text-sm font-mono border-2 border-slate-300 rounded focus:border-gold-500 focus:outline-none focus:ring-2 focus:ring-gold-200"
-            style={{ textTransform: "uppercase" }}
+            className={[
+              "w-8 h-10 text-center text-sm font-mono border-2 border-slate-300 rounded",
+              "focus:border-gold-500 focus:outline-none focus:ring-2 focus:ring-gold-200",
+              "uppercase",
+              inputClassName,
+            ].join(" ")}
+            aria-label={`${label} character ${index + 1} of ${maxLength}`}
           />
         ))}
       </div>
@@ -65,39 +104,30 @@ function BoxField({ label, value, onChange, maxLength, required, className = "" 
 }
 
 interface PassportStyleFormProps {
-  initialData?: {
-    firstName?: string;
-    lastName?: string;
-    email?: string;
-    phone?: string;
-    dateOfBirth?: string;
-    policyNumber?: string;
-    insurerName?: string;
-    policyType?: string;
-  };
-  onSubmit: (data: any) => void;
+  initialData?: Partial<PassportFormData>;
+  onSubmit: (data: PassportFormData) => void;
   onPrint?: () => void;
 }
 
 export function PassportStyleForm({ initialData, onSubmit, onPrint }: PassportStyleFormProps) {
-  const [formData, setFormData] = React.useState({
-    firstName: initialData?.firstName || "",
-    lastName: initialData?.lastName || "",
-    email: initialData?.email || "",
-    phone: initialData?.phone || "",
-    dateOfBirth: initialData?.dateOfBirth || "",
-    policyNumber: initialData?.policyNumber || "",
-    insurerName: initialData?.insurerName || "",
-    policyType: initialData?.policyType || "",
+  const [formData, setFormData] = React.useState<PassportFormData>({
+    firstName: initialData?.firstName ?? "",
+    lastName: initialData?.lastName ?? "",
+    email: initialData?.email ?? "",
+    phone: (initialData?.phone ?? "").replace(/\D/g, ""),
+    dateOfBirth: (initialData?.dateOfBirth ?? "").replace(/\D/g, "").slice(0, 8),
+    policyNumber: initialData?.policyNumber ?? "",
+    insurerName: initialData?.insurerName ?? "",
+    policyType: initialData?.policyType ?? "",
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const submit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit(formData);
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 print:space-y-2" id="passport-form">
+    <form onSubmit={submit} className="space-y-4 print:space-y-2" id="passport-form">
       <div className="border-2 border-slate-800 p-6 print:p-4 bg-white">
         <h3 className="text-lg font-bold text-ink-900 mb-4 print:text-base print:mb-2 border-b-2 border-slate-800 pb-2">
           CLIENT INFORMATION UPDATE FORM
@@ -107,14 +137,14 @@ export function PassportStyleForm({ initialData, onSubmit, onPrint }: PassportSt
           <BoxField
             label="First Name"
             value={formData.firstName}
-            onChange={(v) => setFormData({ ...formData, firstName: v })}
+            onChange={(v) => setFormData((p) => ({ ...p, firstName: v }))}
             maxLength={20}
             required
           />
           <BoxField
             label="Last Name"
             value={formData.lastName}
-            onChange={(v) => setFormData({ ...formData, lastName: v })}
+            onChange={(v) => setFormData((p) => ({ ...p, lastName: v }))}
             maxLength={25}
             required
           />
@@ -123,22 +153,22 @@ export function PassportStyleForm({ initialData, onSubmit, onPrint }: PassportSt
         <BoxField
           label="Email Address"
           value={formData.email}
-          onChange={(v) => setFormData({ ...formData, email: v })}
+          onChange={(v) => setFormData((p) => ({ ...p, email: v }))}
           maxLength={50}
           required
         />
 
         <BoxField
           label="Phone Number (Format: 1234567890)"
-          value={formData.phone.replace(/\D/g, "")}
-          onChange={(v) => setFormData({ ...formData, phone: v.replace(/\D/g, "") })}
+          value={formData.phone}
+          onChange={(v) => setFormData((p) => ({ ...p, phone: v.replace(/\D/g, "").slice(0, 10) }))}
           maxLength={10}
         />
 
         <BoxField
           label="Date of Birth (Format: MMDDYYYY)"
-          value={formData.dateOfBirth.replace(/\D/g, "")}
-          onChange={(v) => setFormData({ ...formData, dateOfBirth: v.replace(/\D/g, "").substring(0, 8) })}
+          value={formData.dateOfBirth}
+          onChange={(v) => setFormData((p) => ({ ...p, dateOfBirth: v.replace(/\D/g, "").slice(0, 8) }))}
           maxLength={8}
         />
 
@@ -148,21 +178,21 @@ export function PassportStyleForm({ initialData, onSubmit, onPrint }: PassportSt
           <BoxField
             label="Policy Number"
             value={formData.policyNumber}
-            onChange={(v) => setFormData({ ...formData, policyNumber: v })}
+            onChange={(v) => setFormData((p) => ({ ...p, policyNumber: v }))}
             maxLength={25}
           />
 
           <BoxField
             label="Insurer Name"
             value={formData.insurerName}
-            onChange={(v) => setFormData({ ...formData, insurerName: v })}
+            onChange={(v) => setFormData((p) => ({ ...p, insurerName: v }))}
             maxLength={40}
           />
 
           <BoxField
             label="Policy Type (TERM, WHOLE, UNIVERSAL, GROUP, OTHER)"
             value={formData.policyType}
-            onChange={(v) => setFormData({ ...formData, policyType: v })}
+            onChange={(v) => setFormData((p) => ({ ...p, policyType: v }))}
             maxLength={10}
           />
         </div>
@@ -174,7 +204,8 @@ export function PassportStyleForm({ initialData, onSubmit, onPrint }: PassportSt
           >
             Submit Update
           </button>
-          {onPrint && (
+
+          {onPrint ? (
             <button
               type="button"
               onClick={onPrint}
@@ -182,7 +213,7 @@ export function PassportStyleForm({ initialData, onSubmit, onPrint }: PassportSt
             >
               Print Form
             </button>
-          )}
+          ) : null}
         </div>
 
         <div className="mt-4 text-xs text-slate-600 print:text-[10px]">
@@ -200,4 +231,3 @@ export function PassportStyleForm({ initialData, onSubmit, onPrint }: PassportSt
     </form>
   );
 }
-
