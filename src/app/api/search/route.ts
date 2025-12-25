@@ -106,19 +106,25 @@ export async function POST(req: NextRequest) {
     }> = [];
 
     for (const registry of authorizedRegistries) {
-      // Check decedentName on the registry record
+      // Check decedentName on the registry record first (no DB query needed)
       const decedentName = (registry.decedentName || "").toLowerCase();
       let matchedField: string | undefined;
       
       if (decedentName.includes(searchTerm)) {
         matchedField = "decedent_name";
-      } else {
-        // If not matched on registry record, check version data
+      }
+
+      // Only fetch version data if we need it:
+      // 1. If not matched on decedentName, we need to check version fields
+      // 2. If matched, we need version data for the redacted response
+      let data: Record<string, unknown> | undefined;
+      if (!matchedField || matchedField === "decedent_name") {
         const versions = await getRegistryVersions(registry.id);
         const latestVersion = versions.length > 0 ? versions[0] : null;
+        data = latestVersion?.data_json as Record<string, unknown> | undefined;
 
-        if (latestVersion) {
-          const data = latestVersion.data_json as Record<string, unknown>;
+        // If not matched on registry record, check version data
+        if (!matchedField && data) {
           const insuredName = String(data.insured_name || "").toLowerCase();
           const beneficiaryName = String(data.beneficiary_name || "").toLowerCase();
           const carrierGuess = String(data.carrier_guess || "").toLowerCase();
@@ -133,12 +139,8 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // If matched, get the latest version data for redacted response
+      // If matched, add to results with redacted data
       if (matchedField) {
-        const versions = await getRegistryVersions(registry.id);
-        const latestVersion = versions.length > 0 ? versions[0] : null;
-        const data = latestVersion?.data_json as Record<string, unknown> | undefined;
-
         matchingRegistries.push({
           id: registry.id,
           decedentName: registry.decedentName,
