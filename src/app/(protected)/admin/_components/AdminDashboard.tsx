@@ -103,11 +103,19 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
         const flattened = (data.profiles || []).map((profile: {
           id: string;
           userId: string;
+          licenseStatus: "PENDING" | "ACTIVE" | "SUSPENDED" | "REVOKED";
+          licenseState?: string | null;
+          lawFirm?: string | null;
+          licenseDocumentPath?: string | null;
+          licenseDocumentName?: string | null;
+          appliedAt: string | Date;
+          verifiedAt?: string | Date | null;
           user?: {
             email?: string | null;
             firstName?: string | null;
             lastName?: string | null;
             phone?: string | null;
+            barNumber?: string | null;
           };
         }) => ({
           id: profile.id,
