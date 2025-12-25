@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
       include: {
         client_invites: {
           where: {
-            expires_at: { gt: new Date() },
+            expiresAt: { gt: new Date() },
             used_at: null,
           },
           orderBy: { createdAt: "desc" },
@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
         email: existingInvite.email,
         clientName: `${existingClient.firstName} ${existingClient.lastName}`,
         clientId: existingClient.id,
-        expiresAt: existingInvite.expires_at.toISOString(),
+        expiresAt: existingInvite.expiresAt.toISOString(),
         inviteUrl: inviteUrl,
         inviteCodePage: `${baseUrl}/client/invite-code`,
       });
@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
     });
 
     if (!client) {
-      const clientId = randomUUID();
+      const clientId = crypto.randomUUID();
       const now = new Date();
       client = await prisma.clients.create({
         data: {
@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
           lastName: TEST_CLIENT_NAME.lastName,
           email: TEST_EMAIL,
           createdAt: now,
-          updated_at: now,
+          updatedAt: now,
         },
       });
     }
@@ -96,13 +96,13 @@ export async function POST(req: NextRequest) {
     // Create the invite
     const invite = await prisma.client_invites.create({
       data: {
-        id: randomUUID(),
+        id: crypto.randomUUID(),
         clientId: client.id,
         email: TEST_EMAIL,
         token: TEST_TOKEN,
-        expires_at: expiresAt,
+        expiresAt: expiresAt,
         createdAt: new Date(),
-        updated_at: new Date(),
+        updatedAt: new Date(),
       },
       include: { clients: true },
     });
@@ -123,7 +123,7 @@ export async function POST(req: NextRequest) {
       email: invite.email,
       clientName: `${client.firstName} ${client.lastName}`,
       clientId: client.id,
-      expiresAt: invite.expires_at.toISOString(),
+      expiresAt: invite.expiresAt.toISOString(),
       inviteUrl: inviteUrl,
       inviteCodePage: `${baseUrl}/client/invite-code`,
       instructions: [

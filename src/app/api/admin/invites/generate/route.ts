@@ -127,7 +127,7 @@ export async function POST(req: NextRequest) {
     try {
       // Insert invite
       await prisma.$executeRawUnsafe(`
-        INSERT INTO client_invites (id, client_id, token, email, expires_at, invited_by_user_id, createdAt, updated_at)
+        INSERT INTO client_invites (id, clientId, token, email, expires_at, invited_by_user_id, createdAt, updated_at)
         VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, NOW(), NOW())
       `, client.id, token, normalizedEmail, expiresAt, admin.id);
 

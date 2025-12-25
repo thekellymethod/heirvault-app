@@ -56,7 +56,7 @@ export async function GET(req: NextRequest, { params }: Params) {
     id: string,
     policy_number: string | null;
     policy_type: string | null;
-    verification_status: string,
+    verificationStatus: string,
     insurer_id: string,
     insurer_name: string,
     insurer_contact_phone: string | null;
@@ -66,14 +66,14 @@ export async function GET(req: NextRequest, { params }: Params) {
       p.id,
       p.policy_number,
       p.policy_type,
-      p.verification_status,
+      p.verificationStatus,
       i.id as insurer_id,
       i.name as insurer_name,
       i.contact_phone as insurer_contact_phone,
       i.contact_email as insurer_contact_email
     FROM policies p
     INNER JOIN insurers i ON i.id = p.insurer_id
-    WHERE p.client_id = $1
+    WHERE p.clientId = $1
     ORDER BY p.createdAt DESC
   `, id);
 
@@ -115,7 +115,7 @@ export async function GET(req: NextRequest, { params }: Params) {
   }>>(`
     SELECT id, firstName, lastName, relationship, email, phone, dateOfBirth
     FROM beneficiaries
-    WHERE client_id = $1
+    WHERE clientId = $1
     ORDER BY createdAt DESC
   `, id);
 
@@ -137,7 +137,7 @@ export async function GET(req: NextRequest, { params }: Params) {
     },
     policyNumber: p.policy_number,
     policyType: p.policy_type,
-    verificationStatus: p.verification_status,
+    verificationStatus: p.verificationStatus,
     beneficiaries: policy_beneficiariesData
       .filter((pb) => pb.policy_id === p.id)
       .map((pb) => ({

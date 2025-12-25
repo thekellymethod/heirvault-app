@@ -115,9 +115,9 @@ export async function POST(req: NextRequest) {
       : resolvedCarrierNameRaw || 'Unknown';
     
     await audit(AuditAction.POLICY_CREATED, {
-      clientId: policy.client_id,
+      clientId: policy.clientId,
       policyId: policy.id,
-      message: `Policy created for client ${policy.client_id} with insurer ${insurerDisplayName}${resolvedCarrierNameRaw ? ' (unresolved)' : ''}`,
+      message: `Policy created for client ${policy.clientId} with insurer ${insurerDisplayName}${resolvedCarrierNameRaw ? ' (unresolved)' : ''}`,
     })
 
     // Send email notification to client (if email exists)

@@ -34,7 +34,7 @@ export async function GET(
                 i.name as insurer_name
               FROM policies p
               INNER JOIN insurers i ON i.id = p.insurer_id
-              WHERE p.client_id = ${invite.clientId}
+              WHERE p.clientId = ${invite.clientId}
             `,
             prisma.$queryRaw<Array<{
               id: string,
@@ -55,7 +55,7 @@ export async function GET(
                   0
                 ) as percentage
               FROM beneficiaries b
-              WHERE b.client_id = ${invite.clientId}
+              WHERE b.clientId = ${invite.clientId}
             `,
           ]);
           

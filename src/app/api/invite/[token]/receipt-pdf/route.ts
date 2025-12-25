@@ -65,7 +65,7 @@ export async function GET(
               i.contact_email as insurer_contact_email
             FROM policies p
             INNER JOIN insurers i ON i.id = p.insurer_id
-            WHERE p.client_id = ${clientId}
+            WHERE p.clientId = ${clientId}
           `;
           
           if (policiesResult) {
@@ -128,7 +128,7 @@ export async function GET(
         FROM attorneyClientAccess aca
         LEFT JOIN org_members om ON om.user_id = aca.attorney_id
         LEFT JOIN organizations o ON o.id = om.organization_id
-        WHERE aca.client_id = ${invite.clientId} AND aca.is_active = true
+        WHERE aca.clientId = ${invite.clientId} AND aca.is_active = true
         LIMIT 1
       `;
       

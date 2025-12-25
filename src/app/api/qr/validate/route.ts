@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
     // Check test invites
     const testInvites = await prisma.$queryRawUnsafe<Array<{ token: string }>>(`
       SELECT token FROM client_invites 
-      WHERE client_id = $1 
+      WHERE clientId = $1 
         AND (expires_at > NOW() OR expires_at IS NULL)
       ORDER BY createdAt DESC
       LIMIT 1
@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
       // Check regular invites
       const regularInvites = await prisma.$queryRawUnsafe<Array<{ token: string }>>(`
         SELECT token FROM client_invites 
-        WHERE client_id = $1 
+        WHERE clientId = $1 
           AND expires_at > NOW()
         ORDER BY createdAt DESC
         LIMIT 1

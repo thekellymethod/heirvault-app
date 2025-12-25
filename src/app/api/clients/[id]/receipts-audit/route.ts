@@ -29,12 +29,12 @@ export async function GET(
       SELECT 
         r.id,
         r.receipt_number,
-        r.client_id,
+        r.clientId,
         r.createdAt,
         r.email_sent,
         r.email_sent_at
       FROM receipts r
-      WHERE r.client_id = $1
+      WHERE r.clientId = $1
       ORDER BY r.createdAt DESC
     `, clientId);
 
@@ -56,7 +56,7 @@ export async function GET(
         al.id,
         al.user_id,
         al.org_id,
-        al.client_id,
+        al.clientId,
         al.policy_id,
         al.action,
         al.message,
@@ -66,7 +66,7 @@ export async function GET(
         u.lastName as user_lastName
       FROM audit_logs al
       LEFT JOIN users u ON u.id = al.user_id
-      WHERE al.client_id = $1
+      WHERE al.clientId = $1
       ORDER BY al.createdAt DESC
       LIMIT 1000
     `, clientId);
@@ -85,14 +85,14 @@ export async function GET(
         }>>(`
           SELECT id, policy_number
           FROM policies
-          WHERE client_id = $1
+          WHERE clientId = $1
             AND createdAt <= $2
           ORDER BY createdAt ASC
         `, clientId, receipt.createdAt);
 
         const hash = generateReceiptHash({
           receiptId: receipt.receipt_number,
-          clientId: receipt.client_id,
+          clientId: receipt.clientId,
           createdAt: receipt.createdAt,
           policies: policiesAtReceiptTime.map(p => ({ id: p.id, policyNumber: p.policy_number })),
         });
@@ -115,7 +115,7 @@ export async function GET(
         action: log.action,
         message: log.message,
         userId: log.user_id,
-        clientId: log.client_id,
+        clientId: log.clientId,
         policyId: log.policy_id,
         createdAt: log.createdAt,
         orgId: log.org_id,

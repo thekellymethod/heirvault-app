@@ -37,7 +37,7 @@ export async function POST(
     await prisma.$executeRawUnsafe(`
       UPDATE policies
       SET 
-        verification_status = $2,
+        verificationStatus = $2,
         verified_at = CASE WHEN $2 != 'PENDING' THEN NOW() ELSE verified_at END,
         verified_by_user_id = CASE WHEN $2 != 'PENDING' THEN $3 ELSE verified_by_user_id END,
         verification_notes = $4,

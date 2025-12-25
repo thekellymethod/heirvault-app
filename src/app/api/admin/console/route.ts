@@ -84,7 +84,7 @@ export async function POST(req: Request) {
       action: "GLOBAL_POLICY_SEARCH_PERFORMED", // Use an existing enum value; add a dedicated one later.
       message: `AdminConsole cmd=${cmd}`,
       createdAt: new Date(),
-      // Optional: add org_id/client_id/policy_id if you want later
+      // Optional: add org_id/clientId/policy_id if you want later
     },
   });
 

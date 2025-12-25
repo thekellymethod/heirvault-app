@@ -72,7 +72,7 @@ export async function findClientByFingerprint(
 ): Promise<string | null> {
   try {
     const client = await db.clients.findFirst({
-      where: { client_fingerprint: fingerprint },
+      where: { clientFingerprint: fingerprint },
       select: { id: true },
     });
     

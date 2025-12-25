@@ -47,7 +47,7 @@ export async function GET(
       }>>`
         SELECT 
           ci.id,
-          ci.client_id,
+          ci.clientId,
           ci.email,
           ci.token,
           ci.expires_at,
@@ -56,8 +56,8 @@ export async function GET(
           c.firstName,
           c.lastName
         FROM client_invites ci
-        INNER JOIN clients c ON c.id = ci.client_id
-        WHERE ci.client_id = ${clientId} AND ci.used_at IS NOT NULL
+        INNER JOIN clients c ON c.id = ci.clientId
+        WHERE ci.clientId = ${clientId} AND ci.used_at IS NOT NULL
         ORDER BY ci.createdAt DESC
         LIMIT 1
       `;
@@ -66,7 +66,7 @@ export async function GET(
         const row = rawResult[0];
         invite = {
           id: row.id,
-          clientId: row.client_id,
+          clientId: row.clientId,
           email: row.email,
           token: row.token,
           expiresAt: row.expires_at,
@@ -98,7 +98,7 @@ export async function GET(
             const inviteAny = prismaInvite as Record<string, unknown>;
             invite = {
               id: String(inviteAny.id || ""),
-              clientId: String(inviteAny.client_id || ""),
+              clientId: String(inviteAny.clientId || ""),
               email: String(inviteAny.email || ""),
               token: String(inviteAny.token || ""),
               expiresAt: (inviteAny.expires_at as Date) || new Date(),

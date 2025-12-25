@@ -92,7 +92,7 @@ export async function POST(
     const versionCount = await prisma.$queryRawUnsafe<Array<{ count: number }>>(`
       SELECT COUNT(*)::int as count
       FROM client_versions
-      WHERE client_id = $1
+      WHERE clientId = $1
     `, clientId);
 
     const versionNumber = (versionCount[0]?.count || 0) + 1;
@@ -101,7 +101,7 @@ export async function POST(
     const previousVersion = await prisma.$queryRawUnsafe<Array<{ id: string }>>(`
       SELECT id
       FROM client_versions
-      WHERE client_id = $1
+      WHERE clientId = $1
       ORDER BY version_number DESC
       LIMIT 1
     `, clientId);
@@ -122,7 +122,7 @@ export async function POST(
         COALESCE(i.name, p.carrier_name_raw) as insurer_name
       FROM policies p
       LEFT JOIN insurers i ON i.id = p.insurer_id
-      WHERE p.client_id = $1
+      WHERE p.clientId = $1
       ORDER BY p.createdAt DESC
     `, clientId);
 
@@ -138,7 +138,7 @@ export async function POST(
       SELECT 
         id, firstName, lastName, relationship, email, phone, dateOfBirth
       FROM beneficiaries
-      WHERE client_id = $1
+      WHERE clientId = $1
       ORDER BY createdAt DESC
     `, clientId);
 
@@ -240,7 +240,7 @@ export async function POST(
     const versionId = randomUUID();
     await prisma.$executeRawUnsafe(`
       INSERT INTO client_versions (
-        id, client_id, invite_id, version_number, previous_version_id,
+        id, clientId, invite_id, version_number, previous_version_id,
         client_data, policies_data, beneficiaries_data, changes,
         submitted_by, submission_method, createdAt
       ) VALUES (
@@ -333,7 +333,7 @@ export async function POST(
     const existingPoliciesCount = await prisma.$queryRawUnsafe<Array<{ count: number }>>(`
       SELECT COUNT(*)::int as count
       FROM policies
-      WHERE client_id = $1
+      WHERE clientId = $1
     `, clientId);
 
     const hasExistingPolicies = (existingPoliciesCount[0]?.count || 0) > 0;
@@ -427,7 +427,7 @@ export async function POST(
     // Only delete existing data AFTER validation passes
     // This ensures we never lose data due to invalid submissions
     await prisma.$executeRawUnsafe(`
-      DELETE FROM policies WHERE client_id = $1
+      DELETE FROM policies WHERE clientId = $1
     `, clientId);
 
     // Get or find insurers and insert policies (all validated now)
@@ -449,25 +449,25 @@ export async function POST(
       }
 
       // Create policy
-      // CRITICAL: Explicitly set verification_status to 'PENDING' for consistency
+      // CRITICAL: Explicitly set verificationStatus to 'PENDING' for consistency
       // with policy-intake route. While the database has a default, using raw SQL
       // requires explicit values to ensure consistent behavior across all creation paths.
       await prisma.$executeRawUnsafe(`
-        INSERT INTO policies (id, client_id, insurer_id, carrier_name_raw, policy_number, policy_type, verification_status, createdAt, updated_at)
+        INSERT INTO policies (id, clientId, insurer_id, carrier_name_raw, policy_number, policy_type, verificationStatus, createdAt, updated_at)
         VALUES ($1, $2, $3, $4, $5, $6, 'PENDING', NOW(), NOW())
       `, randomUUID(), clientId, insurerId, carrierNameRaw, policy.policyNumber?.trim() || null, policy.policyType?.trim() || null);
     }
 
     // Only delete existing beneficiaries AFTER validation passes
     await prisma.$executeRawUnsafe(`
-      DELETE FROM beneficiaries WHERE client_id = $1
+      DELETE FROM beneficiaries WHERE clientId = $1
     `, clientId);
 
     // Insert validated beneficiaries
     for (const beneficiary of validBeneficiaries) {
       await prisma.$executeRawUnsafe(`
         INSERT INTO beneficiaries (
-          id, client_id, firstName, lastName, relationship, email, phone, dateOfBirth, createdAt, updated_at
+          id, clientId, firstName, lastName, relationship, email, phone, dateOfBirth, createdAt, updated_at
         ) VALUES (
           $1, $2, $3, $4, $5, $6, $7, 
           CASE WHEN $8 = '' OR $8 IS NULL THEN NULL ELSE $8::date END,
@@ -499,7 +499,7 @@ export async function POST(
         const documentId = randomUUID();
         await prisma.$executeRawUnsafe(`
           INSERT INTO documents (
-            id, client_id, file_name, file_type, file_size, file_path, mime_type,
+            id, clientId, file_name, file_type, file_size, file_path, mime_type,
             uploaded_via, createdAt, updated_at
           ) VALUES (
             $1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW()

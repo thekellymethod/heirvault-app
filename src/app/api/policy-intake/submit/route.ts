@@ -139,7 +139,7 @@ export async function POST(req: NextRequest) {
       documentId = randomUUID();
       await prisma.$executeRawUnsafe(`
         INSERT INTO documents (
-          id, client_id, file_name, file_type, file_size, file_path, mime_type,
+          id, clientId, file_name, file_type, file_size, file_path, mime_type,
           uploaded_via, extracted_data, ocr_confidence, document_hash, createdAt, updated_at
         ) VALUES (
           $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW()
@@ -163,8 +163,8 @@ export async function POST(req: NextRequest) {
     const policyId = randomUUID();
     await prisma.$executeRawUnsafe(`
       INSERT INTO policies (
-        id, client_id, insurer_id, carrier_name_raw, carrier_confidence, policy_number, policy_type,
-        verification_status, document_hash, createdAt, updated_at
+        id, clientId, insurer_id, carrier_name_raw, carrier_confidence, policy_number, policy_type,
+        verificationStatus, document_hash, createdAt, updated_at
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7, 'PENDING', $8, NOW(), NOW()
       )
@@ -190,7 +190,7 @@ export async function POST(req: NextRequest) {
     const submissionId = randomUUID();
     await prisma.$executeRawUnsafe(`
       INSERT INTO submissions (
-        id, client_id, status, submission_type, submitted_data, processed_at, createdAt, updated_at
+        id, clientId, status, submission_type, submitted_data, processed_at, createdAt, updated_at
       ) VALUES (
         $1, $2, 'COMPLETED', 'POLICY_INTAKE', $3, NOW(), NOW(), NOW()
       )
@@ -209,7 +209,7 @@ export async function POST(req: NextRequest) {
     // to ensure hash consistency during verification
     await prisma.$executeRawUnsafe(`
       INSERT INTO receipts (
-        id, client_id, submission_id, receipt_number, createdAt
+        id, clientId, submission_id, receipt_number, createdAt
       ) VALUES (
         $1, $2, $3, $4, NOW()
       )
@@ -248,7 +248,7 @@ export async function POST(req: NextRequest) {
     }>>(`
       SELECT id, policy_number
       FROM policies
-      WHERE client_id = $1
+      WHERE clientId = $1
         AND createdAt <= $2
       ORDER BY createdAt ASC
     `, clientId, receiptCreatedAt);

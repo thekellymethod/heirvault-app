@@ -65,7 +65,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
       i.contact_email as insurer_contact_email
     FROM policies p
     INNER JOIN insurers i ON i.id = p.insurer_id
-    WHERE p.client_id = $1
+    WHERE p.clientId = $1
     ORDER BY p.createdAt DESC
   `, id);
 
@@ -103,7 +103,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
   }>>(`
     SELECT id, firstName, lastName, relationship, email, phone, notes
     FROM beneficiaries
-    WHERE client_id = $1
+    WHERE clientId = $1
     ORDER BY createdAt DESC
   `, id);
 

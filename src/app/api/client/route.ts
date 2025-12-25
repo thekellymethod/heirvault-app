@@ -97,7 +97,7 @@ export async function POST(req: Request) {
     if (existingClientId) {
       // Return existing client instead of creating duplicate
       const existingClient = await prisma.clients.findUnique({
-        where: { id: existingclientId },
+        where: { id: existingClientId },
       });
       
       if (existingClient) {

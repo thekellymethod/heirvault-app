@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
         }>>(`
           SELECT 
             ci.id,
-            ci.client_id,
+            ci.clientId,
             ci.token,
             ci.email,
             ci.expires_at,
@@ -61,7 +61,7 @@ export async function GET(req: NextRequest) {
             c.lastName,
             c.phone
           FROM client_invites ci
-          INNER JOIN clients c ON c.id = ci.client_id
+          INNER JOIN clients c ON c.id = ci.clientId
           WHERE 
             (LOWER(ci.token) LIKE LOWER($1) OR
              LOWER(ci.email) LIKE LOWER($1) OR
@@ -76,7 +76,7 @@ export async function GET(req: NextRequest) {
         invites = invitesResult.map(row => ({
           id: row.id,
           token: row.token,
-          clientId: row.client_id,
+          clientId: row.clientId,
           clientName: `${row.firstName} ${row.lastName}`,
           email: row.email,
           phone: row.phone,
@@ -103,7 +103,7 @@ export async function GET(req: NextRequest) {
         }>>(`
           SELECT 
             ci.id,
-            ci.client_id,
+            ci.clientId,
             ci.token,
             ci.email,
             ci.expires_at,
@@ -113,7 +113,7 @@ export async function GET(req: NextRequest) {
             c.lastName,
             c.phone
           FROM client_invites ci
-          INNER JOIN clients c ON c.id = ci.client_id
+          INNER JOIN clients c ON c.id = ci.clientId
           ${archivedClause}
           ORDER BY ci.createdAt DESC
           LIMIT $1
@@ -123,7 +123,7 @@ export async function GET(req: NextRequest) {
         invites = invitesResult.map(row => ({
           id: row.id,
           token: row.token,
-          clientId: row.client_id,
+          clientId: row.clientId,
           clientName: `${row.firstName} ${row.lastName}`,
           email: row.email,
           phone: row.phone,

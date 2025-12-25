@@ -20,8 +20,8 @@ export default async function OrganizationDetailPage({
   // Verify user is a member of this organization
   const membership = await prisma.org_members.findFirst({
     where: {
-      user_id: currentUser.id,
-      organization_id: orgId,
+      userId: currentUser.id,
+      organizationId: orgId,
     },
     include: {
       organizations: true,
@@ -37,7 +37,7 @@ export default async function OrganizationDetailPage({
 
   // Get all members of this organization
   const members = await prisma.org_members.findMany({
-    where: { organization_id: orgId },
+    where: { organizationId: orgId },
     include: {
       users: {
         select: {

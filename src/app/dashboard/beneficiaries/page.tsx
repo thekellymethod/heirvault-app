@@ -56,15 +56,15 @@ export default async function BeneficiariesPage({
     // Get authorized client IDs for this attorney
     const authorizedClients = await prisma.attorneyClientAccess.findMany({
       where: {
-        attorney_id: user.id,
-        is_active: true,
+        attorneyId: user.id,
+        isActive: true,
       },
       select: {
         clientId: true,
       },
     });
 
-    const authorizedClientIds = authorizedClients.map((ac) => ac.client_id);
+    const authorizedClientIds = authorizedClients.map((ac) => ac.clientId);
 
     if (authorizedClientIds.length === 0) {
       return (
@@ -110,7 +110,7 @@ export default async function BeneficiariesPage({
       phone: b.phone,
       dateOfBirth: b.dateOfBirth,
       createdAt: b.createdAt,
-      updatedAt: b.updated_at,
+      updatedAt: b.updatedAt,
       client: {
         id: b.clients.id,
         firstName: b.clients.firstName,

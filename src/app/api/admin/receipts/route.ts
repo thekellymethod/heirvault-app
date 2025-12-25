@@ -55,7 +55,7 @@ export async function GET(req: NextRequest) {
         }>>(`
           SELECT 
             ci.id,
-            ci.client_id,
+            ci.clientId,
             ci.token,
             ci.email,
             ci.expires_at,
@@ -64,15 +64,15 @@ export async function GET(req: NextRequest) {
             c.firstName,
             c.lastName,
             c.phone,
-            CONCAT('REC-', ci.client_id, '-', EXTRACT(EPOCH FROM ci.createdAt)::bigint) as receipt_id
+            CONCAT('REC-', ci.clientId, '-', EXTRACT(EPOCH FROM ci.createdAt)::bigint) as receipt_id
           FROM client_invites ci
-          INNER JOIN clients c ON c.id = ci.client_id
+          INNER JOIN clients c ON c.id = ci.clientId
           WHERE 
             (LOWER(ci.token) LIKE LOWER($1) OR
              LOWER(ci.email) LIKE LOWER($1) OR
              LOWER(c.firstName) LIKE LOWER($1) OR
              LOWER(c.lastName) LIKE LOWER($1) OR
-             CONCAT('REC-', ci.client_id, '-', EXTRACT(EPOCH FROM ci.createdAt)::bigint) LIKE $1)
+             CONCAT('REC-', ci.clientId, '-', EXTRACT(EPOCH FROM ci.createdAt)::bigint) LIKE $1)
             ${archivedClause}
           ORDER BY ci.createdAt DESC
           LIMIT $2
@@ -81,9 +81,9 @@ export async function GET(req: NextRequest) {
 
         receipts = receiptsResult.map(row => ({
           id: row.id,
-          receiptId: row.receipt_id ?? `REC-${row.client_id}-${Math.floor(row.createdAt.getTime() / 1000)}`,
+          receiptId: row.receipt_id ?? `REC-${row.clientId}-${Math.floor(row.createdAt.getTime() / 1000)}`,
           token: row.token,
-          clientId: row.client_id,
+          clientId: row.clientId,
           clientName: `${row.firstName} ${row.lastName}`,
           email: row.email,
           phone: row.phone,
@@ -109,7 +109,7 @@ export async function GET(req: NextRequest) {
         }>>(`
           SELECT 
             ci.id,
-            ci.client_id,
+            ci.clientId,
             ci.token,
             ci.email,
             ci.expires_at,
@@ -119,7 +119,7 @@ export async function GET(req: NextRequest) {
             c.lastName,
             c.phone
           FROM client_invites ci
-          INNER JOIN clients c ON c.id = ci.client_id
+          INNER JOIN clients c ON c.id = ci.clientId
           ${archivedClause}
           ORDER BY ci.createdAt DESC
           LIMIT $1
@@ -128,9 +128,9 @@ export async function GET(req: NextRequest) {
 
         receipts = receiptsResult.map(row => ({
           id: row.id,
-          receiptId: `REC-${row.client_id}-${Math.floor(row.createdAt.getTime() / 1000)}`,
+          receiptId: `REC-${row.clientId}-${Math.floor(row.createdAt.getTime() / 1000)}`,
           token: row.token,
-          clientId: row.client_id,
+          clientId: row.clientId,
           clientName: `${row.firstName} ${row.lastName}`,
           email: row.email,
           phone: row.phone,
@@ -186,7 +186,7 @@ export async function GET(req: NextRequest) {
       }>>(`
         SELECT 
           ci.id,
-          ci.client_id,
+          ci.clientId,
           ci.token,
           ci.email,
           ci.expires_at,
@@ -196,7 +196,7 @@ export async function GET(req: NextRequest) {
           c.lastName,
           c.phone
         FROM client_invites ci
-        INNER JOIN clients c ON c.id = ci.client_id
+        INNER JOIN clients c ON c.id = ci.clientId
         ${archived ? "WHERE ci.used_at IS NOT NULL" : ""}
         ORDER BY ci.createdAt DESC
         LIMIT $1
@@ -205,9 +205,9 @@ export async function GET(req: NextRequest) {
 
       const receipts = invitesResult.map((invite) => ({
         id: invite.id,
-        receiptId: `REC-${invite.client_id}-${Math.floor(invite.createdAt.getTime() / 1000)}`,
+        receiptId: `REC-${invite.clientId}-${Math.floor(invite.createdAt.getTime() / 1000)}`,
         token: invite.token,
-        clientId: invite.client_id,
+        clientId: invite.clientId,
         clientName: `${invite.firstName} ${invite.lastName}`,
         email: invite.email,
         phone: invite.phone,
@@ -266,7 +266,7 @@ export async function POST(req: NextRequest) {
           await prisma.$executeRawUnsafe(`
             UPDATE client_invites
             SET used_at = NOW(), updated_at = NOW()
-            WHERE client_id = $1 AND used_at IS NULL
+            WHERE clientId = $1 AND used_at IS NULL
             ORDER BY createdAt DESC
             LIMIT 1
           `, clientId);

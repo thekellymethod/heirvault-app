@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
         p.policy_type,
         i.name as insurer_name
       FROM clients c
-      INNER JOIN policies p ON p.client_id = c.id
+      INNER JOIN policies p ON p.clientId = c.id
       INNER JOIN insurers i ON i.id = p.insurer_id
       WHERE c.org_id = $1
         AND LOWER(c.firstName) LIKE LOWER($2)

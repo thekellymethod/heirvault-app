@@ -31,10 +31,10 @@ export async function GET(req: NextRequest) {
         p.id,
         p.policy_number,
         p.policy_type,
-        p.verification_status,
+        p.verificationStatus,
         p.updated_at,
         p.createdAt,
-        p.client_id,
+        p.clientId,
         c.firstName as client_firstName,
         c.lastName as client_lastName,
         c.email as client_email,
@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
         i.name as insurer_name,
         COUNT(DISTINCT d.id)::int as document_count
       FROM policies p
-      INNER JOIN clients c ON c.id = p.client_id
+      INNER JOIN clients c ON c.id = p.clientId
       INNER JOIN insurers i ON i.id = p.insurer_id
       LEFT JOIN documents d ON d.policyId = p.id
       GROUP BY p.id, c.firstName, c.lastName, c.email, i.id, i.name
@@ -55,7 +55,7 @@ export async function GET(req: NextRequest) {
         id: p.id,
         policyNumber: p.policyNumber,
         policyType: p.policyType,
-        verificationStatus: p.verification_status,
+        verificationStatus: p.verificationStatus,
         updatedAt: p.updatedAt,
         createdAt: p.createdAt,
         client: {

@@ -68,10 +68,10 @@ export async function POST(req: NextRequest) {
       });
 
       // Check if client with same fingerprint already exists
-      const existingclientId = await findClientByFingerprint(fingerprint, prisma);
+      const existingClientId = await findClientByFingerprint(fingerprint, prisma);
       if (existingClientId) {
         const existing = await prisma.clients.findFirst({
-          where: { id: existingclientId },
+          where: { id: existingClientId },
         });
         
         if (existing) {

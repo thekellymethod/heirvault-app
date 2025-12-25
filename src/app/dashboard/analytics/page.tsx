@@ -139,13 +139,13 @@ export default async function AnalyticsPage() {
     
     recentInvites = invitesResult.map((inv: InviteRow) => ({
       id: inv.id,
-      clientId: inv.client_id,
+      clientId: inv.clientId,
       email: inv.email,
       token: inv.token,
       createdAt: inv.createdAt,
       usedAt: inv.used_at,
       client: {
-        id: inv.client_id,
+        id: inv.clientId,
         firstName: inv.firstName,
         lastName: inv.lastName,
       },
@@ -162,29 +162,29 @@ export default async function AnalyticsPage() {
         beneficiaryCountResult,
         recentInvitesResult,
       ] = await Promise.all([
-        orgId ? prisma.clients.count({ where: { org_id: orgId } }) : prisma.attorneyClientAccess.count({ where: { attorney_id: user.id, is_active: true } }),
+        orgId ? prisma.clients.count({ where: { orgId: orgId } }) : prisma.attorneyClientAccess.count({ where: { attorneyId: user.id, isActive: true } }),
         orgId ? prisma.policies.count({
-          where: { clients: { org_id: orgId } },
+          where: { clients: { orgId: orgId } },
         }) : prisma.policies.count({
-          where: { clients: { attorneyClientAccess: { some: { attorney_id: user.id, is_active: true } } } },
+          where: { clients: { attorneyClientAccess: { some: { attorneyId: user.id, isActive: true } } } },
         }),
         orgId ? prisma.policies.count({
-          where: { clients: { org_id: orgId }, verification_status: "VERIFIED" },
+          where: { clients: { orgId: orgId }, verificationStatus: "VERIFIED" },
         }) : prisma.policies.count({
-          where: { clients: { attorneyClientAccess: { some: { attorney_id: user.id, is_active: true } } }, verification_status: "VERIFIED" },
+          where: { clients: { attorneyClientAccess: { some: { attorneyId: user.id, isActive: true } } }, verificationStatus: "VERIFIED" },
         }),
         orgId ? prisma.beneficiaries.count({
-          where: { clients: { org_id: orgId } },
+          where: { clients: { orgId: orgId } },
         }) : prisma.beneficiaries.count({
-          where: { clients: { attorneyClientAccess: { some: { attorney_id: user.id, is_active: true } } } },
+          where: { clients: { attorneyClientAccess: { some: { attorneyId: user.id, isActive: true } } } },
         }),
         orgId ? prisma.client_invites.findMany({
-          where: { clients: { org_id: orgId } },
+          where: { clients: { orgId: orgId } },
           include: { clients: true },
           orderBy: { createdAt: "desc" },
           take: 10,
         }) : prisma.client_invites.findMany({
-          where: { clients: { attorneyClientAccess: { some: { attorney_id: user.id, is_active: true } } } },
+          where: { clients: { attorneyClientAccess: { some: { attorneyId: user.id, isActive: true } } } },
           include: { clients: true },
           orderBy: { createdAt: "desc" },
           take: 10,
@@ -197,13 +197,13 @@ export default async function AnalyticsPage() {
       beneficiaryCount = beneficiaryCountResult;
       recentInvites = recentInvitesResult.map((inv) => ({
         id: inv.id,
-        clientId: inv.client_id,
+        clientId: inv.clientId,
         email: inv.email,
         token: inv.token,
         createdAt: inv.createdAt,
-        usedAt: inv.used_at,
+        usedAt: inv.usedAt,
         client: {
-          id: inv.clients.id,
+          id: inv.clientId,
           firstName: inv.clients.firstName,
           lastName: inv.clients.lastName,
         },

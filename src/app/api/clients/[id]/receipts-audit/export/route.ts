@@ -47,7 +47,7 @@ export async function GET(
     }>>(`
       SELECT receipt_number, createdAt, email_sent, email_sent_at
       FROM receipts
-      WHERE client_id = $1
+      WHERE clientId = $1
       ORDER BY createdAt DESC
     `, clientId);
 
@@ -69,7 +69,7 @@ export async function GET(
         u.lastName as user_lastName
       FROM audit_logs al
       LEFT JOIN users u ON u.id = al.user_id
-      WHERE al.client_id = $1
+      WHERE al.clientId = $1
       ORDER BY al.createdAt DESC
       LIMIT 1000
     `, clientId);

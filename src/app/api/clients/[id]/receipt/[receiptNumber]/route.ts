@@ -25,9 +25,9 @@ export async function GET(
       clientId: string,
       createdAt: Date;
     }>>(`
-      SELECT id, receipt_number, client_id, createdAt
+      SELECT id, receipt_number, clientId, createdAt
       FROM receipts
-      WHERE client_id = $1 AND receipt_number = $2
+      WHERE clientId = $1 AND receipt_number = $2
       LIMIT 1
     `, clientId, receiptNumber);
 
@@ -79,7 +79,7 @@ export async function GET(
         i.contact_email as insurer_contact_email
       FROM policies p
       INNER JOIN insurers i ON i.id = p.insurer_id
-      WHERE p.client_id = $1
+      WHERE p.clientId = $1
         AND p.createdAt <= $2
       ORDER BY p.createdAt ASC
     `, clientId, receipt.createdAt);
@@ -100,7 +100,7 @@ export async function GET(
         FROM organizations o
         INNER JOIN org_members om ON om.organization_id = o.id
         INNER JOIN attorneyClientAccess aca ON aca.organization_id = o.id
-        WHERE aca.client_id = $1 AND aca.is_active = true
+        WHERE aca.clientId = $1 AND aca.is_active = true
         LIMIT 1
       `, clientId);
 

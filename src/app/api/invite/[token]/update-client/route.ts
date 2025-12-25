@@ -109,7 +109,7 @@ export async function POST(
       try {
         // Delete existing policies
         await prisma.$executeRaw`
-          DELETE FROM policies WHERE client_id = ${clientId}
+          DELETE FROM policies WHERE clientId = ${clientId}
         `;
 
         // Create new policies
@@ -140,7 +140,7 @@ export async function POST(
             // Create policy using raw SQL (with optional insurer_id and carrier_name_raw)
             const policyId = randomUUID();
             await prisma.$executeRaw`
-              INSERT INTO policies (id, client_id, insurer_id, carrier_name_raw, policy_number, policy_type, createdAt, updated_at)
+              INSERT INTO policies (id, clientId, insurer_id, carrier_name_raw, policy_number, policy_type, createdAt, updated_at)
               VALUES (${policyId}, ${clientId}, ${insurerId}, ${carrierNameRaw}, ${policy.policyNumber || null}, ${policy.policyType || null}, NOW(), NOW())
             `;
           }
@@ -157,7 +157,7 @@ export async function POST(
       try {
         // Delete existing beneficiaries
         await prisma.$executeRaw`
-          DELETE FROM beneficiaries WHERE client_id = ${clientId}
+          DELETE FROM beneficiaries WHERE clientId = ${clientId}
         `;
 
         // Create new beneficiaries
@@ -165,7 +165,7 @@ export async function POST(
           if (beneficiary.firstName && beneficiary.lastName) {
             const beneficiaryId = randomUUID();
             await prisma.$executeRaw`
-              INSERT INTO beneficiaries (id, client_id, firstName, lastName, relationship, createdAt, updated_at)
+              INSERT INTO beneficiaries (id, clientId, firstName, lastName, relationship, createdAt, updated_at)
               VALUES (${beneficiaryId}, ${clientId}, ${beneficiary.firstName}, ${beneficiary.lastName}, ${beneficiary.relationship || null}, NOW(), NOW())
             `;
           }
@@ -245,7 +245,7 @@ export async function POST(
         INNER JOIN users u ON u.id = aca.attorney_id
         LEFT JOIN org_members om ON om.user_id = aca.attorney_id
         LEFT JOIN organizations o ON o.id = om.organization_id
-        WHERE aca.client_id = ${clientId} AND aca.is_active = true
+        WHERE aca.clientId = ${clientId} AND aca.is_active = true
         LIMIT 1
       `;
       
@@ -328,7 +328,7 @@ export async function POST(
             i.contact_email as insurer_contact_email
           FROM policies p
           LEFT JOIN insurers i ON i.id = p.insurer_id
-          WHERE p.client_id = ${clientId}
+          WHERE p.clientId = ${clientId}
         `,
       ]);
       

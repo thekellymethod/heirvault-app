@@ -216,16 +216,16 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
 
         const existingDoc = await prisma.$queryRaw<DocumentRow[]>(
           Prisma.sql`
-            SELECT id, client_id, policy_id, extracted_data, ocr_confidence
+            SELECT id, clientId, policy_id, extracted_data, ocr_confidence
             FROM documents
-            WHERE document_hash = ${documentHash} AND client_id = ${clientId}
+            WHERE document_hash = ${documentHash} AND clientId = ${clientId}
             LIMIT 1
           `
         );
 
         if (existingDoc.length > 0) {
           const row = existingDoc[0];
-          archivedDocument = { id: row.id, clientId: row.client_id, policyId: row.policy_id, fileName: file.name };
+          archivedDocument = { id: row.id, clientId: row.clientId, policyId: row.policy_id, fileName: file.name };
 
           if (isRecord(row.extracted_data)) {
             const d = row.extracted_data;
@@ -247,15 +247,15 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
         } else {
           const otherClientDoc = await prisma.$queryRaw<Array<{ id: string, clientId: string }>>(
             Prisma.sql`
-              SELECT id, client_id
+              SELECT id, clientId
               FROM documents
-              WHERE document_hash = ${documentHash} AND client_id != ${clientId}
+              WHERE document_hash = ${documentHash} AND clientId != ${clientId}
               LIMIT 1
             `
           );
           if (otherClientDoc.length > 0) {
             console.warn(
-              `Document hash collision: ${documentHash.slice(0, 16)}... exists for client ${otherClientDoc[0].client_id}; creating new for ${clientId}`
+              `Document hash collision: ${documentHash.slice(0, 16)}... exists for client ${otherClientDoc[0].clientId}; creating new for ${clientId}`
             );
           }
 
@@ -285,7 +285,7 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
           await prisma.$executeRaw(
             Prisma.sql`
               INSERT INTO documents (
-                id, client_id, file_name, file_type, file_size, file_path, mime_type,
+                id, clientId, file_name, file_type, file_size, file_path, mime_type,
                 uploaded_via, extracted_data, ocr_confidence, document_hash, createdAt, updated_at
               ) VALUES (
                 ${documentId},
@@ -332,9 +332,9 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
 
           const existingDoc = await prisma.$queryRaw<Array<{ id: string, clientId: string, policy_id: string | null }>>(
             Prisma.sql`
-              SELECT id, client_id, policy_id
+              SELECT id, clientId, policy_id
               FROM documents
-              WHERE document_hash = ${documentHash} AND client_id = ${clientId}
+              WHERE document_hash = ${documentHash} AND clientId = ${clientId}
               LIMIT 1
             `
           );
@@ -342,7 +342,7 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
           if (existingDoc.length > 0) {
             archivedDocument = {
               id: existingDoc[0].id,
-              clientId: existingDoc[0].client_id,
+              clientId: existingDoc[0].clientId,
               policyId: existingDoc[0].policy_id,
               fileName: file.name,
             };
@@ -357,7 +357,7 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
             await prisma.$executeRaw(
               Prisma.sql`
                 INSERT INTO documents (
-                  id, client_id, file_name, file_type, file_size, file_path, mime_type,
+                  id, clientId, file_name, file_type, file_size, file_path, mime_type,
                   uploaded_via, extracted_data, ocr_confidence, document_hash, createdAt, updated_at
                 ) VALUES (
                   ${documentId},
@@ -431,7 +431,7 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
           Prisma.sql`
             SELECT id
             FROM policies
-            WHERE client_id = ${invite.clientId}
+            WHERE clientId = ${invite.clientId}
               AND (policy_number = ${policyNumber} OR (policy_number IS NULL AND ${policyNumber} IS NULL))
               AND (
                 (insurer_id IS NOT NULL AND insurer_id = ${insurerId})
@@ -448,7 +448,7 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
           await prisma.$executeRaw(
             Prisma.sql`
               INSERT INTO policies (
-                id, client_id, insurer_id, carrier_name_raw, policy_number, policy_type, createdAt, updated_at
+                id, clientId, insurer_id, carrier_name_raw, policy_number, policy_type, createdAt, updated_at
               ) VALUES (
                 ${policyId}, ${clientId}, ${insurerId}, ${carrierNameRaw}, ${policyNumber}, ${policyType}, NOW(), NOW()
               )
@@ -469,7 +469,7 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
             UPDATE documents
             SET policy_id = ${policyId}, updated_at = NOW()
             WHERE id = ${archivedDocument.id} 
-              AND client_id = ${clientId}
+              AND clientId = ${clientId}
               AND policy_id IS NULL
           `
         );
@@ -619,7 +619,7 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
           INNER JOIN users u ON u.id = aca.attorney_id
           LEFT JOIN org_members om ON om.user_id = aca.attorney_id
           LEFT JOIN organizations o ON o.id = om.organization_id
-          WHERE aca.client_id = ${clientId} AND aca.is_active = true
+          WHERE aca.clientId = ${clientId} AND aca.is_active = true
           LIMIT 1
         `
       );
@@ -673,7 +673,7 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
               i.contact_email as insurer_contact_email
             FROM policies p
             LEFT JOIN insurers i ON i.id = p.insurer_id
-            WHERE p.client_id = ${clientId}
+            WHERE p.clientId = ${clientId}
           `
         ),
       ]);

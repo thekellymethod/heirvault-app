@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
       }>>(`
         SELECT 
           id,
-          client_id,
+          clientId,
           token,
           email,
           expires_at,
@@ -104,9 +104,9 @@ export async function POST(req: NextRequest) {
     // Audit log the reactivation
     try {
       await audit(AuditAction.INVITE_REACTIVATED, {
-        message: `Admin ${admin.email} reactivated invite code ${token} for client ${invite.client_id}`,
+        message: `Admin ${admin.email} reactivated invite code ${token} for client ${invite.clientId}`,
         userId: admin.id,
-        clientId: invite.client_id,
+        clientId: invite.clientId,
       });
     } catch (auditError: unknown) {
       const auditErrorMessage = auditError instanceof Error ? auditError.message : String(auditError);

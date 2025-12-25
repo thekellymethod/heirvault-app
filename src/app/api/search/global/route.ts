@@ -122,7 +122,7 @@ export async function GET(req: Request) {
           p.policy_number,
           p.policy_type,
           p.createdAt as policy_createdAt,
-          c.id as client_id,
+          c.id as clientId,
           c.firstName as client_firstName,
           c.lastName as client_lastName,
           c.email as client_email,
@@ -130,7 +130,7 @@ export async function GET(req: Request) {
           o.name as client_org_name,
           i.name as insurer_name
         FROM policies p
-        INNER JOIN clients c ON c.id = p.client_id
+        INNER JOIN clients c ON c.id = p.clientId
         LEFT JOIN organizations o ON o.id = c.org_id
         INNER JOIN insurers i ON i.id = p.insurer_id
         WHERE 
@@ -147,7 +147,7 @@ export async function GET(req: Request) {
         policyType: row.policy_type,
         createdAt: row.policy_createdAt,
         client: {
-          id: row.client_id,
+          id: row.clientId,
           firstName: row.client_firstName,
           lastName: row.client_lastName,
           email: row.client_email,

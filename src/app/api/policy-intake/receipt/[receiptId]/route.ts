@@ -30,7 +30,7 @@ export async function GET(
       createdAt: Date;
     }>>(`
       SELECT 
-        id, receipt_number, client_id, submission_id, createdAt
+        id, receipt_number, clientId, submission_id, createdAt
       FROM receipts
       WHERE receipt_number = $1
       LIMIT 1
@@ -77,7 +77,7 @@ export async function GET(
       FROM clients
       WHERE id = $1
       LIMIT 1
-    `, receiptData.client_id);
+    `, receiptData.clientId);
 
     // Fetch policy data
     const policy = await prisma.$queryRawUnsafe<Array<{
@@ -87,10 +87,10 @@ export async function GET(
     }>>(`
       SELECT policy_number, policy_type, insurer_id
       FROM policies
-      WHERE client_id = $1
+      WHERE clientId = $1
       ORDER BY createdAt DESC
       LIMIT 1
-    `, receiptData.client_id);
+    `, receiptData.clientId);
 
     // Fetch insurer name
     let insurerName: string | null = null;
