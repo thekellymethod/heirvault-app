@@ -3,10 +3,10 @@ import OpenAI from "openai";
 import { NL_PLAN_SCHEMA } from "./schema";
 
 type CommandMeta = {
-  id: string;
-  title: string;
-  description: string;
-  usage: string;
+  id: string,
+  title: string,
+  description: string,
+  usage: string,
   // For validation hints
   argsSpec?: Record<string, string>;
 };
@@ -14,10 +14,10 @@ type CommandMeta = {
 export type NLPlan = {
   cmd: string | null;
   args: Record<string, unknown>;
-  next: Array<{ cmd: string; args: Record<string, unknown> }>;
+  next: Array<{ cmd: string, args: Record<string, unknown> }>;
   requiresConfirm: boolean;
   confidence: number;
-  explanation: string;
+  explanation: string,
   safetyFlags: string[];
 };
 
@@ -60,7 +60,7 @@ function validateAndNormalizePlan(plan: NLPlan, commandList: Array<{ id: string 
 }
 
 export async function translateNLToPlan(input: {
-  text: string;
+  text: string,
   commands: CommandMeta[];
 }): Promise<NLPlan> {
   if (!nlEnabled()) {

@@ -24,9 +24,9 @@ export async function GET() {
 
     // Check column existence and uniqueness
     const columnInfo = await prisma.$queryRawUnsafe<Array<{
-      column_name: string;
-      data_type: string;
-      is_nullable: string;
+      column_name: string,
+      data_type: string,
+      is_nullable: string,
     }>>(`
       SELECT 
         column_name,
@@ -41,8 +41,8 @@ export async function GET() {
 
     // Check for unique constraints/indexes on clerkId columns
     const uniqueConstraints = await prisma.$queryRawUnsafe<Array<{
-      index_name: string;
-      column_name: string;
+      index_name: string,
+      column_name: string,
       is_unique: boolean;
     }>>(`
       SELECT
@@ -63,8 +63,8 @@ export async function GET() {
 
     // Check all indexes (unique and non-unique) for reference
     const allIndexes = await prisma.$queryRawUnsafe<Array<{
-      index_name: string;
-      column_name: string;
+      index_name: string,
+      column_name: string,
       is_unique: boolean;
     }>>(`
       SELECT

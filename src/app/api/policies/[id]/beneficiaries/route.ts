@@ -7,28 +7,28 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await requireAuth("attorney");
+    const user = await requireAuth();
     const { id: policyId } = await params;
 
     const policy = await prisma.policies.findUnique({
       where: { id: policyId },
       select: {
         id: true,
-        client_id: true,
+        clientId: true,
         policy_beneficiaries: {
-          orderBy: { created_at: "desc" },
+          orderBy: { createdAt: "desc" },
           select: {
             id: true,
-            created_at: true,
+            createdAt: true,
             beneficiaries: {
               select: {
                 id: true,
-                first_name: true,
-                last_name: true,
+                firstName: true,
+                lastName: true,
                 relationship: true,
                 email: true,
                 phone: true,
-                date_of_birth: true,
+                dateOfBirth: true,
               },
             },
           },
@@ -40,11 +40,11 @@ export async function GET(
       return NextResponse.json({ error: "Policy not found" }, { status: 404 });
     }
 
-    const access = await prisma.attorney_client_access.findFirst({
+    const access = await prisma.attorneyClientAccess.findFirst({
       where: {
-        attorney_id: user.id,
-        client_id: policy.client_id,
-        is_active: true,
+        attorneyId: user.id,
+        clientId: policy.clientId,
+        isActive: true,
       },
       select: { id: true },
     });
@@ -54,17 +54,17 @@ export async function GET(
     }
 
     const allClientBeneficiaries = await prisma.beneficiaries.findMany({
-      where: { client_id: policy.client_id },
-      orderBy: { created_at: "desc" },
+      where: { clientId: policy.clientId },
+      orderBy: { createdAt: "desc" },
       select: {
         id: true,
-        first_name: true,
-        last_name: true,
+        firstName: true,
+        lastName: true,
         relationship: true,
         email: true,
         phone: true,
-        date_of_birth: true,
-        created_at: true,
+        dateOfBirth: true,
+        createdAt: true,
       },
     });
 
@@ -75,27 +75,27 @@ export async function GET(
     return NextResponse.json({
       attached: policy.policy_beneficiaries.map((pb) => ({
         linkId: pb.id,
-        attachedAt: pb.created_at,
+        attachedAt: pb.createdAt,
         beneficiaryId: pb.beneficiaries.id,
         id: pb.beneficiaries.id,
-        firstName: pb.beneficiaries.first_name,
-        lastName: pb.beneficiaries.last_name,
+        firstName: pb.beneficiaries.firstName,
+        lastName: pb.beneficiaries.lastName,
         relationship: pb.beneficiaries.relationship,
         email: pb.beneficiaries.email,
         phone: pb.beneficiaries.phone,
-        dateOfBirth: pb.beneficiaries.date_of_birth,
+        dateOfBirth: pb.beneficiaries.dateOfBirth,
       })),
       available: allClientBeneficiaries
         .filter((b) => !attachedIds.has(b.id))
         .map((b) => ({
           id: b.id,
-          firstName: b.first_name,
-          lastName: b.last_name,
+          firstName: b.firstName,
+          lastName: b.lastName,
           relationship: b.relationship,
           email: b.email,
           phone: b.phone,
-          dateOfBirth: b.date_of_birth,
-          createdAt: b.created_at,
+          dateOfBirth: b.dateOfBirth,
+          createdAt: b.createdAt,
         })),
     });
   } catch {
@@ -111,7 +111,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await requireAuth("attorney");
+    const user = await requireAuth();
     const { id: policyId } = await params;
     const { beneficiaryId } = await req.json();
 
@@ -124,7 +124,7 @@ export async function POST(
 
     const policy = await prisma.policies.findUnique({
       where: { id: policyId },
-      select: { client_id: true },
+      select: { clientId: true },
     });
 
     if (!policy) {
@@ -136,8 +136,8 @@ export async function POST(
 
     const existingLink = await prisma.policy_beneficiaries.findFirst({
       where: {
-        policy_id: policyId,
-        beneficiary_id: beneficiaryId,
+        policyId: policyId,
+        beneficiaryId: beneficiaryId,
       },
     });
 
@@ -145,11 +145,11 @@ export async function POST(
       await prisma.policy_beneficiaries.create({
         data: {
           id: randomUUID(),
-          policy_id: policyId,
-          beneficiary_id: beneficiaryId,
-          share_percentage: null,
-          created_at: new Date(),
-          updated_at: new Date(),
+          policyId: policyId,
+          beneficiaryId: beneficiaryId,
+          sharePercentage: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
         },
       });
     }
@@ -168,7 +168,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await requireAuth("attorney");
+    const user = await requireAuth();
     const { id: policyId } = await params;
     const { beneficiaryId } = await req.json();
 
@@ -181,7 +181,7 @@ export async function DELETE(
 
     const policy = await prisma.policies.findUnique({
       where: { id: policyId },
-      select: { client_id: true },
+      select: { clientId: true },
     });
 
     if (!policy) {
@@ -192,7 +192,7 @@ export async function DELETE(
     // (already checked above)
 
     await prisma.policy_beneficiaries.deleteMany({
-      where: { policy_id: policyId, beneficiary_id: beneficiaryId },
+      where: { policyId: policyId, beneficiaryId: beneficiaryId },
     });
 
     return NextResponse.json({ ok: true });

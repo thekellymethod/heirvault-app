@@ -11,13 +11,13 @@ import {
 } from "lucide-react";
 
 interface AccessLog {
-  id: string;
+  id: string,
   timestamp: Date;
   userId: string | null;
   userEmail?: string | null;
   userName?: string | null;
-  action: string;
-  registryId: string;
+  action: string,
+  registryId: string,
   metadata: Record<string, unknown> | null;
 }
 
@@ -27,11 +27,11 @@ interface AuditViewProps {
   currentPage: number;
   pageSize: number;
   filters: {
-    action: string;
-    registryId: string;
-    userId: string;
-    startDate: string;
-    endDate: string;
+    action: string,
+    registryId: string,
+    userId: string,
+    startDate: string,
+    endDate: string,
   };
 }
 

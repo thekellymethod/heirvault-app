@@ -8,25 +8,25 @@ import { Input } from "@/components/ui/input";
 import { Plus, Trash2, Mail, Phone, CheckCircle, AlertCircle, Save } from "lucide-react";
 
 interface Policy {
-  id?: string;
-  policyNumber: string;
-  insurerName: string;
-  policyType: string;
+  id?: string,
+  policyNumber: string,
+  insurerName: string,
+  policyType: string,
 }
 
 interface Beneficiary {
-  id?: string;
-  firstName: string;
-  lastName: string;
-  relationship: string;
+  id?: string,
+  firstName: string,
+  lastName: string,
+  relationship: string,
   percentage: number;
 }
 
 interface Address {
-  street: string;
-  city: string;
-  state: string;
-  zipCode: string;
+  street: string,
+  city: string,
+  state: string,
+  zipCode: string,
 }
 
 export default function UpdatePolicyPage() {
@@ -42,10 +42,10 @@ export default function UpdatePolicyPage() {
   const [confirmationMethod, setConfirmationMethod] = useState<"email" | "phone" | null>(null);
   const [confirmationCode, setConfirmationCode] = useState("");
   const [clientData, setClientData] = useState<{
-    id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
+    id: string,
+    firstName: string,
+    lastName: string,
+    email: string,
     phone: string | null;
     policies?: Policy[];
     beneficiaries?: Beneficiary[];

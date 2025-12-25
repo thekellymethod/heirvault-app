@@ -47,15 +47,15 @@ export async function GET(req: NextRequest) {
 
     // Build search query - search across ALL organizations
     const where: {
-      first_name: { contains: string; mode: "insensitive" };
-      last_name: { contains: string; mode: "insensitive" };
-      date_of_birth?: Date;
+      firstName: { contains: string, mode: "insensitive" };
+      lastName: { contains: string, mode: "insensitive" };
+      dateOfBirth?: Date;
     } = {
-      first_name: {
+      firstName: {
         contains: firstName,
         mode: "insensitive",
       },
-      last_name: {
+      lastName: {
         contains: lastName,
         mode: "insensitive",
       },
@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
 
     // Add optional filters
     if (dateOfBirth) {
-      where.date_of_birth = new Date(dateOfBirth);
+      where.dateOfBirth = new Date(dateOfBirth);
     }
 
     if (dateOfDeath) {
@@ -92,8 +92,8 @@ export async function GET(req: NextRequest) {
               include: {
                 beneficiaries: {
                   select: {
-                    first_name: true,
-                    last_name: true,
+                    firstName: true,
+                    lastName: true,
                     relationship: true,
                   },
                 },
@@ -114,8 +114,8 @@ export async function GET(req: NextRequest) {
         insurerName: policy.insurers?.name || null,
         client: {
           id: client.id,
-          firstName: client.first_name,
-          lastName: client.last_name,
+          firstName: client.firstName,
+          lastName: client.lastName,
           email: client.email,
           organization: client.organizations ? {
             id: client.organizations.id,
@@ -123,8 +123,8 @@ export async function GET(req: NextRequest) {
           } : null,
         },
         beneficiaries: policy.policy_beneficiaries.map((pb) => ({
-          firstName: pb.beneficiaries.first_name,
-          lastName: pb.beneficiaries.last_name,
+          firstName: pb.beneficiaries.firstName,
+          lastName: pb.beneficiaries.lastName,
           relationship: pb.beneficiaries.relationship,
         })),
       }))
@@ -140,7 +140,7 @@ export async function GET(req: NextRequest) {
           message: `Global policy search: ${firstName} ${lastName}${dateOfBirth ? ` (DOB: ${dateOfBirth})` : ""}${proofOfDeathCertNumber ? ` | Death Cert: ${proofOfDeathCertNumber}` : ""} | Results: ${results.length} policy(ies)`,
           user_id: user.id,
           org_id: userWithOrg?.org_members?.[0]?.organizations?.id || userWithOrg?.org_members?.[0]?.organization_id || null,
-          created_at: new Date(),
+          createdAt: new Date(),
         },
       });
     } catch (auditError) {

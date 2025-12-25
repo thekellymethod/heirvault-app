@@ -8,10 +8,10 @@ import { db } from "@/lib/db";
 import { randomUUID } from "crypto";
 
 export interface TestContext {
-  testOrgId: string;
-  testAttorneyId: string;
-  testClientId: string;
-  testInsurerId: string;
+  testOrgId: string,
+  testAttorneyId: string,
+  testClientId: string,
+  testInsurerId: string,
   cleanup: () => Promise<void>;
 }
 
@@ -60,7 +60,7 @@ export async function createTestContext(): Promise<TestContext> {
       email: `test_client_${Date.now()}@test.com`,
     })
     .returning();
-  const testClientId = testClient.id;
+  const testclientId = testClient.id;
 
   // Grant attorney access to client
   await db.insert(attorneyClientAccess)

@@ -68,10 +68,10 @@ export async function POST(req: NextRequest) {
       });
 
       // Check if client with same fingerprint already exists
-      const existingClientId = await findClientByFingerprint(fingerprint, prisma);
+      const existingclientId = await findClientByFingerprint(fingerprint, prisma);
       if (existingClientId) {
         const existing = await prisma.clients.findFirst({
-          where: { id: existingClientId },
+          where: { id: existingclientId },
         });
         
         if (existing) {
@@ -83,13 +83,14 @@ export async function POST(req: NextRequest) {
         // Create new client
         const newClient = await prisma.clients.create({
           data: {
+            id: randomUUID(),
             email,
-            first_name: firstName,
-            last_name: lastName,
+            firstName: firstName,
+            lastName: lastName,
             phone: phone || null,
-            date_of_birth: dateOfBirth ? new Date(dateOfBirth) : null,
-            org_id: organizationId,
-            client_fingerprint: fingerprint,
+            dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
+            orgId: organizationId,
+            clientFingerprint: fingerprint,
           },
         });
         
@@ -98,14 +99,15 @@ export async function POST(req: NextRequest) {
 
       // Grant attorney access
       try {
-        await prisma.attorney_client_access.create({
+        const now = new Date();
+        await prisma.attorneyClientAccess.create({
           data: {
             id: randomUUID(),
-            attorney_id: user.id,
-            client_id: client.id,
-            organization_id: organizationId,
-            is_active: true,
-            granted_at: now,
+            attorneyId: user.id,
+            clientId: client.id,
+            organizationId: organizationId,
+            isActive: true,
+            grantedAt: now,
           },
         });
       } catch (error: unknown) {
@@ -135,11 +137,12 @@ export async function POST(req: NextRequest) {
       // Create invite
       const newInvite = await prisma.client_invites.create({
         data: {
-          client_id: client.id,
+          id: randomUUID(),
+          clientId: client.id,
           email,
           token,
-          expires_at: expiresAt,
-          invited_by_user_id: user.id,
+          expiresAt: expiresAt,
+          invitedByUserId: user.id,
         },
       });
       
@@ -154,7 +157,7 @@ export async function POST(req: NextRequest) {
       try {
         await sendClientInviteEmail({
           to: email,
-          clientName: `${client.first_name} ${client.last_name}`,
+          clientName: `${client.firstName} ${client.lastName}`,
           firmName: organizationName,
           inviteUrl,
         })
@@ -177,14 +180,14 @@ export async function POST(req: NextRequest) {
         client: {
           id: client.id,
           email: client.email,
-          firstName: client.first_name,
-          lastName: client.last_name,
+          firstName: client.firstName,
+          lastName: client.lastName,
         },
         invite: invite
           ? {
               id: invite.id,
               inviteUrl,
-              expiresAt: invite.expires_at,
+              expiresAt: invite.expiresAt,
               token: invite.token,
             }
           : null,

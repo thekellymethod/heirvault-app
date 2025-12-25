@@ -135,7 +135,7 @@ CREATE TABLE registry_permissions (
   registry_id UUID NOT NULL REFERENCES registry_records(id) ON DELETE CASCADE,
   user_id TEXT NOT NULL,  -- Clerk user ID
   role TEXT NOT NULL CHECK (role IN ('OWNER', 'ADMIN', 'ATTORNEY', 'EDITOR', 'VIEWER', 'SYSTEM')),
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  createdAt TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE(registry_id, user_id)
 );
 ```

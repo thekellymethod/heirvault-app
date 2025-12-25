@@ -3,7 +3,7 @@
 import { useState } from "react";
 import styles from "./update-form.module.css";
 
-export default function UpdateForm(props: { token: string; defaultInsured: string; defaultCarrier: string }) {
+export default function UpdateForm(props: { token: string, defaultInsured: string, defaultCarrier: string }) {
   const [loading, setLoading] = useState(false);
   const [receipt, setReceipt] = useState<Record<string, unknown> | null>(null);
   const [error, setError] = useState<string | null>(null);

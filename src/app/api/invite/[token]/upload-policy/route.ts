@@ -36,15 +36,15 @@ type ExtractedPolicyData = {
 };
 
 type DocumentRow = {
-  id: string;
-  client_id: string;
+  id: string,
+  clientId: string,
   policy_id: string | null;
   extracted_data: unknown | null;
   ocr_confidence: number | null;
 };
 
 type PolicyRow = {
-  id: string;
+  id: string,
   policy_number: string | null;
   policy_type: string | null;
   carrier_name_raw: string | null;
@@ -54,22 +54,22 @@ type PolicyRow = {
 };
 
 type ClientRow = {
-  id: string;
-  first_name: string;
-  last_name: string;
-  email: string;
+  id: string,
+  firstName: string,
+  lastName: string,
+  email: string,
   phone: string | null;
-  date_of_birth: Date | null;
-  created_at: Date;
+  dateOfBirth: Date | null;
+  createdAt: Date;
 };
 
 type AttorneyAccessRow = {
-  attorney_id: string;
-  attorney_email: string;
-  attorney_first_name: string | null;
-  attorney_last_name: string | null;
-  org_id: string;
-  org_name: string;
+  attorney_id: string,
+  attorney_email: string,
+  attorney_firstName: string | null;
+  attorney_lastName: string | null;
+  org_id: string,
+  org_name: string,
   org_address_line1: string | null;
   org_address_line2: string | null;
   org_city: string | null;
@@ -79,10 +79,10 @@ type AttorneyAccessRow = {
 };
 
 type ArchivedDocument = {
-  id: string;
-  clientId: string;
+  id: string,
+  clientId: string,
   policyId: string | null;
-  fileName?: string;
+  fileName?: string,
 };
 
 function safeJson<T>(text: string): T {
@@ -143,13 +143,33 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
     let invite: InviteLookupResult | null = await getOrCreateTestInvite(token);
     if (!invite) invite = await lookupClientInvite(token);
 
-    if (!invite) {
+    if (!invite || typeof invite !== 'object' || !('expiresAt' in invite) || !('clientId' in invite) || !('client' in invite) || !('id' in invite)) {
       return NextResponse.json({ error: "Invalid invitation code" }, { status: 404 });
     }
+    
+    // Extract properties with type assertion after type guard
+    const typedInvite = invite as { 
+      id: string,
+      expiresAt: Date; 
+      clientId: string,
+      usedAt?: Date | null;
+      client: {
+        firstName?: string,
+        lastName?: string,
+        email?: string,
+        phone?: string | null;
+        dateOfBirth?: Date | null;
+      };
+    };
+    const clientId = typedInvite.clientId;
+    const expiresAt = typedInvite.expiresAt;
+    const inviteClient = typedInvite.client;
+    const inviteId = typedInvite.id;
+    const inviteUsedAt = typedInvite.usedAt;
 
     const now = new Date();
     const daysSinceExpiration =
-      (now.getTime() - invite.expiresAt.getTime()) / (1000 * 60 * 60 * 24);
+      (now.getTime() - expiresAt.getTime()) / (1000 * 60 * 60 * 24);
     if (daysSinceExpiration > 30) {
       return NextResponse.json({ error: "Invitation has expired" }, { status: 400 });
     }
@@ -198,7 +218,7 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
           Prisma.sql`
             SELECT id, client_id, policy_id, extracted_data, ocr_confidence
             FROM documents
-            WHERE document_hash = ${documentHash} AND client_id = ${invite.clientId}
+            WHERE document_hash = ${documentHash} AND client_id = ${clientId}
             LIMIT 1
           `
         );
@@ -225,17 +245,17 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
             extractedData = null;
           }
         } else {
-          const otherClientDoc = await prisma.$queryRaw<Array<{ id: string; client_id: string }>>(
+          const otherClientDoc = await prisma.$queryRaw<Array<{ id: string, clientId: string }>>(
             Prisma.sql`
               SELECT id, client_id
               FROM documents
-              WHERE document_hash = ${documentHash} AND client_id != ${invite.clientId}
+              WHERE document_hash = ${documentHash} AND client_id != ${clientId}
               LIMIT 1
             `
           );
           if (otherClientDoc.length > 0) {
             console.warn(
-              `Document hash collision: ${documentHash.slice(0, 16)}... exists for client ${otherClientDoc[0].client_id}; creating new for ${invite.clientId}`
+              `Document hash collision: ${documentHash.slice(0, 16)}... exists for client ${otherClientDoc[0].client_id}; creating new for ${clientId}`
             );
           }
 
@@ -266,10 +286,10 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
             Prisma.sql`
               INSERT INTO documents (
                 id, client_id, file_name, file_type, file_size, file_path, mime_type,
-                uploaded_via, extracted_data, ocr_confidence, document_hash, created_at, updated_at
+                uploaded_via, extracted_data, ocr_confidence, document_hash, createdAt, updated_at
               ) VALUES (
                 ${documentId},
-                ${invite.clientId},
+                ${clientId},
                 ${file.name},
                 ${file.type},
                 ${file.size},
@@ -285,7 +305,7 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
             `
           );
 
-          archivedDocument = { id: documentId, clientId: invite.clientId, policyId: null, fileName: file.name };
+          archivedDocument = { id: documentId, clientId: clientId, policyId: null, fileName: file.name };
         }
 
         await prisma.audit_logs.create({
@@ -293,11 +313,11 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
             id: randomUUID(),
             action: AuditAction.DOCUMENT_UPLOADED,
             message: `Policy document uploaded via invite: ${file.name}`,
-            client_id: invite.clientId,
-            user_id: null,
-            org_id: null,
-            policy_id: null,
-            created_at: new Date(),
+            clientId: clientId,
+            userId: null,
+            orgId: null,
+            policyId: null,
+            createdAt: new Date(),
           },
         });
       } catch (ocrError: unknown) {
@@ -310,11 +330,11 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
           const buffer = Buffer.from(fileArrayBuffer);
           const documentHash = generateDocumentHash(buffer);
 
-          const existingDoc = await prisma.$queryRaw<Array<{ id: string; client_id: string; policy_id: string | null }>>(
+          const existingDoc = await prisma.$queryRaw<Array<{ id: string, clientId: string, policy_id: string | null }>>(
             Prisma.sql`
               SELECT id, client_id, policy_id
               FROM documents
-              WHERE document_hash = ${documentHash} AND client_id = ${invite.clientId}
+              WHERE document_hash = ${documentHash} AND client_id = ${clientId}
               LIMIT 1
             `
           );
@@ -338,10 +358,10 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
               Prisma.sql`
                 INSERT INTO documents (
                   id, client_id, file_name, file_type, file_size, file_path, mime_type,
-                  uploaded_via, extracted_data, ocr_confidence, document_hash, created_at, updated_at
+                  uploaded_via, extracted_data, ocr_confidence, document_hash, createdAt, updated_at
                 ) VALUES (
                   ${documentId},
-                  ${invite.clientId},
+                  ${clientId},
                   ${file.name},
                   ${file.type},
                   ${file.size},
@@ -357,7 +377,7 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
               `
             );
 
-            archivedDocument = { id: documentId, clientId: invite.clientId, policyId: null, fileName: file.name };
+            archivedDocument = { id: documentId, clientId: clientId, policyId: null, fileName: file.name };
           }
         } catch (archiveError: unknown) {
           console.error("Failed to archive after OCR failure:", archiveError);
@@ -428,9 +448,9 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
           await prisma.$executeRaw(
             Prisma.sql`
               INSERT INTO policies (
-                id, client_id, insurer_id, carrier_name_raw, policy_number, policy_type, created_at, updated_at
+                id, client_id, insurer_id, carrier_name_raw, policy_number, policy_type, createdAt, updated_at
               ) VALUES (
-                ${policyId}, ${invite.clientId}, ${insurerId}, ${carrierNameRaw}, ${policyNumber}, ${policyType}, NOW(), NOW()
+                ${policyId}, ${clientId}, ${insurerId}, ${carrierNameRaw}, ${policyNumber}, ${policyType}, NOW(), NOW()
               )
             `
           );
@@ -442,14 +462,14 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
 
     // Attach policy to document if document.policy_id is NULL
     // CRITICAL: Only update documents that belong to the current client to prevent cross-client corruption
-    if (archivedDocument?.id && policyId && archivedDocument.clientId === invite.clientId) {
+    if (archivedDocument?.id && policyId && archivedDocument.clientId === clientId) {
       try {
         await prisma.$executeRaw(
           Prisma.sql`
             UPDATE documents
             SET policy_id = ${policyId}, updated_at = NOW()
             WHERE id = ${archivedDocument.id} 
-              AND client_id = ${invite.clientId}
+              AND client_id = ${clientId}
               AND policy_id IS NULL
           `
         );
@@ -463,7 +483,7 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
       try {
         const { audit } = await import("@/lib/audit");
         await audit(AuditAction.DOCUMENT_PROCESSED, {
-          clientId: invite.clientId,
+          clientId: clientId,
           policyId: policyId ?? undefined,
           message: `Document processed: ${archivedDocument.fileName ?? "unknown"} (OCR: ${extractedData ? "success" : "failed"})`,
         });
@@ -488,21 +508,21 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
         const firstName =
           (typeof clientInfo?.firstName === "string" ? clientInfo.firstName : null) ??
           extractedData?.firstName ??
-          invite.client.firstName;
+          inviteClient.firstName;
 
         const lastName =
           (typeof clientInfo?.lastName === "string" ? clientInfo.lastName : null) ??
           extractedData?.lastName ??
-          invite.client.lastName;
+          inviteClient.lastName;
 
         const email =
           (typeof clientInfo?.email === "string" ? clientInfo.email : null) ??
-          invite.client.email;
+          inviteClient.email;
 
         const phone =
           (typeof clientInfo?.phone === "string" ? clientInfo.phone : null) ??
           extractedData?.phone ??
-          invite.client.phone ??
+          inviteClient.phone ??
           null;
 
         const dateOfBirth =
@@ -510,7 +530,7 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
             ? new Date(clientInfo.dateOfBirth)
             : typeof extractedData?.dateOfBirth === "string"
               ? new Date(extractedData.dateOfBirth)
-              : invite.client.dateOfBirth;
+              : inviteClient.dateOfBirth;
 
         const ssnLast4 = typeof clientInfo?.ssnLast4 === "string" ? clientInfo.ssnLast4 : null;
         const maidenName = typeof clientInfo?.maidenName === "string" ? clientInfo.maidenName : null;
@@ -519,9 +539,9 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
 
         const { generateClientFingerprint } = await import("@/lib/client-fingerprint");
         const fingerprint = generateClientFingerprint({
-          email,
-          firstName,
-          lastName,
+          email: email || "",
+          firstName: firstName || "",
+          lastName: lastName || "",
           dateOfBirth,
           ssnLast4,
           passportNumber,
@@ -532,18 +552,18 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
           Prisma.sql`
             UPDATE clients
             SET
-              first_name = ${firstName},
-              last_name = ${lastName},
+              firstName = ${firstName},
+              lastName = ${lastName},
               email = ${email},
               phone = ${phone},
-              date_of_birth = ${dateOfBirth},
+              dateOfBirth = ${dateOfBirth},
               ssn_last_4 = ${ssnLast4},
               maiden_name = ${maidenName},
               drivers_license = ${driversLicense},
               passport_number = ${passportNumber},
               client_fingerprint = ${fingerprint},
               updated_at = NOW()
-            WHERE id = ${invite.clientId}
+            WHERE id = ${clientId}
           `
         );
       } catch (e: unknown) {
@@ -552,24 +572,24 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
     }
 
     // Mark invite used (first submission only)
-    if (!invite.usedAt && !isChangeRequest) {
+    if (!inviteUsedAt && !isChangeRequest) {
       try {
         await prisma.$executeRaw(
-          Prisma.sql`UPDATE client_invites SET used_at = ${now}, updated_at = NOW() WHERE id = ${invite.id}`
+          Prisma.sql`UPDATE client_invites SET used_at = ${now}, updated_at = NOW() WHERE id = ${inviteId}`
         );
       } catch (e: unknown) {
         console.error("Invite used_at update failed:", e);
       }
     }
 
-    const receiptId = `REC-${invite.clientId}-${Date.now()}`;
+    const receiptId = `REC-${clientId}-${Date.now()}`;
 
     // Attorney/org
-    let attorney: { id: string; email: string; firstName: string | null; lastName: string | null } | null = null;
+    let attorney: { id: string, email: string, firstName: string | null; lastName: string | null } | null = null;
     let organization:
       | {
-          id: string;
-          name: string;
+          id: string,
+          name: string,
           addressLine1: string | null;
           addressLine2: string | null;
           city: string | null;
@@ -585,8 +605,8 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
           SELECT
             aca.attorney_id,
             u.email as attorney_email,
-            u.first_name as attorney_first_name,
-            u.last_name as attorney_last_name,
+            u.firstName as attorney_firstName,
+            u.lastName as attorney_lastName,
             o.id as org_id,
             o.name as org_name,
             o.address_line1 as org_address_line1,
@@ -595,11 +615,11 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
             o.state as org_state,
             o.postal_code as org_postal_code,
             o.phone as org_phone
-          FROM attorney_client_access aca
+          FROM attorneyClientAccess aca
           INNER JOIN users u ON u.id = aca.attorney_id
           LEFT JOIN org_members om ON om.user_id = aca.attorney_id
           LEFT JOIN organizations o ON o.id = om.organization_id
-          WHERE aca.client_id = ${invite.clientId} AND aca.is_active = true
+          WHERE aca.client_id = ${clientId} AND aca.is_active = true
           LIMIT 1
         `
       );
@@ -609,8 +629,8 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
         attorney = {
           id: row.attorney_id,
           email: row.attorney_email,
-          firstName: row.attorney_first_name,
-          lastName: row.attorney_last_name,
+          firstName: row.attorney_firstName,
+          lastName: row.attorney_lastName,
         };
         organization = {
           id: row.org_id,
@@ -635,9 +655,9 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
       const [clients, pols] = await Promise.all([
         prisma.$queryRaw<ClientRow[]>(
           Prisma.sql`
-            SELECT id, first_name, last_name, email, phone, date_of_birth, created_at
+            SELECT id, firstName, lastName, email, phone, dateOfBirth, createdAt
             FROM clients
-            WHERE id = ${invite.clientId}
+            WHERE id = ${clientId}
             LIMIT 1
           `
         ),
@@ -653,7 +673,7 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
               i.contact_email as insurer_contact_email
             FROM policies p
             LEFT JOIN insurers i ON i.id = p.insurer_id
-            WHERE p.client_id = ${invite.clientId}
+            WHERE p.client_id = ${clientId}
           `
         ),
       ]);
@@ -667,11 +687,11 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
     const receiptData = {
       receiptId,
       client: {
-        firstName: clientRow?.first_name ?? invite.client.firstName,
-        lastName: clientRow?.last_name ?? invite.client.lastName,
-        email: clientRow?.email ?? invite.client.email,
-        phone: clientRow?.phone ?? invite.client.phone,
-        dateOfBirth: clientRow?.date_of_birth ?? invite.client.dateOfBirth,
+        firstName: clientRow?.firstName ?? inviteClient.firstName ?? "",
+        lastName: clientRow?.lastName ?? inviteClient.lastName ?? "",
+        email: clientRow?.email ?? inviteClient.email ?? "",
+        phone: clientRow?.phone ?? inviteClient.phone ?? null,
+        dateOfBirth: clientRow?.dateOfBirth ?? inviteClient.dateOfBirth ?? null,
       },
       policies: policies.map((p) => ({
         id: p.id,
@@ -700,7 +720,7 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
             phone: organization.phone ?? undefined,
           }
         : null,
-      registeredAt: clientRow?.created_at ?? invite.client.createdAt,
+      registeredAt: clientRow?.createdAt ?? new Date(),
       receiptGeneratedAt: new Date(),
     };
 

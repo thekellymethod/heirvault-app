@@ -15,8 +15,8 @@ export function generateDocumentHash(buffer: Buffer): string {
 export function generatePolicyHash(policy: {
   policyNumber: string | null;
   policyType: string | null;
-  insurerId: string;
-  clientId: string;
+  insurerId: string,
+  clientId: string,
   documentHash: string | null;
 }): string {
   const data = JSON.stringify({

@@ -1,8 +1,8 @@
 // src/lib/email/templates/clientReceipt.ts
 export function clientReceiptTemplate(input: {
-  clientName?: string;
-  receiptId: string;
-  receiptPdfUrl?: string;
+  clientName?: string,
+  receiptId: string,
+  receiptPdfUrl?: string,
   summaryLines: string[];
 }) {
   const name = input.clientName?.trim() || "there";

@@ -15,9 +15,9 @@ import type { PrismaClient } from "@prisma/client";
  * - Driver's license (if available)
  */
 export function generateClientFingerprint(clientData: {
-  email: string;
-  firstName: string;
-  lastName: string;
+  email: string,
+  firstName: string,
+  lastName: string,
   dateOfBirth?: Date | string | null;
   ssnLast4?: string | null;
   passportNumber?: string | null;

@@ -1,7 +1,7 @@
 // src/lib/email/templates/accessGranted.ts
 export function accessGrantedTemplate(input: {
-  clientName?: string;
-  portalUrl: string;
+  clientName?: string,
+  portalUrl: string,
 }) {
   const name = input.clientName?.trim() || "there";
   const subject = `Access granted to your HeirVault registry`;

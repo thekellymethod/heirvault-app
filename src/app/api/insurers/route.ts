@@ -43,11 +43,11 @@ export async function POST(req: NextRequest) {
       data: {
         id: newInsurerId,
         name,
-        contact_phone: contactPhone,
-        contact_email: contactEmail,
+        contactPhone: contactPhone,
+        contactEmail: contactEmail,
         website,
-        created_at: now,
-        updated_at: now,
+        createdAt: now,
+        updatedAt: now,
       },
     });
     

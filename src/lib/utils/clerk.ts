@@ -6,12 +6,12 @@ import { randomUUID } from "crypto";
 type Role = "attorney";
 
 type DbUser = {
-  id: string;
-  clerkId: string;
-  email: string;
+  id: string,
+  clerkId: string,
+  email: string,
   firstName: string | null;
   lastName: string | null;
-  role: Role | string;
+  role: Role | string,
   barNumber: string | null;
 };
 

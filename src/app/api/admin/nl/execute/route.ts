@@ -53,7 +53,7 @@ export async function POST(req: Request) {
   const auditId = randomUUID();
   try {
     await prisma.$executeRawUnsafe(
-      `INSERT INTO audit_logs (id, user_id, action, message, created_at) VALUES ($1, $2, $3, $4, NOW())`,
+      `INSERT INTO audit_logs (id, user_id, action, message, createdAt) VALUES ($1, $2, $3, $4, NOW())`,
       auditId,
       actor.id,
       "GLOBAL_POLICY_SEARCH_PERFORMED", // TODO: Add ADMIN_CONSOLE_NL_EXECUTE to AuditAction enum

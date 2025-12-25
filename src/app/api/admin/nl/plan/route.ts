@@ -41,10 +41,10 @@ export async function POST(req: Request) {
   await prisma.audit_logs.create({
     data: {
       id: auditId,
-      user_id: actor.id,
+      userId: actor.id,
       action: "GLOBAL_POLICY_SEARCH_PERFORMED", // replace later with ADMIN_CONSOLE_PLAN
       message: `AdminNLPlan cmd=${plan.cmd ?? "null"} conf=${plan.confidence}`,
-      created_at: new Date(),
+      createdAt: new Date(),
     },
   });
 

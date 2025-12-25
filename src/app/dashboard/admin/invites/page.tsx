@@ -4,15 +4,15 @@ import { useState, useEffect } from "react";
 import { Search, Archive, Key, Calendar, User, Mail, Phone, AlertCircle } from "lucide-react";
 
 type Invite = {
-  id: string;
-  token: string;
-  clientId: string;
-  clientName: string;
-  email: string;
+  id: string,
+  token: string,
+  clientId: string,
+  clientName: string,
+  email: string,
   phone: string | null;
-  expiresAt: string;
+  expiresAt: string,
   usedAt: string | null;
-  createdAt: string;
+  createdAt: string,
   isArchived: boolean;
   isExpired: boolean;
 };

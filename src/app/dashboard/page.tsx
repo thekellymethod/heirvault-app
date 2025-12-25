@@ -28,18 +28,18 @@ export default async function DashboardPage() {
   // Get all policies with key metadata
   // Note: verification_status column may not exist yet, so we query without it and set a default
   let policies: Array<{
-    id: string;
+    id: string,
     policy_number: string | null;
     policy_type: string | null;
-    verification_status: string;
+    verification_status: string,
     updated_at: Date;
-    created_at: Date;
-    client_id: string;
-    client_first_name: string;
-    client_last_name: string;
-    client_email: string;
-    insurer_id: string;
-    insurer_name: string;
+    createdAt: Date;
+    clientId:string,
+    client_firstName: string,
+    client_lastName: string,
+    client_email: string,
+    insurer_id: string,
+    insurer_name: string,
     document_count: number;
   }>;
 
@@ -52,10 +52,10 @@ export default async function DashboardPage() {
         p.policy_type,
         COALESCE(p.verification_status::text, 'PENDING') as verification_status,
         p.updated_at,
-        p.created_at,
+        p.createdAt,
         p.client_id,
-        c.first_name as client_first_name,
-        c.last_name as client_last_name,
+        c.firstName as client_firstName,
+        c.lastName as client_lastName,
         c.email as client_email,
         i.id as insurer_id,
         i.name as insurer_name,
@@ -64,13 +64,13 @@ export default async function DashboardPage() {
       INNER JOIN clients c ON c.id = p.client_id
       INNER JOIN insurers i ON i.id = p.insurer_id
       LEFT JOIN documents d ON d.policy_id = p.id
-      GROUP BY p.id, p.policy_number, p.policy_type, p.verification_status, p.updated_at, p.created_at, p.client_id, c.first_name, c.last_name, c.email, i.id, i.name
+      GROUP BY p.id, p.policy_number, p.policy_type, p.verification_status, p.updated_at, p.createdAt, p.client_id, c.firstName, c.lastName, c.email, i.id, i.name
       ORDER BY p.updated_at DESC
       LIMIT 100
     `);
   } catch (error: unknown) {
     // If verification_status doesn't exist, query without it and set default
-    const err = error as { code?: string; message?: string };
+    const err = error as { code?: string, message?: string };
     if (err?.code === '42703' || err?.message?.includes('verification_status')) {
       policies = await prisma.$queryRawUnsafe(`
         SELECT 
@@ -79,10 +79,10 @@ export default async function DashboardPage() {
           p.policy_type,
           'PENDING' as verification_status,
           p.updated_at,
-          p.created_at,
+          p.createdAt,
           p.client_id,
-          c.first_name as client_first_name,
-          c.last_name as client_last_name,
+          c.firstName as client_firstName,
+          c.lastName as client_lastName,
           c.email as client_email,
           i.id as insurer_id,
           i.name as insurer_name,
@@ -91,7 +91,7 @@ export default async function DashboardPage() {
         INNER JOIN clients c ON c.id = p.client_id
         INNER JOIN insurers i ON i.id = p.insurer_id
         LEFT JOIN documents d ON d.policy_id = p.id
-        GROUP BY p.id, p.policy_number, p.policy_type, p.updated_at, p.created_at, p.client_id, c.first_name, c.last_name, c.email, i.id, i.name
+        GROUP BY p.id, p.policy_number, p.policy_type, p.updated_at, p.createdAt, p.client_id, c.firstName, c.lastName, c.email, i.id, i.name
         ORDER BY p.updated_at DESC
         LIMIT 100
       `);
@@ -123,7 +123,7 @@ export default async function DashboardPage() {
     `);
   } catch (error: unknown) {
     // If verification_status doesn't exist, count all as pending
-    const err = error as { code?: string; message?: string };
+    const err = error as { code?: string, message?: string };
     if (err?.code === '42703' || err?.message?.includes('verification_status')) {
       stats = await prisma.$queryRawUnsafe(`
         SELECT 
@@ -156,11 +156,11 @@ export default async function DashboardPage() {
         policyType: p.policy_type,
         verificationStatus: p.verification_status,
         updatedAt: p.updated_at,
-        createdAt: p.created_at,
+        createdAt: p.createdAt,
         client: {
           id: p.client_id,
-          firstName: p.client_first_name,
-          lastName: p.client_last_name,
+          firstName: p.client_firstName,
+          lastName: p.client_lastName,
           email: p.client_email,
         },
         insurer: {

@@ -5,9 +5,9 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
 type Beneficiary = {
-  id: string;
-  firstName: string;
-  lastName: string;
+  id: string,
+  firstName: string,
+  lastName: string,
   relationship: string | null;
   email: string | null;
   phone: string | null;
@@ -15,13 +15,13 @@ type Beneficiary = {
 };
 
 type Policy = {
-  id: string;
+  id: string,
   policyNumber: string | null;
   policyType: string | null;
   carrierNameRaw?: string | null;
-  insurer?: { id: string; name: string; website?: string | null } | null;
+  insurer?: { id: string, name: string, website?: string | null } | null;
   beneficiaries: Beneficiary[];
-  createdAt?: string;
+  createdAt?: string,
 };
 
 export default function ClientPoliciesPage() {
@@ -44,7 +44,7 @@ export default function ClientPoliciesPage() {
   const [policyNumber, setPolicyNumber] = React.useState("");
   const [policyType, setPolicyType] = React.useState("");
   
-  const [insurers, setInsurers] = React.useState<{ id: string; name: string }[]>([]);
+  const [insurers, setInsurers] = React.useState<{ id: string, name: string }[]>([]);
   const [loadingInsurers, setLoadingInsurers] = React.useState(false);
 
   async function load() {
@@ -275,8 +275,8 @@ function Field({
   onChange,
   required,
 }: {
-  label: string;
-  value: string;
+  label: string,
+  value: string,
   onChange: (v: string) => void;
   required?: boolean;
 }) {

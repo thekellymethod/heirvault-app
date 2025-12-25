@@ -4,7 +4,7 @@ import { requireAuthApi } from '@/lib/utils/clerk'
 import { logAuditEvent } from '@/lib/audit'
 import { sendClientInviteEmail } from '@/lib/email'
 import { getCurrentUserWithOrg } from '@/lib/authz'
-import { randomBytes } from 'crypto'
+import { randomBytes, randomUUID } from 'crypto'
 
 interface Params {
   params: Promise<{ id: string }>
@@ -50,13 +50,13 @@ export async function POST(req: NextRequest, { params }: Params) {
     const invite = await prisma.client_invites.create({
       data: {
         id: inviteId,
-        client_id: id,
+        clientId: id,
         email,
         token,
-        expires_at: expiresAt,
-        invited_by_user_id: user.id,
-        created_at: new Date(),
-        updated_at: new Date(),
+        expiresAt: expiresAt,
+        invitedByUserId: user.id,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       },
     });
 
@@ -73,7 +73,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     try {
       await sendClientInviteEmail({
         to: email,
-        clientName: `${client.first_name} ${client.last_name}`,
+        clientName: `${client.firstName} ${client.lastName}`,
         firmName: organizationName,
         inviteUrl,
       })

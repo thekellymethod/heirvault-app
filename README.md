@@ -233,7 +233,7 @@ src/
 - **Clients**: Client records with fingerprinting for deduplication
 - **Policies**: Insurance policies linked to insurers
 - **Beneficiaries**: Policy beneficiaries with relationships
-- **PolicyBeneficiaries**: Links beneficiaries to policies
+- **policy_beneficiaries**: Links beneficiaries to policies
 - **ClientInvites**: Secure invitation system with tokens
 - **Insurers**: Insurance company information
 - **AuditLogs**: Complete audit trail

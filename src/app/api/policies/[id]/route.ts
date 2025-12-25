@@ -43,10 +43,10 @@ export async function GET(req: NextRequest, { params }: Params) {
     } else {
       // Client can only view their own policies
       const client = await prisma.clients.findUnique({
-        where: { id: policy.client_id },
+        where: { id: policy.clientId },
       })
 
-      if (!client || client.user_id !== user.id) {
+      if (!client || client.userId !== user.id) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
       }
     }
@@ -74,7 +74,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
     const { id } = await params
     const body = await req.json()
 
-    // Check if policy exists and get clientId for access check
+    // Check if policy exists and get clientId:for access check
     const existingPolicy = await prisma.policies.findUnique({
       where: { id },
       include: { clients: true },
@@ -89,7 +89,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
     if (user.role === 'attorney') {
       // Global access granted - no need to check specific access
     } else {
-      if (existingPolicy.clients.user_id !== user.id) {
+      if (existingPolicy.clients.userId !== user.id) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
       }
     }
@@ -101,7 +101,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
     } = body
 
     // Update insurer if provided (separate from policy)
-    let insurerIdToUse = existingPolicy.insurer_id
+    let insurerIdToUse = existingPolicy.insurerId
     if (body.insurerName) {
       // Find or create insurer
       let insurer = await prisma.insurers.findFirst({
@@ -113,11 +113,9 @@ export async function PUT(req: NextRequest, { params }: Params) {
           data: {
             id: randomUUID(),
             name: body.insurerName,
-            contact_phone: body.insurerPhone || null,
-            contact_email: body.insurerEmail || null,
+            contactPhone: body.insurerPhone || null,
+            contactEmail: body.insurerEmail || null,
             website: body.insurerWebsite || null,
-            created_at: new Date(),
-            updated_at: new Date(),
           },
         })
       } else {
@@ -125,8 +123,8 @@ export async function PUT(req: NextRequest, { params }: Params) {
         insurer = await prisma.insurers.update({
           where: { id: insurer.id },
           data: {
-            contact_phone: body.insurerPhone || insurer.contact_phone,
-            contact_email: body.insurerEmail || insurer.contact_email,
+            contactPhone: body.insurerPhone || insurer.contactPhone,
+            contactEmail: body.insurerEmail || insurer.contactEmail,
             website: body.insurerWebsite || insurer.website,
           },
         })
@@ -138,9 +136,9 @@ export async function PUT(req: NextRequest, { params }: Params) {
     const policy = await prisma.policies.update({
       where: { id },
       data: {
-        insurer_id: insurerId || insurerIdToUse,
-        policy_number: policyNumber ?? null,
-        policy_type: policyType ?? null,
+        insurerId: insurerId || insurerIdToUse,
+        policyNumber: policyNumber ?? null,
+        policyType: policyType ?? null,
       },
     })
 
@@ -167,7 +165,7 @@ export async function DELETE(req: NextRequest, { params }: Params) {
     const user = await requireAuth()
     const { id } = await params
 
-    // Check if policy exists and get clientId for access check
+    // Check if policy exists and get clientId:for access check
     const existingPolicy = await prisma.policies.findUnique({
       where: { id },
       include: { clients: true },
@@ -182,7 +180,7 @@ export async function DELETE(req: NextRequest, { params }: Params) {
     if (user.role === 'attorney') {
       // Global access granted - no need to check specific access
     } else {
-      if (existingPolicy.clients.user_id !== user.id) {
+      if (existingPolicy.clients.userId !== user.id) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
       }
     }

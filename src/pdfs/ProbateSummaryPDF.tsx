@@ -113,19 +113,19 @@ const styles = StyleSheet.create({
 });
 
 interface PolicyWithBeneficiaries {
-  id: string;
+  id: string,
   insurer: {
-    name: string;
+    name: string,
     contactPhone: string | null;
     contactEmail: string | null;
   };
   policyNumber: string | null;
   policyType: string | null;
-  verificationStatus: string;
+  verificationStatus: string,
   beneficiaries: {
     beneficiary: {
-      firstName: string;
-      lastName: string;
+      firstName: string,
+      lastName: string,
       relationship: string | null;
       email: string | null;
       phone: string | null;
@@ -135,9 +135,9 @@ interface PolicyWithBeneficiaries {
 }
 
 interface Beneficiary {
-  id: string;
-  firstName: string;
-  lastName: string;
+  id: string,
+  firstName: string,
+  lastName: string,
   relationship: string | null;
   email: string | null;
   phone: string | null;
@@ -146,20 +146,20 @@ interface Beneficiary {
 
 interface ProbateSummaryProps {
   client: {
-    firstName: string;
-    lastName: string;
-    email: string;
+    firstName: string,
+    lastName: string,
+    email: string,
     phone: string | null;
     dateOfBirth: Date | null;
     createdAt: Date;
   };
   policies: PolicyWithBeneficiaries[];
   beneficiaries: Beneficiary[];
-  firmName?: string;
+  firmName?: string,
   generatedAt: Date;
-  executorName?: string;
-  executorContact?: string;
-  caseNumber?: string;
+  executorName?: string,
+  executorContact?: string,
+  caseNumber?: string,
 }
 
 export function ProbateSummaryPDF({

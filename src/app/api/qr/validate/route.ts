@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Extract clientId from the token payload (stored as registryId)
+    // Extract clientId:from the token payload (stored as registryId)
     const clientId = verification.payload?.registryId;
     
     if (!clientId) {
@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
       SELECT token FROM client_invites 
       WHERE client_id = $1 
         AND (expires_at > NOW() OR expires_at IS NULL)
-      ORDER BY created_at DESC
+      ORDER BY createdAt DESC
       LIMIT 1
     `, clientId);
 
@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
         SELECT token FROM client_invites 
         WHERE client_id = $1 
           AND expires_at > NOW()
-        ORDER BY created_at DESC
+        ORDER BY createdAt DESC
         LIMIT 1
       `, clientId);
 

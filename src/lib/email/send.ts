@@ -4,20 +4,20 @@ import { Resend } from 'resend';
 const resend = new Resend(process.env.RESEND_API_KEY); // set this in Vercel
 
 export type EmailAttachment = {
-  filename: string;
+  filename: string,
   content: Buffer;
-  contentType?: string;
+  contentType?: string,
 };
 
 export type EmailSendArgs = {
-  to: string;
-  subject: string;
-  html: string;
-  text?: string;
-  from?: string; // Optional if set in Resend
-  replyTo?: string;
+  to: string,
+  subject: string,
+  html: string,
+  text?: string,
+  from?: string, // Optional if set in Resend
+  replyTo?: string,
   attachments?: EmailAttachment[];
-  tags?: { name: string; value: string }[];
+  tags?: { name: string, value: string }[];
 };
 
 export async function sendEmail(args: EmailSendArgs) {

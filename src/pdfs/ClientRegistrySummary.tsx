@@ -79,9 +79,9 @@ const styles = StyleSheet.create({
 });
 
 interface PolicyWithBeneficiaries {
-  id: string;
+  id: string,
   insurer: {
-    name: string;
+    name: string,
     contactPhone: string | null;
     contactEmail: string | null;
     website: string | null;
@@ -90,9 +90,9 @@ interface PolicyWithBeneficiaries {
   policyType: string | null;
   beneficiaries: {
     beneficiary: {
-      firstName: string;
-      lastName: string;
-      relationship: string;
+      firstName: string,
+      lastName: string,
+      relationship: string,
       email: string | null;
       phone: string | null;
     };
@@ -101,10 +101,10 @@ interface PolicyWithBeneficiaries {
 }
 
 interface Beneficiary {
-  id: string;
-  firstName: string;
-  lastName: string;
-  relationship: string;
+  id: string,
+  firstName: string,
+  lastName: string,
+  relationship: string,
   email: string | null;
   phone: string | null;
   notes: string | null;
@@ -112,16 +112,16 @@ interface Beneficiary {
 
 interface ClientSummaryProps {
   client: {
-    firstName: string;
-    lastName: string;
-    email: string;
+    firstName: string,
+    lastName: string,
+    email: string,
     phone: string | null;
     dateOfBirth: Date | null;
     createdAt: Date;
     policies: PolicyWithBeneficiaries[];
     beneficiaries: Beneficiary[];
   };
-  firmName?: string;
+  firmName?: string,
   generatedAt: Date;
 }
 

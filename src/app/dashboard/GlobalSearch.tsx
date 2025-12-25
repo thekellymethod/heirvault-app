@@ -6,19 +6,19 @@ import Link from "next/link";
 
 interface SearchResult {
   clients: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
+    id: string,
+    firstName: string,
+    lastName: string,
+    email: string,
   }[];
   policies: {
-    id: string;
-    insurerName: string;
+    id: string,
+    insurerName: string,
     policyNumber: string | null;
     client: {
-      id: string;
-      firstName: string;
-      lastName: string;
+      id: string,
+      firstName: string,
+      lastName: string,
     };
   }[];
 }

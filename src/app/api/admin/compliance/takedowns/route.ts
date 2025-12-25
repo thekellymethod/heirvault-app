@@ -13,9 +13,9 @@ export async function GET() {
     // TODO: Implement takedown requests storage (database table)
     // For now, return empty array
     const requests: Array<{
-      id: string;
-      status: string;
-      createdAt: string;
+      id: string,
+      status: string,
+      createdAt: string,
     }> = [];
 
     return NextResponse.json({ requests });

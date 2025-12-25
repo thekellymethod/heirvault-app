@@ -13,15 +13,15 @@ import {
 import Link from "next/link";
 
 interface SearchResult {
-  id: string;
-  decedentName: string;
-  status: string;
+  id: string,
+  decedentName: string,
+  status: string,
   createdAt: Date;
-  matchedField?: string;
+  matchedField?: string,
   redactedData?: {
-    insuredName?: string;
-    beneficiaryName?: string;
-    carrierGuess?: string;
+    insuredName?: string,
+    beneficiaryName?: string,
+    carrierGuess?: string,
     policyNumber?: string | null;
   };
 }

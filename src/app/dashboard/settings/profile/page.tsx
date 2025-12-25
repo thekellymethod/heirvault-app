@@ -22,8 +22,8 @@ export default async function ProfilePage() {
   };
 
   let organization: {
-    id: string;
-    name: string;
+    id: string,
+    name: string,
     addressLine1: string | null;
     addressLine2: string | null;
     city: string | null;
@@ -36,8 +36,8 @@ export default async function ProfilePage() {
   try {
     // Try raw SQL first - it's more reliable when Prisma client is broken
     const rawResult = await prisma.$queryRaw<Array<{
-      organization_id: string;
-      org_name: string;
+      organization_id: string,
+      org_name: string,
       address_line1: string | null;
       address_line2: string | null;
       city: string | null;

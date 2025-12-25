@@ -10,14 +10,14 @@ type IconName = keyof typeof LucideIcons;
 
 interface EmptyStateProps {
   icon?: IconName | LucideIcon;
-  title: string;
-  description: string;
+  title: string,
+  description: string,
   action?: {
-    label: string;
+    label: string,
     onClick?: () => void;
-    href?: string;
+    href?: string,
   };
-  className?: string;
+  className?: string,
 }
 
 export function EmptyState({ icon, title, description, action, className }: EmptyStateProps) {
@@ -64,12 +64,12 @@ export function EmptyListState({
   action,
   icon,
 }: {
-  title?: string;
-  description?: string;
+  title?: string,
+  description?: string,
   action?: {
-    label: string;
+    label: string,
     onClick?: () => void;
-    href?: string;
+    href?: string,
   };
   icon?: IconName | LucideIcon;
 }) {
@@ -84,9 +84,9 @@ export function EmptySearchState({
   onClear,
   clearHref,
 }: {
-  searchQuery?: string;
+  searchQuery?: string,
   onClear?: () => void;
-  clearHref?: string;
+  clearHref?: string,
 }) {
   return (
     <EmptyState

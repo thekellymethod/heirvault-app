@@ -167,23 +167,23 @@ export async function POST(req: NextRequest) {
           data: {
             id: clientId,
             email,
-            first_name: firstName,
-            last_name: lastName,
+            firstName: firstName,
+            lastName: lastName,
             phone: phone || null,
-            date_of_birth: dateOfBirthValue,
-            address_line1: addressLine1 || null,
-            address_line2: addressLine2 || null,
+            dateOfBirth: dateOfBirthValue,
+            addressLine1: addressLine1 || null,
+            addressLine2: addressLine2 || null,
             city: city || null,
             state: state || null,
-            postal_code: postalCode || null,
+            postalCode: postalCode || null,
             country: country || null,
-            created_at: now,
-            updated_at: now,
+            createdAt: now,
+            updatedAt: now,
           },
           select: {
             id: true,
-            first_name: true,
-            last_name: true,
+            firstName: true,
+            lastName: true,
             email: true,
           },
         });
@@ -202,8 +202,8 @@ export async function POST(req: NextRequest) {
           client: {
             id: client.id,
             email: client.email,
-            firstName: client.first_name,
-            lastName: client.last_name,
+            firstName: client.firstName,
+            lastName: client.lastName,
           },
         });
       }
@@ -253,26 +253,26 @@ export async function POST(req: NextRequest) {
         const beneficiary = await prisma.beneficiaries.create({
           data: {
             id: beneficiaryId,
-            client_id: clientId,
-            first_name: firstName,
-            last_name: lastName,
+            clientId: clientId,
+            firstName: firstName,
+            lastName: lastName,
             relationship: relationship || null,
             email: email || null,
             phone: phone || null,
-            date_of_birth: dateOfBirthValue,
-            address_line1: addressLine1 || null,
-            address_line2: addressLine2 || null,
+            dateOfBirth: dateOfBirthValue,
+            addressLine1: addressLine1 || null,
+            addressLine2: addressLine2 || null,
             city: city || null,
             state: state || null,
-            postal_code: postalCode || null,
+            postalCode: postalCode || null,
             country: country || null,
-            created_at: now,
-            updated_at: now,
+            createdAt: now,
+            updatedAt: now,
           },
           select: {
             id: true,
-            first_name: true,
-            last_name: true,
+            firstName: true,
+            lastName: true,
           },
         });
 
@@ -289,8 +289,8 @@ export async function POST(req: NextRequest) {
           message: "Beneficiary created successfully",
           beneficiary: {
             id: beneficiary.id,
-            firstName: beneficiary.first_name,
-            lastName: beneficiary.last_name,
+            firstName: beneficiary.firstName,
+            lastName: beneficiary.lastName,
           },
         });
       }

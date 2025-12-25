@@ -37,12 +37,12 @@ export default async function QRUpdatePage({ params }: Props) {
 
   // Get current client data with policies and beneficiaries
   const clientData = await prisma.$queryRawUnsafe<Array<{
-    id: string;
-    first_name: string;
-    last_name: string;
-    email: string;
+    id: string,
+    firstName: string,
+    lastName: string,
+    email: string,
     phone: string | null;
-    date_of_birth: Date | null;
+    dateOfBirth: Date | null;
     address_line1: string | null;
     address_line2: string | null;
     city: string | null;
@@ -51,7 +51,7 @@ export default async function QRUpdatePage({ params }: Props) {
     country: string | null;
   }>>(`
     SELECT 
-      id, first_name, last_name, email, phone, date_of_birth,
+      id, firstName, lastName, email, phone, dateOfBirth,
       address_line1, address_line2, city, state, postal_code, country
     FROM clients
     WHERE id = $1
@@ -66,10 +66,10 @@ export default async function QRUpdatePage({ params }: Props) {
 
   // Get current policies
   const policies = await prisma.$queryRawUnsafe<Array<{
-    id: string;
+    id: string,
     policy_number: string | null;
     policy_type: string | null;
-    insurer_name: string;
+    insurer_name: string,
   }>>(`
     SELECT 
       p.id,
@@ -79,24 +79,24 @@ export default async function QRUpdatePage({ params }: Props) {
     FROM policies p
     INNER JOIN insurers i ON i.id = p.insurer_id
     WHERE p.client_id = $1
-    ORDER BY p.created_at DESC
+    ORDER BY p.createdAt DESC
   `, invite.clientId);
 
   // Get current beneficiaries
   const beneficiaries = await prisma.$queryRawUnsafe<Array<{
-    id: string;
-    first_name: string;
-    last_name: string;
+    id: string,
+    firstName: string,
+    lastName: string,
     relationship: string | null;
     email: string | null;
     phone: string | null;
-    date_of_birth: Date | null;
+    dateOfBirth: Date | null;
   }>>(`
     SELECT 
-      id, first_name, last_name, relationship, email, phone, date_of_birth
+      id, firstName, lastName, relationship, email, phone, dateOfBirth
     FROM beneficiaries
     WHERE client_id = $1
-    ORDER BY created_at DESC
+    ORDER BY createdAt DESC
   `, invite.clientId);
 
   // Get version history count
@@ -148,12 +148,12 @@ export default async function QRUpdatePage({ params }: Props) {
           clientId={invite.clientId}
           currentData={{
             client: {
-              firstName: client.first_name,
-              lastName: client.last_name,
+              firstName: client.firstName,
+              lastName: client.lastName,
               email: client.email,
               phone: client.phone || "",
-              dateOfBirth: client.date_of_birth 
-                ? new Date(client.date_of_birth).toISOString().split("T")[0] 
+              dateOfBirth: client.dateOfBirth 
+                ? new Date(client.dateOfBirth).toISOString().split("T")[0] 
                 : "",
               addressLine1: client.address_line1 || "",
               addressLine2: client.address_line2 || "",
@@ -162,21 +162,21 @@ export default async function QRUpdatePage({ params }: Props) {
               postalCode: client.postal_code || "",
               country: client.country || "",
             },
-            policies: policies.map((p: { id: string; policy_number: string | null; policy_type: string | null; insurer_name: string }) => ({
+            policies: policies.map((p: { id: string, policy_number: string | null; policy_type: string | null; insurer_name: string }) => ({
               id: p.id,
               policyNumber: p.policy_number || "",
               policyType: p.policy_type || "",
               insurerName: p.insurer_name,
             })),
-            beneficiaries: beneficiaries.map((b: { id: string; first_name: string; last_name: string; relationship: string | null; email: string | null; phone: string | null; date_of_birth: Date | null }) => ({
+            beneficiaries: beneficiaries.map((b: { id: string, firstName: string, lastName: string, relationship: string | null; email: string | null; phone: string | null; dateOfBirth: Date | null }) => ({
               id: b.id,
-              firstName: b.first_name,
-              lastName: b.last_name,
+              firstName: b.firstName,
+              lastName: b.lastName,
               relationship: b.relationship || "",
               email: b.email || "",
               phone: b.phone || "",
-              dateOfBirth: b.date_of_birth 
-                ? new Date(b.date_of_birth).toISOString().split("T")[0] 
+              dateOfBirth: b.dateOfBirth 
+                ? new Date(b.dateOfBirth).toISOString().split("T")[0] 
                 : "",
             })),
           }}

@@ -49,7 +49,7 @@ describe("Permission Functions", () => {
     status: "ACTIVE",
     insured_name: "John Doe",
     carrier_guess: "Test Insurance",
-    created_at: new Date().toISOString(),
+    createdAt: new Date().toISOString(),
   };
 
   const mockUnauthorizedRegistry = {
@@ -57,7 +57,7 @@ describe("Permission Functions", () => {
     status: "ACTIVE",
     insured_name: "Jane Smith",
     carrier_guess: "Other Insurance",
-    created_at: new Date().toISOString(),
+    createdAt: new Date().toISOString(),
   };
 
   beforeEach(() => {

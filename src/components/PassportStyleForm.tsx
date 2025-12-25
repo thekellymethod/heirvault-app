@@ -4,24 +4,24 @@
 import React from "react";
 
 type PassportFormData = {
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone: string; // digits only
-  dateOfBirth: string; // digits only MMDDYYYY
-  policyNumber: string;
-  insurerName: string;
-  policyType: string;
+  firstName: string,
+  lastName: string,
+  email: string,
+  phone: string, // digits only
+  dateOfBirth: string, // digits only MMDDYYYY
+  policyNumber: string,
+  insurerName: string,
+  policyType: string,
 };
 
 interface BoxFieldProps {
-  label: string;
-  value: string;
+  label: string,
+  value: string,
   onChange: (value: string) => void;
   maxLength: number;
   required?: boolean;
-  className?: string;
-  inputClassName?: string;
+  className?: string,
+  inputClassName?: string,
 }
 
 /**

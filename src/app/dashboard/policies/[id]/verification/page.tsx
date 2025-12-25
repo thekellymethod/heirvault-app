@@ -28,7 +28,7 @@ export default async function DocumentVerificationPage({ params }: Props) {
   // First, get only the client_id to verify access
   // This prevents unauthorized access to policy data
   const policyClient = await prisma.$queryRawUnsafe<Array<{
-    client_id: string;
+    clientId:string,
   }>>(`
     SELECT client_id
     FROM policies
@@ -53,23 +53,23 @@ export default async function DocumentVerificationPage({ params }: Props) {
 
   // Now that access is verified, fetch the full policy data
   const policy = await prisma.$queryRawUnsafe<Array<{
-    id: string;
+    id: string,
     policy_number: string | null;
     policy_type: string | null;
-    verification_status: string;
+    verification_status: string,
     verified_at: Date | null;
     verified_by_user_id: string | null;
     verification_notes: string | null;
     document_hash: string | null;
-    created_at: Date;
+    createdAt: Date;
     updated_at: Date;
-    client_id: string;
+    clientId:string,
     insurer_id: string | null;
     carrier_name_raw: string | null;
     insurer_name: string | null;
-    client_first_name: string;
-    client_last_name: string;
-    client_email: string;
+    client_firstName: string,
+    client_lastName: string,
+    client_email: string,
   }>>(`
     SELECT 
       p.id,
@@ -80,14 +80,14 @@ export default async function DocumentVerificationPage({ params }: Props) {
       p.verified_by_user_id,
       p.verification_notes,
       p.document_hash,
-      p.created_at,
+      p.createdAt,
       p.updated_at,
       p.client_id,
       p.insurer_id,
       p.carrier_name_raw,
       i.name as insurer_name,
-      c.first_name as client_first_name,
-      c.last_name as client_last_name,
+      c.firstName as client_firstName,
+      c.lastName as client_lastName,
       c.email as client_email
     FROM policies p
     LEFT JOIN insurers i ON i.id = p.insurer_id
@@ -114,43 +114,43 @@ export default async function DocumentVerificationPage({ params }: Props) {
 
   // Get documents for this policy
   const documents = await prisma.$queryRawUnsafe<Array<{
-    id: string;
-    file_name: string;
-    file_type: string;
+    id: string,
+    file_name: string,
+    file_type: string,
     file_size: number;
-    file_path: string;
-    mime_type: string;
+    file_path: string,
+    mime_type: string,
     extracted_data: unknown;
     ocr_confidence: number | null;
-    document_hash: string;
+    document_hash: string,
     verified_at: Date | null;
     verified_by_user_id: string | null;
     verification_notes: string | null;
-    created_at: Date;
+    createdAt: Date;
   }>>(`
     SELECT 
       id, file_name, file_type, file_size, file_path, mime_type,
       extracted_data, ocr_confidence, document_hash,
-      verified_at, verified_by_user_id, verification_notes, created_at
+      verified_at, verified_by_user_id, verification_notes, createdAt
     FROM documents
     WHERE policy_id = $1
-    ORDER BY created_at DESC
+    ORDER BY createdAt DESC
   `, id);
 
   // Get submission history
   const submissions = await prisma.$queryRawUnsafe<Array<{
-    id: string;
-    status: string;
-    submission_type: string;
+    id: string,
+    status: string,
+    submission_type: string,
     submitted_data: unknown;
-    created_at: Date;
+    createdAt: Date;
     processed_at: Date | null;
   }>>(`
     SELECT 
-      id, status, submission_type, submitted_data, created_at, processed_at
+      id, status, submission_type, submitted_data, createdAt, processed_at
     FROM submissions
     WHERE client_id = $1
-    ORDER BY created_at DESC
+    ORDER BY createdAt DESC
     LIMIT 10
   `, policyData.client_id);
 
@@ -165,12 +165,12 @@ export default async function DocumentVerificationPage({ params }: Props) {
         verifiedByUserId: policyData.verified_by_user_id,
         verificationNotes: policyData.verification_notes,
         documentHash: policyData.document_hash,
-        createdAt: policyData.created_at,
+        createdAt: policyData.createdAt,
         updatedAt: policyData.updated_at,
         client: {
           id: policyData.client_id,
-          firstName: policyData.client_first_name,
-          lastName: policyData.client_last_name,
+          firstName: policyData.client_firstName,
+          lastName: policyData.client_lastName,
           email: policyData.client_email,
         },
         insurer: policyData.insurer_id ? {
@@ -192,14 +192,14 @@ export default async function DocumentVerificationPage({ params }: Props) {
         verifiedAt: d.verified_at,
         verifiedByUserId: d.verified_by_user_id,
         verificationNotes: d.verification_notes,
-        createdAt: d.created_at,
+        createdAt: d.createdAt,
       }))}
       submissions={submissions.map((s: typeof submissions[0]) => ({
         id: s.id,
         status: s.status,
         submissionType: s.submission_type,
         submittedData: s.submitted_data,
-        createdAt: s.created_at,
+        createdAt: s.createdAt,
         processedAt: s.processed_at,
       }))}
       currentUserId={userId}

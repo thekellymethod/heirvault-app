@@ -13,7 +13,7 @@ export const runtime = "nodejs";
 export async function POST(req: Request) {
   const actor = await requireAdmin();
 
-  let body: { policyId: string; insurerName: string };
+  let body: { policyId: string, insurerName: string };
   try {
     body = await req.json();
   } catch {
@@ -32,9 +32,9 @@ export async function POST(req: Request) {
     where: { id: body.policyId },
     select: {
       id: true,
-      client_id: true,
-      insurer_id: true,
-      carrier_name_raw: true,
+      clientId: true,
+      insurerId: true,
+      carrierNameRaw: true,
     },
   });
 
@@ -55,8 +55,8 @@ export async function POST(req: Request) {
       data: {
         id: insurerId,
         name: body.insurerName.trim(),
-        created_at: now,
-        updated_at: now,
+        createdAt: now,
+        updatedAt: now,
       },
     });
   }
@@ -66,7 +66,7 @@ export async function POST(req: Request) {
   await prisma.policies.update({
     where: { id: body.policyId },
     data: {
-      insurer_id: insurer.id,
+      insurerId: insurer.id,
       // carrier_name_raw remains for audit trail
     },
   });
@@ -77,10 +77,10 @@ export async function POST(req: Request) {
   await prisma.audit_logs.create({
     data: {
       id: auditLogId,
-      user_id: actor.id,
+      userId: actor.id,
       action: "POLICY_UPDATED", // TODO: Add POLICY_INSURER_RESOLVED to AuditAction enum
       message: `Resolved insurer for policyId=${body.policyId} to insurerId=${insurer.id}, name=${insurer.name}`,
-      created_at: auditNow,
+      createdAt: auditNow,
     },
   });
 

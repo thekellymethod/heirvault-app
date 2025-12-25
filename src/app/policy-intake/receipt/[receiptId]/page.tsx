@@ -16,13 +16,13 @@ import {
 import Image from "next/image";
 
 interface ReceiptData {
-  receiptId: string;
-  qrToken?: string;
-  qrCodeDataUrl?: string;
-  submittedAt: Date | string;
-  decedentName?: string;
-  policyNumber?: string;
-  insurerName?: string;
+  receiptId: string,
+  qrToken?: string,
+  qrCodeDataUrl?: string,
+  submittedAt: Date | string,
+  decedentName?: string,
+  policyNumber?: string,
+  insurerName?: string,
 }
 
 /**

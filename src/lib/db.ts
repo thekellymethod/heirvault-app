@@ -8,61 +8,61 @@ import type { RegistryRecord } from "./db/index";
 export * from "./db/index";
 
 export type RegistryVersion = {
-  id: string;
-  registry_id: string;
-  submitted_by: string;
+  id: string,
+  registry_id: string,
+  submitted_by: string,
   data_json: Record<string, unknown>;
-  hash: string;
-  created_at: string;
+  hash: string,
+  createdAt: string,
 };
 
 export type DocumentRow = {
-  id: string;
-  registry_version_id: string;
-  storage_path: string;
-  content_type: string;
+  id: string,
+  registry_version_id: string,
+  storage_path: string,
+  content_type: string,
   size_bytes: number;
-  sha256: string;
-  created_at: string;
+  sha256: string,
+  createdAt: string,
 };
 
 export type AccessLogRow = {
-  id: string;
+  id: string,
   user_id: string | null;
   registry_id: string | null;
-  action: string;
+  action: string,
   metadata: Record<string, unknown> | null;
-  created_at: string;
+  createdAt: string,
 };
 
 export async function createRegistryRecord(input: {
-  decedentName: string;
+  decedentName: string,
 }): Promise<RegistryRecord> {
   const sb = supabaseServer();
   const { data, error } = await sb
     .from("registry_records")
     .insert({
-      decedent_name: input.decedentName.trim(),
+      decedentName: input.decedentName.trim(),
     })
     .select("*")
     .single();
 
   if (error) throw error;
   // Supabase returns snake_case, but we need to map to camelCase for TypeScript type
-  const record = data as { decedent_name: string; status: string; created_at: string; id: string };
+  const record = data as { decedentName: string, status: string, createdAt: string, id: string };
   return {
     id: record.id,
-    decedentName: record.decedent_name,
+    decedentName: record.decedentName,
     status: record.status,
-    createdAt: new Date(record.created_at),
+    createdAt: new Date(record.createdAt),
   } as RegistryRecord;
 }
 
 export async function appendRegistryVersion(input: {
-  registry_id: string;
+  registry_id: string,
   submitted_by: "INTAKE" | "TOKEN" | "ATTORNEY" | "SYSTEM";
   data_json: Record<string, unknown>;
-  hash: string;
+  hash: string,
 }): Promise<RegistryVersion> {
   const sb = supabaseServer();
   const { data, error } = await sb
@@ -81,11 +81,11 @@ export async function appendRegistryVersion(input: {
 }
 
 export async function addDocumentRow(input: {
-  registry_version_id: string;
-  storage_path: string;
-  content_type: string;
+  registry_version_id: string,
+  storage_path: string,
+  content_type: string,
   size_bytes: number;
-  sha256: string;
+  sha256: string,
 }): Promise<DocumentRow> {
   const sb = supabaseServer();
   const { data, error } = await sb
@@ -110,12 +110,12 @@ export async function getRegistryById(id: string): Promise<RegistryRecord | null
   if (error) throw error;
   if (!data) return null;
   // Map snake_case to camelCase for TypeScript type
-  const record = data as { decedent_name: string; status: string; created_at: string; id: string };
+  const record = data as { decedentName: string, status: string, createdAt: string, id: string };
   return {
     id: record.id,
-    decedentName: record.decedent_name,
+    decedentName: record.decedentName,
     status: record.status,
-    createdAt: new Date(record.created_at),
+    createdAt: new Date(record.createdAt),
   } as RegistryRecord;
 }
 
@@ -125,7 +125,7 @@ export async function getRegistryVersions(registryId: string): Promise<RegistryV
     .from("registry_versions")
     .select("*")
     .eq("registry_id", registryId)
-    .order("created_at", { ascending: false });
+    .order("createdAt", { ascending: false });
 
   if (error) throw error;
   return (data ?? []) as RegistryVersion[];
@@ -137,7 +137,7 @@ export async function getDocumentsForRegistry(registryId: string): Promise<Docum
     .from("documents")
     .select("*, registry_versions!inner(registry_id)")
     .eq("registry_versions.registry_id", registryId)
-    .order("created_at", { ascending: false });
+    .order("createdAt", { ascending: false });
 
   if (error) throw error;
   // Supabase returns join shape; keep only DocumentRow fields
@@ -150,7 +150,7 @@ export async function getDocumentsForRegistry(registryId: string): Promise<Docum
       content_type: String(d.content_type ?? ""),
       size_bytes: Number(d.size_bytes ?? 0),
       sha256: String(d.sha256 ?? ""),
-      created_at: String(d.created_at ?? ""),
+      createdAt: String(d.createdAt ?? ""),
     };
   }) as DocumentRow[];
 }
@@ -160,23 +160,23 @@ export async function listRegistries(limit = 50): Promise<RegistryRecord[]> {
   const { data, error } = await sb
     .from("registry_records")
     .select("*")
-    .order("created_at", { ascending: false })
+    .order("createdAt", { ascending: false })
     .limit(limit);
 
   if (error) throw error;
   // Map snake_case to camelCase for TypeScript type
-  return (data ?? []).map((record: { decedent_name: string; status: string; created_at: string; id: string }) => ({
+  return (data ?? []).map((record: { decedentName: string, status: string, createdAt: string, id: string }) => ({
     id: record.id,
-    decedentName: record.decedent_name,
+    decedentName: record.decedentName,
     status: record.status,
-    createdAt: new Date(record.created_at),
+    createdAt: new Date(record.createdAt),
   })) as RegistryRecord[];
 }
 
 export async function logAccess(input: {
   user_id: string | null;
   registry_id?: string | null;
-  action: string;
+  action: string,
   metadata?: Record<string, unknown>;
 }): Promise<void> {
   const sb = supabaseServer();
@@ -190,37 +190,37 @@ export async function logAccess(input: {
 }
 
 export async function constrainedSearch(input: {
-  query: string;
+  query: string,
   limit?: number;
 }): Promise<RegistryRecord[]> {
   const sb = supabaseServer();
   const q = input.query.trim();
   const limit = input.limit ?? 25;
 
-  // Constrained search: decedent_name only (v1)
+  // Constrained search: decedentName only (v1)
   const { data, error } = await sb
     .from("registry_records")
     .select("*")
-    .ilike("decedent_name", `%${q}%`)
-    .order("created_at", { ascending: false })
+    .ilike("decedentName", `%${q}%`)
+    .order("createdAt", { ascending: false })
     .limit(limit);
 
   if (error) throw error;
   // Map snake_case to camelCase for TypeScript type
-  return (data ?? []).map((record: { decedent_name: string; status: string; created_at: string; id: string }) => ({
+  return (data ?? []).map((record: { decedentName: string, status: string, createdAt: string, id: string }) => ({
     id: record.id,
-    decedentName: record.decedent_name,
+    decedentName: record.decedentName,
     status: record.status,
-    createdAt: new Date(record.created_at),
+    createdAt: new Date(record.createdAt),
   })) as RegistryRecord[];
 }
 
 // New type representing a registry permission record
 export type RegistryPermission = {
-  registry_id: string;
-  user_id: string;
-  role: string;
-  created_at: string;
+  registry_id: string,
+  user_id: string,
+  role: string,
+  createdAt: string,
 };
 
 /**
@@ -241,7 +241,7 @@ export async function listAuthorizedRegistries(userId: string, limit = 50): Prom
     .from("registry_permissions")
     .select("registry_records(*)")
     .eq("user_id", userId)
-    .order("registry_records.created_at", { ascending: false })
+    .order("registry_records.createdAt", { ascending: false })
     .limit(limit);
 
   if (error) throw error;
@@ -250,13 +250,13 @@ export async function listAuthorizedRegistries(userId: string, limit = 50): Prom
     if (!isRecord(row) || !isRecord(row.registry_records)) {
       throw new Error("Invalid registry record row");
     }
-    const record = row.registry_records as { decedent_name: string; status: string; created_at: string; id: string };
+    const record = row.registry_records as { decedentName: string, status: string, createdAt: string, id: string };
     // Map snake_case to camelCase for TypeScript type
     return {
       id: record.id,
-      decedentName: record.decedent_name,
+      decedentName: record.decedentName,
       status: record.status,
-      createdAt: new Date(record.created_at),
+      createdAt: new Date(record.createdAt),
     } as RegistryRecord;
   });
 }

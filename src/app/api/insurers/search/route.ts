@@ -4,16 +4,16 @@ import fs from "fs";
 import path from "path";
 
 type InsuranceCompany = {
-  naic_code: string;
+  naic_code: string,
   group_code: string | null;
   statement_type: string | null;
   status: string | null;
-  name: string;
+  name: string,
 };
 
 export async function GET(req: NextRequest) {
   try {
-    await requireAuth("attorney");
+    await requireAuth();
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : "Unauthorized";
     const status = e && typeof e === "object" && "status" in e && typeof e.status === "number" ? e.status : 401;

@@ -27,12 +27,17 @@ export async function POST(
       invite = await lookupClientInvite(token);
     }
 
-    if (!invite) {
+    if (!invite || typeof invite !== 'object' || !('clientId' in invite) || !('client' in invite)) {
       return NextResponse.json(
         { error: "Invalid invitation code" },
         { status: 404 }
       );
     }
+
+    // Extract clientId:and client with type assertion after type guard
+    const typedInvite = invite as { clientId: string, client: { firstName?: string, lastName?: string, email?: string, phone?: string | null; dateOfBirth?: Date | null } };
+    const clientId = typedInvite.clientId;
+    const inviteClient = typedInvite.client;
 
     // Get form data
     const formData = await req.formData();
@@ -83,16 +88,17 @@ export async function POST(
       const filePath = storagePath;
       archivedDocument = await prisma.documents.create({
         data: {
-          client_id: invite.clientId,
-          file_name: file.name,
-          file_type: file.type,
-          file_size: file.size,
-          file_path: filePath,
-          mime_type: file.type,
-          uploaded_via: "update-form",
-          extracted_data: decodedData,
-          ocr_confidence: decodedData.confidence ? Math.round(decodedData.confidence * 100) : null,
-          document_hash: "", // Will be calculated if needed
+          id: randomUUID(),
+          clientId: clientId,
+          fileName: file.name,
+          fileType: file.type,
+          fileSize: file.size,
+          filePath: filePath,
+          mimeType: file.type,
+          uploadedVia: "update-form",
+          extractedData: decodedData as any,
+          ocrConfidence: decodedData.confidence ? Math.round(decodedData.confidence * 100) : null,
+          documentHash: "", // Will be calculated if needed
         },
       });
     } catch (archiveError) {
@@ -102,15 +108,15 @@ export async function POST(
 
     // Update client information
     const updatedClient = await prisma.clients.update({
-      where: { id: invite.clientId },
+      where: { id: clientId },
       data: {
-        first_name: decodedData.firstName || invite.client.firstName || "",
-        last_name: decodedData.lastName || invite.client.lastName || "",
-        email: decodedData.email || invite.client.email || "",
-        phone: decodedData.phone || invite.client.phone || null,
-        date_of_birth: decodedData.dateOfBirth
+        firstName: decodedData.firstName || inviteClient.firstName || "",
+        lastName: decodedData.lastName || inviteClient.lastName || "",
+        email: decodedData.email || inviteClient.email || "",
+        phone: decodedData.phone || inviteClient.phone || null,
+        dateOfBirth: decodedData.dateOfBirth
           ? new Date(decodedData.dateOfBirth)
-          : invite.client.dateOfBirth || null,
+          : inviteClient.dateOfBirth || null,
       },
     });
 
@@ -132,6 +138,7 @@ export async function POST(
         if (!insurer) {
           insurer = await prisma.insurers.create({
             data: {
+              id: randomUUID(),
               name: decodedData.insurerName,
             },
           });
@@ -142,8 +149,8 @@ export async function POST(
       if (insurer) {
         const existingPolicy = await prisma.policies.findFirst({
           where: {
-            client_id: invite.clientId,
-            insurer_id: insurer.id,
+            clientId: clientId,
+            insurerId: insurer.id,
           },
         });
 
@@ -151,17 +158,18 @@ export async function POST(
           updatedPolicy = await prisma.policies.update({
             where: { id: existingPolicy.id },
             data: {
-              policy_number: decodedData.policyNumber || existingPolicy.policy_number || null,
-              policy_type: decodedData.policyType || existingPolicy.policy_type || null,
+              policyNumber: decodedData.policyNumber || existingPolicy.policyNumber || null,
+              policyType: decodedData.policyType || existingPolicy.policyType || null,
             },
           });
         } else {
           updatedPolicy = await prisma.policies.create({
             data: {
-              client_id: invite.clientId,
-              insurer_id: insurer.id,
-              policy_number: decodedData.policyNumber || null,
-              policy_type: decodedData.policyType || null,
+              id: randomUUID(),
+              clientId: clientId,
+              insurerId: insurer.id,
+              policyNumber: decodedData.policyNumber || null,
+              policyType: decodedData.policyType || null,
             },
           });
         }
@@ -170,22 +178,22 @@ export async function POST(
         if (archivedDocument && updatedPolicy) {
           await prisma.documents.update({
             where: { id: archivedDocument.id },
-            data: { policy_id: updatedPolicy.id },
+            data: { policyId: updatedPolicy.id },
           });
         }
       }
     }
 
     // Get organization and attorney info
-    const access = await prisma.attorney_client_access.findFirst({
+    const access = await prisma.attorneyClientAccess.findFirst({
       where: {
-        client_id: invite.clientId,
-        is_active: true,
+        clientId: clientId,
+        isActive: true,
       },
       include: {
         users: {
           include: {
-            org_members: {
+            orgMemberships: {
               include: {
                 organizations: true,
               },
@@ -195,17 +203,17 @@ export async function POST(
       },
     });
 
-    const organization = access?.users?.org_members?.[0]?.organizations;
+    const organization = access?.users?.orgMemberships?.[0]?.organizations;
     const attorney = access?.users;
 
     // Get updated policies for receipt
     const updatedPolicies = await prisma.policies.findMany({
-      where: { client_id: invite.clientId },
+      where: { clientId: clientId },
       include: { insurers: true },
     });
 
     // Generate new receipt data
-    const receiptId = `REC-${invite.clientId}-${Date.now()}`;
+    const receiptId = `REC-${clientId}-${Date.now()}`;
     const receiptData = {
       receiptId,
       client: {
@@ -219,21 +227,25 @@ export async function POST(
         id: p.id,
         policyNumber: p.policyNumber,
         policyType: p.policyType,
-        insurer: {
-          name: p.insurer.name,
-          contactPhone: p.insurer.contactPhone,
-          contactEmail: p.insurer.contactEmail,
+        insurer: p.insurers ? {
+          name: p.insurers.name,
+          contactPhone: p.insurers.contactPhone,
+          contactEmail: p.insurers.contactEmail,
+        } : {
+          name: "Unknown",
+          contactPhone: null,
+          contactEmail: null,
         },
       })),
       organization: organization
         ? {
             name: organization.name,
-            addressLine1: organization.addressLine1,
-            addressLine2: organization.addressLine2,
-            city: organization.city,
-            state: organization.state,
-            postalCode: organization.postalCode,
-            phone: organization.phone,
+            addressLine1: organization.addressLine1 ?? undefined,
+            addressLine2: organization.addressLine2 ?? undefined,
+            city: organization.city ?? undefined,
+            state: organization.state ?? undefined,
+            postalCode: organization.postalCode ?? undefined,
+            phone: organization.phone ?? undefined,
           }
         : null,
       registeredAt: updatedClient.createdAt,
@@ -263,18 +275,28 @@ export async function POST(
       );
 
       const chunks: Uint8Array[] = [];
-      const reader = pdfStream.getReader();
-      let done = false;
-
-      while (!done) {
-        const { value, done: streamDone } = await reader.read();
-        done = streamDone;
-        if (value) {
-          chunks.push(value);
+      const maybeWeb = pdfStream as { getReader?: () => ReadableStreamDefaultReader<Uint8Array> };
+      
+      if (typeof maybeWeb?.getReader === "function") {
+        const reader = maybeWeb.getReader();
+        let done = false;
+        while (!done) {
+          const { value, done: streamDone } = await reader.read();
+          done = streamDone;
+          if (value) {
+            chunks.push(value);
+          }
         }
+        receiptPdfBuffer = Buffer.concat(chunks);
+      } else {
+        const nodeStream = pdfStream as NodeJS.ReadableStream;
+        receiptPdfBuffer = await new Promise<Buffer>((resolve, reject) => {
+          const nodeChunks: Buffer[] = [];
+          nodeStream.on("data", (c: Buffer) => nodeChunks.push(Buffer.isBuffer(c) ? c : Buffer.from(c)));
+          nodeStream.on("end", () => resolve(Buffer.concat(nodeChunks)));
+          nodeStream.on("error", reject);
+        });
       }
-
-      receiptPdfBuffer = Buffer.concat(chunks);
     } catch (pdfError) {
       console.error("Error generating receipt PDF:", pdfError);
     }
@@ -331,11 +353,11 @@ export async function POST(
         id: auditLogId,
         action: AuditAction.CLIENT_UPDATED,
         message: `Client information updated via scanned form: ${file.name}`,
-        client_id: invite.clientId,
-        policy_id: updatedPolicy?.id || null,
-        user_id: null,
-        org_id: null,
-        created_at: new Date(),
+        clientId: clientId,
+        policyId: updatedPolicy?.id || null,
+        userId: null,
+        orgId: null,
+        createdAt: new Date(),
       },
     });
 

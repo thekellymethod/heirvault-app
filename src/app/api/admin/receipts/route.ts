@@ -19,12 +19,12 @@ export async function GET(req: NextRequest) {
 
     // Search receipts by receipt ID, client name, email, or token
     let receipts: Array<{
-      id: string;
-      receiptId: string;
-      token: string;
-      clientId: string;
-      clientName: string;
-      email: string;
+      id: string,
+      receiptId: string,
+      token: string,
+      clientId: string,
+      clientName: string,
+      email: string,
       phone: string | null;
       expiresAt: Date;
       usedAt: Date | null;
@@ -41,15 +41,15 @@ export async function GET(req: NextRequest) {
         
         // Search client_invites (which contain receipt information via token)
         const receiptsResult = await prisma.$queryRawUnsafe<Array<{
-          id: string;
-          client_id: string;
-          token: string;
-          email: string;
+          id: string,
+          clientId: string,
+          token: string,
+          email: string,
           expires_at: Date;
           used_at: Date | null;
-          created_at: Date;
-          first_name: string;
-          last_name: string;
+          createdAt: Date;
+          firstName: string,
+          lastName: string,
           phone: string | null;
           receipt_id: string | null;
         }>>(`
@@ -60,51 +60,51 @@ export async function GET(req: NextRequest) {
             ci.email,
             ci.expires_at,
             ci.used_at,
-            ci.created_at,
-            c.first_name,
-            c.last_name,
+            ci.createdAt,
+            c.firstName,
+            c.lastName,
             c.phone,
-            CONCAT('REC-', ci.client_id, '-', EXTRACT(EPOCH FROM ci.created_at)::bigint) as receipt_id
+            CONCAT('REC-', ci.client_id, '-', EXTRACT(EPOCH FROM ci.createdAt)::bigint) as receipt_id
           FROM client_invites ci
           INNER JOIN clients c ON c.id = ci.client_id
           WHERE 
             (LOWER(ci.token) LIKE LOWER($1) OR
              LOWER(ci.email) LIKE LOWER($1) OR
-             LOWER(c.first_name) LIKE LOWER($1) OR
-             LOWER(c.last_name) LIKE LOWER($1) OR
-             CONCAT('REC-', ci.client_id, '-', EXTRACT(EPOCH FROM ci.created_at)::bigint) LIKE $1)
+             LOWER(c.firstName) LIKE LOWER($1) OR
+             LOWER(c.lastName) LIKE LOWER($1) OR
+             CONCAT('REC-', ci.client_id, '-', EXTRACT(EPOCH FROM ci.createdAt)::bigint) LIKE $1)
             ${archivedClause}
-          ORDER BY ci.created_at DESC
+          ORDER BY ci.createdAt DESC
           LIMIT $2
           OFFSET $3
         `, searchPattern, limit, offset);
 
         receipts = receiptsResult.map(row => ({
           id: row.id,
-          receiptId: row.receipt_id ?? `REC-${row.client_id}-${Math.floor(row.created_at.getTime() / 1000)}`,
+          receiptId: row.receipt_id ?? `REC-${row.client_id}-${Math.floor(row.createdAt.getTime() / 1000)}`,
           token: row.token,
           clientId: row.client_id,
-          clientName: `${row.first_name} ${row.last_name}`,
+          clientName: `${row.firstName} ${row.lastName}`,
           email: row.email,
           phone: row.phone,
           expiresAt: row.expires_at,
           usedAt: row.used_at,
-          createdAt: row.created_at,
+          createdAt: row.createdAt,
           isArchived: row.used_at !== null,
         }));
       } else {
         // Get all receipts if no search query
         const archivedClause = archived ? "WHERE ci.used_at IS NOT NULL" : "";
         const receiptsResult = await prisma.$queryRawUnsafe<Array<{
-          id: string;
-          client_id: string;
-          token: string;
-          email: string;
+          id: string,
+          clientId: string,
+          token: string,
+          email: string,
           expires_at: Date;
           used_at: Date | null;
-          created_at: Date;
-          first_name: string;
-          last_name: string;
+          createdAt: Date;
+          firstName: string,
+          lastName: string,
           phone: string | null;
         }>>(`
           SELECT 
@@ -114,29 +114,29 @@ export async function GET(req: NextRequest) {
             ci.email,
             ci.expires_at,
             ci.used_at,
-            ci.created_at,
-            c.first_name,
-            c.last_name,
+            ci.createdAt,
+            c.firstName,
+            c.lastName,
             c.phone
           FROM client_invites ci
           INNER JOIN clients c ON c.id = ci.client_id
           ${archivedClause}
-          ORDER BY ci.created_at DESC
+          ORDER BY ci.createdAt DESC
           LIMIT $1
           OFFSET $2
         `, limit, offset);
 
         receipts = receiptsResult.map(row => ({
           id: row.id,
-          receiptId: `REC-${row.client_id}-${Math.floor(row.created_at.getTime() / 1000)}`,
+          receiptId: `REC-${row.client_id}-${Math.floor(row.createdAt.getTime() / 1000)}`,
           token: row.token,
           clientId: row.client_id,
-          clientName: `${row.first_name} ${row.last_name}`,
+          clientName: `${row.firstName} ${row.lastName}`,
           email: row.email,
           phone: row.phone,
           expiresAt: row.expires_at,
           usedAt: row.used_at,
-          createdAt: row.created_at,
+          createdAt: row.createdAt,
           isArchived: row.used_at !== null,
         }));
       }
@@ -173,15 +173,15 @@ export async function GET(req: NextRequest) {
       // Fallback to Prisma (may not work due to schema issues, but try anyway)
       // Note: Using raw SQL query as Prisma model may not be available
       const invitesResult = await prisma.$queryRawUnsafe<Array<{
-        id: string;
-        client_id: string;
-        token: string;
-        email: string;
+        id: string,
+        clientId:string,
+        token: string,
+        email: string,
         expires_at: Date;
         used_at: Date | null;
-        created_at: Date;
-        first_name: string;
-        last_name: string;
+        createdAt: Date;
+        firstName: string,
+        lastName: string,
         phone: string | null;
       }>>(`
         SELECT 
@@ -191,29 +191,29 @@ export async function GET(req: NextRequest) {
           ci.email,
           ci.expires_at,
           ci.used_at,
-          ci.created_at,
-          c.first_name,
-          c.last_name,
+          ci.createdAt,
+          c.firstName,
+          c.lastName,
           c.phone
         FROM client_invites ci
         INNER JOIN clients c ON c.id = ci.client_id
         ${archived ? "WHERE ci.used_at IS NOT NULL" : ""}
-        ORDER BY ci.created_at DESC
+        ORDER BY ci.createdAt DESC
         LIMIT $1
         OFFSET $2
       `, limit, offset);
 
       const receipts = invitesResult.map((invite) => ({
         id: invite.id,
-        receiptId: `REC-${invite.client_id}-${Math.floor(invite.created_at.getTime() / 1000)}`,
+        receiptId: `REC-${invite.client_id}-${Math.floor(invite.createdAt.getTime() / 1000)}`,
         token: invite.token,
         clientId: invite.client_id,
-        clientName: `${invite.first_name} ${invite.last_name}`,
+        clientName: `${invite.firstName} ${invite.lastName}`,
         email: invite.email,
         phone: invite.phone,
         expiresAt: invite.expires_at,
         usedAt: invite.used_at,
-        createdAt: invite.created_at,
+        createdAt: invite.createdAt,
         isArchived: invite.used_at !== null,
       }));
 
@@ -267,7 +267,7 @@ export async function POST(req: NextRequest) {
             UPDATE client_invites
             SET used_at = NOW(), updated_at = NOW()
             WHERE client_id = $1 AND used_at IS NULL
-            ORDER BY created_at DESC
+            ORDER BY createdAt DESC
             LIMIT 1
           `, clientId);
         }

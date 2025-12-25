@@ -15,11 +15,10 @@ export async function POST(req: NextRequest, { params }: Params) {
   try {
     ctx = await requireAttorneyOrOwner();
   } catch (e: unknown) {
-  const message = e instanceof Error ? e.message : "Unknown error";
-} {
+    const message = e instanceof Error ? e.message : "Unknown error";
     return NextResponse.json(
-      { error: e.message || "Unauthorized" },
-      { status: e.status || 401 }
+      { error: message || "Unauthorized" },
+      { status: 401 }
     );
   }
 
@@ -62,8 +61,37 @@ export async function POST(req: NextRequest, { params }: Params) {
       ClientRegistrySummaryPDF({
         client: {
           ...client,
-          dateOfBirth: client.date_of_birth,
-          createdAt: client.created_at,
+          dateOfBirth: client.dateOfBirth,
+          createdAt: client.createdAt,
+          beneficiaries: client.beneficiaries.map(b => ({
+            ...b,
+            relationship: b.relationship || "",
+            notes: null,
+          })),
+          policies: client.policies.map(p => ({
+            ...p,
+            insurer: p.insurers ? {
+              name: p.insurers.name,
+              contactPhone: p.insurers.contactPhone,
+              contactEmail: p.insurers.contactEmail,
+              website: p.insurers.website,
+            } : {
+              name: "Unknown",
+              contactPhone: null,
+              contactEmail: null,
+              website: null,
+            },
+            beneficiaries: p.policy_beneficiaries.map(pb => ({
+              beneficiary: {
+                firstName: pb.beneficiaries.firstName,
+                lastName: pb.beneficiaries.lastName,
+                relationship: pb.beneficiaries.relationship || "",
+                email: pb.beneficiaries.email,
+                phone: pb.beneficiaries.phone,
+              },
+              sharePercent: null,
+            })),
+          })),
         },
         firmName: orgMember?.organizations.name,
         generatedAt: new Date(),
@@ -71,23 +99,30 @@ export async function POST(req: NextRequest, { params }: Params) {
     );
 
     // Convert stream to buffer
-    const chunks: Uint8Array[] = [];
-    const reader = pdfStream.getReader();
-    let done = false;
-
-    while (!done) {
-      const { value, done: streamDone } = await reader.read();
-      done = streamDone;
-      if (value) {
-        chunks.push(value);
+    const maybeWeb = pdfStream as { getReader?: () => ReadableStreamDefaultReader<Uint8Array> };
+    let pdfBuffer: Buffer;
+    if (typeof maybeWeb?.getReader === "function") {
+      const reader = maybeWeb.getReader();
+      const chunks: Uint8Array[] = [];
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (value) chunks.push(value);
       }
+      pdfBuffer = Buffer.concat(chunks);
+    } else {
+      const nodeStream = pdfStream as NodeJS.ReadableStream;
+      pdfBuffer = await new Promise<Buffer>((resolve, reject) => {
+        const chunks: Buffer[] = [];
+        nodeStream.on("data", (c: Buffer) => chunks.push(Buffer.isBuffer(c) ? c : Buffer.from(c)));
+        nodeStream.on("end", () => resolve(Buffer.concat(chunks)));
+        nodeStream.on("error", reject);
+      });
     }
 
-    const pdfBuffer = Buffer.concat(chunks);
-
     // Send email with PDF attachment
-    const clientName = `${client.first_name} ${client.last_name}`;
-    const fileName = `heirvault-${client.last_name}-${client.first_name}.pdf`;
+    const clientName = `${client.firstName} ${client.lastName}`;
+    const fileName = `heirvault-${client.lastName}-${client.firstName}.pdf`;
 
     await sendEmail({
       to: email,
@@ -118,7 +153,7 @@ export async function POST(req: NextRequest, { params }: Params) {
 
     await audit(AuditAction.CLIENT_SUMMARY_PDF_DOWNLOADED, {
       clientId: client.id,
-      message: `Summary PDF emailed to ${email} for ${client.first_name} ${client.last_name}`,
+      message: `Summary PDF emailed to ${email} for ${client.firstName} ${client.lastName}`,
       userId: user.id,
     });
 

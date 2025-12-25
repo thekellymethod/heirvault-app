@@ -17,7 +17,7 @@ async function main() {
   
   // Find admin user using raw SQL
   const userResult = await pool.query(
-    `SELECT id, email, first_name, last_name, roles FROM users WHERE email = $1 LIMIT 1`,
+    `SELECT id, email, firstName, lastName, roles FROM users WHERE email = $1 LIMIT 1`,
     [adminEmail]
   );
 
@@ -103,14 +103,14 @@ async function main() {
 
       // Create organization
       await client.query(
-        `INSERT INTO organizations (id, name, slug, address_line1, city, state, postal_code, phone, created_at, updated_at)
+        `INSERT INTO organizations (id, name, slug, address_line1, city, state, postal_code, phone, createdAt, updated_at)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())`,
         [orgId, orgName, finalSlug, address, city, state, postalCode, phone]
       );
 
       // Add admin user as OWNER
       await client.query(
-        `INSERT INTO org_members (id, user_id, organization_id, role, created_at, updated_at)
+        `INSERT INTO org_members (id, user_id, organization_id, role, createdAt, updated_at)
          VALUES ($1, $2, $3, 'OWNER', NOW(), NOW())`,
         [memberId, adminUser.id, orgId]
       );

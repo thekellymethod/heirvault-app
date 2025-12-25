@@ -8,14 +8,14 @@ import { Input } from "@/components/ui/input";
 import { useState } from "react";
 
 interface RegistrySummary {
-  id: string;
-  decedentName: string;
-  status: string;
+  id: string,
+  decedentName: string,
+  status: string,
   createdAt: Date;
   latestVersion: {
-    id: string;
+    id: string,
     createdAt: Date;
-    submittedBy: string;
+    submittedBy: string,
   } | null;
   versionCount: number;
   lastUpdated: Date | null;

@@ -33,10 +33,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   await prisma.audit_logs.create({
     data: {
       id: crypto.randomUUID(),
-      user_id: actor.id,
+      userId: actor.id,
       action: "API_TOKEN_REVOKED",
       message: `API token revoked: tokenId=${id}, name=${token.name}`,
-      created_at: new Date(),
+      createdAt: new Date(),
     },
   });
 

@@ -19,10 +19,10 @@ export async function GET(
 
     // Get all receipts for this client
     const receipts = await prisma.$queryRawUnsafe<Array<{
-      id: string;
-      receipt_number: string;
-      client_id: string;
-      created_at: Date;
+      id: string,
+      receipt_number: string,
+      clientId: string,
+      createdAt: Date;
       email_sent: boolean;
       email_sent_at: Date | null;
     }>>(`
@@ -30,27 +30,27 @@ export async function GET(
         r.id,
         r.receipt_number,
         r.client_id,
-        r.created_at,
+        r.createdAt,
         r.email_sent,
         r.email_sent_at
       FROM receipts r
       WHERE r.client_id = $1
-      ORDER BY r.created_at DESC
+      ORDER BY r.createdAt DESC
     `, clientId);
 
     // Get all audit logs for this client
     const auditLogs = await prisma.$queryRawUnsafe<Array<{
-      id: string;
+      id: string,
       user_id: string | null;
       org_id: string | null;
-      client_id: string | null;
+      clientId:string | null;
       policy_id: string | null;
-      action: string;
-      message: string;
-      created_at: Date;
+      action: string,
+      message: string,
+      createdAt: Date;
       user_email: string | null;
-      user_first_name: string | null;
-      user_last_name: string | null;
+      user_firstName: string | null;
+      user_lastName: string | null;
     }>>(`
       SELECT 
         al.id,
@@ -60,14 +60,14 @@ export async function GET(
         al.policy_id,
         al.action,
         al.message,
-        al.created_at,
+        al.createdAt,
         u.email as user_email,
-        u.first_name as user_first_name,
-        u.last_name as user_last_name
+        u.firstName as user_firstName,
+        u.lastName as user_lastName
       FROM audit_logs al
       LEFT JOIN users u ON u.id = al.user_id
       WHERE al.client_id = $1
-      ORDER BY al.created_at DESC
+      ORDER BY al.createdAt DESC
       LIMIT 1000
     `, clientId);
 
@@ -80,27 +80,27 @@ export async function GET(
         // This preserves historical accuracy - policies added/modified after receipt creation
         // will not affect the receipt's hash
         const policiesAtReceiptTime = await prisma.$queryRawUnsafe<Array<{
-          id: string;
+          id: string,
           policy_number: string | null;
         }>>(`
           SELECT id, policy_number
           FROM policies
           WHERE client_id = $1
-            AND created_at <= $2
-          ORDER BY created_at ASC
-        `, clientId, receipt.created_at);
+            AND createdAt <= $2
+          ORDER BY createdAt ASC
+        `, clientId, receipt.createdAt);
 
         const hash = generateReceiptHash({
           receiptId: receipt.receipt_number,
           clientId: receipt.client_id,
-          createdAt: receipt.created_at,
+          createdAt: receipt.createdAt,
           policies: policiesAtReceiptTime.map(p => ({ id: p.id, policyNumber: p.policy_number })),
         });
 
         return {
           id: receipt.id,
           receiptNumber: receipt.receipt_number,
-          createdAt: receipt.created_at.toISOString(),
+          createdAt: receipt.createdAt.toISOString(),
           emailSent: receipt.email_sent,
           emailSentAt: receipt.email_sent_at?.toISOString() || null,
           hash,
@@ -117,7 +117,7 @@ export async function GET(
         userId: log.user_id,
         clientId: log.client_id,
         policyId: log.policy_id,
-        createdAt: log.created_at,
+        createdAt: log.createdAt,
         orgId: log.org_id,
       });
       return {
@@ -125,10 +125,10 @@ export async function GET(
         action: log.action,
         message: log.message,
         actor: log.user_email 
-          ? `${log.user_first_name || ""} ${log.user_last_name || ""}`.trim() || log.user_email
+          ? `${log.user_firstName || ""} ${log.user_lastName || ""}`.trim() || log.user_email
           : "System",
         actorEmail: log.user_email,
-        timestamp: log.created_at.toISOString(),
+        timestamp: log.createdAt.toISOString(),
         policyId: log.policy_id,
         hash,
       };

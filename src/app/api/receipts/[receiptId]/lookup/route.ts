@@ -21,29 +21,29 @@ export async function GET(
 
     // Find the most recent invite for this client - use raw SQL first
     let invite: {
-      id: string;
-      clientId: string;
-      email: string;
-      token: string;
+      id: string,
+      clientId: string,
+      email: string,
+      token: string,
       expiresAt: Date;
       usedAt: Date | null;
       createdAt: Date;
       client: {
-        firstName: string;
-        lastName: string;
+        firstName: string,
+        lastName: string,
       };
     } | null = null;
     try {
       const rawResult = await prisma.$queryRaw<Array<{
-        id: string;
-        client_id: string;
-        email: string;
-        token: string;
+        id: string,
+        clientId: string,
+        email: string,
+        token: string,
         expires_at: Date;
         used_at: Date | null;
-        created_at: Date;
-        first_name: string;
-        last_name: string;
+        createdAt: Date;
+        firstName: string,
+        lastName: string,
       }>>`
         SELECT 
           ci.id,
@@ -52,13 +52,13 @@ export async function GET(
           ci.token,
           ci.expires_at,
           ci.used_at,
-          ci.created_at,
-          c.first_name,
-          c.last_name
+          ci.createdAt,
+          c.firstName,
+          c.lastName
         FROM client_invites ci
         INNER JOIN clients c ON c.id = ci.client_id
         WHERE ci.client_id = ${clientId} AND ci.used_at IS NOT NULL
-        ORDER BY ci.created_at DESC
+        ORDER BY ci.createdAt DESC
         LIMIT 1
       `;
 
@@ -71,10 +71,10 @@ export async function GET(
           token: row.token,
           expiresAt: row.expires_at,
           usedAt: row.used_at,
-          createdAt: row.created_at,
+          createdAt: row.createdAt,
           client: {
-            firstName: row.first_name,
-            lastName: row.last_name,
+            firstName: row.firstName,
+            lastName: row.lastName,
           },
         };
       }
@@ -88,10 +88,10 @@ export async function GET(
           const clientInvites = prismaAny.client_invites as { findFirst: (args: { where: unknown; orderBy: unknown; include: unknown }) => Promise<unknown> };
           const prismaInvite = await clientInvites.findFirst({
             where: {
-              client_id: clientId,
+              clientId:clientId,
               used_at: { not: null },
             },
-            orderBy: { created_at: "desc" },
+            orderBy: { createdAt: "desc" },
             include: { clients: true },
           });
           if (prismaInvite && typeof prismaInvite === "object" && "clients" in prismaInvite) {
@@ -103,8 +103,8 @@ export async function GET(
               token: String(inviteAny.token || ""),
               expiresAt: (inviteAny.expires_at as Date) || new Date(),
               usedAt: (inviteAny.used_at as Date | null) || null,
-              createdAt: (inviteAny.created_at as Date) || new Date(),
-              client: (inviteAny.clients as { firstName: string; lastName: string }) || { firstName: "", lastName: "" },
+              createdAt: (inviteAny.createdAt as Date) || new Date(),
+              client: (inviteAny.clients as { firstName: string, lastName: string }) || { firstName: "", lastName: "" },
             };
           }
         }

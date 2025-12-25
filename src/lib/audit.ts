@@ -71,8 +71,8 @@ export async function logAccess(input: {
   registryId?: string | null;
   action: Action;
   metadata?: Record<string, unknown>;
-  route?: string;
-  requestId?: string;
+  route?: string,
+  requestId?: string,
 }) {
   // Build comprehensive metadata
   const enrichedMetadata = {
@@ -97,9 +97,9 @@ export async function logAccess(input: {
 export async function audit(
   action: string,
   metadata: {
-    clientId?: string;
-    policyId?: string;
-    message: string;
+    clientId?: string,
+    policyId?: string,
+    message: string,
     userId?: string | null;
     orgId?: string | null;
   }
@@ -109,7 +109,7 @@ export async function audit(
 
   try {
     await prisma.$executeRawUnsafe(`
-      INSERT INTO audit_logs (id, user_id, org_id, client_id, policy_id, action, message, created_at)
+      INSERT INTO audit_logs (id, user_id, org_id, client_id, policy_id, action, message, createdAt)
       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
     `,
       randomUUID(),
@@ -131,9 +131,9 @@ export async function audit(
  * Wrapper around audit() for convenience
  */
 export function logAuditEvent(input: {
-  action: string;
-  resourceType: string;
-  resourceId: string;
+  action: string,
+  resourceType: string,
+  resourceId: string,
   details?: Record<string, unknown>;
   userId?: string | null;
   orgId?: string | null;
@@ -150,4 +150,5 @@ export function logAuditEvent(input: {
 }
 
 // Export AuditAction for compatibility
-export { AuditAction } from "@/lib/db/enums";
+// Re-export from @/lib/db to avoid duplicate exports
+export { AuditAction } from "@/lib/db";

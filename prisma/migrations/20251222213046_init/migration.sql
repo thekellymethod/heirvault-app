@@ -34,7 +34,7 @@ CREATE TABLE "access_grants" (
 );
 
 -- CreateTable
-CREATE TABLE "attorney_client_access" (
+CREATE TABLE "attorneyClientAccess" (
     "id" TEXT NOT NULL,
     "attorney_id" TEXT NOT NULL,
     "client_id" TEXT NOT NULL,
@@ -43,7 +43,7 @@ CREATE TABLE "attorney_client_access" (
     "revoked_at" TIMESTAMP(3),
     "is_active" BOOLEAN NOT NULL DEFAULT true,
 
-    CONSTRAINT "attorney_client_access_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "attorneyClientAccess_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -55,7 +55,7 @@ CREATE TABLE "audit_logs" (
     "policy_id" TEXT,
     "action" "AuditAction" NOT NULL,
     "message" TEXT NOT NULL,
-    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "audit_logs_pkey" PRIMARY KEY ("id")
 );
@@ -64,13 +64,13 @@ CREATE TABLE "audit_logs" (
 CREATE TABLE "beneficiaries" (
     "id" TEXT NOT NULL,
     "client_id" TEXT NOT NULL,
-    "first_name" TEXT NOT NULL,
-    "last_name" TEXT NOT NULL,
+    "firstName" TEXT NOT NULL,
+    "lastName" TEXT NOT NULL,
     "relationship" TEXT,
     "email" TEXT,
     "phone" TEXT,
-    "date_of_birth" DATE,
-    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "dateOfBirth" DATE,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
     "address_line1" TEXT,
     "address_line2" TEXT,
@@ -90,7 +90,7 @@ CREATE TABLE "client_invites" (
     "email" TEXT NOT NULL,
     "expires_at" TIMESTAMP(3) NOT NULL,
     "used_at" TIMESTAMP(3),
-    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
     "invited_by_user_id" TEXT,
 
@@ -101,11 +101,11 @@ CREATE TABLE "client_invites" (
 CREATE TABLE "clients" (
     "id" TEXT NOT NULL,
     "email" TEXT NOT NULL,
-    "first_name" TEXT NOT NULL,
-    "last_name" TEXT NOT NULL,
+    "firstName" TEXT NOT NULL,
+    "lastName" TEXT NOT NULL,
     "phone" TEXT,
-    "date_of_birth" DATE,
-    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "dateOfBirth" DATE,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
     "user_id" TEXT,
     "org_id" TEXT,
@@ -137,7 +137,7 @@ CREATE TABLE "documents" (
     "uploaded_via" TEXT,
     "extracted_data" JSONB,
     "ocr_confidence" DOUBLE PRECISION,
-    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "documents_pkey" PRIMARY KEY ("id")
@@ -150,7 +150,7 @@ CREATE TABLE "insurers" (
     "contact_phone" TEXT,
     "contact_email" TEXT,
     "website" TEXT,
-    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "insurers_pkey" PRIMARY KEY ("id")
@@ -166,7 +166,7 @@ CREATE TABLE "invites" (
     "status" "InviteStatus" NOT NULL DEFAULT 'pending',
     "expires_at" TIMESTAMP(3) NOT NULL,
     "accepted_at" TIMESTAMP(3),
-    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "invites_pkey" PRIMARY KEY ("id")
 );
@@ -177,7 +177,7 @@ CREATE TABLE "org_members" (
     "user_id" TEXT NOT NULL,
     "organization_id" TEXT NOT NULL,
     "role" "OrgRole" NOT NULL DEFAULT 'ATTORNEY',
-    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "org_members_pkey" PRIMARY KEY ("id")
@@ -187,7 +187,7 @@ CREATE TABLE "org_members" (
 CREATE TABLE "organizations" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
-    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
     "slug" TEXT NOT NULL,
     "address_line1" TEXT,
@@ -213,7 +213,7 @@ CREATE TABLE "policies" (
     "insurer_id" TEXT NOT NULL,
     "policy_number" TEXT,
     "policy_type" TEXT,
-    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "policies_pkey" PRIMARY KEY ("id")
@@ -224,7 +224,7 @@ CREATE TABLE "policy_beneficiaries" (
     "id" TEXT NOT NULL,
     "policy_id" TEXT NOT NULL,
     "beneficiary_id" TEXT NOT NULL,
-    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "policy_beneficiaries_pkey" PRIMARY KEY ("id")
 );
@@ -234,11 +234,11 @@ CREATE TABLE "users" (
     "id" TEXT NOT NULL,
     "clerkId" TEXT NOT NULL,
     "email" TEXT NOT NULL,
-    "first_name" TEXT,
-    "last_name" TEXT,
+    "firstName" TEXT,
+    "lastName" TEXT,
     "role" "UserRole" NOT NULL DEFAULT 'attorney',
     "roles" TEXT[] DEFAULT ARRAY['USER']::TEXT[],
-    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
     "bar_number" TEXT,
     "address_line1" TEXT,
@@ -259,7 +259,7 @@ CREATE TABLE "attorney_profiles" (
     "licenseStatus" "LicenseStatus" NOT NULL DEFAULT 'PENDING',
     "verifiedAt" TIMESTAMP(3),
     "appliedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "attorney_profiles_pkey" PRIMARY KEY ("id")
@@ -278,13 +278,13 @@ CREATE INDEX "access_grants_org_id_idx" ON "access_grants"("org_id");
 CREATE UNIQUE INDEX "access_grants_client_id_org_id_key" ON "access_grants"("client_id", "org_id");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "attorney_client_access_attorney_id_client_id_key" ON "attorney_client_access"("attorney_id", "client_id");
+CREATE UNIQUE INDEX "attorneyClientAccess_attorney_id_client_id_key" ON "attorneyClientAccess"("attorney_id", "client_id");
 
 -- CreateIndex
 CREATE INDEX "audit_logs_client_id_idx" ON "audit_logs"("client_id");
 
 -- CreateIndex
-CREATE INDEX "audit_logs_created_at_idx" ON "audit_logs"("created_at");
+CREATE INDEX "audit_logs_createdAt_idx" ON "audit_logs"("createdAt");
 
 -- CreateIndex
 CREATE INDEX "audit_logs_org_id_idx" ON "audit_logs"("org_id");
@@ -296,7 +296,7 @@ CREATE INDEX "audit_logs_policy_id_idx" ON "audit_logs"("policy_id");
 CREATE INDEX "audit_logs_user_id_idx" ON "audit_logs"("user_id");
 
 -- CreateIndex
-CREATE INDEX "beneficiaries_first_name_last_name_date_of_birth_idx" ON "beneficiaries"("first_name", "last_name", "date_of_birth");
+CREATE INDEX "beneficiaries_firstName_lastName_dateOfBirth_idx" ON "beneficiaries"("firstName", "lastName", "dateOfBirth");
 
 -- CreateIndex
 CREATE INDEX "beneficiaries_address_line1_city_state_postal_code_idx" ON "beneficiaries"("address_line1", "city", "state", "postal_code");
@@ -314,7 +314,7 @@ CREATE UNIQUE INDEX "clients_user_id_key" ON "clients"("user_id");
 CREATE UNIQUE INDEX "clients_client_fingerprint_key" ON "clients"("client_fingerprint");
 
 -- CreateIndex
-CREATE INDEX "clients_first_name_last_name_date_of_birth_idx" ON "clients"("first_name", "last_name", "date_of_birth");
+CREATE INDEX "clients_firstName_lastName_dateOfBirth_idx" ON "clients"("firstName", "lastName", "dateOfBirth");
 
 -- CreateIndex
 CREATE INDEX "clients_address_line1_city_state_postal_code_idx" ON "clients"("address_line1", "city", "state", "postal_code");
@@ -332,7 +332,7 @@ CREATE UNIQUE INDEX "clients_email_key" ON "clients"("email");
 CREATE INDEX "documents_client_id_idx" ON "documents"("client_id");
 
 -- CreateIndex
-CREATE INDEX "documents_created_at_idx" ON "documents"("created_at");
+CREATE INDEX "documents_createdAt_idx" ON "documents"("createdAt");
 
 -- CreateIndex
 CREATE INDEX "documents_policy_id_idx" ON "documents"("policy_id");
@@ -356,7 +356,7 @@ CREATE UNIQUE INDEX "users_clerkId_key" ON "users"("clerkId");
 CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
 
 -- CreateIndex
-CREATE INDEX "users_first_name_last_name_idx" ON "users"("first_name", "last_name");
+CREATE INDEX "users_firstName_lastName_idx" ON "users"("firstName", "lastName");
 
 -- CreateIndex
 CREATE INDEX "users_address_line1_city_state_postal_code_idx" ON "users"("address_line1", "city", "state", "postal_code");
@@ -374,13 +374,13 @@ ALTER TABLE "access_grants" ADD CONSTRAINT "access_grants_client_id_fkey" FOREIG
 ALTER TABLE "access_grants" ADD CONSTRAINT "access_grants_org_id_fkey" FOREIGN KEY ("org_id") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "attorney_client_access" ADD CONSTRAINT "attorney_client_access_attorney_id_fkey" FOREIGN KEY ("attorney_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "attorneyClientAccess" ADD CONSTRAINT "attorneyClientAccess_attorney_id_fkey" FOREIGN KEY ("attorney_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "attorney_client_access" ADD CONSTRAINT "attorney_client_access_client_id_fkey" FOREIGN KEY ("client_id") REFERENCES "clients"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "attorneyClientAccess" ADD CONSTRAINT "attorneyClientAccess_client_id_fkey" FOREIGN KEY ("client_id") REFERENCES "clients"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "attorney_client_access" ADD CONSTRAINT "attorney_client_access_organization_id_fkey" FOREIGN KEY ("organization_id") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "attorneyClientAccess" ADD CONSTRAINT "attorneyClientAccess_organization_id_fkey" FOREIGN KEY ("organization_id") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "audit_logs" ADD CONSTRAINT "audit_logs_client_id_fkey" FOREIGN KEY ("client_id") REFERENCES "clients"("id") ON DELETE SET NULL ON UPDATE CASCADE;

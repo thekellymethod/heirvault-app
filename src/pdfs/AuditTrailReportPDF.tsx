@@ -96,25 +96,25 @@ const styles = StyleSheet.create({
 
 interface ReportData {
   client: {
-    id: string;
-    name: string;
-    email: string;
-    createdAt: Date | string;
+    id: string,
+    name: string,
+    email: string,
+    createdAt: Date | string,
   };
   receipts: Array<{
-    receiptNumber: string;
-    createdAt: Date | string;
+    receiptNumber: string,
+    createdAt: Date | string,
     emailSent: boolean;
     emailSentAt: Date | string | null;
   }>;
   auditLog: Array<{
-    action: string;
-    message: string;
-    actor: string;
+    action: string,
+    message: string,
+    actor: string,
     actorEmail: string | null;
-    timestamp: Date | string;
+    timestamp: Date | string,
   }>;
-  generatedAt: Date | string;
+  generatedAt: Date | string,
 }
 
 interface AuditTrailReportPDFProps {

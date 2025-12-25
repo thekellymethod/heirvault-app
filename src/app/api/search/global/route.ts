@@ -31,25 +31,25 @@ export async function GET(req: Request) {
     // Global search - search across ALL organizations and ALL clients
     // Use raw SQL first for reliability
     let clients: Array<{
-      id: string;
-      firstName: string;
-      lastName: string;
-      email: string;
+      id: string,
+      firstName: string,
+      lastName: string,
+      email: string,
       phone: string | null;
       createdAt: Date;
-      org: { id: string; name: string | null } | null;
+      org: { id: string, name: string | null } | null;
     }> = [];
     let policies: Array<{
-      id: string;
+      id: string,
       policyNumber: string | null;
       policyType: string | null;
       createdAt: Date;
       client: {
-        id: string;
-        firstName: string;
-        lastName: string;
-        email: string;
-        org: { id: string; name: string | null } | null;
+        id: string,
+        firstName: string,
+        lastName: string,
+        email: string,
+        org: { id: string, name: string | null } | null;
       };
       insurer: { name: string };
     }> = [];
@@ -60,43 +60,43 @@ export async function GET(req: Request) {
       
       // Search clients using raw SQL
       const clientsResult = await prisma.$queryRawUnsafe<Array<{
-        id: string;
-        first_name: string;
-        last_name: string;
-        email: string;
+        id: string,
+        firstName: string,
+        lastName: string,
+        email: string,
         phone: string | null;
-        created_at: Date;
+        createdAt: Date;
         org_id: string | null;
         org_name: string | null;
       }>>(
         `SELECT 
           c.id,
-          c.first_name,
-          c.last_name,
+          c.firstName,
+          c.lastName,
           c.email,
           c.phone,
-          c.created_at,
+          c.createdAt,
           c.org_id,
           o.name as org_name
         FROM clients c
         LEFT JOIN organizations o ON o.id = c.org_id
         WHERE 
-          LOWER(c.first_name) LIKE LOWER($1) OR
-          LOWER(c.last_name) LIKE LOWER($1) OR
+          LOWER(c.firstName) LIKE LOWER($1) OR
+          LOWER(c.lastName) LIKE LOWER($1) OR
           LOWER(c.email) LIKE LOWER($1) OR
           (c.phone IS NOT NULL AND LOWER(c.phone) LIKE LOWER($1))
-        ORDER BY c.created_at DESC
+        ORDER BY c.createdAt DESC
         LIMIT 50`,
         searchPattern
       );
 
       clients = clientsResult.map(row => ({
         id: row.id,
-        firstName: row.first_name,
-        lastName: row.last_name,
+        firstName: row.firstName,
+        lastName: row.lastName,
         email: row.email,
         phone: row.phone,
-        createdAt: row.created_at,
+        createdAt: row.createdAt,
         org: row.org_id ? {
           id: row.org_id,
           name: row.org_name,
@@ -105,26 +105,26 @@ export async function GET(req: Request) {
 
       // Search policies using raw SQL (reusing searchPattern)
       const policiesResult = await prisma.$queryRawUnsafe<Array<{
-        policy_id: string;
+        policy_id: string,
         policy_number: string | null;
         policy_type: string | null;
-        policy_created_at: Date;
-        client_id: string;
-        client_first_name: string;
-        client_last_name: string;
-        client_email: string;
+        policy_createdAt: Date;
+        clientId: string,
+        client_firstName: string,
+        client_lastName: string,
+        client_email: string,
         client_org_id: string | null;
         client_org_name: string | null;
-        insurer_name: string;
+        insurer_name: string,
       }>>(
         `SELECT 
           p.id as policy_id,
           p.policy_number,
           p.policy_type,
-          p.created_at as policy_created_at,
+          p.createdAt as policy_createdAt,
           c.id as client_id,
-          c.first_name as client_first_name,
-          c.last_name as client_last_name,
+          c.firstName as client_firstName,
+          c.lastName as client_lastName,
           c.email as client_email,
           c.org_id as client_org_id,
           o.name as client_org_name,
@@ -136,7 +136,7 @@ export async function GET(req: Request) {
         WHERE 
           LOWER(i.name) LIKE LOWER($1) OR
           (p.policy_number IS NOT NULL AND LOWER(p.policy_number) LIKE LOWER($1))
-        ORDER BY p.created_at DESC
+        ORDER BY p.createdAt DESC
         LIMIT 50`,
         searchPattern
       );
@@ -145,11 +145,11 @@ export async function GET(req: Request) {
         id: row.policy_id,
         policyNumber: row.policy_number,
         policyType: row.policy_type,
-        createdAt: row.policy_created_at,
+        createdAt: row.policy_createdAt,
         client: {
           id: row.client_id,
-          firstName: row.client_first_name,
-          lastName: row.client_last_name,
+          firstName: row.client_firstName,
+          lastName: row.client_lastName,
           email: row.client_email,
           org: row.client_org_id ? {
             id: row.client_org_id,
@@ -173,7 +173,7 @@ export async function GET(req: Request) {
     try {
       const orgId = orgMember?.organizationId || null;
       await prisma.$executeRawUnsafe(
-        `INSERT INTO audit_logs (action, message, user_id, org_id, created_at) 
+        `INSERT INTO audit_logs (action, message, user_id, org_id, createdAt) 
          VALUES ($1, $2, $3, $4, NOW())`,
         "GLOBAL_POLICY_SEARCH_PERFORMED",
         `Global database search (all clients): "${q}" | Results: ${clients.length} client(s), ${policies.length} policy(ies)`,

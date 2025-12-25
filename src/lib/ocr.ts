@@ -49,7 +49,7 @@ async function extractTextFromPDF(buffer: Buffer): Promise<string> {
 /**
  * Extracts text from image using Tesseract OCR
  */
-async function extractTextFromImage(buffer: Buffer): Promise<{ text: string; confidence: number }> {
+async function extractTextFromImage(buffer: Buffer): Promise<{ text: string, confidence: number }> {
   try {
     const worker = await createWorker("eng");
     // Configure for better accuracy

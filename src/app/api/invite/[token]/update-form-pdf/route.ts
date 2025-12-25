@@ -19,20 +19,33 @@ export async function GET(
       invite = await lookupClientInvite(token);
     }
 
-    if (!invite) {
+    if (!invite || typeof invite !== 'object' || !('clientId' in invite) || !('client' in invite) || !('createdAt' in invite)) {
       return NextResponse.json(
         { error: "Invalid invitation code" },
         { status: 404 }
       );
     }
+    
+    // Extract properties with type assertion after type guard
+    const typedInvite = invite as { 
+      clientId: string, 
+      client: { 
+        firstName?: string, 
+        lastName?: string,
+      };
+      createdAt: Date;
+    };
+    const clientId = typedInvite.clientId;
+    const inviteClient = typedInvite.client;
+    const inviteCreatedAt = typedInvite.createdAt;
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin;
     const updateUrl = `${baseUrl}/invite/${token}/update`;
-    const receiptId = `REC-${invite.clientId}-${invite.createdAt.getTime()}`;
+    const receiptId = `REC-${clientId}-${inviteCreatedAt.getTime()}`;
 
     const formData = {
       receiptId,
-      clientName: `${invite.client.firstName} ${invite.client.lastName}`,
+      clientName: `${inviteClient.firstName || ""} ${inviteClient.lastName || ""}`,
       token,
       updateUrl,
     };

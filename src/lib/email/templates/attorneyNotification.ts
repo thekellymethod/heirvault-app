@@ -1,11 +1,11 @@
 // src/lib/email/templates/attorneyNotification.ts
 export function attorneyNotificationTemplate(input: {
-  to: string;
-  attorneyEmail?: string;
-  clientName?: string;
+  to: string,
+  attorneyEmail?: string,
+  clientName?: string,
   action: "UPLOAD_POLICY" | "UPDATE_INFO" | "NEW_CLIENT" | "OTHER";
   details?: Record<string, string>;
-  dashboardUrl?: string;
+  dashboardUrl?: string,
 }) {
   const clientName = input.clientName?.trim() || "a client";
   

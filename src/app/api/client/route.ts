@@ -97,46 +97,46 @@ export async function POST(req: Request) {
     if (existingClientId) {
       // Return existing client instead of creating duplicate
       const existingClient = await prisma.clients.findUnique({
-        where: { id: existingClientId },
+        where: { id: existingclientId },
       });
       
       if (existingClient) {
         // Grant attorney access to existing client if not already granted
-        const existingAccess = await prisma.attorney_client_access.findFirst({
+        const existingAccess = await prisma.attorneyClientAccess.findFirst({
           where: {
-            attorney_id: orgInfo.user.id,
-            client_id: existingClientId,
-            organization_id: org.id,
+            attorneyId: orgInfo.user.id,
+            clientId: existingClientId,
+            organizationId: org.id,
           },
         });
 
         if (!existingAccess) {
-          await prisma.attorney_client_access.create({
+          await prisma.attorneyClientAccess.create({
             data: {
               id: randomUUID(),
-              attorney_id: orgInfo.user.id,
-              client_id: existingClientId,
-              organization_id: org.id,
-              is_active: true,
-              granted_at: new Date(),
+              attorneyId: orgInfo.user.id,
+              clientId: existingClientId,
+              organizationId: org.id,
+              isActive: true,
+              grantedAt: new Date(),
             },
           });
         }
 
         await audit(AuditAction.CLIENT_CREATED, {
           clientId: existingClient.id,
-          message: `Client access granted to existing client: ${existingClient.first_name} ${existingClient.last_name} (${existingClient.email})`,
+          message: `Client access granted to existing client: ${existingClient.firstName} ${existingClient.lastName} (${existingClient.email})`,
         });
 
         return jsonOk({
           id: existingClient.id,
-          firstName: existingClient.first_name,
-          lastName: existingClient.last_name,
+          firstName: existingClient.firstName,
+          lastName: existingClient.lastName,
           email: existingClient.email,
           phone: existingClient.phone,
-          dateOfBirth: existingClient.date_of_birth,
-          createdAt: existingClient.created_at,
-          updatedAt: existingClient.updated_at,
+          dateOfBirth: existingClient.dateOfBirth,
+          createdAt: existingClient.createdAt,
+          updatedAt: existingClient.updatedAt,
         }, { status: 200 });
       }
     }
@@ -147,27 +147,27 @@ export async function POST(req: Request) {
     const client = await prisma.clients.create({
       data: {
         id: clientId,
-        first_name: firstName,
-        last_name: lastName,
+        firstName: firstName,
+        lastName: lastName,
         email,
-        date_of_birth: parsedDateOfBirth,
+        dateOfBirth: parsedDateOfBirth,
         phone: phone ?? null,
-        org_id: org.id,
-        client_fingerprint: fingerprint,
-        created_at: now,
-        updated_at: now,
+        orgId: org.id,
+        clientFingerprint: fingerprint,
+        createdAt: now,
+        updatedAt: now,
       },
     });
 
     // Grant attorney access via AttorneyClientAccess
-    await prisma.attorney_client_access.create({
+    await prisma.attorneyClientAccess.create({
       data: {
         id: randomUUID(),
-        attorney_id: orgInfo.user.id,
-        client_id: client.id,
-        organization_id: org.id,
-        is_active: true,
-        granted_at: now,
+        attorneyId: orgInfo.user.id,
+        clientId: client.id,
+        organizationId: org.id,
+        isActive: true,
+        grantedAt: now,
       },
     });
 
@@ -177,30 +177,30 @@ export async function POST(req: Request) {
       await prisma.policies.create({
         data: {
           id: policyId,
-          client_id: client.id,
-          insurer_id: policy.insurerId,
-          policy_number: policy.policyNumber || null,
-          policy_type: policy.policyType || null,
-          created_at: now,
-          updated_at: now,
+          clientId: client.id,
+          insurerId: policy.insurerId,
+          policyNumber: policy.policyNumber || null,
+          policyType: policy.policyType || null,
+          createdAt: now,
+          updatedAt: now,
         },
       });
     }
 
     await audit(AuditAction.CLIENT_CREATED, {
       clientId: client.id,
-      message: `Client created: ${client.first_name} ${client.last_name} (${client.email})${policy ? ' with policy' : ''}`,
+      message: `Client created: ${client.firstName} ${client.lastName} (${client.email})${policy ? ' with policy' : ''}`,
     });
 
     return jsonOk({
       id: client.id,
-      firstName: client.first_name,
-      lastName: client.last_name,
+      firstName: client.firstName,
+      lastName: client.lastName,
       email: client.email,
       phone: client.phone,
-      dateOfBirth: client.date_of_birth,
-      createdAt: client.created_at,
-      updatedAt: client.updated_at,
+      dateOfBirth: client.dateOfBirth,
+      createdAt: client.createdAt,
+      updatedAt: client.updatedAt,
     }, { status: 201 });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Internal server error";
@@ -221,10 +221,10 @@ export async function GET(req: NextRequest) {
     // Get ALL clients globally - all attorneys can see all clients
     // Use raw SQL first for reliability
     let clients: Array<{
-      id: string;
-      firstName: string;
-      lastName: string;
-      email: string;
+      id: string,
+      firstName: string,
+      lastName: string,
+      email: string,
       phone: string | null;
       dateOfBirth: Date | null;
       createdAt: Date;
@@ -232,36 +232,36 @@ export async function GET(req: NextRequest) {
     }> = [];
     try {
       const rawResult = await prisma.$queryRaw<Array<{
-        id: string;
-        first_name: string;
-        last_name: string;
-        email: string;
+        id: string,
+        firstName: string,
+        lastName: string,
+        email: string,
         phone: string | null;
-        date_of_birth: Date | null;
-        created_at: Date;
+        dateOfBirth: Date | null;
+        createdAt: Date;
         updated_at: Date;
       }>>`
         SELECT 
           id,
-          first_name,
-          last_name,
+          firstName,
+          lastName,
           email,
           phone,
-          date_of_birth,
-          created_at,
+          dateOfBirth,
+          createdAt,
           updated_at
         FROM clients
-        ORDER BY created_at DESC
+        ORDER BY createdAt DESC
       `;
 
       clients = rawResult.map(row => ({
         id: row.id,
-        firstName: row.first_name,
-        lastName: row.last_name,
+        firstName: row.firstName,
+        lastName: row.lastName,
         email: row.email,
         phone: row.phone,
-        dateOfBirth: row.date_of_birth,
-        createdAt: row.created_at,
+        dateOfBirth: row.dateOfBirth,
+        createdAt: row.createdAt,
         updatedAt: row.updated_at,
       }));
     } catch (sqlError: unknown) {
@@ -271,18 +271,18 @@ export async function GET(req: NextRequest) {
       try {
         const prismaClients = await prisma.clients.findMany({
           orderBy: {
-            created_at: "desc",
+            createdAt: "desc",
           },
         });
         clients = prismaClients.map(c => ({
           id: c.id,
-          firstName: c.first_name,
-          lastName: c.last_name,
+          firstName: c.firstName,
+          lastName: c.lastName,
           email: c.email,
           phone: c.phone,
-          dateOfBirth: c.date_of_birth,
-          createdAt: c.created_at,
-          updatedAt: c.updated_at,
+          dateOfBirth: c.dateOfBirth,
+          createdAt: c.createdAt,
+          updatedAt: c.updatedAt,
         }));
       } catch (prismaError: unknown) {
         const prismaErrorMessage = prismaError instanceof Error ? prismaError.message : "Unknown error";
@@ -293,7 +293,9 @@ export async function GET(req: NextRequest) {
 
     await logAuditEvent({
       action: 'CLIENT_VIEWED',
-      message: 'Listed all clients (global access)',
+      resourceType: 'client',
+      resourceId: 'all',
+      details: { count: clients.length },
       userId: user.id,
     })
 

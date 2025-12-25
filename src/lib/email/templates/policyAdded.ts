@@ -1,11 +1,11 @@
 // src/lib/email/templates/policyAdded.ts
 export function policyAddedTemplate(input: {
-  to: string;
-  attorneyEmail?: string;
-  clientName?: string;
-  insurerName?: string;
-  policyNumberMasked?: string;
-  dashboardUrl?: string;
+  to: string,
+  attorneyEmail?: string,
+  clientName?: string,
+  insurerName?: string,
+  policyNumberMasked?: string,
+  dashboardUrl?: string,
 }) {
   const clientName = input.clientName?.trim() || "a client";
   const insurerName = input.insurerName?.trim() || "an insurer";

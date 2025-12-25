@@ -15,29 +15,29 @@ export type RegistryWithVersions = RegistryRecord & {
 
 export type RegistryVersionWithDocuments = RegistryVersion & {
   documents: Array<{
-    id: string;
-    fileName: string;
-    filePath: string;
-    documentHash: string;
+    id: string,
+    fileName: string,
+    filePath: string,
+    documentHash: string,
     createdAt: Date;
   }>;
 };
 
 export type CreateRegistryInput = {
-  decedentName: string;
+  decedentName: string,
   status?: RegistryStatus;
   initialData: Record<string, unknown>; // JSON data for first version
   submittedBy: RegistrySubmissionSource;
 };
 
 export type AppendVersionInput = {
-  registryId: string;
+  registryId: string,
   data: Record<string, unknown>; // JSON data for new version
   submittedBy: RegistrySubmissionSource;
 };
 
 export type LogAccessInput = {
-  registryId: string;
+  registryId: string,
   userId?: string | null; // null for system actions
   action: AccessLogAction;
   metadata?: Record<string, unknown>; // Additional metadata for audit trail
@@ -63,7 +63,7 @@ export async function createRegistry(input: CreateRegistryInput): Promise<Regist
     await tx.registry_records.create({
       data: {
         id: registryId,
-        decedent_name: input.decedentName,
+        decedentName: input.decedentName,
         status: input.status || "PENDING_VERIFICATION",
       },
     });
@@ -149,27 +149,27 @@ export async function getRegistryById(registryId: string): Promise<RegistryWithV
   // Fetch all versions (ordered by creation time, newest first)
   const versions = await prisma.registry_versions.findMany({
     where: { registry_id: registryId },
-    orderBy: { created_at: 'desc' },
+    orderBy: { createdAt: 'desc' },
   });
 
   // Fetch access logs (ordered by timestamp, newest first)
   const logs = await prisma.access_logs.findMany({
     where: { registry_id: registryId },
-    orderBy: { created_at: 'desc' },
+    orderBy: { createdAt: 'desc' },
   });
 
   return {
     id: registry.id,
-    decedentName: registry.decedent_name,
+    decedentName: registry.decedentName,
     status: registry.status as RegistryStatus,
-    createdAt: registry.created_at,
+    createdAt: registry.createdAt,
     versions: versions.map(v => ({
       id: v.id,
       registryId: v.registry_id,
       dataJson: v.data_json as Record<string, unknown>,
       submittedBy: v.submitted_by as RegistrySubmissionSource,
       hash: v.hash,
-      createdAt: v.created_at,
+      createdAt: v.createdAt,
     })),
     latestVersion: versions[0] ? {
       id: versions[0].id,
@@ -177,7 +177,7 @@ export async function getRegistryById(registryId: string): Promise<RegistryWithV
       dataJson: versions[0].data_json as Record<string, unknown>,
       submittedBy: versions[0].submitted_by as RegistrySubmissionSource,
       hash: versions[0].hash,
-      createdAt: versions[0].created_at,
+      createdAt: versions[0].createdAt,
     } : null,
     accessLogs: logs.map(l => ({
       id: l.id,
@@ -185,7 +185,7 @@ export async function getRegistryById(registryId: string): Promise<RegistryWithV
       userId: l.user_id,
       action: l.action as AccessLogAction,
       metadata: l.metadata as Record<string, unknown> | null,
-      timestamp: l.created_at,
+      timestamp: l.createdAt,
     })),
   };
 }
@@ -225,7 +225,7 @@ export async function logAccess(input: LogAccessInput): Promise<AccessLog> {
     userId: log.user_id,
     action: log.action as AccessLogAction,
     metadata: log.metadata as Record<string, unknown> | null,
-    timestamp: log.created_at,
+    timestamp: log.createdAt,
   };
 }
 
@@ -236,26 +236,26 @@ export async function logAccess(input: LogAccessInput): Promise<AccessLog> {
  * Only includes summary information, not full document details.
  */
 export async function getAllRegistries(): Promise<Array<{
-  id: string;
-  decedentName: string;
-  status: string;
+  id: string,
+  decedentName: string,
+  status: string,
   createdAt: Date;
   latestVersion: {
-    id: string;
+    id: string,
     createdAt: Date;
-    submittedBy: string;
+    submittedBy: string,
   } | null;
   versionCount: number;
   lastUpdated: Date | null;
 }>> {
   // Fetch all registries with their latest version
   const registries = await prisma.registry_records.findMany({
-    orderBy: { created_at: 'desc' },
+    orderBy: { createdAt: 'desc' },
     select: {
       id: true,
-      decedent_name: true,
+      decedentName: true,
       status: true,
-      created_at: true,
+      createdAt: true,
     },
   });
 
@@ -264,10 +264,10 @@ export async function getAllRegistries(): Promise<Array<{
     registries.map(async (registry) => {
       const latestVersion = await prisma.registry_versions.findFirst({
         where: { registry_id: registry.id },
-        orderBy: { created_at: 'desc' },
+        orderBy: { createdAt: 'desc' },
         select: {
           id: true,
-          created_at: true,
+          createdAt: true,
           submitted_by: true,
         },
       });
@@ -279,16 +279,16 @@ export async function getAllRegistries(): Promise<Array<{
 
       return {
         id: registry.id,
-        decedentName: registry.decedent_name,
+        decedentName: registry.decedentName,
         status: registry.status,
-        createdAt: registry.created_at,
+        createdAt: registry.createdAt,
         latestVersion: latestVersion ? {
           id: latestVersion.id,
-          createdAt: latestVersion.created_at,
+          createdAt: latestVersion.createdAt,
           submittedBy: latestVersion.submitted_by,
         } : null,
         versionCount,
-        lastUpdated: latestVersion?.created_at || null,
+        lastUpdated: latestVersion?.createdAt || null,
       };
     })
   );
@@ -311,13 +311,13 @@ export async function getRegistryVersionById(versionId: string): Promise<Registr
   // Fetch associated documents using Prisma
   const docs = await prisma.documents.findMany({
     where: { registry_version_id: versionId },
-    orderBy: { created_at: 'desc' },
+    orderBy: { createdAt: 'desc' },
     select: {
       id: true,
       file_name: true,
       storage_path: true,
       sha256: true,
-      created_at: true,
+      createdAt: true,
     },
   });
 
@@ -327,13 +327,13 @@ export async function getRegistryVersionById(versionId: string): Promise<Registr
     dataJson: version.data_json as Record<string, unknown>,
     submittedBy: version.submitted_by as RegistrySubmissionSource,
     hash: version.hash,
-    createdAt: version.created_at,
+    createdAt: version.createdAt,
     documents: docs.map(doc => ({
       id: doc.id,
       fileName: doc.file_name,
       filePath: doc.storage_path,
       documentHash: doc.sha256,
-      createdAt: doc.created_at,
+      createdAt: doc.createdAt,
     })),
   };
 }

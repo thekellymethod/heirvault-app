@@ -6,10 +6,10 @@ import styles from "./page.module.css";
 interface Receipt {
   receiptId: string | number;
   registryId: string | number;
-  updateToken: string;
-  updateUrl: string;
+  updateToken: string,
+  updateUrl: string,
   createdAt: string | Date;
-  confirmationMessage: string;
+  confirmationMessage: string,
 }
 
 export default function IntakePage() {

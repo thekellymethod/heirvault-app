@@ -28,8 +28,8 @@ export async function PUT(req: NextRequest) {
 
     // Use raw SQL first for reliability
     let updated: {
-      id: string;
-      email: string;
+      id: string,
+      email: string,
       firstName: string | null;
       lastName: string | null;
       barNumber: string | null;
@@ -41,8 +41,8 @@ export async function PUT(req: NextRequest) {
       await prisma.$executeRaw`
         UPDATE users
         SET 
-          first_name = ${firstName.trim()},
-          last_name = ${lastName.trim()},
+          firstName = ${firstName.trim()},
+          lastName = ${lastName.trim()},
           bar_number = ${barNumber?.trim() || null},
           updated_at = NOW()
         WHERE id = ${currentUser.id}
@@ -50,15 +50,15 @@ export async function PUT(req: NextRequest) {
 
       // Fetch updated user
       const updatedResult = await prisma.$queryRaw<Array<{
-        id: string;
-        email: string;
-        first_name: string | null;
-        last_name: string | null;
+        id: string,
+        email: string,
+        firstName: string | null;
+        lastName: string | null;
         bar_number: string | null;
-        created_at: Date;
+        createdAt: Date;
         updated_at: Date;
       }>>`
-        SELECT id, email, first_name, last_name, bar_number, created_at, updated_at
+        SELECT id, email, firstName, lastName, bar_number, createdAt, updated_at
         FROM users
         WHERE id = ${currentUser.id}
       `;
@@ -68,10 +68,10 @@ export async function PUT(req: NextRequest) {
         updated = {
           id: row.id,
           email: row.email,
-          firstName: row.first_name,
-          lastName: row.last_name,
+          firstName: row.firstName,
+          lastName: row.lastName,
           barNumber: row.bar_number,
-          createdAt: row.created_at,
+          createdAt: row.createdAt,
           updatedAt: row.updated_at,
         };
       }

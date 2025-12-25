@@ -21,12 +21,12 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
     where: { id: clientId },
     select: {
       id: true,
-      first_name: true,
-      last_name: true,
+      firstName: true,
+      lastName: true,
       email: true,
       phone: true,
-      date_of_birth: true,
-      created_at: true,
+      dateOfBirth: true,
+      createdAt: true,
       updated_at: true,
       _count: {
         select: {
@@ -43,12 +43,12 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
 
   const client = {
     id: clientData.id,
-    firstName: clientData.first_name,
-    lastName: clientData.last_name,
+    firstName: clientData.firstName,
+    lastName: clientData.lastName,
     email: clientData.email,
     phone: clientData.phone,
-    dateOfBirth: clientData.date_of_birth,
-    createdAt: clientData.created_at,
+    dateOfBirth: clientData.dateOfBirth,
+    createdAt: clientData.createdAt,
     updatedAt: clientData.updated_at,
     _count: {
       policies: clientData._count.policies,

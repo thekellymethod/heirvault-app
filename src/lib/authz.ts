@@ -15,26 +15,26 @@ export async function getCurrentUserWithOrg() {
 
   // Get user with org memberships
   let userWithOrg: {
-    id: string;
-    email: string;
+    id: string,
+    email: string,
     firstName: string | null;
     lastName: string | null;
-    role: string;
+    role: string,
     orgMemberships: Array<{
-      organizationId: string;
-      role: string;
+      organizationId: string,
+      role: string,
       organizations: {
-        id: string;
-        name: string;
+        id: string,
+        name: string,
       };
     }>;
   } | null = null;
   let orgMember: {
-    organizationId: string;
-    role: string;
+    organizationId: string,
+    role: string,
     organizations: {
-      id: string;
-      name: string;
+      id: string,
+      name: string,
     };
   } | null = null;
 

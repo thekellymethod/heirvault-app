@@ -23,10 +23,10 @@ export async function POST(req: NextRequest) {
     if (organizationId !== orgMember.organizationId) {
       // Check if user is owner of the requested organization
       const requesterMembershipResult = await prisma.$queryRawUnsafe<Array<{
-        id: string;
-        user_id: string;
-        organization_id: string;
-        role: string;
+        id: string,
+        user_id: string,
+        organization_id: string,
+        role: string,
       }>>(
         `SELECT id, user_id, organization_id, role FROM org_members WHERE user_id = $1 AND organization_id = $2 AND role = $3 LIMIT 1`,
         user.id,
@@ -58,8 +58,8 @@ export async function POST(req: NextRequest) {
 
     // Check if user already exists
     const targetUserResult = await prisma.$queryRawUnsafe<Array<{
-      id: string;
-      email: string;
+      id: string,
+      email: string,
     }>>(
       `SELECT id, email FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1`,
       email
@@ -78,10 +78,10 @@ export async function POST(req: NextRequest) {
 
     // Check if current user is owner (only owners can invite)
     const currentMemberResult = await prisma.$queryRawUnsafe<Array<{
-      id: string;
-      user_id: string;
-      organization_id: string;
-      role: string;
+      id: string,
+      user_id: string,
+      organization_id: string,
+      role: string,
     }>>(
       `SELECT id, user_id, organization_id, role FROM org_members WHERE user_id = $1 AND organization_id = $2 LIMIT 1`,
       user.id,
@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
 
     // Check if user is already a member
     const existingMemberResult = await prisma.$queryRawUnsafe<Array<{
-      id: string;
+      id: string,
     }>>(
       `SELECT id FROM org_members WHERE user_id = $1 AND organization_id = $2 LIMIT 1`,
       targetUser.id,
@@ -115,7 +115,7 @@ export async function POST(req: NextRequest) {
 
     // Add user to organization
     await prisma.$executeRawUnsafe(
-      `INSERT INTO org_members (id, user_id, organization_id, role, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6)`,
+      `INSERT INTO org_members (id, user_id, organization_id, role, createdAt, updated_at) VALUES ($1, $2, $3, $4, $5, $6)`,
       randomUUID(),
       targetUser.id,
       organizationId,

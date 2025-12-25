@@ -5,12 +5,12 @@ import { AuditView } from "./_components/AuditView";
 
 interface Props {
   searchParams: Promise<{
-    action?: string;
-    registryId?: string;
-    userId?: string;
-    startDate?: string;
-    endDate?: string;
-    page?: string;
+    action?: string,
+    registryId?: string,
+    userId?: string,
+    startDate?: string,
+    endDate?: string,
+    page?: string,
   }>;
 }
 
@@ -72,13 +72,13 @@ export default async function AuditPage({ searchParams }: Props) {
   // - Order by timestamp DESC
   // - Join with users table to get user email/name
   const logs: Array<{
-    id: string;
+    id: string,
     timestamp: Date;
     userId: string | null;
     userEmail?: string | null;
     userName?: string | null;
-    action: string;
-    registryId: string;
+    action: string,
+    registryId: string,
     metadata: Record<string, unknown> | null;
   }> = [];
 

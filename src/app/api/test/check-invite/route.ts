@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
       invite: {
         token: invite.token,
         email: invite.email,
-        clientName: `${invite.clients.first_name} ${invite.clients.last_name}`,
+        clientName: `${invite.clients.firstName} ${invite.clients.lastName}`,
         expiresAt: invite.expires_at.toISOString(),
         usedAt: invite.used_at?.toISOString() || null,
         daysSinceExpiration: Math.round(daysSinceExpiration * 100) / 100,

@@ -14,7 +14,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
   try {
     ctx = await requireAttorneyOrOwner();
   } catch (e: unknown) {
-    const error = e as { message?: string; status?: number };
+    const error = e as { message?: string, status?: number };
     return new NextResponse(error.message || "Unauthorized", {
       status: error.status || 401,
     });
@@ -25,15 +25,15 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
   // Get client data using raw SQL
   const clientData = await prisma.$queryRawUnsafe<Array<{
-    id: string;
-    first_name: string;
-    last_name: string;
-    email: string;
+    id: string,
+    firstName: string,
+    lastName: string,
+    email: string,
     phone: string | null;
-    date_of_birth: Date | null;
-    created_at: Date;
+    dateOfBirth: Date | null;
+    createdAt: Date;
   }>>(`
-    SELECT id, first_name, last_name, email, phone, date_of_birth, created_at
+    SELECT id, firstName, lastName, email, phone, dateOfBirth, createdAt
     FROM clients
     WHERE id = $1
     LIMIT 1
@@ -47,11 +47,11 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
   // Get policies with insurers and beneficiaries
   const policiesData = await prisma.$queryRawUnsafe<Array<{
-    id: string;
+    id: string,
     policy_number: string | null;
     policy_type: string | null;
-    insurer_id: string;
-    insurer_name: string;
+    insurer_id: string,
+    insurer_name: string,
     insurer_contact_phone: string | null;
     insurer_contact_email: string | null;
   }>>(`
@@ -66,24 +66,24 @@ export async function GET(_req: NextRequest, { params }: Params) {
     FROM policies p
     INNER JOIN insurers i ON i.id = p.insurer_id
     WHERE p.client_id = $1
-    ORDER BY p.created_at DESC
+    ORDER BY p.createdAt DESC
   `, id);
 
   // Get beneficiaries for each policy
   const policyIds = policiesData.map((p) => p.id);
-  const policyBeneficiariesData = policyIds.length > 0
+  const policy_beneficiariesData = policyIds.length > 0
     ? await prisma.$queryRawUnsafe<Array<{
-        policy_id: string;
-        beneficiary_id: string;
-        beneficiary_first_name: string;
-        beneficiary_last_name: string;
+        policy_id: string,
+        beneficiary_id: string,
+        beneficiary_firstName: string,
+        beneficiary_lastName: string,
         beneficiary_relationship: string | null;
       }>>(`
         SELECT 
           pb.policy_id,
           b.id as beneficiary_id,
-          b.first_name as beneficiary_first_name,
-          b.last_name as beneficiary_last_name,
+          b.firstName as beneficiary_firstName,
+          b.lastName as beneficiary_lastName,
           b.relationship as beneficiary_relationship
         FROM policy_beneficiaries pb
         INNER JOIN beneficiaries b ON b.id = pb.beneficiary_id
@@ -93,23 +93,23 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
   // Get all beneficiaries for the client
   const beneficiariesData = await prisma.$queryRawUnsafe<Array<{
-    id: string;
-    first_name: string;
-    last_name: string;
+    id: string,
+    firstName: string,
+    lastName: string,
     relationship: string | null;
     email: string | null;
     phone: string | null;
     notes: string | null;
   }>>(`
-    SELECT id, first_name, last_name, relationship, email, phone, notes
+    SELECT id, firstName, lastName, relationship, email, phone, notes
     FROM beneficiaries
     WHERE client_id = $1
-    ORDER BY created_at DESC
+    ORDER BY createdAt DESC
   `, id);
 
   await audit(AuditAction.CLIENT_SUMMARY_PDF_DOWNLOADED, {
     clientId: id,
-    message: `Summary PDF downloaded for ${clientRow.first_name} ${clientRow.last_name}`,
+    message: `Summary PDF downloaded for ${clientRow.firstName} ${clientRow.lastName}`,
     userId: user.id,
     orgId: orgMember?.organizations?.id || orgMember?.organizationId || null,
   });
@@ -125,13 +125,13 @@ export async function GET(_req: NextRequest, { params }: Params) {
     },
     policyNumber: p.policy_number,
     policyType: p.policy_type,
-    beneficiaries: policyBeneficiariesData
+    beneficiaries: policy_beneficiariesData
       .filter((pb) => pb.policy_id === p.id)
       .map((pb) => ({
         beneficiary: {
-          firstName: pb.beneficiary_first_name,
-          lastName: pb.beneficiary_last_name,
-          relationship: pb.beneficiary_relationship,
+          firstName: pb.beneficiary_firstName,
+          lastName: pb.beneficiary_lastName,
+          relationship: pb.beneficiary_relationship || "",
           email: null,
           phone: null,
         },
@@ -142,21 +142,21 @@ export async function GET(_req: NextRequest, { params }: Params) {
   // Map beneficiaries
   const beneficiaries = beneficiariesData.map((b) => ({
     id: b.id,
-    firstName: b.first_name,
-    lastName: b.last_name,
-    relationship: b.relationship,
+    firstName: b.firstName,
+    lastName: b.lastName,
+    relationship: b.relationship || "",
     email: b.email,
     phone: b.phone,
     notes: b.notes,
   }));
 
   const client = {
-    firstName: clientRow.first_name,
-    lastName: clientRow.last_name,
+    firstName: clientRow.firstName,
+    lastName: clientRow.lastName,
     email: clientRow.email,
     phone: clientRow.phone,
-    dateOfBirth: clientRow.date_of_birth,
-    createdAt: clientRow.created_at,
+    dateOfBirth: clientRow.dateOfBirth,
+    createdAt: clientRow.createdAt,
     policies,
     beneficiaries,
   };

@@ -17,7 +17,7 @@ CREATE TYPE audit_action AS ENUM ('create', 'read', 'update', 'delete');
 CREATE TABLE organizations (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name VARCHAR(255) NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  createdAt TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -26,11 +26,11 @@ CREATE TABLE user_profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email VARCHAR(255) NOT NULL UNIQUE,
   role user_role NOT NULL,
-  first_name VARCHAR(100),
-  last_name VARCHAR(100),
+  firstName VARCHAR(100),
+  lastName VARCHAR(100),
   organization_id UUID REFERENCES organizations(id) ON DELETE SET NULL,
   mfa_enabled BOOLEAN DEFAULT FALSE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  createdAt TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -38,16 +38,16 @@ CREATE TABLE user_profiles (
 CREATE TABLE clients (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   email VARCHAR(255) NOT NULL,
-  first_name VARCHAR(100) NOT NULL,
-  last_name VARCHAR(100) NOT NULL,
+  firstName VARCHAR(100) NOT NULL,
+  lastName VARCHAR(100) NOT NULL,
   phone VARCHAR(20),
-  date_of_birth DATE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  dateOfBirth DATE,
+  createdAt TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- Attorney-Client relationships (access control)
-CREATE TABLE attorney_client_access (
+CREATE TABLE attorneyClientAccess (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   attorney_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
   client_id UUID NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
@@ -68,7 +68,7 @@ CREATE TABLE invites (
   status invite_status DEFAULT 'pending',
   expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
   accepted_at TIMESTAMP WITH TIME ZONE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  createdAt TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- Insurance Companies
@@ -78,7 +78,7 @@ CREATE TABLE insurers (
   contact_phone VARCHAR(20),
   contact_email VARCHAR(255),
   website VARCHAR(255),
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  createdAt TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -89,7 +89,7 @@ CREATE TABLE policies (
   insurer_id UUID NOT NULL REFERENCES insurers(id) ON DELETE CASCADE,
   policy_number VARCHAR(100),
   policy_type VARCHAR(50), -- e.g., 'term', 'whole', 'universal'
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  createdAt TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -97,13 +97,13 @@ CREATE TABLE policies (
 CREATE TABLE beneficiaries (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   client_id UUID NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
-  first_name VARCHAR(100) NOT NULL,
-  last_name VARCHAR(100) NOT NULL,
+  firstName VARCHAR(100) NOT NULL,
+  lastName VARCHAR(100) NOT NULL,
   relationship VARCHAR(100), -- e.g., 'spouse', 'child', 'trust'
   email VARCHAR(255),
   phone VARCHAR(20),
-  date_of_birth DATE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  dateOfBirth DATE,
+  createdAt TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -112,7 +112,7 @@ CREATE TABLE policy_beneficiaries (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   policy_id UUID NOT NULL REFERENCES policies(id) ON DELETE CASCADE,
   beneficiary_id UUID NOT NULL REFERENCES beneficiaries(id) ON DELETE CASCADE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  createdAt TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   UNIQUE(policy_id, beneficiary_id)
 );
 
@@ -126,7 +126,7 @@ CREATE TABLE audit_logs (
   details JSONB,
   ip_address INET,
   user_agent TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  createdAt TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- Indexes for performance
@@ -134,9 +134,9 @@ CREATE INDEX idx_user_profiles_email ON user_profiles(email);
 CREATE INDEX idx_user_profiles_role ON user_profiles(role);
 CREATE INDEX idx_user_profiles_organization ON user_profiles(organization_id);
 CREATE INDEX idx_clients_email ON clients(email);
-CREATE INDEX idx_attorney_client_access_attorney ON attorney_client_access(attorney_id);
-CREATE INDEX idx_attorney_client_access_client ON attorney_client_access(client_id);
-CREATE INDEX idx_attorney_client_access_active ON attorney_client_access(is_active);
+CREATE INDEX idx_attorneyClientAccess_attorney ON attorneyClientAccess(attorney_id);
+CREATE INDEX idx_attorneyClientAccess_client ON attorneyClientAccess(client_id);
+CREATE INDEX idx_attorneyClientAccess_active ON attorneyClientAccess(is_active);
 CREATE INDEX idx_invites_token ON invites(token);
 CREATE INDEX idx_invites_status ON invites(status);
 CREATE INDEX idx_policies_client ON policies(client_id);
@@ -145,13 +145,13 @@ CREATE INDEX idx_policy_beneficiaries_policy ON policy_beneficiaries(policy_id);
 CREATE INDEX idx_policy_beneficiaries_beneficiary ON policy_beneficiaries(beneficiary_id);
 CREATE INDEX idx_audit_logs_user ON audit_logs(user_id);
 CREATE INDEX idx_audit_logs_resource ON audit_logs(resource_type, resource_id);
-CREATE INDEX idx_audit_logs_created ON audit_logs(created_at);
+CREATE INDEX idx_audit_logs_created ON audit_logs(createdAt);
 
 -- Row Level Security (RLS) Policies
 ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE organizations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE clients ENABLE ROW LEVEL SECURITY;
-ALTER TABLE attorney_client_access ENABLE ROW LEVEL SECURITY;
+ALTER TABLE attorneyClientAccess ENABLE ROW LEVEL SECURITY;
 ALTER TABLE invites ENABLE ROW LEVEL SECURITY;
 ALTER TABLE policies ENABLE ROW LEVEL SECURITY;
 ALTER TABLE beneficiaries ENABLE ROW LEVEL SECURITY;

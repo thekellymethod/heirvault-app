@@ -1,9 +1,9 @@
 // src/lib/email/templates/clientInvite.ts
 export function clientInviteTemplate(input: {
-    clientName?: string;
-    inviteUrl: string;
-    inviteCode?: string;
-    attorneyName?: string;
+    clientName?: string,
+    inviteUrl: string,
+    inviteCode?: string,
+    attorneyName?: string,
   }) {
     const name = input.clientName?.trim() || "there";
     const subject = `Your secure HeirVault invitation`;

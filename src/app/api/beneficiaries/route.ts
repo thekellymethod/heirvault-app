@@ -15,20 +15,20 @@ export async function GET(_req: NextRequest) {
         clients: {
           select: {
             id: true,
-            first_name: true,
-            last_name: true,
+            firstName: true,
+            lastName: true,
             email: true,
           },
         },
       },
-      orderBy: { created_at: 'desc' },
+      orderBy: { createdAt: 'desc' },
     });
 
     // Get policies for each beneficiary
     const beneficiaryIds = beneficiariesList.map(b => b.id);
     const policiesData = beneficiaryIds.length > 0
       ? await prisma.policy_beneficiaries.findMany({
-          where: { beneficiary_id: { in: beneficiaryIds } },
+          where: { beneficiaryId: { in: beneficiaryIds } },
           include: {
             policies: {
               include: {
@@ -46,11 +46,11 @@ export async function GET(_req: NextRequest) {
     // Combine beneficiaries with their policies
     const beneficiariesWithPolicies = beneficiariesList.map(b => {
       const beneficiaryPolicies = policiesData
-        .filter(p => p.beneficiary_id === b.id)
+        .filter(p => p.beneficiaryId === b.id)
         .map(p => ({
           id: p.policies.id,
-          policyNumber: p.policies.policy_number,
-          policyType: p.policies.policy_type,
+          policyNumber: p.policies.policyNumber,
+          policyType: p.policies.policyType,
           // Handle null insurer from leftJoin - return null instead of { name: null }
           insurer: p.policies.insurers?.name ? { name: p.policies.insurers.name } : null,
         }));
@@ -59,8 +59,8 @@ export async function GET(_req: NextRequest) {
         ...b,
         client: {
           id: b.clients.id,
-          firstName: b.clients.first_name,
-          lastName: b.clients.last_name,
+          firstName: b.clients.firstName,
+          lastName: b.clients.lastName,
           email: b.clients.email,
         },
         policies: beneficiaryPolicies,
@@ -123,15 +123,15 @@ export async function POST(req: NextRequest) {
     const beneficiary = await prisma.beneficiaries.create({
       data: {
         id: beneficiaryId,
-        client_id: clientId,
-        first_name: firstName,
-        last_name: lastName,
+        clientId: clientId,
+        firstName: firstName,
+        lastName: lastName,
         relationship: relationship || null,
         email: email ?? null,
         phone: phone ?? null,
-        date_of_birth: dateOfBirthValue,
-        created_at: now,
-        updated_at: now,
+        dateOfBirth: dateOfBirthValue,
+        createdAt: now,
+        updatedAt: now,
       },
     });
 

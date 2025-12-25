@@ -1,11 +1,11 @@
 import { createHmac, randomBytes } from "node:crypto";
 
 type TokenPayload = {
-  registryId: string;
+  registryId: string,
   purpose: "update";
   iat: number;
   exp: number;
-  nonce: string;
+  nonce: string,
 };
 
 function base64url(input: Buffer | string) {

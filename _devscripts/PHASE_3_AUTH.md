@@ -88,9 +88,9 @@
 **User Type:**
 ```typescript
 type User = {
-  id: string;
-  clerkId: string;
-  email: string;
+  id: string,
+  clerkId: string,
+  email: string,
   firstName: string | null;
   lastName: string | null;
   role: "attorney";

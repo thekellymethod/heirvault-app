@@ -16,7 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 
 interface Policy {
-  id: string;
+  id: string,
   policyNumber: string | null;
   policyType: string | null;
   verificationStatus: "PENDING" | "VERIFIED" | "DISCREPANCY" | "INCOMPLETE" | "REJECTED";
@@ -27,49 +27,49 @@ interface Policy {
   createdAt: Date;
   updatedAt: Date;
   client: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
+    id: string,
+    firstName: string,
+    lastName: string,
+    email: string,
   };
   insurer: {
-    id: string;
-    name: string;
+    id: string,
+    name: string,
   } | null;
   carrierNameRaw?: string | null;
 }
 
 interface Document {
-  id: string;
-  fileName: string;
-  fileType: string;
+  id: string,
+  fileName: string,
+  fileType: string,
   fileSize: number;
-  filePath: string;
-  documentHash: string;
+  filePath: string,
+  documentHash: string,
   verifiedAt: Date | null;
   createdAt: Date;
 }
 
 interface Submission {
-  id: string;
-  status: string;
-  submissionType: string;
+  id: string,
+  status: string,
+  submissionType: string,
   createdAt: Date;
   processedAt: Date | null;
 }
 
 interface AccessLog {
-  id: string;
-  action: string;
-  message: string;
+  id: string,
+  action: string,
+  message: string,
   userId: string | null;
   userName: string | null;
   createdAt: Date;
 }
 
 interface Receipt {
-  id: string;
-  receiptNumber: string;
+  id: string,
+  receiptNumber: string,
   createdAt: Date;
 }
 

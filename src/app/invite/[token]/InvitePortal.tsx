@@ -35,10 +35,10 @@ import {
 } from "@/lib/toast";
 
 interface Props {
-  inviteId: string;
-  clientName: string;
-  email: string;
-  token: string;
+  inviteId: string,
+  clientName: string,
+  email: string,
+  token: string,
   isAuthenticated: boolean;
 }
 
@@ -47,47 +47,47 @@ type Step = "form" | "processing" | "receipt" | "error";
 const VALID_TYPES = ["application/pdf", "image/jpeg", "image/png", "image/jpg"] as const;
 const MAX_SIZE_BYTES = 10 * 1024 * 1024;
 
-type ApiErrorResponse = { error?: string; message?: string };
+type ApiErrorResponse = { error?: string, message?: string };
 type UploadPolicyResponse = {
   ok?: boolean;
-  error?: string;
-  message?: string;
+  error?: string,
+  message?: string,
 };
 
 type ReceiptClient = {
-  firstName?: string;
-  lastName?: string;
-  email?: string;
-  phone?: string;
-  dateOfBirth?: string; // ISO string
+  firstName?: string,
+  lastName?: string,
+  email?: string,
+  phone?: string,
+  dateOfBirth?: string, // ISO string
 };
 
 type ReceiptInsurer = {
-  name?: string;
+  name?: string,
 };
 
 type ReceiptPolicy = {
-  id?: string;
+  id?: string,
   insurer?: ReceiptInsurer;
-  insurerName?: string;
-  policyNumber?: string;
-  policyType?: string;
+  insurerName?: string,
+  policyNumber?: string,
+  policyType?: string,
 };
 
 type ReceiptOrganization = {
-  name: string;
-  phone?: string;
-  addressLine1?: string;
-  addressLine2?: string;
-  city?: string;
-  state?: string;
-  postalCode?: string;
+  name: string,
+  phone?: string,
+  addressLine1?: string,
+  addressLine2?: string,
+  city?: string,
+  state?: string,
+  postalCode?: string,
 };
 
 type ReceiptResponse = {
-  receiptId: string;
-  registeredAt?: string;
-  receiptGeneratedAt?: string;
+  receiptId: string,
+  registeredAt?: string,
+  receiptGeneratedAt?: string,
   client?: ReceiptClient;
   policies?: ReceiptPolicy[];
   organization?: ReceiptOrganization;
@@ -95,8 +95,8 @@ type ReceiptResponse = {
 
 type ProcessUpdateFormResponse = {
   ok?: boolean;
-  error?: string;
-  message?: string;
+  error?: string,
+  message?: string,
 };
 
 function isHtmlResponse(text: string) {

@@ -4,11 +4,11 @@ import { prisma } from "@/lib/prisma";
 import { HttpError } from "@/lib/auth/guards";
 
 export type ApiTokenRecord = {
-  id: string;
-  name: string;
-  hash: string;
+  id: string,
+  name: string,
+  hash: string,
   scopes: string[];
-  createdById: string;
+  createdById: string,
   createdAt: Date;
   expiresAt: Date | null;
   revokedAt: Date | null;
@@ -16,16 +16,16 @@ export type ApiTokenRecord = {
   lastUsedIp: string | null;
   lastUsedPath: string | null;
   createdBy: {
-    id: string;
-    email: string;
+    id: string,
+    email: string,
   };
 };
 
 export type TokenGenerationResult = {
-  token: string;
-  hash: string;
-  prefix: string;
-  publicId: string;
+  token: string,
+  hash: string,
+  prefix: string,
+  publicId: string,
 };
 
 /**
@@ -67,12 +67,12 @@ function getEnvPrefix(): "test" | "live" {
  * Returns the plaintext token ONCE - caller must store it securely
  */
 export async function createApiToken(input: {
-  actorUserId: string;
-  name: string;
+  actorUserId: string,
+  name: string,
   scopes: string[];
   expiresInDays?: number;
   expiresAt?: Date;
-}): Promise<{ token: string; record: ApiTokenRecord }> {
+}): Promise<{ token: string, record: ApiTokenRecord }> {
   const { token, hash } = generateApiToken();
   const expiresAt = input.expiresAt ?? (input.expiresInDays ? new Date(Date.now() + input.expiresInDays * 24 * 60 * 60 * 1000) : null);
 

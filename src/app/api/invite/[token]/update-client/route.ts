@@ -48,12 +48,26 @@ export async function POST(
       invite = await lookupClientInvite(token);
     }
 
-    if (!invite) {
+    if (!invite || typeof invite !== 'object' || !('clientId' in invite) || !('client' in invite)) {
       return NextResponse.json(
         { error: "Invalid token" },
         { status: 404 }
       );
     }
+    
+    // Extract clientId:and client with type assertion after type guard
+    const typedInvite = invite as { 
+      clientId: string, 
+      client: { 
+        firstName?: string, 
+        lastName?: string, 
+        email?: string, 
+        phone?: string | null; 
+        dateOfBirth?: Date | null;
+      };
+    };
+    const clientId = typedInvite.clientId;
+    const inviteClient = typedInvite.client;
 
     // Update address - use raw SQL first
     if (address) {
@@ -66,7 +80,7 @@ export async function POST(
             state = ${address.state || null},
             postal_code = ${address.zipCode || null},
             updated_at = NOW()
-          WHERE id = ${invite.clientId}
+          WHERE id = ${clientId}
         `;
       } catch (sqlError: unknown) {
         const sqlErrorMessage = sqlError instanceof Error ? sqlError.message : "Unknown error";
@@ -74,12 +88,12 @@ export async function POST(
         // Fallback to Prisma
         try {
           await prisma.clients.update({
-            where: { id: invite.clientId },
+            where: { id: clientId },
             data: {
-              address_line1: address.street || null,
+              addressLine1: address.street || null,
               city: address.city || null,
               state: address.state || null,
-              postal_code: address.zipCode || null,
+              postalCode: address.zipCode || null,
             },
           });
         } catch (prismaError: unknown) {
@@ -95,7 +109,7 @@ export async function POST(
       try {
         // Delete existing policies
         await prisma.$executeRaw`
-          DELETE FROM policies WHERE client_id = ${invite.clientId}
+          DELETE FROM policies WHERE client_id = ${clientId}
         `;
 
         // Create new policies
@@ -126,8 +140,8 @@ export async function POST(
             // Create policy using raw SQL (with optional insurer_id and carrier_name_raw)
             const policyId = randomUUID();
             await prisma.$executeRaw`
-              INSERT INTO policies (id, client_id, insurer_id, carrier_name_raw, policy_number, policy_type, created_at, updated_at)
-              VALUES (${policyId}, ${invite.clientId}, ${insurerId}, ${carrierNameRaw}, ${policy.policyNumber || null}, ${policy.policyType || null}, NOW(), NOW())
+              INSERT INTO policies (id, client_id, insurer_id, carrier_name_raw, policy_number, policy_type, createdAt, updated_at)
+              VALUES (${policyId}, ${clientId}, ${insurerId}, ${carrierNameRaw}, ${policy.policyNumber || null}, ${policy.policyType || null}, NOW(), NOW())
             `;
           }
         }
@@ -143,7 +157,7 @@ export async function POST(
       try {
         // Delete existing beneficiaries
         await prisma.$executeRaw`
-          DELETE FROM beneficiaries WHERE client_id = ${invite.clientId}
+          DELETE FROM beneficiaries WHERE client_id = ${clientId}
         `;
 
         // Create new beneficiaries
@@ -151,8 +165,8 @@ export async function POST(
           if (beneficiary.firstName && beneficiary.lastName) {
             const beneficiaryId = randomUUID();
             await prisma.$executeRaw`
-              INSERT INTO beneficiaries (id, client_id, first_name, last_name, relationship, created_at, updated_at)
-              VALUES (${beneficiaryId}, ${invite.clientId}, ${beneficiary.firstName}, ${beneficiary.lastName}, ${beneficiary.relationship || null}, NOW(), NOW())
+              INSERT INTO beneficiaries (id, client_id, firstName, lastName, relationship, createdAt, updated_at)
+              VALUES (${beneficiaryId}, ${clientId}, ${beneficiary.firstName}, ${beneficiary.lastName}, ${beneficiary.relationship || null}, NOW(), NOW())
             `;
           }
         }
@@ -169,7 +183,7 @@ export async function POST(
       await logAuditEvent({
         action: AuditAction.CLIENT_UPDATED,
         resourceType: "client",
-        resourceId: invite.clientId,
+        resourceId: clientId,
         details: { source: "update portal" },
         userId: null,
       });
@@ -180,12 +194,12 @@ export async function POST(
     }
 
     // Generate receipt ID
-    const receiptId = `REC-${invite.clientId}-${Date.now()}`;
+    const receiptId = `REC-${clientId}-${Date.now()}`;
 
     // Get organization and attorney info for emails - use raw SQL first
     let organization: {
-      id: string;
-      name: string;
+      id: string,
+      name: string,
       addressLine1: string | null;
       addressLine2: string | null;
       city: string | null;
@@ -194,19 +208,19 @@ export async function POST(
       phone: string | null;
     } | null = null;
     let attorney: {
-      id: string;
-      email: string;
+      id: string,
+      email: string,
       firstName: string | null;
       lastName: string | null;
     } | null = null;
     try {
       const accessResult = await prisma.$queryRaw<Array<{
-        attorney_id: string;
-        attorney_email: string;
-        attorney_first_name: string | null;
-        attorney_last_name: string | null;
-        org_id: string;
-        org_name: string;
+        attorney_id: string,
+        attorney_email: string,
+        attorney_firstName: string | null;
+        attorney_lastName: string | null;
+        org_id: string,
+        org_name: string,
         org_address_line1: string | null;
         org_address_line2: string | null;
         org_city: string | null;
@@ -217,8 +231,8 @@ export async function POST(
         SELECT 
           aca.attorney_id,
           u.email as attorney_email,
-          u.first_name as attorney_first_name,
-          u.last_name as attorney_last_name,
+          u.firstName as attorney_firstName,
+          u.lastName as attorney_lastName,
           o.id as org_id,
           o.name as org_name,
           o.address_line1 as org_address_line1,
@@ -227,11 +241,11 @@ export async function POST(
           o.state as org_state,
           o.postal_code as org_postal_code,
           o.phone as org_phone
-        FROM attorney_client_access aca
+        FROM attorneyClientAccess aca
         INNER JOIN users u ON u.id = aca.attorney_id
         LEFT JOIN org_members om ON om.user_id = aca.attorney_id
         LEFT JOIN organizations o ON o.id = om.organization_id
-        WHERE aca.client_id = ${invite.clientId} AND aca.is_active = true
+        WHERE aca.client_id = ${clientId} AND aca.is_active = true
         LIMIT 1
       `;
       
@@ -240,8 +254,8 @@ export async function POST(
         attorney = {
           id: row.attorney_id,
           email: row.attorney_email,
-          firstName: row.attorney_first_name,
-          lastName: row.attorney_last_name,
+          firstName: row.attorney_firstName,
+          lastName: row.attorney_lastName,
         };
         organization = {
           id: row.org_id,
@@ -262,19 +276,19 @@ export async function POST(
 
     // Get updated client with policies for receipt - use raw SQL
     let updatedClient: {
-      id: string;
-      firstName: string;
-      lastName: string;
-      email: string;
+      id: string,
+      firstName: string,
+      lastName: string,
+      email: string,
       phone: string | null;
       dateOfBirth: Date | null;
       createdAt: Date;
       policies?: Array<{
-        id: string;
+        id: string,
         policyNumber: string | null;
         policyType: string | null;
         insurer: {
-          name: string;
+          name: string,
           contactPhone: string | null;
           contactEmail: string | null;
         } | null;
@@ -283,20 +297,20 @@ export async function POST(
     try {
       const [clientResult, policiesResult] = await Promise.all([
         prisma.$queryRaw<Array<{
-          id: string;
-          first_name: string;
-          last_name: string;
-          email: string;
+          id: string,
+          firstName: string,
+          lastName: string,
+          email: string,
           phone: string | null;
-          date_of_birth: Date | null;
-          created_at: Date;
+          dateOfBirth: Date | null;
+          createdAt: Date;
         }>>`
-          SELECT id, first_name, last_name, email, phone, date_of_birth, created_at
+          SELECT id, firstName, lastName, email, phone, dateOfBirth, createdAt
           FROM clients
-          WHERE id = ${invite.clientId}
+          WHERE id = ${clientId}
         `,
         prisma.$queryRaw<Array<{
-          id: string;
+          id: string,
           policy_number: string | null;
           policy_type: string | null;
           carrier_name_raw: string | null;
@@ -314,7 +328,7 @@ export async function POST(
             i.contact_email as insurer_contact_email
           FROM policies p
           LEFT JOIN insurers i ON i.id = p.insurer_id
-          WHERE p.client_id = ${invite.clientId}
+          WHERE p.client_id = ${clientId}
         `,
       ]);
       
@@ -322,12 +336,12 @@ export async function POST(
         const clientRow = clientResult[0];
         updatedClient = {
           id: clientRow.id,
-          firstName: clientRow.first_name,
-          lastName: clientRow.last_name,
+          firstName: clientRow.firstName,
+          lastName: clientRow.lastName,
           email: clientRow.email,
           phone: clientRow.phone,
-          dateOfBirth: clientRow.date_of_birth,
-          createdAt: clientRow.created_at,
+          dateOfBirth: clientRow.dateOfBirth,
+          createdAt: clientRow.createdAt,
           policies: (policiesResult || []).map(p => ({
             id: p.id,
             policyNumber: p.policy_number,
@@ -351,11 +365,11 @@ export async function POST(
     const receiptData = {
       receiptId,
       client: {
-        firstName: updatedClient?.firstName || invite.client.firstName,
-        lastName: updatedClient?.lastName || invite.client.lastName,
-        email: updatedClient?.email || invite.client.email,
-        phone: updatedClient?.phone || invite.client.phone,
-        dateOfBirth: updatedClient?.dateOfBirth || invite.client.dateOfBirth,
+        firstName: updatedClient?.firstName || inviteClient.firstName || "",
+        lastName: updatedClient?.lastName || inviteClient.lastName || "",
+        email: updatedClient?.email || inviteClient.email || "",
+        phone: updatedClient?.phone || inviteClient.phone || null,
+        dateOfBirth: updatedClient?.dateOfBirth || inviteClient.dateOfBirth || null,
       },
       policies: updatedClient?.policies?.map((p) => ({
         id: p.id,
@@ -382,7 +396,7 @@ export async function POST(
             phone: organization.phone ?? undefined,
           }
         : null,
-      registeredAt: updatedClient?.createdAt || invite.client.createdAt,
+      registeredAt: updatedClient?.createdAt || new Date(),
       receiptGeneratedAt: new Date(),
     };
 
@@ -438,7 +452,7 @@ export async function POST(
           receiptId,
           receiptPdf: receiptPdfBuffer,
           firmName: organization?.name,
-        }).catch((emailError) => {
+        }).then(() => undefined).catch((emailError) => {
           console.error("Error sending client receipt email:", emailError);
         })
       );
@@ -459,7 +473,7 @@ export async function POST(
             receiptId,
             policiesCount: receiptData.policies.length,
             updateUrl,
-          }).catch((emailError) => {
+          }).then(() => undefined).catch((emailError) => {
             console.error("Error sending attorney notification email:", emailError);
           })
         );

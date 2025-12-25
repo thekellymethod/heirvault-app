@@ -18,9 +18,9 @@ export function isTestCode(token: string): boolean {
  * Examples: TEST-001, TEST-JOHN-DOE, TEST-CODE-001
  */
 function extractTestClientInfo(token: string): {
-  email: string;
-  firstName: string;
-  lastName: string;
+  email: string,
+  firstName: string,
+  lastName: string,
 } {
   // Remove TEST- prefix
   const suffix = token.substring(TEST_CODE_PREFIX.length).trim();
@@ -86,19 +86,19 @@ export async function getOrCreateTestInvite(token: string) {
   if (existingInvite) {
     return {
       id: existingInvite.id,
-      clientId: existingInvite.client_id,
+      clientId: existingInvite.clientId,
       email: existingInvite.email,
       token: existingInvite.token,
-      expiresAt: existingInvite.expires_at,
-      usedAt: existingInvite.used_at,
-      createdAt: existingInvite.created_at,
+      expiresAt: existingInvite.expiresAt,
+      usedAt: existingInvite.usedAt,
+      createdAt: existingInvite.createdAt,
       client: {
         id: existingInvite.clients.id,
-        firstName: existingInvite.clients.first_name || "",
-        lastName: existingInvite.clients.last_name || "",
+        firstName: existingInvite.clients.firstName || "",
+        lastName: existingInvite.clients.lastName || "",
         email: existingInvite.clients.email,
         phone: existingInvite.clients.phone || null,
-        dateOfBirth: existingInvite.clients.date_of_birth || null,
+        dateOfBirth: existingInvite.clients.dateOfBirth || null,
       },
     };
   }
@@ -112,8 +112,8 @@ export async function getOrCreateTestInvite(token: string) {
     client = await prisma.clients.create({
       data: {
         email: clientInfo.email,
-        first_name: clientInfo.firstName,
-        last_name: clientInfo.lastName,
+        firstName: clientInfo.firstName,
+        lastName: clientInfo.lastName,
       },
     });
   }
@@ -124,28 +124,28 @@ export async function getOrCreateTestInvite(token: string) {
 
   const newInvite = await prisma.client_invites.create({
     data: {
-      client_id: client.id,
+      clientId: client.id,
       email: clientInfo.email,
       token: normalizedToken,
-      expires_at: expiresAt,
+      expiresAt: expiresAt,
     },
   });
 
   return {
     id: newInvite.id,
-    clientId: newInvite.client_id,
+    clientId: newInvite.clientId,
     email: newInvite.email,
     token: newInvite.token,
-    expiresAt: newInvite.expires_at,
-    usedAt: newInvite.used_at,
-    createdAt: newInvite.created_at,
+    expiresAt: newInvite.expiresAt,
+    usedAt: newInvite.usedAt,
+    createdAt: newInvite.createdAt,
     client: {
       id: client.id,
-      firstName: client.first_name || "",
-      lastName: client.last_name || "",
+      firstName: client.firstName || "",
+      lastName: client.lastName || "",
       email: client.email,
       phone: client.phone || null,
-      dateOfBirth: client.date_of_birth || null,
+      dateOfBirth: client.dateOfBirth || null,
     },
   };
 }

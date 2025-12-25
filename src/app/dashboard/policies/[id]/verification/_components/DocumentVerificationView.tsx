@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 interface Policy {
-  id: string;
+  id: string,
   policyNumber: string | null;
   policyType: string | null;
   verificationStatus: "PENDING" | "VERIFIED" | "DISCREPANCY" | "INCOMPLETE" | "REJECTED";
@@ -30,28 +30,28 @@ interface Policy {
   createdAt: Date;
   updatedAt: Date;
   client: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
+    id: string,
+    firstName: string,
+    lastName: string,
+    email: string,
   };
   insurer: {
-    id: string;
-    name: string;
+    id: string,
+    name: string,
   } | null;
   carrierNameRaw?: string | null;
 }
 
 interface Document {
-  id: string;
-  fileName: string;
-  fileType: string;
+  id: string,
+  fileName: string,
+  fileType: string,
   fileSize: number;
-  filePath: string;
-  mimeType: string;
+  filePath: string,
+  mimeType: string,
   extractedData: Record<string, unknown>;
   ocrConfidence: number | null;
-  documentHash: string;
+  documentHash: string,
   verifiedAt: Date | null;
   verifiedByUserId: string | null;
   verificationNotes: string | null;
@@ -59,9 +59,9 @@ interface Document {
 }
 
 interface Submission {
-  id: string;
-  status: string;
-  submissionType: string;
+  id: string,
+  status: string,
+  submissionType: string,
   submittedData: Record<string, unknown>;
   createdAt: Date;
   processedAt: Date | null;
@@ -71,7 +71,7 @@ interface DocumentVerificationViewProps {
   policy: Policy;
   documents: Document[];
   submissions: Submission[];
-  currentUserId: string;
+  currentUserId: string,
   isAdmin?: boolean;
 }
 

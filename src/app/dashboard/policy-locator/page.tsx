@@ -7,11 +7,11 @@ import { Search, HelpCircle, Calendar, MapPin, User, Globe, FileText, Users } fr
 import Link from "next/link";
 
 type SearchResult = {
-  id: string;
-  clientName: string;
+  id: string,
+  clientName: string,
   policyNumber: string | null;
   policyType: string | null;
-  insurerName: string;
+  insurerName: string,
   dateOfBirth: string | null;
   dateOfDeath: string | null;
 };
@@ -19,35 +19,35 @@ type SearchResult = {
 type SearchMode = "organization" | "global";
 
 type GlobalClient = {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
+  id: string,
+  firstName: string,
+  lastName: string,
+  email: string,
   phone?: string | null;
   dateOfBirth?: string | null;
   organization?: {
-    name: string;
+    name: string,
   } | null;
 };
 
 type GlobalPolicy = {
-  id: string;
+  id: string,
   policyNumber?: string | null;
   policyType?: string | null;
   carrierName?: string | null;
-  insurerName?: string;
+  insurerName?: string,
   client: {
-    firstName: string;
-    lastName: string;
-    email: string;
+    firstName: string,
+    lastName: string,
+    email: string,
     organization?: {
-      name: string;
+      name: string,
     } | null;
   };
 };
 
 type GlobalResults = {
-  disclaimer?: string;
+  disclaimer?: string,
   clients?: GlobalClient[];
   policies?: GlobalPolicy[];
 } | null;

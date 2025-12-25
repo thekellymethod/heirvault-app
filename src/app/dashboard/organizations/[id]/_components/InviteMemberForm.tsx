@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
 interface InviteMemberFormProps {
-  organizationId: string;
+  organizationId: string,
 }
 
 export function InviteMemberForm({ organizationId }: InviteMemberFormProps) {

@@ -102,9 +102,9 @@ export function getEmailWrapper(htmlContent: string): string {
  * Client Invitation Email Template
  */
 export function getClientInviteEmailTemplate(opts: {
-  clientName: string;
-  firmName?: string;
-  inviteUrl: string;
+  clientName: string,
+  firmName?: string,
+  inviteUrl: string,
 }): string {
   const { clientName, firmName, inviteUrl } = opts;
 
@@ -156,12 +156,12 @@ export function getClientInviteEmailTemplate(opts: {
  * Policy Added Notification Email Template
  */
 export function getPolicyAddedEmailTemplate(opts: {
-  clientName: string;
-  insurerName: string;
-  policyNumber?: string;
-  policyType?: string;
-  firmName?: string;
-  dashboardUrl: string;
+  clientName: string,
+  insurerName: string,
+  policyNumber?: string,
+  policyType?: string,
+  firmName?: string,
+  dashboardUrl: string,
 }): string {
   const { clientName, insurerName, policyNumber, policyType, firmName, dashboardUrl } = opts;
 
@@ -204,10 +204,10 @@ export function getPolicyAddedEmailTemplate(opts: {
  * Access Granted Notification Email Template
  */
 export function getAccessGrantedEmailTemplate(opts: {
-  attorneyName: string;
-  clientName: string;
-  firmName?: string;
-  dashboardUrl: string;
+  attorneyName: string,
+  clientName: string,
+  firmName?: string,
+  dashboardUrl: string,
 }): string {
   const { attorneyName, clientName, firmName, dashboardUrl } = opts;
 
@@ -250,13 +250,13 @@ export function getAccessGrantedEmailTemplate(opts: {
  * Attorney Notification Email Template (when client submits)
  */
 export function getAttorneyNotificationEmailTemplate(opts: {
-  attorneyName: string;
-  clientName: string;
-  receiptId: string;
+  attorneyName: string,
+  clientName: string,
+  receiptId: string,
   policiesCount: number;
-  updateUrl: string;
-  firmName?: string;
-  qrCodeImage?: string;
+  updateUrl: string,
+  firmName?: string,
+  qrCodeImage?: string,
 }): string {
   const { attorneyName, clientName, receiptId, policiesCount, updateUrl, firmName, qrCodeImage } = opts;
 

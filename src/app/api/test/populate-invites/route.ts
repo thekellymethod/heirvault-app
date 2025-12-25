@@ -11,7 +11,7 @@ const testClients = [
 ];
 
 async function populateInvites(baseUrl: string) {
-  const invites: Array<{ token: string; email: string; name: string; url: string }> = [];
+  const invites: Array<{ token: string, email: string, name: string, url: string }> = [];
 
   for (const clientData of testClients) {
     // Find or create client
@@ -25,10 +25,10 @@ async function populateInvites(baseUrl: string) {
       client = await prisma.clients.create({
         data: {
           id: clientId,
-          first_name: clientData.firstName,
-          last_name: clientData.lastName,
+          firstName: clientData.firstName,
+          lastName: clientData.lastName,
           email: clientData.email,
-          created_at: now,
+          createdAt: now,
           updated_at: now,
         },
       });
@@ -58,11 +58,11 @@ async function populateInvites(baseUrl: string) {
     await prisma.client_invites.create({
       data: {
         id: randomUUID(),
-        client_id: client.id,
+        clientId: client.id,
         email: clientData.email,
         token: clientData.token,
         expires_at: expiresAt,
-        created_at: new Date(),
+        createdAt: new Date(),
         updated_at: new Date(),
       },
     });

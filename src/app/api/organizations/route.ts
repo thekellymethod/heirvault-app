@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
 
     // Check if user already has an organization
     const existingMembership = await prisma.org_members.findFirst({
-      where: { user_id: user.id },
+      where: { userId: user.id },
     });
 
     if (existingMembership) {
@@ -76,20 +76,20 @@ export async function POST(req: NextRequest) {
         id: orgId,
         name: name.trim(),
         slug: finalSlug,
-        billing_plan: "FREE",
-        created_at: now,
-        updated_at: now,
+        billingPlan: "FREE",
+        createdAt: now,
+        updatedAt: now,
       },
     });
     
     await prisma.org_members.create({
       data: {
         id: randomUUID(),
-        user_id: user.id,
-        organization_id: organization.id,
+        userId: user.id,
+        organizationId: organization.id,
         role: "OWNER",
-        created_at: now,
-        updated_at: now,
+        createdAt: now,
+        updatedAt: now,
       },
     });
     

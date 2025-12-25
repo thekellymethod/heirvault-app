@@ -32,7 +32,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
     // Check if beneficiary exists
     const existing = await prisma.beneficiaries.findUnique({
       where: { id },
-      select: { id: true, client_id: true },
+      select: { id: true, clientId: true },
     });
 
     if (!existing) {
@@ -50,32 +50,17 @@ export async function PUT(req: NextRequest, { params }: Params) {
       }
     }
 
-    const prismaResult = await prisma.beneficiaries.update({
+    const updated = await prisma.beneficiaries.update({
       where: { id },
       data: {
-        first_name: firstName.trim(),
-        last_name: lastName.trim(),
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
         relationship: relationship?.trim() || null,
         email: email?.trim() || null,
         phone: phone?.trim() || null,
-        date_of_birth: parsedDateOfBirth,
-        updated_at: new Date(),
+        dateOfBirth: parsedDateOfBirth,
       },
     });
-    
-    // Map Prisma snake_case to camelCase
-    const updated = {
-      id: prismaResult.id,
-      clientId: prismaResult.client_id,
-      firstName: prismaResult.first_name,
-      lastName: prismaResult.last_name,
-      relationship: prismaResult.relationship,
-      email: prismaResult.email,
-      phone: prismaResult.phone,
-      dateOfBirth: prismaResult.date_of_birth,
-      createdAt: prismaResult.created_at,
-      updatedAt: prismaResult.updated_at,
-    };
 
     if (!updated) {
       return NextResponse.json(
@@ -114,7 +99,7 @@ export async function DELETE(req: NextRequest, { params }: Params) {
     // Get beneficiary for audit before deleting
     const beneficiary = await prisma.beneficiaries.findUnique({
       where: { id },
-      select: { id: true, client_id: true, first_name: true, last_name: true },
+      select: { id: true, clientId: true, firstName: true, lastName: true },
     });
 
     if (!beneficiary) {
@@ -130,9 +115,9 @@ export async function DELETE(req: NextRequest, { params }: Params) {
       resourceType: "beneficiary",
       resourceId: id,
       details: { 
-        firstName: beneficiary.first_name,
-        lastName: beneficiary.last_name,
-        clientId: beneficiary.client_id,
+        firstName: beneficiary.firstName,
+        lastName: beneficiary.lastName,
+        clientId: beneficiary.clientId,
       },
       userId: user.id,
     });

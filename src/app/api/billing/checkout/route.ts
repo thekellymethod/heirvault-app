@@ -32,7 +32,7 @@ export async function POST(req: Request) {
   const user = await prisma.user.findUnique({
     where: { clerkId: userId },
     include: {
-      org_members: {
+      orgMemberships: {
         include: {
           organizations: true,
         },
@@ -40,7 +40,7 @@ export async function POST(req: Request) {
     },
   });
 
-  const orgMember = user?.org_members?.[0];
+  const orgMember = user?.orgMemberships?.[0];
   if (!user || !orgMember) {
     return new NextResponse("No organization found", { status: 400 });
   }
@@ -63,7 +63,7 @@ export async function POST(req: Request) {
     await prisma.organizations.update({
       where: { id: org.id },
       data: {
-        stripe_customer_id: customerId,
+        stripeCustomerId: customerId,
       },
     });
   }

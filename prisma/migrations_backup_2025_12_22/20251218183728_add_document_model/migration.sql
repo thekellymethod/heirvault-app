@@ -27,7 +27,7 @@ CREATE TABLE "documents" (
     "uploaded_via" TEXT,
     "extracted_data" JSONB,
     "ocr_confidence" DOUBLE PRECISION,
-    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "documents_pkey" PRIMARY KEY ("id")
@@ -40,7 +40,7 @@ CREATE INDEX "documents_client_id_idx" ON "documents"("client_id");
 CREATE INDEX "documents_policy_id_idx" ON "documents"("policy_id");
 
 -- CreateIndex
-CREATE INDEX "documents_created_at_idx" ON "documents"("created_at");
+CREATE INDEX "documents_createdAt_idx" ON "documents"("createdAt");
 
 -- AddForeignKey
 ALTER TABLE "documents" ADD CONSTRAINT "documents_client_id_fkey" FOREIGN KEY ("client_id") REFERENCES "clients"("id") ON DELETE CASCADE ON UPDATE CASCADE;

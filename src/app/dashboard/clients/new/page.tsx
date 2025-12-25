@@ -5,11 +5,11 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
 type FormState = {
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone: string;
-  dateOfBirth: string; // yyyy-mm-dd
+  firstName: string,
+  lastName: string,
+  email: string,
+  phone: string,
+  dateOfBirth: string, // yyyy-mm-dd
 };
 
 export default function NewClientPage() {

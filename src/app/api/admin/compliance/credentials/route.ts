@@ -13,18 +13,18 @@ export async function GET() {
 
     // Get attorneys using raw SQL
     const attorneysResult = await prisma.$queryRawUnsafe<Array<{
-      id: string;
-      email: string;
-      first_name: string | null;
-      last_name: string | null;
+      id: string,
+      email: string,
+      firstName: string | null;
+      lastName: string | null;
       bar_number: string | null;
       updated_at: Date;
     }>>(`
       SELECT 
         id,
         email,
-        first_name,
-        last_name,
+        firstName,
+        lastName,
         bar_number,
         updated_at
       FROM users
@@ -35,7 +35,7 @@ export async function GET() {
     const credentials = attorneysResult.map((attorney) => ({
       id: attorney.id,
       email: attorney.email,
-      name: `${attorney.first_name || ""} ${attorney.last_name || ""}`.trim() || attorney.email,
+      name: `${attorney.firstName || ""} ${attorney.lastName || ""}`.trim() || attorney.email,
       barNumber: attorney.bar_number,
       status: attorney.bar_number ? ("verified" as const) : ("pending" as const),
       lastVerified: attorney.bar_number ? attorney.updated_at.toISOString() : null,

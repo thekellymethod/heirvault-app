@@ -18,28 +18,28 @@ export async function GET() {
   const { user } = auth;
 
   // Attorney's accessible clients (via AttorneyClientAccess)
-  const accessRecords = await prisma.attorney_client_access.findMany({
+  const accessRecords = await prisma.attorneyClientAccess.findMany({
     where: {
-      attorney_id: user.id,
-      is_active: true,
+      attorneyId: user.id,
+      isActive: true,
     },
     include: {
       clients: true,
     },
     orderBy: {
-      granted_at: 'desc',
+      grantedAt: 'desc',
     },
   });
 
   const clientList = accessRecords.map((r) => ({
     id: r.clients.id,
-    firstName: r.clients.first_name,
-    lastName: r.clients.last_name,
+    firstName: r.clients.firstName,
+    lastName: r.clients.lastName,
     email: r.clients.email,
     phone: r.clients.phone,
-    dateOfBirth: r.clients.date_of_birth,
-    createdAt: r.clients.created_at,
-    updatedAt: r.clients.updated_at,
+    dateOfBirth: r.clients.dateOfBirth,
+    createdAt: r.clients.createdAt,
+    updatedAt: r.clients.updatedAt,
   }));
 
   return NextResponse.json({ clients: clientList });
@@ -72,27 +72,27 @@ export async function POST(req: NextRequest) {
       data: {
         id: randomUUID(),
         email,
-        first_name: firstName,
-        last_name: lastName,
+        firstName: firstName,
+        lastName: lastName,
         phone: phone || null,
-        date_of_birth: dateOfBirth || null,
+        dateOfBirth: dateOfBirth || null,
       },
     });
 
     // Grant attorney access
-    await tx.attorney_client_access.create({
+    await tx.attorneyClientAccess.create({
       data: {
         id: randomUUID(),
-        attorney_id: user.id,
-        client_id: client.id,
-        is_active: true,
+        attorneyId: user.id,
+        clientId: client.id,
+        isActive: true,
       },
     });
 
     return {
       id: client.id,
-      firstName: client.first_name,
-      lastName: client.last_name,
+      firstName: client.firstName,
+      lastName: client.lastName,
       email: client.email,
     };
   });

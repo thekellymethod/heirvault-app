@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { auth } from '@clerk/nextjs/server'
 import { logAuditEvent } from '@/lib/audit'
+import { randomUUID } from 'crypto'
 
 export async function POST(req: NextRequest) {
   try {
@@ -37,7 +38,7 @@ export async function POST(req: NextRequest) {
     }
 
     const now = new Date()
-    if (invite.used_at || invite.expires_at < now) {
+    if (invite.usedAt || invite.expiresAt < now) {
       return NextResponse.json(
         { error: 'Invite expired or already used' },
         { status: 400 }
@@ -57,9 +58,9 @@ export async function POST(req: NextRequest) {
 
     // Link the client to this user (using userId field, not primaryUserId)
     await prisma.clients.update({
-      where: { id: invite.client_id },
+      where: { id: invite.clientId },
       data: {
-        user_id: user.id,
+        userId: user.id,
       },
     })
 
@@ -67,40 +68,41 @@ export async function POST(req: NextRequest) {
     await prisma.client_invites.update({
       where: { id: invite.id },
       data: {
-        used_at: now,
+        usedAt: now,
       },
     })
 
     // Grant attorney access via AttorneyClientAccess
-    if (invite.invited_by_user_id) {
+    if (invite.invitedByUserId) {
       const orgMember = await prisma.org_members.findFirst({
-        where: { user_id: invite.invited_by_user_id },
+        where: { userId: invite.invitedByUserId },
       })
 
       if (orgMember) {
         // Check if access already exists
-        const existingAccess = await prisma.attorney_client_access.findFirst({
+        const existingAccess = await prisma.attorneyClientAccess.findFirst({
           where: {
-            attorney_id: invite.invited_by_user_id,
-            client_id: invite.client_id,
-            organization_id: orgMember.organization_id,
+            attorneyId: invite.invitedByUserId,
+            clientId: invite.clientId,
+            organizationId: orgMember.organizationId,
           },
         })
 
         if (!existingAccess) {
-          await prisma.attorney_client_access.create({
+          await prisma.attorneyClientAccess.create({
             data: {
-              attorney_id: invite.invited_by_user_id,
-              client_id: invite.client_id,
-              organization_id: orgMember.organization_id,
-              is_active: true,
+              id: randomUUID(),
+              attorneyId: invite.invitedByUserId,
+              clientId: invite.clientId,
+              organizationId: orgMember.organizationId,
+              isActive: true,
             },
           })
-        } else if (!existingAccess.is_active) {
+        } else if (!existingAccess.isActive) {
           // Reactivate if it was revoked
-          await prisma.attorney_client_access.update({
+          await prisma.attorneyClientAccess.update({
             where: { id: existingAccess.id },
-            data: { is_active: true, revoked_at: null },
+            data: { isActive: true, revokedAt: null },
           })
         }
       }
@@ -110,14 +112,15 @@ export async function POST(req: NextRequest) {
       action: 'INVITE_ACCEPTED',
       resourceType: 'client_invite',
       resourceId: invite.id,
-      details: { clientId: invite.client_id, userId: user.id },
+      details: { clientId: invite.clientId, userId: user.id },
       userId: user.id,
     })
 
     return NextResponse.json({ ok: true })
   } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Internal server error";
     return NextResponse.json(
-      { error: error.message },
+      { error: errorMessage },
       { status: 400 }
     )
   }

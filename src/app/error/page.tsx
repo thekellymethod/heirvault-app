@@ -12,8 +12,8 @@ import {
 
 interface ErrorPageProps {
   searchParams: Promise<{
-    type?: string;
-    reason?: string;
+    type?: string,
+    reason?: string,
   }>;
 }
 
@@ -88,11 +88,11 @@ function getErrorConfig(
   type: string,
   reason?: string
 ): {
-  title: string;
-  message: string;
-  details?: string;
+  title: string,
+  message: string,
+  details?: string,
   icon: React.ReactNode;
-  iconBg: string;
+  iconBg: string,
   showSignIn: boolean;
 } {
   switch (type) {

@@ -14,7 +14,7 @@ export async function GET(req: NextRequest, { params }: Params) {
   try {
     ctx = await requireAttorneyOrOwner();
   } catch (e: unknown) {
-    const error = e as { message?: string; status?: number };
+    const error = e as { message?: string, status?: number };
     return new NextResponse(error.message || "Unauthorized", {
       status: error.status || 401,
     });
@@ -31,15 +31,15 @@ export async function GET(req: NextRequest, { params }: Params) {
 
   // Get client data using raw SQL
   const clientData = await prisma.$queryRawUnsafe<Array<{
-    id: string;
-    first_name: string;
-    last_name: string;
-    email: string;
+    id: string,
+    firstName: string,
+    lastName: string,
+    email: string,
     phone: string | null;
-    date_of_birth: Date | null;
-    created_at: Date;
+    dateOfBirth: Date | null;
+    createdAt: Date;
   }>>(`
-    SELECT id, first_name, last_name, email, phone, date_of_birth, created_at
+    SELECT id, firstName, lastName, email, phone, dateOfBirth, createdAt
     FROM clients
     WHERE id = $1
     LIMIT 1
@@ -53,12 +53,12 @@ export async function GET(req: NextRequest, { params }: Params) {
 
   // Get policies with insurers and beneficiaries
   const policiesData = await prisma.$queryRawUnsafe<Array<{
-    id: string;
+    id: string,
     policy_number: string | null;
     policy_type: string | null;
-    verification_status: string;
-    insurer_id: string;
-    insurer_name: string;
+    verification_status: string,
+    insurer_id: string,
+    insurer_name: string,
     insurer_contact_phone: string | null;
     insurer_contact_email: string | null;
   }>>(`
@@ -74,17 +74,17 @@ export async function GET(req: NextRequest, { params }: Params) {
     FROM policies p
     INNER JOIN insurers i ON i.id = p.insurer_id
     WHERE p.client_id = $1
-    ORDER BY p.created_at DESC
+    ORDER BY p.createdAt DESC
   `, id);
 
   // Get beneficiaries for each policy
   const policyIds = policiesData.map((p) => p.id);
-  const policyBeneficiariesData = policyIds.length > 0
+  const policy_beneficiariesData = policyIds.length > 0
     ? await prisma.$queryRawUnsafe<Array<{
-        policy_id: string;
-        beneficiary_id: string;
-        beneficiary_first_name: string;
-        beneficiary_last_name: string;
+        policy_id: string,
+        beneficiary_id: string,
+        beneficiary_firstName: string,
+        beneficiary_lastName: string,
         beneficiary_relationship: string | null;
         beneficiary_email: string | null;
         beneficiary_phone: string | null;
@@ -92,8 +92,8 @@ export async function GET(req: NextRequest, { params }: Params) {
         SELECT 
           pb.policy_id,
           b.id as beneficiary_id,
-          b.first_name as beneficiary_first_name,
-          b.last_name as beneficiary_last_name,
+          b.firstName as beneficiary_firstName,
+          b.lastName as beneficiary_lastName,
           b.relationship as beneficiary_relationship,
           b.email as beneficiary_email,
           b.phone as beneficiary_phone
@@ -105,24 +105,24 @@ export async function GET(req: NextRequest, { params }: Params) {
 
   // Get all beneficiaries for the client
   const beneficiariesData = await prisma.$queryRawUnsafe<Array<{
-    id: string;
-    first_name: string;
-    last_name: string;
+    id: string,
+    firstName: string,
+    lastName: string,
     relationship: string | null;
     email: string | null;
     phone: string | null;
-    date_of_birth: Date | null;
+    dateOfBirth: Date | null;
   }>>(`
-    SELECT id, first_name, last_name, relationship, email, phone, date_of_birth
+    SELECT id, firstName, lastName, relationship, email, phone, dateOfBirth
     FROM beneficiaries
     WHERE client_id = $1
-    ORDER BY created_at DESC
+    ORDER BY createdAt DESC
   `, id);
 
   // Log the PDF download
   await audit(AuditAction.CLIENT_SUMMARY_PDF_DOWNLOADED, {
     clientId: id,
-    message: `Probate summary PDF downloaded for ${client.first_name} ${client.last_name}`,
+    message: `Probate summary PDF downloaded for ${client.firstName} ${client.lastName}`,
     userId: user.id,
     orgId: orgMember?.organizations?.id || orgMember?.organizationId || null,
   });
@@ -138,12 +138,12 @@ export async function GET(req: NextRequest, { params }: Params) {
     policyNumber: p.policy_number,
     policyType: p.policy_type,
     verificationStatus: p.verification_status,
-    beneficiaries: policyBeneficiariesData
+    beneficiaries: policy_beneficiariesData
       .filter((pb) => pb.policy_id === p.id)
       .map((pb) => ({
         beneficiary: {
-          firstName: pb.beneficiary_first_name,
-          lastName: pb.beneficiary_last_name,
+          firstName: pb.beneficiary_firstName,
+          lastName: pb.beneficiary_lastName,
           relationship: pb.beneficiary_relationship,
           email: pb.beneficiary_email,
           phone: pb.beneficiary_phone,
@@ -155,23 +155,23 @@ export async function GET(req: NextRequest, { params }: Params) {
   // Map beneficiaries
   const beneficiaries = beneficiariesData.map((b) => ({
     id: b.id,
-    firstName: b.first_name,
-    lastName: b.last_name,
+    firstName: b.firstName,
+    lastName: b.lastName,
     relationship: b.relationship,
     email: b.email,
     phone: b.phone,
-    dateOfBirth: b.date_of_birth,
+    dateOfBirth: b.dateOfBirth,
   }));
 
   const pdfStream = await renderToStream(
     ProbateSummaryPDF({
       client: {
-        firstName: client.first_name,
-        lastName: client.last_name,
+        firstName: client.firstName,
+        lastName: client.lastName,
         email: client.email,
         phone: client.phone,
-        dateOfBirth: client.date_of_birth,
-        createdAt: client.created_at,
+        dateOfBirth: client.dateOfBirth,
+        createdAt: client.createdAt,
       },
       policies,
       beneficiaries,
@@ -187,7 +187,7 @@ export async function GET(req: NextRequest, { params }: Params) {
   headers.set("Content-Type", "application/pdf");
   headers.set(
     "Content-Disposition",
-    `attachment; filename="probate-summary-${client.last_name}-${client.first_name}.pdf"`
+    `attachment; filename="probate-summary-${client.lastName}-${client.firstName}.pdf"`
   );
 
   return new NextResponse(pdfStream as unknown as BodyInit, {

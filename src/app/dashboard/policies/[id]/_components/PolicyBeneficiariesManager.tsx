@@ -4,21 +4,21 @@ import * as React from "react";
 import { Button } from "@/components/ui/button";
 
 type BeneficiaryDTO = {
-  id: string;
-  firstName: string;
-  lastName: string;
+  id: string,
+  firstName: string,
+  lastName: string,
   relationship: string | null;
   email: string | null;
   phone: string | null;
   dateOfBirth: string | null;
 };
 
-export default function PolicyBeneficiariesManager({
+export default function policy_beneficiariesManager({
   policyId,
   clientId,
 }: {
-  policyId: string;
-  clientId: string;
+  policyId: string,
+  clientId: string,
 }) {
   const [loading, setLoading] = React.useState(true);
   const [attached, setAttached] = React.useState<BeneficiaryDTO[]>([]);

@@ -18,7 +18,7 @@ export default async function OrganizationsPage() {
     include: {
       organizations: true,
     },
-    orderBy: { created_at: 'desc' },
+    orderBy: { createdAt: 'desc' },
   });
 
   // Get member counts for each organization
@@ -32,11 +32,11 @@ export default async function OrganizationsPage() {
         id: membership.organizations.id,
         name: membership.organizations.name,
         slug: membership.organizations.slug,
-        createdAt: membership.organizations.created_at,
+        createdAt: membership.organizations.createdAt,
         updatedAt: membership.organizations.updated_at,
         role: membership.role,
         memberCount,
-        joinedAt: membership.created_at,
+        joinedAt: membership.createdAt,
       };
     })
   );

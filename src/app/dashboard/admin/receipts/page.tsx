@@ -5,16 +5,16 @@ import { useRouter } from "next/navigation";
 import { Search, Archive, FileText, Calendar, User, Mail, Phone } from "lucide-react";
 
 type Receipt = {
-  id: string;
-  receiptId: string;
-  token: string;
-  clientId: string;
-  clientName: string;
-  email: string;
+  id: string,
+  receiptId: string,
+  token: string,
+  clientId: string,
+  clientName: string,
+  email: string,
   phone: string | null;
-  expiresAt: string;
+  expiresAt: string,
   usedAt: string | null;
-  createdAt: string;
+  createdAt: string,
   isArchived: boolean;
 };
 

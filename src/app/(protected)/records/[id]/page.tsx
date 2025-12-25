@@ -40,7 +40,7 @@ export default async function RecordDetailPage({ params }: { params: { id: strin
       <div className={styles.versionsGrid}>
         {versions.map((v) => (
           <div key={v.id} className={styles.versionCard}>
-            <div><strong>{v.submitted_by}</strong> — {new Date(v.created_at).toLocaleString()}</div>
+            <div><strong>{v.submitted_by}</strong> — {new Date(v.createdAt).toLocaleString()}</div>
             <div className={styles.hash}>hash: {v.hash}</div>
             <pre className={styles.jsonContent}>
               {JSON.stringify(v.data_json, null, 2)}

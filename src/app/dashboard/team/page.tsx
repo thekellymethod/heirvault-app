@@ -9,8 +9,8 @@ export default async function TeamPage() {
 
   // Get user with org memberships using raw SQL
   let user: {
-    id: string;
-    email: string;
+    id: string,
+    email: string,
     firstName: string | null;
     lastName: string | null;
   } | null = null;
@@ -18,18 +18,18 @@ export default async function TeamPage() {
 
   try {
     const userResult = await prisma.$queryRaw<Array<{
-      user_id: string;
-      user_email: string;
-      user_first_name: string | null;
-      user_last_name: string | null;
+      user_id: string,
+      user_email: string,
+      user_firstName: string | null;
+      user_lastName: string | null;
       org_id: string | null;
       org_role: string | null;
     }>>`
       SELECT 
         u.id as user_id,
         u.email as user_email,
-        u.first_name as user_first_name,
-        u.last_name as user_last_name,
+        u.firstName as user_firstName,
+        u.lastName as user_lastName,
         om.organization_id as org_id,
         om.role as org_role
       FROM users u
@@ -43,8 +43,8 @@ export default async function TeamPage() {
       user = {
         id: row.user_id,
         email: row.user_email,
-        firstName: row.user_first_name,
-        lastName: row.user_last_name,
+        firstName: row.user_firstName,
+        lastName: row.user_lastName,
       };
       organizationId = row.org_id || null;
     }
@@ -88,30 +88,30 @@ export default async function TeamPage() {
   let members: TeamMember[] = [];
   try {
     const rawMembers = await prisma.$queryRaw<Array<{
-      id: string;
-      user_id: string;
-      organization_id: string;
-      role: string;
-      created_at: Date;
+      id: string,
+      user_id: string,
+      organization_id: string,
+      role: string,
+      createdAt: Date;
       updated_at: Date;
-      user_email: string;
-      user_first_name: string | null;
-      user_last_name: string | null;
+      user_email: string,
+      user_firstName: string | null;
+      user_lastName: string | null;
     }>>`
       SELECT 
         om.id,
         om.user_id,
         om.organization_id,
         om.role,
-        om.created_at,
+        om.createdAt,
         om.updated_at,
         u.email as user_email,
-        u.first_name as user_first_name,
-        u.last_name as user_last_name
+        u.firstName as user_firstName,
+        u.lastName as user_lastName
       FROM org_members om
       INNER JOIN users u ON u.id = om.user_id
       WHERE om.organization_id = ${organizationId}
-      ORDER BY om.created_at ASC
+      ORDER BY om.createdAt ASC
     `;
 
       members = rawMembers.map(m => ({
@@ -119,13 +119,13 @@ export default async function TeamPage() {
         userId: m.user_id,
         organizationId: m.organization_id,
         role: m.role as OrgRole,
-        createdAt: m.created_at,
+        createdAt: m.createdAt,
         updatedAt: m.updated_at,
         user: {
           id: m.user_id,
           email: m.user_email,
-          firstName: m.user_first_name,
-          lastName: m.user_last_name,
+          firstName: m.user_firstName,
+          lastName: m.user_lastName,
         },
       }));
     } catch (sqlError: unknown) {

@@ -11,7 +11,7 @@
 import toast from "react-hot-toast";
 
 // react-hot-toast returns a toast id (string) for success/error/loading
-export type ToastId = string;
+export type ToastId = string,
 
 const DEFAULT_SUCCESS_DURATION_MS = 4000;
 const DEFAULT_ERROR_DURATION_MS = 5000;
@@ -58,7 +58,7 @@ export function dismissAllToasts() {
 export function showPromise<T>(
   promise: Promise<T>,
   messages: {
-    loading: string;
+    loading: string,
     success: string | ((data: T) => string);
     error: string | ((error: unknown) => string);
   },

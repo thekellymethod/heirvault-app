@@ -6,8 +6,8 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
 type Insurer = {
-  id: string;
-  name: string;
+  id: string,
+  name: string,
   contactPhone: string | null;
   contactEmail: string | null;
   website: string | null;
@@ -159,11 +159,11 @@ function Field({
   required,
   placeholder,
 }: {
-  label: string;
-  value: string;
+  label: string,
+  value: string,
   onChange: (v: string) => void;
   required?: boolean;
-  placeholder?: string;
+  placeholder?: string,
 }) {
   return (
     <label className="block">

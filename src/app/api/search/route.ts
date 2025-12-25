@@ -11,7 +11,7 @@ export const runtime = "nodejs";
  * Constrained search endpoint - requires authentication
  * 
  * - Validates purpose is non-empty
- * - Only searches across limited fields: decedent_name (from registry), insured_name, beneficiary_name, carrier_guess (from versions)
+ * - Only searches across limited fields: decedentName (from registry), insured_name, beneficiary_name, carrier_guess (from versions)
  * - Returns redacted results (no full policy numbers)
  * - Audits SEARCH_PERFORMED with purpose and resultCount
  */
@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
     }
 
     // CRITICAL: Only search across limited fields
-    // Search in registry records for: decedent_name
+    // Search in registry records for: decedentName
     // Search in registry versions for: insured_name, beneficiary_name, carrier_guess
     // We'll search through all authorized registries and their versions
     const searchTerm = searchString.trim().toLowerCase();
@@ -92,33 +92,33 @@ export async function POST(req: NextRequest) {
     // Search fields: decedentName (from registry), insured_name, beneficiary_name, carrier_guess (from versions)
     // This is a simplified approach - in production, you'd want a more efficient query
     const matchingRegistries: Array<{
-      id: string;
-      decedentName: string;
-      status: string;
+      id: string,
+      decedentName: string,
+      status: string,
       createdAt: Date;
-      matchedField?: string;
+      matchedField?: string,
       redactedData?: {
-        insuredName?: string;
-        beneficiaryName?: string;
-        carrierGuess?: string;
+        insuredName?: string,
+        beneficiaryName?: string,
+        carrierGuess?: string,
         policyNumber?: string | null;
       };
     }> = [];
 
     for (const registry of authorizedRegistries) {
       // Check decedentName on the registry record first (no DB query needed)
-      const decedentName = (registry.decedentName || "").toLowerCase();
+      const decedentName = (("decedentName" in registry ? (registry.decedentName as string) : (registry.decedentName as string)) || "").toLowerCase();
       let matchedField: string | undefined;
       
       if (decedentName.includes(searchTerm)) {
-        matchedField = "decedent_name";
+        matchedField = "decedentName";
       }
 
       // Only fetch version data if we need it:
       // 1. If not matched on decedentName, we need to check version fields
       // 2. If matched, we need version data for the redacted response
       let data: Record<string, unknown> | undefined;
-      if (!matchedField || matchedField === "decedent_name") {
+      if (!matchedField || matchedField === "decedentName") {
         const versions = await getRegistryVersions(registry.id);
         const latestVersion = versions.length > 0 ? versions[0] : null;
         data = latestVersion?.data_json as Record<string, unknown> | undefined;
@@ -143,9 +143,9 @@ export async function POST(req: NextRequest) {
       if (matchedField) {
         matchingRegistries.push({
           id: registry.id,
-          decedentName: registry.decedentName,
+          decedentName: "decedentName" in registry ? (registry.decedentName as string) : (registry.decedentName as string),
           status: registry.status,
-          createdAt: registry.createdAt,
+          createdAt: "createdAt" in registry ? (registry.createdAt as Date) : (registry.createdAt as Date),
           matchedField,
           redactedData: data
             ? {
@@ -171,7 +171,7 @@ export async function POST(req: NextRequest) {
         purpose,
         searchString: searchTerm,
         resultCount,
-        matchedFields: ["decedent_name", "insured_name", "beneficiary_name", "carrier_guess"],
+        matchedFields: ["decedentName", "insured_name", "beneficiary_name", "carrier_guess"],
         timestamp: new Date().toISOString(),
       },
     });

@@ -25,23 +25,23 @@ interface AdminDashboardProps {
 }
 
 interface AccessRequest {
-  id: string;
-  registryId: string;
-  requestedByUserId: string;
-  requestedAt: string;
+  id: string,
+  registryId: string,
+  requestedByUserId: string,
+  requestedAt: string,
   status: "PENDING" | "APPROVED" | "REJECTED";
-  approvedByUserId?: string;
-  approvedAt?: string;
-  reason?: string;
-  decedentName?: string;
-  requesterEmail?: string;
-  requesterName?: string;
+  approvedByUserId?: string,
+  approvedAt?: string,
+  reason?: string,
+  decedentName?: string,
+  requesterEmail?: string,
+  requesterName?: string,
 }
 
 interface AttorneyCredential {
-  id: string;
-  userId: string;
-  email: string;
+  id: string,
+  userId: string,
+  email: string,
   firstName: string | null;
   lastName: string | null;
   phone: string | null;
@@ -51,7 +51,7 @@ interface AttorneyCredential {
   licenseStatus: "PENDING" | "ACTIVE" | "SUSPENDED" | "REVOKED";
   licenseDocumentPath: string | null;
   licenseDocumentName: string | null;
-  appliedAt: string;
+  appliedAt: string,
   verifiedAt: string | null;
 }
 
@@ -94,8 +94,8 @@ export function AdminDashboard({ admin: _admin }: AdminDashboardProps) {
         const data = await res.json();
         // Transform nested user data to flat structure
         const flattened = (data.profiles || []).map((profile: {
-          id: string;
-          userId: string;
+          id: string,
+          userId: string,
           licenseStatus: "PENDING" | "ACTIVE" | "SUSPENDED" | "REVOKED";
           licenseState?: string | null;
           lawFirm?: string | null;

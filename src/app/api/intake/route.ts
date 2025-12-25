@@ -21,7 +21,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "insured_name is required" }, { status: 400 });
     }
 
-    const registry = await createRegistryRecord({ insured_name, carrier_guess });
+    const registry = await createRegistryRecord({ decedentName: insured_name });
 
     const data_json = {
       insured_name,
@@ -80,7 +80,7 @@ export async function POST(req: Request) {
       registryId: registry.id,
       updateToken,
       updateUrl: `/update/${updateToken}`,
-      createdAt: version.created_at,
+      createdAt: version.createdAt,
       confirmationMessage: "Submission received and recorded.",
     });
   } catch (e: unknown) {

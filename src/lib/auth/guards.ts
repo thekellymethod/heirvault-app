@@ -44,7 +44,7 @@ export async function requireVerifiedAttorney() {
 
   // Check attorney profile verification
   const attorneyResult = await prisma.$queryRawUnsafe<Array<{
-    license_status: string;
+    license_status: string,
     verified_at: Date | null;
   }>>(
     `SELECT license_status, verified_at FROM attorney_profiles WHERE user_id = $1 LIMIT 1`,

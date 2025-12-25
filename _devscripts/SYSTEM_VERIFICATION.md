@@ -8,13 +8,13 @@ The database is optimized with comprehensive indexes for large-scale operations:
 #### Client Indexes
 - `@@unique([email])` - Fast email lookups
 - `@@unique([client_fingerprint])` - Prevents duplicates
-- `@@index([first_name, last_name, date_of_birth])` - Name/DOB searches
+- `@@index([firstName, lastName, dateOfBirth])` - Name/DOB searches
 - `@@index([address_line1, city, state, postal_code])` - Address searches
 - `@@index([client_fingerprint])` - Fingerprint lookups
 - `@@index([org_id])` - Organization separation
 
 #### Beneficiary Indexes
-- `@@index([first_name, last_name, date_of_birth])` - Name/DOB searches
+- `@@index([firstName, lastName, dateOfBirth])` - Name/DOB searches
 - `@@index([address_line1, city, state, postal_code])` - Address searches
 - `@@index([client_id])` - Client relationship
 
@@ -24,7 +24,7 @@ The database is optimized with comprehensive indexes for large-scale operations:
 
 #### Audit & Access Indexes
 - `@@index([client_id])`, `@@index([user_id])`, `@@index([org_id])` - Fast lookups
-- `@@index([created_at])` - Time-based queries
+- `@@index([createdAt])` - Time-based queries
 
 ### Scalability Features
 - **PostgreSQL** - Enterprise-grade database with excellent scalability

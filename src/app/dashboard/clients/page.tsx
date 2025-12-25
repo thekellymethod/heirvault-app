@@ -9,7 +9,7 @@ export default async function ClientsPage() {
   const user = await requireAuth();
 
   // Use Prisma to fetch clients
-  const accessRecords = await prisma.attorney_client_access.findMany({
+  const accessRecords = await prisma.attorneyClientAccess.findMany({
     where: {
       attorney_id: user.id,
       is_active: true,
@@ -29,12 +29,12 @@ export default async function ClientsPage() {
 
   const clientList = accessRecords.map((r) => ({
     id: r.clients.id,
-    firstName: r.clients.first_name,
-    lastName: r.clients.last_name,
+    firstName: r.clients.firstName,
+    lastName: r.clients.lastName,
     email: r.clients.email,
     phone: r.clients.phone,
     updatedAt: r.clients.updated_at,
-    createdAt: r.clients.created_at,
+    createdAt: r.clients.createdAt,
   }));
 
   return (

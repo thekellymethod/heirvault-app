@@ -23,8 +23,8 @@ import { vi } from "vitest";
  * ```
  */
 export function setupClerkTestMode(user?: {
-  userId?: string;
-  email?: string;
+  userId?: string,
+  email?: string,
   role?: "ATTORNEY" | "ADMIN" | "SYSTEM";
 }) {
   const mockUser = {

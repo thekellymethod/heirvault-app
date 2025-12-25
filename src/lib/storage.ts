@@ -10,9 +10,9 @@ function safeFilename(name: string) {
 
 export async function uploadDocument(input: {
   fileBuffer: ArrayBuffer;
-  filename: string;
-  contentType: string;
-}): Promise<{ storagePath: string; sizeBytes: number; sha256: string }> {
+  filename: string,
+  contentType: string,
+}): Promise<{ storagePath: string, sizeBytes: number; sha256: string }> {
   if (!ALLOWED.has(input.contentType)) throw new Error("Unsupported file type.");
   const buf = Buffer.from(input.fileBuffer);
   if (buf.byteLength > MAX_BYTES) throw new Error("File too large (max 15MB).");

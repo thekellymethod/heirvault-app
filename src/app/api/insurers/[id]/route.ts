@@ -6,7 +6,7 @@ type Ctx = { params: Promise<{ id: string }> };
 
 export async function GET(_req: NextRequest, { params }: Ctx) {
   try {
-    await requireAuth("attorney");
+    await requireAuth();
     const { id } = await params;
 
     const prismaInsurer = await prisma.insurers.findUnique({
@@ -14,11 +14,11 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
       select: {
         id: true,
         name: true,
-        contact_phone: true,
-        contact_email: true,
+        contactPhone: true,
+        contactEmail: true,
         website: true,
-        created_at: true,
-        updated_at: true,
+        createdAt: true,
+        updatedAt: true,
       },
     });
 
@@ -29,11 +29,11 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     const insurer = {
       id: prismaInsurer.id,
       name: prismaInsurer.name,
-      contactPhone: prismaInsurer.contact_phone,
-      contactEmail: prismaInsurer.contact_email,
+      contactPhone: prismaInsurer.contactPhone,
+      contactEmail: prismaInsurer.contactEmail,
       website: prismaInsurer.website,
-      createdAt: prismaInsurer.created_at,
-      updatedAt: prismaInsurer.updated_at,
+      createdAt: prismaInsurer.createdAt,
+      updatedAt: prismaInsurer.updatedAt,
     };
 
     if (!insurer) return NextResponse.json({ error: "Insurer not found" }, { status: 404 });
@@ -49,7 +49,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
 
 export async function PATCH(req: NextRequest, { params }: Ctx) {
   try {
-    await requireAuth("attorney");
+    await requireAuth();
     const { id } = await params;
 
     const body = await req.json();
@@ -77,8 +77,8 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
       where: { id },
       data: {
         ...(name !== undefined ? { name } : {}),
-        contact_phone: contactPhone,
-        contact_email: contactEmail,
+        contactPhone: contactPhone,
+        contactEmail: contactEmail,
         website: website,
       },
     });
@@ -95,7 +95,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 
 export async function DELETE(_req: NextRequest, { params }: Ctx) {
   try {
-    await requireAuth("attorney");
+    await requireAuth();
     const { id } = await params;
 
     // Check if insurer exists

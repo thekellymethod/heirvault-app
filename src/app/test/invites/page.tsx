@@ -5,12 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Copy, CheckCircle, Plus, Trash2, ExternalLink } from "lucide-react";
 
 interface TestInvite {
-  token: string;
-  email: string;
-  clientName: string;
-  url: string;
-  expiresAt: string;
-  clientId: string;
+  token: string,
+  email: string,
+  clientName: string,
+  url: string,
+  expiresAt: string,
+  clientId: string,
 }
 
 export default function TestInvitesPage() {

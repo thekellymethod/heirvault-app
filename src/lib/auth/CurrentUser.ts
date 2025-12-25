@@ -3,9 +3,9 @@ import { auth, currentUser } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 
 export type AppUser = {
-  id: string;
-  clerkId: string;
-  email: string;
+  id: string,
+  clerkId: string,
+  email: string,
   roles: string[];
 };
 

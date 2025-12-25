@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
       lastName: ocrResult.lastName,
       email: ocrResult.email,
       phone: ocrResult.phone,
-      dateOfBirth: ocrResult.dateOfBirth,
+      dateOfBirth: ocrResult.dateOfBirth ? new Date(ocrResult.dateOfBirth) : null,
       policyNumber: ocrResult.policyNumber,
       policyType: ocrResult.policyType,
       insurerName: ocrResult.insurerName,

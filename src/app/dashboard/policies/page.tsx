@@ -7,7 +7,7 @@ import { SortSelect } from "@/components/ui/sort-select";
 export default async function PoliciesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ search?: string; sort?: string }>;
+  searchParams: Promise<{ search?: string, sort?: string }>;
 }) {
   const user = await requireAuth();
   const params = await searchParams;
@@ -23,8 +23,8 @@ export default async function PoliciesPage({
           { carrier_name_raw: { contains: searchTerm, mode: 'insensitive' as const } },
           { clients: {
               OR: [
-                { first_name: { contains: searchTerm, mode: 'insensitive' as const } },
-                { last_name: { contains: searchTerm, mode: 'insensitive' as const } },
+                { firstName: { contains: searchTerm, mode: 'insensitive' as const } },
+                { lastName: { contains: searchTerm, mode: 'insensitive' as const } },
                 { email: { contains: searchTerm, mode: 'insensitive' as const } },
               ],
             },
@@ -38,7 +38,7 @@ export default async function PoliciesPage({
   let orderBy: Array<Record<string, unknown>> | Record<string, unknown>;
   switch (sortBy) {
     case "clientName":
-      orderBy = [{ clients: { last_name: 'desc' } }, { clients: { first_name: 'desc' } }];
+      orderBy = [{ clients: { lastName: 'desc' } }, { clients: { firstName: 'desc' } }];
       break;
     case "insurer":
       orderBy = [{ insurers: { name: 'desc' } }];
@@ -51,12 +51,12 @@ export default async function PoliciesPage({
       break;
     case "createdAt":
     default:
-      orderBy = [{ created_at: 'desc' }];
+      orderBy = [{ createdAt: 'desc' }];
       break;
   }
 
   // Fetch policies joined with authorized clients (left join insurers to include unresolved)
-  const accessRecords = await prisma.attorney_client_access.findMany({
+  const accessRecords = await prisma.attorneyClientAccess.findMany({
     where: {
       attorney_id: user.id,
       is_active: true,
@@ -84,13 +84,13 @@ export default async function PoliciesPage({
         policyType: policy.policy_type,
         carrierNameRaw: policy.carrier_name_raw,
         verificationStatus: (policy as { verification_status?: string }).verification_status || 'PENDING',
-        createdAt: policy.created_at,
+        createdAt: policy.createdAt,
         updatedAt: policy.updated_at,
       },
       client: {
         id: access.clients.id,
-        firstName: access.clients.first_name,
-        lastName: access.clients.last_name,
+        firstName: access.clients.firstName,
+        lastName: access.clients.lastName,
         email: access.clients.email,
       },
       insurer: policy.insurers ? {

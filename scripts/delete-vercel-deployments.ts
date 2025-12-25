@@ -17,11 +17,11 @@ const TEAM_ID = 'team_aUqLgadKU2HcHBgWAvesQ8OR';
 const VERCEL_API_BASE = 'https://api.vercel.com';
 
 interface Deployment {
-  id?: string;
-  uid?: string;
-  name: string;
-  url: string;
-  state: string;
+  id?: string,
+  uid?: string,
+  name: string,
+  url: string,
+  state: string,
   created: number;
 }
 

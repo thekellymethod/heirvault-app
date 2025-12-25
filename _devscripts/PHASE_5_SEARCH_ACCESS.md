@@ -46,7 +46,7 @@
 - Returns 400 if invalid purpose
 
 **Constrained query (limited fields):**
-- Only searches `decedent_name` field (no free-text global search)
+- Only searches `decedentName` field (no free-text global search)
 - Returns limited fields only:
   - Registry ID
   - Decedent Name
@@ -121,7 +121,7 @@
 
 ✅ **Search is non-abusable**
 - Purpose required and validated
-- Only searches constrained fields (decedent_name)
+- Only searches constrained fields (decedentName)
 - Results limited to 50
 - No free-text global search
 - SQL injection protection
@@ -155,7 +155,7 @@
    - Access approvals require admin authentication
 
 4. **Constrained Queries**
-   - Only searches `decedent_name` field
+   - Only searches `decedentName` field
    - Returns limited fields only
    - Never exposes full registry data
    - SQL injection protection
@@ -275,7 +275,7 @@ LIMIT 20;
    - Purpose logged for audit
 
 2. **Constrained Queries**
-   - Only searches `decedent_name` field
+   - Only searches `decedentName` field
    - No full-text search
    - No wildcard searches across all fields
 

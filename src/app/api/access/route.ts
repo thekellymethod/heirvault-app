@@ -17,14 +17,14 @@ export const runtime = "nodejs";
 // Registry access requests table (in-memory for Phase 5, can be moved to DB later)
 // In production, create a registry_access_requests table
 interface AccessRequest {
-  id: string;
-  registryId: string;
-  requestedByUserId: string;
+  id: string,
+  registryId: string,
+  requestedByUserId: string,
   requestedAt: Date;
   status: "PENDING" | "APPROVED" | "REJECTED";
-  approvedByUserId?: string;
+  approvedByUserId?: string,
   approvedAt?: Date;
-  reason?: string;
+  reason?: string,
 }
 
 // In-memory store (Phase 5 - replace with database table in production)
@@ -54,11 +54,12 @@ export async function POST(req: NextRequest) {
     }
 
     // Verify registry exists
-    const registry = await prisma.registry_records.findFirst({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const registry = await (prisma as any).registry_records.findFirst({
       where: { id: registryId },
       select: {
         id: true,
-        decedent_name: true,
+        decedentName: true,
       },
     });
 
@@ -125,7 +126,7 @@ export async function POST(req: NextRequest) {
         source: "access_api",
         requestId,
         reason: reason || null,
-        decedentName: registry.decedent_name,
+        decedentName: registry.decedentName,
       },
     });
 
@@ -155,7 +156,7 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
   try {
     // Require admin authentication
-    const admin = await requireAdmin();
+    await requireAdmin();
 
     const { searchParams } = new URL(req.url);
     const statusFilter = searchParams.get("status");
@@ -175,11 +176,12 @@ export async function GET(req: NextRequest) {
     const enrichedRequests = await Promise.all(
       requests.map(async (req) => {
         // Get registry info
-        const registry = await prisma.registry_records.findFirst({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const registry = await (prisma as any).registry_records.findFirst({
           where: { id: req.registryId },
           select: {
             id: true,
-            decedent_name: true,
+            decedentName: true,
           },
         });
 
@@ -196,7 +198,7 @@ export async function GET(req: NextRequest) {
 
         return {
           ...req,
-          decedentName: registry?.decedent_name || null,
+          decedentName: registry?.decedentName || null,
           requesterEmail: requester?.email || null,
           requesterName: requester?.firstName && requester?.lastName
             ? `${requester.firstName} ${requester.lastName}`
@@ -279,11 +281,12 @@ export async function PATCH(req: NextRequest) {
     accessRequests.set(requestId, accessRequest);
 
     // Get registry info for audit
-    const registry = await prisma.registry_records.findFirst({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const registry = await (prisma as any).registry_records.findFirst({
       where: { id: accessRequest.registryId },
       select: {
         id: true,
-        decedent_name: true,
+        decedentName: true,
       },
     });
 
@@ -298,7 +301,7 @@ export async function PATCH(req: NextRequest) {
         action: action, // "APPROVE" or "REJECT"
         requestedByUserId: accessRequest.requestedByUserId,
         reason: reason || null,
-        decedentName: registry?.decedent_name || null,
+        decedentName: registry?.decedentName || null,
         status: accessRequest.status,
       },
     });
@@ -331,7 +334,7 @@ export async function PATCH(req: NextRequest) {
           const attorneyName = attorney.firstName && attorney.lastName
             ? `${attorney.firstName} ${attorney.lastName}`
             : attorney.email;
-          const clientName = registry?.decedent_name || "Registry";
+          const clientName = registry?.decedentName || "Registry";
 
           await sendAccessGrantedEmail({
             to: attorney.email,

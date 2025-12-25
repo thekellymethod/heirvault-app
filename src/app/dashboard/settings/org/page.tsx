@@ -15,12 +15,12 @@ export default async function OrgSettingsPage() {
   // Use raw SQL first for reliability to get org membership
   const user = currentUser;
   let orgMember: {
-    organizationId: string;
-    role: string;
+    organizationId: string,
+    role: string,
     organizations: {
-      id: string;
-      name: string;
-      slug: string;
+      id: string,
+      name: string,
+      slug: string,
       addressLine1: string | null;
       addressLine2: string | null;
       city: string | null;
@@ -49,7 +49,7 @@ export default async function OrgSettingsPage() {
       org_country: string | null
       org_phone: string | null
       org_logo_url: string | null
-      org_created_at: Date
+      org_createdAt: Date
       org_updated_at: Date
     }>>`
       SELECT 
@@ -65,7 +65,7 @@ export default async function OrgSettingsPage() {
         o.country as org_country,
         o.phone as org_phone,
         o.logo_url as org_logo_url,
-        o.created_at as org_created_at,
+        o.createdAt as org_createdAt,
         o.updated_at as org_updated_at
       FROM org_members om
       INNER JOIN organizations o ON o.id = om.organization_id
@@ -90,7 +90,7 @@ export default async function OrgSettingsPage() {
           country: row.org_country,
           phone: row.org_phone,
           logoUrl: row.org_logo_url,
-          createdAt: row.org_created_at,
+          createdAt: row.org_createdAt,
           updatedAt: row.org_updated_at,
         },
       }

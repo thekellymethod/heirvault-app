@@ -53,7 +53,7 @@ export async function GET() {
 export async function POST(req: Request) {
   const actor = await requireAdmin();
 
-  let body: { name: string; scopes: string[]; expiresInDays?: number };
+  let body: { name: string, scopes: string[]; expiresInDays?: number };
   try {
     body = await req.json();
   } catch {
@@ -80,10 +80,10 @@ export async function POST(req: Request) {
   await prisma.audit_logs.create({
     data: {
       id: crypto.randomUUID(),
-      user_id: actor.id,
+      userId: actor.id,
       action: "API_TOKEN_CREATED",
       message: `API token created: tokenId=${record.id}, name=${body.name}, scopes=${body.scopes.join(",")}`,
-      created_at: new Date(),
+      createdAt: new Date(),
     },
   });
 

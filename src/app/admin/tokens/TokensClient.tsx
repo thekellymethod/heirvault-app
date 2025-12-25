@@ -6,18 +6,18 @@ import { Input } from "@/components/ui/input";
 import { Copy, Key, Trash2, RotateCw, X, AlertCircle } from "lucide-react";
 
 type Token = {
-  id: string;
-  name: string;
+  id: string,
+  name: string,
   scopes: string[];
-  createdAt: string;
+  createdAt: string,
   expiresAt: string | null;
   revokedAt: string | null;
   lastUsedAt: string | null;
   lastUsedIp: string | null;
   lastUsedPath: string | null;
   createdBy: {
-    id: string;
-    email: string;
+    id: string,
+    email: string,
   };
 };
 

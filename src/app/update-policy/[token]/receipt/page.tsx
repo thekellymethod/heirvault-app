@@ -7,26 +7,26 @@ import { Button } from "@/components/ui/button";
 import { Download, Printer, CheckCircle, Mail, FileText } from "lucide-react";
 
 interface ReceiptData {
-  receiptId: string;
+  receiptId: string,
   client: {
-    firstName: string;
-    lastName: string;
-    email: string;
+    firstName: string,
+    lastName: string,
+    email: string,
     phone: string | null;
     dateOfBirth: Date | null;
   };
   policies: Array<{
-    id: string;
+    id: string,
     policyNumber: string | null;
     policyType: string | null;
     insurer: {
-      name: string;
+      name: string,
       contactPhone: string | null;
       contactEmail: string | null;
     };
   }>;
   organization: {
-    name: string;
+    name: string,
     addressLine1: string | null;
     addressLine2: string | null;
     city: string | null;

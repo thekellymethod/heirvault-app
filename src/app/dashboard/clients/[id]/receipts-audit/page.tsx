@@ -19,12 +19,12 @@ export default async function ReceiptsAuditTrailPage({
 
   // Get client info
   const client = await prisma.$queryRawUnsafe<Array<{
-    id: string;
-    first_name: string;
-    last_name: string;
-    email: string;
+    id: string,
+    firstName: string,
+    lastName: string,
+    email: string,
   }>>(`
-    SELECT id, first_name, last_name, email
+    SELECT id, firstName, lastName, email
     FROM clients
     WHERE id = $1
     LIMIT 1
@@ -37,7 +37,7 @@ export default async function ReceiptsAuditTrailPage({
   return (
     <ReceiptsAuditTrailView 
       clientId={clientId}
-      clientName={`${client[0].first_name} ${client[0].last_name}`}
+      clientName={`${client[0].firstName} ${client[0].lastName}`}
       clientEmail={client[0].email}
     />
   );

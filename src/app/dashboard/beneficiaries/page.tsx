@@ -1,12 +1,12 @@
 import Link from "next/link";
-import { db, attorneyClientAccess, clients, beneficiaries, eq, desc, and, or, ilike } from "@/lib/db";
+import { prisma } from "@/lib/db";
 import { requireAuth } from "@/lib/utils/clerk";
 import { SortSelect } from "@/components/ui/sort-select";
 
 export default async function BeneficiariesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ search?: string; sort?: string }>;
+  searchParams: Promise<{ search?: string, sort?: string }>;
 }) {
   try {
     const user = await requireAuth();
@@ -15,84 +15,107 @@ export default async function BeneficiariesPage({
     const sortBy = params.sort || "createdAt";
 
     // Build search conditions (case-insensitive)
-    const searchConditions = searchTerm
-      ? [
-          ilike(beneficiaries.firstName, `%${searchTerm}%`),
-          ilike(beneficiaries.lastName, `%${searchTerm}%`),
-          ilike(beneficiaries.email, `%${searchTerm}%`),
-          ilike(beneficiaries.relationship, `%${searchTerm}%`),
-          ilike(clients.firstName, `%${searchTerm}%`),
-          ilike(clients.lastName, `%${searchTerm}%`),
-          ilike(clients.email, `%${searchTerm}%`),
-        ]
-      : [];
+    const searchWhere = searchTerm
+      ? {
+          OR: [
+            { firstName: { contains: searchTerm, mode: "insensitive" as const } },
+            { lastName: { contains: searchTerm, mode: "insensitive" as const } },
+            { email: { contains: searchTerm, mode: "insensitive" as const } },
+            { relationship: { contains: searchTerm, mode: "insensitive" as const } },
+            { clients: { firstName: { contains: searchTerm, mode: "insensitive" as const } } },
+            { clients: { lastName: { contains: searchTerm, mode: "insensitive" as const } } },
+            { clients: { email: { contains: searchTerm, mode: "insensitive" as const } } },
+          ],
+        }
+      : {};
 
     // Build sort order
-    let orderBy;
+    let orderBy: Array<Record<string, "asc" | "desc">> = [];
     switch (sortBy) {
       case "clientName":
-        orderBy = [desc(clients.lastName), desc(clients.firstName)];
+        orderBy = [
+          { clients: { lastName: "desc" } },
+          { clients: { firstName: "desc" } },
+        ];
         break;
       case "beneficiaryName":
-        orderBy = [desc(beneficiaries.lastName), desc(beneficiaries.firstName)];
+        orderBy = [
+          { lastName: "desc" },
+          { firstName: "desc" },
+        ];
         break;
       case "relationship":
-        orderBy = [desc(beneficiaries.relationship)];
+        orderBy = [{ relationship: "desc" }];
         break;
       case "createdAt":
       default:
-        orderBy = [desc(beneficiaries.createdAt)];
+        orderBy = [{ createdAt: "desc" }];
         break;
     }
 
-    // Fetch beneficiaries joined with authorized clients
-    const rows = await db
-      .select({
-        beneficiary: {
-          id: beneficiaries.id,
-          firstName: beneficiaries.firstName,
-          lastName: beneficiaries.lastName,
-          relationship: beneficiaries.relationship,
-          email: beneficiaries.email,
-          phone: beneficiaries.phone,
-          dateOfBirth: beneficiaries.dateOfBirth,
-          createdAt: beneficiaries.createdAt,
-          updatedAt: beneficiaries.updatedAt,
-        },
-        client: {
-          id: clients.id,
-          firstName: clients.firstName,
-          lastName: clients.lastName,
-          email: clients.email,
-        },
-      })
-      .from(attorneyClientAccess)
-      .innerJoin(clients, eq(attorneyClientAccess.clientId, clients.id))
-      .innerJoin(beneficiaries, eq(beneficiaries.clientId, clients.id))
-      .where(
-        and(
-          eq(attorneyClientAccess.attorneyId, user.id),
-          eq(attorneyClientAccess.isActive, true),
-          searchConditions.length > 0 ? or(...searchConditions) : undefined
-        )
-      )
-      .orderBy(...orderBy);
+    // Get authorized client IDs for this attorney
+    const authorizedClients = await prisma.attorneyClientAccess.findMany({
+      where: {
+        attorney_id: user.id,
+        is_active: true,
+      },
+      select: {
+        clientId: true,
+      },
+    });
 
-    const beneficiariesList = rows.map((r: typeof rows[number]) => ({
-      id: r.beneficiary.id,
-      firstName: r.beneficiary.firstName,
-      lastName: r.beneficiary.lastName,
-      relationship: r.beneficiary.relationship,
-      email: r.beneficiary.email,
-      phone: r.beneficiary.phone,
-      dateOfBirth: r.beneficiary.dateOfBirth,
-      createdAt: r.beneficiary.createdAt,
-      updatedAt: r.beneficiary.updatedAt,
+    const authorizedClientIds = authorizedClients.map((ac) => ac.client_id);
+
+    if (authorizedClientIds.length === 0) {
+      return (
+        <div className="space-y-6">
+          <div>
+            <h1 className="text-2xl font-semibold text-ink-900">Beneficiaries</h1>
+            <p className="text-sm text-slateui-600">
+              View all beneficiaries across your authorized clients.
+            </p>
+          </div>
+          <div className="rounded-xl border border-slateui-200 bg-white px-4 py-8 text-sm text-slateui-600">
+            No beneficiaries found. Beneficiaries will appear here once clients are added.
+          </div>
+        </div>
+      );
+    }
+
+    // Fetch beneficiaries joined with authorized clients
+    const beneficiariesData = await prisma.beneficiaries.findMany({
+      where: {
+        clientId: { in: authorizedClientIds },
+        ...searchWhere,
+      },
+      include: {
+        clients: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+      },
+      orderBy,
+    });
+
+    const beneficiariesList = beneficiariesData.map((b) => ({
+      id: b.id,
+      firstName: b.firstName,
+      lastName: b.lastName,
+      relationship: b.relationship,
+      email: b.email,
+      phone: b.phone,
+      dateOfBirth: b.dateOfBirth,
+      createdAt: b.createdAt,
+      updatedAt: b.updated_at,
       client: {
-        id: r.client.id,
-        firstName: r.client.firstName,
-        lastName: r.client.lastName,
-        email: r.client.email,
+        id: b.clients.id,
+        firstName: b.clients.firstName,
+        lastName: b.clients.lastName,
+        email: b.clients.email,
       },
     }));
 

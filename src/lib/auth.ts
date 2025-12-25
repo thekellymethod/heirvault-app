@@ -3,7 +3,7 @@ import { HttpError } from "@/lib/errors";
 import { isRole, Role } from "@/lib/roles";
 
 export type AppUser = {
-  id: string;
+  id: string,
   email: string | null;
   role: Role;
 };

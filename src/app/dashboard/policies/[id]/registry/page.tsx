@@ -25,23 +25,23 @@ export default async function RegistryRecordPage({ params }: Props) {
   // Get policy with all related data
   // Use LEFT JOIN for insurers to support unresolved insurers (lazy insurers)
   const policy = await prisma.$queryRawUnsafe<Array<{
-    id: string;
+    id: string,
     policy_number: string | null;
     policy_type: string | null;
-    verification_status: string;
+    verification_status: string,
     verified_at: Date | null;
     verified_by_user_id: string | null;
     verification_notes: string | null;
     document_hash: string | null;
-    created_at: Date;
+    createdAt: Date;
     updated_at: Date;
-    client_id: string;
+    clientId:string,
     insurer_id: string | null;
     carrier_name_raw: string | null;
     insurer_name: string | null;
-    client_first_name: string;
-    client_last_name: string;
-    client_email: string;
+    client_firstName: string,
+    client_lastName: string,
+    client_email: string,
   }>>(`
     SELECT 
       p.id,
@@ -52,14 +52,14 @@ export default async function RegistryRecordPage({ params }: Props) {
       p.verified_by_user_id,
       p.verification_notes,
       p.document_hash,
-      p.created_at,
+      p.createdAt,
       p.updated_at,
       p.client_id,
       p.insurer_id,
       p.carrier_name_raw,
       i.name as insurer_name,
-      c.first_name as client_first_name,
-      c.last_name as client_last_name,
+      c.firstName as client_firstName,
+      c.lastName as client_lastName,
       c.email as client_email
     FROM policies p
     LEFT JOIN insurers i ON i.id = p.insurer_id
@@ -76,69 +76,69 @@ export default async function RegistryRecordPage({ params }: Props) {
 
   // Get all documents
   const documents = await prisma.$queryRawUnsafe<Array<{
-    id: string;
-    file_name: string;
-    file_type: string;
+    id: string,
+    file_name: string,
+    file_type: string,
     file_size: number;
-    file_path: string;
-    document_hash: string;
+    file_path: string,
+    document_hash: string,
     verified_at: Date | null;
-    created_at: Date;
+    createdAt: Date;
   }>>(`
     SELECT 
       id, file_name, file_type, file_size, file_path, document_hash,
-      verified_at, created_at
+      verified_at, createdAt
     FROM documents
     WHERE policy_id = $1
-    ORDER BY created_at DESC
+    ORDER BY createdAt DESC
   `, id);
 
   // Get submission history
   const submissions = await prisma.$queryRawUnsafe<Array<{
-    id: string;
-    status: string;
-    submission_type: string;
-    created_at: Date;
+    id: string,
+    status: string,
+    submission_type: string,
+    createdAt: Date;
     processed_at: Date | null;
   }>>(`
     SELECT 
-      id, status, submission_type, created_at, processed_at
+      id, status, submission_type, createdAt, processed_at
     FROM submissions
     WHERE client_id = $1
-    ORDER BY created_at DESC
+    ORDER BY createdAt DESC
   `, policyData.client_id);
 
   // Get access logs (audit logs for this policy)
   const accessLogs = await prisma.$queryRawUnsafe<Array<{
-    id: string;
-    action: string;
-    message: string;
+    id: string,
+    action: string,
+    message: string,
     user_id: string | null;
-    user_first_name: string | null;
-    user_last_name: string | null;
-    created_at: Date;
+    user_firstName: string | null;
+    user_lastName: string | null;
+    createdAt: Date;
   }>>(`
     SELECT 
-      al.id, al.action, al.message, al.user_id, al.created_at,
-      u.first_name as user_first_name, u.last_name as user_last_name
+      al.id, al.action, al.message, al.user_id, al.createdAt,
+      u.firstName as user_firstName, u.lastName as user_lastName
     FROM audit_logs al
     LEFT JOIN users u ON u.id = al.user_id
     WHERE al.policy_id = $1 OR al.client_id = $2
-    ORDER BY al.created_at DESC
+    ORDER BY al.createdAt DESC
     LIMIT 50
   `, id, policyData.client_id);
 
   // Get receipts
   const receipts = await prisma.$queryRawUnsafe<Array<{
-    id: string;
-    receipt_number: string;
-    created_at: Date;
+    id: string,
+    receipt_number: string,
+    createdAt: Date;
   }>>(`
     SELECT 
-      id, receipt_number, created_at
+      id, receipt_number, createdAt
     FROM receipts
     WHERE client_id = $1
-    ORDER BY created_at DESC
+    ORDER BY createdAt DESC
   `, policyData.client_id);
 
   return (
@@ -152,12 +152,12 @@ export default async function RegistryRecordPage({ params }: Props) {
         verifiedByUserId: policyData.verified_by_user_id,
         verificationNotes: policyData.verification_notes,
         documentHash: policyData.document_hash,
-        createdAt: policyData.created_at,
+        createdAt: policyData.createdAt,
         updatedAt: policyData.updated_at,
         client: {
           id: policyData.client_id,
-          firstName: policyData.client_first_name,
-          lastName: policyData.client_last_name,
+          firstName: policyData.client_firstName,
+          lastName: policyData.client_lastName,
           email: policyData.client_email,
         },
         insurer: policyData.insurer_id && policyData.insurer_name
@@ -176,13 +176,13 @@ export default async function RegistryRecordPage({ params }: Props) {
         filePath: d.file_path,
         documentHash: d.document_hash,
         verifiedAt: d.verified_at,
-        createdAt: d.created_at,
+        createdAt: d.createdAt,
       }))}
       submissions={submissions.map(s => ({
         id: s.id,
         status: s.status,
         submissionType: s.submission_type,
-        createdAt: s.created_at,
+        createdAt: s.createdAt,
         processedAt: s.processed_at,
       }))}
       accessLogs={accessLogs.map(a => ({
@@ -190,15 +190,15 @@ export default async function RegistryRecordPage({ params }: Props) {
         action: a.action,
         message: a.message,
         userId: a.user_id,
-        userName: a.user_first_name && a.user_last_name
-          ? `${a.user_first_name} ${a.user_last_name}`
+        userName: a.user_firstName && a.user_lastName
+          ? `${a.user_firstName} ${a.user_lastName}`
           : null,
-        createdAt: a.created_at,
+        createdAt: a.createdAt,
       }))}
       receipts={receipts.map(r => ({
         id: r.id,
         receiptNumber: r.receipt_number,
-        createdAt: r.created_at,
+        createdAt: r.createdAt,
       }))}
     />
   );

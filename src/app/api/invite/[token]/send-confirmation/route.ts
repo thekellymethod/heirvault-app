@@ -5,7 +5,7 @@ import { getOrCreateTestInvite } from "@/lib/test-invites";
 
 // Simple in-memory store for confirmation codes (in production, use Redis or database)
 // Export this so other routes can access it
-export const confirmationCodes = new Map<string, { code: string; expiresAt: number; method: string }>();
+export const confirmationCodes = new Map<string, { code: string, expiresAt: number; method: string }>();
 
 function generateConfirmationCode(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
@@ -31,10 +31,31 @@ export async function POST(
 
     // If not a test code, do normal lookup
     if (!invite) {
-      invite = await prisma.client_invites.findUnique({
+      const prismaInvite = await prisma.client_invites.findUnique({
         where: { token },
         include: { clients: true },
       });
+      
+      if (prismaInvite) {
+        // Transform Prisma result to match expected type
+        invite = {
+          id: prismaInvite.id,
+          clientId: prismaInvite.clientId,
+          email: prismaInvite.email,
+          token: prismaInvite.token,
+          expiresAt: prismaInvite.expiresAt,
+          usedAt: prismaInvite.usedAt,
+          createdAt: prismaInvite.createdAt,
+          client: {
+            id: prismaInvite.clients.id,
+            firstName: prismaInvite.clients.firstName,
+            lastName: prismaInvite.clients.lastName,
+            email: prismaInvite.clients.email,
+            phone: prismaInvite.clients.phone,
+            dateOfBirth: prismaInvite.clients.dateOfBirth,
+          },
+        };
+      }
     }
 
     if (!invite) {
@@ -50,7 +71,7 @@ export async function POST(
     confirmationCodes.set(token, { code, expiresAt, method });
 
     if (method === "email") {
-      if (!invite.clients.email) {
+      if (!invite.client.email) {
         return NextResponse.json(
           { error: "No email address on file. Please contact customer service." },
           { status: 400 }
@@ -58,7 +79,7 @@ export async function POST(
       }
 
       await sendEmail({
-        to: invite.clients.email,
+        to: invite.client.email,
         subject: "HeirVault - Confirmation Code",
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -80,7 +101,7 @@ export async function POST(
     } else {
       // Phone confirmation via SMS (would integrate with Twilio or similar)
       // For now, return the code (in production, send via SMS)
-      console.log(`SMS confirmation code for ${invite.clients.phone}: ${code}`);
+      console.log(`SMS confirmation code for ${invite.client.phone}: ${code}`);
       // In production: await sendSMS(invite.client.phone, `Your HeirVault confirmation code is: ${code}`);
     }
 

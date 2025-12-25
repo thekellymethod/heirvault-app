@@ -10,7 +10,7 @@ import { ClientReceiptPDF } from "@/pdfs/ClientReceiptPDF";
  */
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string; receiptNumber: string }> }
+  { params }: { params: Promise<{ id: string, receiptNumber: string }> }
 ) {
   try {
     const { id: clientId, receiptNumber } = await params;
@@ -20,12 +20,12 @@ export async function GET(
 
     // Get receipt record to determine historical state
     const receiptData = await prisma.$queryRawUnsafe<Array<{
-      id: string;
-      receipt_number: string;
-      client_id: string;
-      created_at: Date;
+      id: string,
+      receipt_number: string,
+      clientId: string,
+      createdAt: Date;
     }>>(`
-      SELECT id, receipt_number, client_id, created_at
+      SELECT id, receipt_number, client_id, createdAt
       FROM receipts
       WHERE client_id = $1 AND receipt_number = $2
       LIMIT 1
@@ -39,15 +39,15 @@ export async function GET(
 
     // Get client data
     const clientData = await prisma.$queryRawUnsafe<Array<{
-      id: string;
-      first_name: string;
-      last_name: string;
-      email: string;
+      id: string,
+      firstName: string,
+      lastName: string,
+      email: string,
       phone: string | null;
-      date_of_birth: Date | null;
-      created_at: Date;
+      dateOfBirth: Date | null;
+      createdAt: Date;
     }>>(`
-      SELECT id, first_name, last_name, email, phone, date_of_birth, created_at
+      SELECT id, firstName, lastName, email, phone, dateOfBirth, createdAt
       FROM clients
       WHERE id = $1
       LIMIT 1
@@ -63,10 +63,10 @@ export async function GET(
     // This preserves historical accuracy - policies added/modified after receipt creation
     // will not appear in the receipt PDF, ensuring it matches the receipt hash
     const policies = await prisma.$queryRawUnsafe<Array<{
-      id: string;
+      id: string,
       policy_number: string | null;
       policy_type: string | null;
-      insurer_name: string;
+      insurer_name: string,
       insurer_contact_phone: string | null;
       insurer_contact_email: string | null;
     }>>(`
@@ -80,15 +80,15 @@ export async function GET(
       FROM policies p
       INNER JOIN insurers i ON i.id = p.insurer_id
       WHERE p.client_id = $1
-        AND p.created_at <= $2
-      ORDER BY p.created_at ASC
-    `, clientId, receipt.created_at);
+        AND p.createdAt <= $2
+      ORDER BY p.createdAt ASC
+    `, clientId, receipt.createdAt);
 
     // Get organization info if available
     let organization = null;
     try {
       const orgData = await prisma.$queryRawUnsafe<Array<{
-        name: string;
+        name: string,
         address_line1: string | null;
         address_line2: string | null;
         city: string | null;
@@ -99,7 +99,7 @@ export async function GET(
         SELECT o.name, o.address_line1, o.address_line2, o.city, o.state, o.postal_code, o.phone
         FROM organizations o
         INNER JOIN org_members om ON om.organization_id = o.id
-        INNER JOIN attorney_client_access aca ON aca.organization_id = o.id
+        INNER JOIN attorneyClientAccess aca ON aca.organization_id = o.id
         WHERE aca.client_id = $1 AND aca.is_active = true
         LIMIT 1
       `, clientId);
@@ -115,11 +115,11 @@ export async function GET(
     const receiptPayload = {
       receiptId: receiptNumber,
       client: {
-        firstName: client.first_name,
-        lastName: client.last_name,
+        firstName: client.firstName,
+        lastName: client.lastName,
         email: client.email,
         phone: client.phone,
-        dateOfBirth: client.date_of_birth,
+        dateOfBirth: client.dateOfBirth,
       },
       policies: policies.map((p) => ({
         id: p.id,
@@ -142,8 +142,8 @@ export async function GET(
             phone: organization.phone || undefined,
           }
         : null,
-      registeredAt: client.created_at,
-      receiptGeneratedAt: receipt.created_at, // Use receipt creation time, not current time
+      registeredAt: client.createdAt,
+      receiptGeneratedAt: receipt.createdAt, // Use receipt creation time, not current time
     };
 
     // Generate PDF

@@ -18,21 +18,21 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 interface Policy {
-  id: string;
+  id: string,
   policyNumber: string | null;
   policyType: string | null;
   verificationStatus: "PENDING" | "VERIFIED" | "DISCREPANCY" | "INCOMPLETE" | "REJECTED";
   updatedAt: Date;
   createdAt: Date;
   client: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
+    id: string,
+    firstName: string,
+    lastName: string,
+    email: string,
   };
   insurer: {
-    id: string;
-    name: string;
+    id: string,
+    name: string,
   } | null;
   carrierNameRaw?: string | null;
   documentCount: number;

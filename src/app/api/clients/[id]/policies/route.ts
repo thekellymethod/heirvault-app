@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { requireAuthApi } from "@/lib/utils/clerk";
 import { sendPolicyAddedEmail } from "@/lib/email";
 import { getCurrentUserWithOrg } from "@/lib/authz";
+import { randomUUID } from "crypto";
 
 export const runtime = "nodejs";
 
@@ -26,18 +27,18 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
 
     // Get policies with insurers (left join to include policies without insurers)
     const clientPolicies = await prisma.policies.findMany({
-      where: { client_id: clientId },
+      where: { clientId: clientId },
       include: {
         insurers: true,
       },
-      orderBy: { created_at: 'desc' },
+      orderBy: { createdAt: 'desc' },
     });
 
     // Get policy beneficiaries for all policies
     const policyIds = clientPolicies.map(p => p.id);
     const policyBeneficiaryData = policyIds.length > 0
       ? await prisma.policy_beneficiaries.findMany({
-          where: { policy_id: { in: policyIds } },
+          where: { policyId: { in: policyIds } },
           include: {
             beneficiaries: true,
           },
@@ -49,7 +50,7 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
       ...p,
       insurer: p.insurers,
       beneficiaries: policyBeneficiaryData
-        .filter(pb => pb.policy_id === p.id)
+        .filter(pb => pb.policyId === p.id)
         .map(pb => pb.beneficiaries),
     }));
 
@@ -95,14 +96,14 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     const policy = await prisma.policies.create({
       data: {
         id: policyId,
-        client_id: clientId,
-        insurer_id: insurerId || null,
-        carrier_name_raw: carrierNameRaw || null,
-        carrier_confidence: carrierConfidence ? Number(carrierConfidence) : null,
-        policy_number: policyNumber,
-        policy_type: policyType,
-        created_at: now,
-        updated_at: now,
+        clientId: clientId,
+        insurerId: insurerId || null,
+        carrierNameRaw: carrierNameRaw || null,
+        carrierConfidence: carrierConfidence ? Number(carrierConfidence) : null,
+        policyNumber: policyNumber,
+        policyType: policyType,
+        createdAt: now,
+        updatedAt: now,
       },
     });
 
@@ -122,14 +123,14 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         const baseUrl = process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin;
         const dashboardUrl = `${baseUrl}/dashboard/clients/${clientId}`;
         const firmName = orgMember?.organizations?.name || undefined;
-        const insurerName = insurer?.name || policy.carrier_name_raw || "Unknown";
+        const insurerName = insurer?.name || policy.carrierNameRaw || "Unknown";
 
         await sendPolicyAddedEmail({
           to: client.email,
-          clientName: `${client.first_name} ${client.last_name}`,
+          clientName: `${client.firstName} ${client.lastName}`,
           insurerName,
-          policyNumber: policy.policy_number || undefined,
-          policyType: policy.policy_type || undefined,
+          policyNumber: policy.policyNumber || undefined,
+          policyType: policy.policyType || undefined,
           firmName,
           dashboardUrl,
         }).catch((emailError) => {
@@ -146,7 +147,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       policy: {
         ...policy,
         insurer: insurer ? { id: insurer.id, name: insurer.name } : null,
-        carrierNameRaw: policy.carrier_name_raw,
+        carrierNameRaw: policy.carrierNameRaw,
       },
     }, { status: 201 });
   } catch (error: unknown) {

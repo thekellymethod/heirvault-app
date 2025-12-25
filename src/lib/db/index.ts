@@ -20,12 +20,9 @@ export type {
 } from "@prisma/client";
 
 // Export Prisma enum types (for type annotations)
+// Note: AuditAction, OrgRole, BillingPlan, UserRole, InviteStatus are exported as values from ./enums below
+// and can be used as types via typeof when needed
 export type {
-  AuditAction,
-  OrgRole,
-  BillingPlan,
-  UserRole,
-  InviteStatus,
   AccessGrantStatus,
   SubmissionStatus,
   RegistryStatus,
@@ -36,5 +33,5 @@ export type {
 
 // Re-export enum constants from enums file (values)
 // These provide enum values like AuditAction.CLIENT_CREATED
-// Note: Prisma enums are also available as values, but these provide backward compatibility
-export { AuditAction, OrgRole, BillingPlan, UserRole, InviteStatus, AccessGrantStatus } from "./enums";
+// Note: These can be used as both types (via typeof) and values in TypeScript
+export { AuditAction, OrgRole, BillingPlan, UserRole, InviteStatus } from "./enums";

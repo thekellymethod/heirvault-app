@@ -5,10 +5,10 @@ import { Button } from "@/components/ui/button";
 import { CheckCircle, XCircle, Loader2 } from "lucide-react";
 
 interface TestInvite {
-  token: string;
-  email: string;
-  name: string;
-  url: string;
+  token: string,
+  email: string,
+  name: string,
+  url: string,
 }
 
 interface PopulateResult {
@@ -16,13 +16,13 @@ interface PopulateResult {
 }
 
 interface CheckResult {
-  token: string;
+  token: string,
   exists?: boolean;
   invite?: {
     isValid: boolean;
     daysSinceExpiration: number;
   };
-  error?: string;
+  error?: string,
 }
 
 export default function PopulateTestCodesPage() {

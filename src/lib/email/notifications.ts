@@ -7,10 +7,10 @@ import {
   import { sendEmail } from "./send";
   
   export async function sendClientInviteEmail(opts: {
-    to: string;
-    clientName: string;
-    firmName?: string;
-    inviteUrl: string;
+    to: string,
+    clientName: string,
+    firmName?: string,
+    inviteUrl: string,
   }) {
     return sendEmail({
       to: opts.to,
@@ -21,11 +21,11 @@ import {
   }
   
   export async function sendClientReceiptEmail(opts: {
-    to: string;
-    clientName: string;
-    receiptId: string;
+    to: string,
+    clientName: string,
+    receiptId: string,
     receiptPdf: Buffer;
-    firmName?: string;
+    firmName?: string,
   }) {
     return sendEmail({
       to: opts.to,
@@ -66,14 +66,14 @@ import {
   }
   
   export async function sendAttorneyNotificationEmail(opts: {
-    to: string;
-    attorneyName: string;
-    clientName: string;
-    receiptId: string;
+    to: string,
+    attorneyName: string,
+    clientName: string,
+    receiptId: string,
     policiesCount: number;
-    updateUrl: string;
-    firmName?: string;
-    qrCodeImage?: string;
+    updateUrl: string,
+    firmName?: string,
+    qrCodeImage?: string,
   }) {
     return sendEmail({
       to: opts.to,
@@ -84,13 +84,13 @@ import {
   }
   
   export async function sendPolicyAddedEmail(opts: {
-    to: string;
-    clientName: string;
-    insurerName: string;
-    policyNumber?: string;
-    policyType?: string;
-    firmName?: string;
-    dashboardUrl: string;
+    to: string,
+    clientName: string,
+    insurerName: string,
+    policyNumber?: string,
+    policyType?: string,
+    firmName?: string,
+    dashboardUrl: string,
   }) {
     return sendEmail({
       to: opts.to,
@@ -101,11 +101,11 @@ import {
   }
   
   export async function sendAccessGrantedEmail(opts: {
-    to: string;
-    attorneyName: string;
-    clientName: string;
-    firmName?: string;
-    dashboardUrl: string;
+    to: string,
+    attorneyName: string,
+    clientName: string,
+    firmName?: string,
+    dashboardUrl: string,
   }) {
     return sendEmail({
       to: opts.to,

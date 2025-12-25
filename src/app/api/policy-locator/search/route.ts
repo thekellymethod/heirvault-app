@@ -34,9 +34,9 @@ export async function GET(req: NextRequest) {
     let query = `
       SELECT DISTINCT
         c.id,
-        c.first_name,
-        c.last_name,
-        c.date_of_birth,
+        c.firstName,
+        c.lastName,
+        c.dateOfBirth,
         p.id as policy_id,
         p.policy_number,
         p.policy_type,
@@ -45,8 +45,8 @@ export async function GET(req: NextRequest) {
       INNER JOIN policies p ON p.client_id = c.id
       INNER JOIN insurers i ON i.id = p.insurer_id
       WHERE c.org_id = $1
-        AND LOWER(c.first_name) LIKE LOWER($2)
-        AND LOWER(c.last_name) LIKE LOWER($3)
+        AND LOWER(c.firstName) LIKE LOWER($2)
+        AND LOWER(c.lastName) LIKE LOWER($3)
     `;
     
     const params: Array<string | Date> = [
@@ -57,7 +57,7 @@ export async function GET(req: NextRequest) {
 
     // Add optional filters
     if (dateOfBirth) {
-      query += ` AND c.date_of_birth = $${params.length + 1}`;
+      query += ` AND c.dateOfBirth = $${params.length + 1}`;
       params.push(new Date(dateOfBirth));
     }
 
@@ -66,35 +66,35 @@ export async function GET(req: NextRequest) {
       params.push(`%${policyNumber}%`);
     }
 
-    query += ` ORDER BY c.created_at DESC LIMIT 50`;
+    query += ` ORDER BY c.createdAt DESC LIMIT 50`;
 
     // Execute query
     const rows = await prisma.$queryRawUnsafe<Array<{
-      id: string;
-      first_name: string;
-      last_name: string;
-      date_of_birth: Date | null;
-      policy_id: string;
+      id: string,
+      firstName: string,
+      lastName: string,
+      dateOfBirth: Date | null;
+      policy_id: string,
       policy_number: string | null;
       policy_type: string | null;
-      insurer_name: string;
+      insurer_name: string,
     }>>(query, ...params);
 
     // Map results
     const results = rows.map((row) => ({
       id: row.id,
-      clientName: `${row.first_name} ${row.last_name}`,
+      clientName: `${row.firstName} ${row.lastName}`,
       policyNumber: row.policy_number,
       policyType: row.policy_type,
       insurerName: row.insurer_name,
-      dateOfBirth: row.date_of_birth,
+      dateOfBirth: row.dateOfBirth,
       dateOfDeath: null, // This would need to be added to the schema if needed
     }));
 
     // Log the policy search for audit purposes (internal audit log, not visible to users)
     try {
       await prisma.$executeRawUnsafe(
-        `INSERT INTO audit_logs (action, message, user_id, org_id, created_at) 
+        `INSERT INTO audit_logs (action, message, user_id, org_id, createdAt) 
          VALUES ($1, $2, $3, $4, NOW())`,
         "POLICY_SEARCH_PERFORMED",
         `Policy search: ${firstName} ${lastName}${dateOfBirth ? ` (DOB: ${dateOfBirth})` : ""}${policyNumber ? ` | Policy #: ${policyNumber}` : ""} | Results: ${results.length} policy(ies)`,

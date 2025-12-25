@@ -18,15 +18,41 @@ export async function GET(
     // If not a test code, do normal lookup
     if (!invite) {
       invite = await lookupClientInvite(token);
-      
-      // If we got the basic invite, fetch policies separately using raw SQL
-      if (invite && invite.clientId) {
+    }
+    
+    if (!invite || typeof invite !== 'object' || !('clientId' in invite) || !('client' in invite) || !('createdAt' in invite)) {
+      return NextResponse.json(
+        { error: "Invalid invitation code" },
+        { status: 404 }
+      );
+    }
+    
+    // Extract properties with type assertion after type guard
+    const typedInvite = invite as { 
+      clientId: string, 
+      client: { 
+        firstName?: string, 
+        lastName?: string, 
+        email?: string, 
+        phone?: string | null; 
+        dateOfBirth?: Date | null; 
+        createdAt?: Date;
+        policies?: any[] 
+      }; 
+      createdAt: Date;
+    };
+    const clientId = typedInvite.clientId;
+    const inviteClient = typedInvite.client;
+    const inviteCreatedAt = typedInvite.createdAt;
+    
+    // If we got the basic invite, fetch policies separately using raw SQL
+    if (clientId) {
         try {
           const policiesResult = await prisma.$queryRaw<Array<{
-            id: string;
+            id: string,
             policy_number: string | null;
             policy_type: string | null;
-            insurer_name: string;
+            insurer_name: string,
             insurer_contact_phone: string | null;
             insurer_contact_email: string | null;
           }>>`
@@ -39,12 +65,12 @@ export async function GET(
               i.contact_email as insurer_contact_email
             FROM policies p
             INNER JOIN insurers i ON i.id = p.insurer_id
-            WHERE p.client_id = ${invite.clientId}
+            WHERE p.client_id = ${clientId}
           `;
           
           if (policiesResult) {
-            invite.client = {
-              ...invite.client,
+            (typedInvite as any).client = {
+              ...inviteClient,
               policies: policiesResult.map(p => ({
                 id: p.id,
                 policyNumber: p.policy_number,
@@ -61,25 +87,17 @@ export async function GET(
           const sqlErrorMessage = sqlError instanceof Error ? sqlError.message : "Unknown error";
           console.error("Receipt PDF: Failed to fetch policies:", sqlErrorMessage);
           // Continue without policies
-          invite.client = {
-            ...invite.client,
+          (typedInvite as any).client = {
+            ...inviteClient,
             policies: [],
           };
         }
       }
-    }
-
-    if (!invite) {
-      return NextResponse.json(
-        { error: "Invalid invitation code" },
-        { status: 404 }
-      );
-    }
 
     // Get organization info if available - use raw SQL first
     let organization: {
-      id: string;
-      name: string;
+      id: string,
+      name: string,
       addressLine1: string | null;
       addressLine2: string | null;
       city: string | null;
@@ -89,8 +107,8 @@ export async function GET(
     } | null = null;
     try {
       const accessResult = await prisma.$queryRaw<Array<{
-        org_id: string;
-        org_name: string;
+        org_id: string,
+        org_name: string,
         org_address_line1: string | null;
         org_address_line2: string | null;
         org_city: string | null;
@@ -107,7 +125,7 @@ export async function GET(
           o.state as org_state,
           o.postal_code as org_postal_code,
           o.phone as org_phone
-        FROM attorney_client_access aca
+        FROM attorneyClientAccess aca
         LEFT JOIN org_members om ON om.user_id = aca.attorney_id
         LEFT JOIN organizations o ON o.id = om.organization_id
         WHERE aca.client_id = ${invite.clientId} AND aca.is_active = true
@@ -135,15 +153,15 @@ export async function GET(
     }
 
     const receiptData = {
-      receiptId: `REC-${invite.clientId}-${invite.createdAt.getTime()}`,
+      receiptId: `REC-${clientId}-${inviteCreatedAt.getTime()}`,
       client: {
-        firstName: invite.client.firstName,
-        lastName: invite.client.lastName,
-        email: invite.client.email,
-        phone: invite.client.phone,
-        dateOfBirth: invite.client.dateOfBirth,
+        firstName: inviteClient.firstName || "",
+        lastName: inviteClient.lastName || "",
+        email: inviteClient.email || "",
+        phone: inviteClient.phone || null,
+        dateOfBirth: inviteClient.dateOfBirth || null,
       },
-      policies: invite.client.policies.map((p) => ({
+      policies: (inviteClient.policies || []).map((p) => ({
         id: p.id,
         policyNumber: p.policyNumber,
         policyType: p.policyType,
@@ -156,15 +174,15 @@ export async function GET(
       organization: organization
         ? {
             name: organization.name,
-            addressLine1: organization.addressLine1,
-            addressLine2: organization.addressLine2,
-            city: organization.city,
-            state: organization.state,
-            postalCode: organization.postalCode,
-            phone: organization.phone,
+            addressLine1: organization.addressLine1 ?? undefined,
+            addressLine2: organization.addressLine2 ?? undefined,
+            city: organization.city ?? undefined,
+            state: organization.state ?? undefined,
+            postalCode: organization.postalCode ?? undefined,
+            phone: organization.phone ?? undefined,
           }
         : null,
-      registeredAt: invite.client.createdAt,
+      registeredAt: inviteClient.createdAt || new Date(),
       receiptGeneratedAt: new Date(),
       updateUrl: `${req.nextUrl.origin}/qr-update/${token}`,
     };

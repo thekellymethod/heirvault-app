@@ -13,9 +13,9 @@ import {
 } from "lucide-react";
 
 interface UpdateFormProps {
-  token: string;
+  token: string,
   currentData?: Record<string, unknown>;
-  registryId: string;
+  registryId: string,
 }
 
 /**

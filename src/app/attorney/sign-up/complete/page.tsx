@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 
 type ProvisionResponse =
-  | { ok: true; user: { id: string; clerkId: string; role: string; email: string | null } }
+  | { ok: true; user: { id: string, clerkId: string, role: string, email: string | null } }
   | { ok: false; error: string };
 
 export default function AttorneySignUpCompletePage() {

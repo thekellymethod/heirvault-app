@@ -9,7 +9,7 @@ interface MemberWithUser extends OrgMember {
 
 interface Props {
   members: MemberWithUser[];
-  currentUserId: string;
+  currentUserId: string,
 }
 
 export function TeamManagement({

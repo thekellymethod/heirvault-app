@@ -5,11 +5,11 @@ import { HttpError } from "@/lib/errors";
 // In-memory storage for compliance rules (TODO: Replace with database)
 // In production, this should be stored in a database table
 const complianceRules: Array<{
-  id: string;
-  name: string;
-  description: string;
+  id: string,
+  name: string,
+  description: string,
   status: "active" | "inactive";
-  lastUpdated: string;
+  lastUpdated: string,
 }> = [
   {
     id: "1",

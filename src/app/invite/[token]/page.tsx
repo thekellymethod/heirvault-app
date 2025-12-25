@@ -9,18 +9,18 @@ interface Props {
 }
 
 type ClientInvite = {
-  id: string;
-  clientId: string;
-  email: string;
-  token: string;
+  id: string,
+  clientId: string,
+  email: string,
+  token: string,
   expiresAt: Date;
   usedAt: Date | null;
   createdAt: Date;
   client: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
+    id: string,
+    firstName: string,
+    lastName: string,
+    email: string,
     phone: string | null;
     dateOfBirth: Date | null;
   };
@@ -37,17 +37,17 @@ export default async function InvitePage({ params }: Props) {
     try {
       // Try raw SQL first
       const rawResult = await prisma.$queryRaw<Array<{
-        id: string;
-        client_id: string;
-        email: string;
-        token: string;
+        id: string,
+        clientId:string,
+        email: string,
+        token: string,
         expires_at: Date;
         used_at: Date | null;
-        created_at: Date;
-        first_name: string;
-        last_name: string;
+        createdAt: Date;
+        firstName: string,
+        lastName: string,
         phone: string | null;
-        date_of_birth: Date | null;
+        dateOfBirth: Date | null;
       }>>`
         SELECT 
           ci.id,
@@ -56,11 +56,11 @@ export default async function InvitePage({ params }: Props) {
           ci.token,
           ci.expires_at,
           ci.used_at,
-          ci.created_at,
-          c.first_name,
-          c.last_name,
+          ci.createdAt,
+          c.firstName,
+          c.lastName,
           c.phone,
-          c.date_of_birth
+          c.dateOfBirth
         FROM client_invites ci
         INNER JOIN clients c ON c.id = ci.client_id
         WHERE ci.token = ${token}
@@ -76,14 +76,14 @@ export default async function InvitePage({ params }: Props) {
           token: row.token,
           expiresAt: row.expires_at,
           usedAt: row.used_at,
-          createdAt: row.created_at,
+          createdAt: row.createdAt,
           client: {
             id: row.client_id,
-            firstName: row.first_name,
-            lastName: row.last_name,
+            firstName: row.firstName,
+            lastName: row.lastName,
             email: row.email,
             phone: row.phone,
-            dateOfBirth: row.date_of_birth,
+            dateOfBirth: row.dateOfBirth,
           },
         };
       }

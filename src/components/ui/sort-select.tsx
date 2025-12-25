@@ -3,10 +3,10 @@
 import { useRouter, useSearchParams } from "next/navigation";
 
 interface SortSelectProps {
-  name: string;
-  defaultValue: string;
-  options: Array<{ value: string; label: string }>;
-  className?: string;
+  name: string,
+  defaultValue: string,
+  options: Array<{ value: string, label: string }>;
+  className?: string,
 }
 
 export function SortSelect({ name, defaultValue, options, className }: SortSelectProps) {

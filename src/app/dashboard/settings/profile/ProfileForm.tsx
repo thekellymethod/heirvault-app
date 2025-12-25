@@ -6,16 +6,16 @@ import { Button } from "@/components/ui/button";
 import { Shield, Building2, Mail, Phone, MapPin, Scale } from "lucide-react";
 
 interface User {
-  id: string;
+  id: string,
   firstName: string | null;
   lastName: string | null;
-  email: string;
+  email: string,
   barNumber: string | null;
 }
 
 interface Organization {
-  id: string;
-  name: string;
+  id: string,
+  name: string,
   addressLine1: string | null;
   addressLine2: string | null;
   city: string | null;
@@ -225,8 +225,8 @@ function InfoBox({
   icon,
   fullWidth = false,
 }: {
-  label: string;
-  value: string;
+  label: string,
+  value: string,
   icon?: React.ReactNode;
   fullWidth?: boolean;
 }) {

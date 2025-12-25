@@ -20,23 +20,23 @@ import {
 } from "lucide-react";
 
 type Receipt = {
-  id: string;
-  receiptNumber: string;
-  createdAt: string;
+  id: string,
+  receiptNumber: string,
+  createdAt: string,
   emailSent: boolean;
   emailSentAt: string | null;
-  hash: string;
+  hash: string,
 };
 
 type AuditEntry = {
-  id: string;
-  action: string;
-  message: string;
-  actor: string;
+  id: string,
+  action: string,
+  message: string,
+  actor: string,
   actorEmail: string | null;
-  timestamp: string;
+  timestamp: string,
   policyId: string | null;
-  hash: string;
+  hash: string,
 };
 
 type Summary = {
@@ -47,9 +47,9 @@ type Summary = {
 };
 
 interface ReceiptsAuditTrailViewProps {
-  clientId: string;
-  clientName: string;
-  clientEmail: string;
+  clientId: string,
+  clientName: string,
+  clientEmail: string,
 }
 
 export function ReceiptsAuditTrailView({
@@ -355,9 +355,9 @@ function AuditTrailTab({
   uniqueActions,
 }: {
   auditLog: AuditEntry[];
-  searchQuery: string;
+  searchQuery: string,
   onSearchChange: (query: string) => void;
-  filterAction: string;
+  filterAction: string,
   onFilterChange: (action: string) => void;
   uniqueActions: string[];
 }) {
@@ -459,8 +459,8 @@ function ReportsTab({
   clientName,
   onExport,
 }: {
-  clientId: string;
-  clientName: string;
+  clientId: string,
+  clientName: string,
   onExport: () => void;
 }) {
   return (

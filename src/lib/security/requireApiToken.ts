@@ -74,7 +74,7 @@ async function logTokenUsage(
         user_id: tokenRecord.createdById,
         action: "API_TOKEN_USED",
         message: `API token used: tokenId=${tokenRecord.id}, path=${path}, scopes=${checkedScopes.join(",") || "none"}`,
-        created_at: new Date(),
+        createdAt: new Date(),
       },
     });
   } catch (error) {
@@ -117,7 +117,7 @@ function getClientIp(req: NextRequest | Request): string | null {
 export async function getActorFromRequest(
   req: NextRequest | Request,
   options?: { requiredScopes?: string[] }
-): Promise<{ id: string; email: string; roles: string[]; clerkId?: string }> {
+): Promise<{ id: string, email: string, roles: string[]; clerkId?: string }> {
   const authHeader = req.headers.get("authorization");
   const bearerToken = parseBearer(authHeader);
 

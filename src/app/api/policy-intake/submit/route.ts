@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
       clientId = randomUUID();
       await prisma.$executeRawUnsafe(`
         INSERT INTO clients (
-          id, email, first_name, last_name, phone, date_of_birth, created_at, updated_at
+          id, email, firstName, lastName, phone, dateOfBirth, createdAt, updated_at
         ) VALUES (
           $1, $2, $3, $4, $5, 
           CASE WHEN $6 = '' THEN NULL ELSE $6::date END,
@@ -82,9 +82,9 @@ export async function POST(req: NextRequest) {
     let documentId: string | null = null;
     let documentHash: string | null = null;
     let extractedData: {
-      insurerName?: string;
-      policyNumber?: string;
-      policyType?: string;
+      insurerName?: string,
+      policyNumber?: string,
+      policyType?: string,
       [key: string]: unknown;
     } | null = null;
 
@@ -140,7 +140,7 @@ export async function POST(req: NextRequest) {
       await prisma.$executeRawUnsafe(`
         INSERT INTO documents (
           id, client_id, file_name, file_type, file_size, file_path, mime_type,
-          uploaded_via, extracted_data, ocr_confidence, document_hash, created_at, updated_at
+          uploaded_via, extracted_data, ocr_confidence, document_hash, createdAt, updated_at
         ) VALUES (
           $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW()
         )
@@ -164,7 +164,7 @@ export async function POST(req: NextRequest) {
     await prisma.$executeRawUnsafe(`
       INSERT INTO policies (
         id, client_id, insurer_id, carrier_name_raw, carrier_confidence, policy_number, policy_type,
-        verification_status, document_hash, created_at, updated_at
+        verification_status, document_hash, createdAt, updated_at
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7, 'PENDING', $8, NOW(), NOW()
       )
@@ -190,7 +190,7 @@ export async function POST(req: NextRequest) {
     const submissionId = randomUUID();
     await prisma.$executeRawUnsafe(`
       INSERT INTO submissions (
-        id, client_id, status, submission_type, submitted_data, processed_at, created_at, updated_at
+        id, client_id, status, submission_type, submitted_data, processed_at, createdAt, updated_at
       ) VALUES (
         $1, $2, 'COMPLETED', 'POLICY_INTAKE', $3, NOW(), NOW(), NOW()
       )
@@ -209,7 +209,7 @@ export async function POST(req: NextRequest) {
     // to ensure hash consistency during verification
     await prisma.$executeRawUnsafe(`
       INSERT INTO receipts (
-        id, client_id, submission_id, receipt_number, created_at
+        id, client_id, submission_id, receipt_number, createdAt
       ) VALUES (
         $1, $2, $3, $4, NOW()
       )
@@ -223,10 +223,10 @@ export async function POST(req: NextRequest) {
     // Query the receipt back to get the actual database timestamp
     // This ensures the hash uses the exact same timestamp that will be used during verification
     const insertedReceipt = await prisma.$queryRawUnsafe<Array<{
-      receipt_number: string;
-      created_at: Date;
+      receipt_number: string,
+      createdAt: Date;
     }>>(`
-      SELECT receipt_number, created_at
+      SELECT receipt_number, createdAt
       FROM receipts
       WHERE id = $1
       LIMIT 1
@@ -236,21 +236,21 @@ export async function POST(req: NextRequest) {
       throw new Error("Failed to retrieve inserted receipt");
     }
 
-    const receiptCreatedAt = insertedReceipt[0].created_at;
+    const receiptCreatedAt = insertedReceipt[0].createdAt;
 
     // CRITICAL: Query ALL policies that existed at the time of receipt creation
     // This matches the verification logic in receipts-audit route
     // If a client already has policies, we must include ALL of them in the hash
     // to ensure the hash matches during verification
     const policiesAtReceiptTime = await prisma.$queryRawUnsafe<Array<{
-      id: string;
+      id: string,
       policy_number: string | null;
     }>>(`
       SELECT id, policy_number
       FROM policies
       WHERE client_id = $1
-        AND created_at <= $2
-      ORDER BY created_at ASC
+        AND createdAt <= $2
+      ORDER BY createdAt ASC
     `, clientId, receiptCreatedAt);
 
     // Generate receipt hash using database timestamp and all policies at that time
@@ -267,7 +267,7 @@ export async function POST(req: NextRequest) {
 
     // Generate QR token for policy updates
     // Create a token that encodes the client ID for updates
-    // Using a simple approach: create a token with clientId as the "registryId" equivalent
+    // Using a simple approach: create a token with clientId:as the "registryId" equivalent
     const qrToken = signToken(
       { 
         registryId: clientId, // Reusing registryId field for clientId

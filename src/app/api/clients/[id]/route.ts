@@ -10,8 +10,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const { id: clientId } = await params;
 
   // Access check
-  const access = await prisma.attorney_client_access.findFirst({
-    where: { attorney_id: user.id, client_id: clientId, is_active: true },
+  const access = await prisma.attorneyClientAccess.findFirst({
+    where: { attorneyId: user.id, clientId: clientId, isActive: true },
     select: { id: true },
   });
 
@@ -23,13 +23,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     where: { id: clientId },
     select: {
       id: true,
-      first_name: true,
-      last_name: true,
+      firstName: true,
+      lastName: true,
       email: true,
       phone: true,
-      date_of_birth: true,
-      created_at: true,
-      updated_at: true,
+      dateOfBirth: true,
+      createdAt: true,
+      updatedAt: true,
       _count: {
         select: {
           policies: true,
@@ -47,13 +47,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   return NextResponse.json({
     client: {
       id: client.id,
-      firstName: client.first_name,
-      lastName: client.last_name,
+      firstName: client.firstName,
+      lastName: client.lastName,
       email: client.email,
       phone: client.phone,
-      dateOfBirth: client.date_of_birth,
-      createdAt: client.created_at,
-      updatedAt: client.updated_at,
+      dateOfBirth: client.dateOfBirth,
+      createdAt: client.createdAt,
+      updatedAt: client.updatedAt,
       _count: client._count,
     },
   });

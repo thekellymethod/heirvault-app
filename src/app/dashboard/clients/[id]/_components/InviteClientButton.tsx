@@ -6,9 +6,9 @@ import { Mail, Copy, Check, ExternalLink } from "lucide-react";
 import { showSuccess, showError } from "@/lib/toast";
 
 interface Props {
-  clientId: string;
-  defaultEmail: string;
-  clientName: string;
+  clientId: string,
+  defaultEmail: string,
+  clientName: string,
 }
 
 export function InviteClientButton({ clientId, defaultEmail, clientName }: Props) {

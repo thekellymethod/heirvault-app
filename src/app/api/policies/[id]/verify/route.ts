@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAuth } from "@/lib/utils/clerk";
-import { AuditActionEnum } from "@/lib/db";
+import { AuditAction } from "@/lib/db";
 import { audit } from "@/lib/audit";
 
 /**
@@ -52,7 +52,7 @@ export async function POST(
 
     // Log audit event
     try {
-      await audit(AuditActionEnum.POLICY_UPDATED, {
+      await audit(AuditAction.POLICY_UPDATED, {
         policyId: id,
         message: `Policy verification status updated to ${verificationStatus}`,
       });

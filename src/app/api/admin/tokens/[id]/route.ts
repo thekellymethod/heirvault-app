@@ -77,10 +77,10 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
   await prisma.audit_logs.create({
     data: {
       id: crypto.randomUUID(),
-      user_id: actor.id,
+      userId: actor.id,
       action: "API_TOKEN_REVOKED",
       message: `API token revoked: tokenId=${id}, name=${token.name}`,
-      created_at: new Date(),
+      createdAt: new Date(),
     },
   });
 

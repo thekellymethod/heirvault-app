@@ -6,14 +6,14 @@ import { Mail, RefreshCw, Copy, Check, Search, Plus, AlertCircle, FileText, Down
 import { showSuccess, showError } from "@/lib/toast";
 
 interface Invite {
-  id: string;
-  token: string;
-  clientId: string;
-  clientName: string;
-  email: string;
-  expiresAt: string;
+  id: string,
+  token: string,
+  clientId: string,
+  clientName: string,
+  email: string,
+  expiresAt: string,
   usedAt: string | null;
-  createdAt: string;
+  createdAt: string,
   isArchived: boolean;
   isExpired: boolean;
 }

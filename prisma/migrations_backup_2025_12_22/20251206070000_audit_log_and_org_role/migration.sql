@@ -33,7 +33,7 @@ CREATE TABLE "audit_logs" (
     "policy_id" TEXT,
     "action" "AuditAction" NOT NULL,
     "message" TEXT NOT NULL,
-    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "audit_logs_pkey" PRIMARY KEY ("id")
 );
@@ -43,7 +43,7 @@ CREATE INDEX "audit_logs_user_id_idx" ON "audit_logs"("user_id");
 CREATE INDEX "audit_logs_org_id_idx" ON "audit_logs"("org_id");
 CREATE INDEX "audit_logs_client_id_idx" ON "audit_logs"("client_id");
 CREATE INDEX "audit_logs_policy_id_idx" ON "audit_logs"("policy_id");
-CREATE INDEX "audit_logs_created_at_idx" ON "audit_logs"("created_at");
+CREATE INDEX "audit_logs_createdAt_idx" ON "audit_logs"("createdAt");
 
 -- Add foreign keys
 ALTER TABLE "audit_logs" ADD CONSTRAINT "audit_logs_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;

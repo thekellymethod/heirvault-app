@@ -36,7 +36,7 @@ describe("listAuthorizedRegistries", () => {
           status: "ACTIVE",
           insured_name: "John Doe",
           carrier_guess: "Test Insurance",
-          created_at: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
         },
       },
     ];
@@ -52,7 +52,7 @@ describe("listAuthorizedRegistries", () => {
     expect(mockSupabaseClient.select).toHaveBeenCalledWith("registry_records(*)");
     expect(mockSupabaseClient.eq).toHaveBeenCalledWith("user_id", mockUserId);
     expect(mockSupabaseClient.order).toHaveBeenCalledWith(
-      "registry_records.created_at",
+      "registry_records.createdAt",
       { ascending: false }
     );
   });
@@ -99,7 +99,7 @@ describe("listAuthorizedRegistries", () => {
           status: "ACTIVE",
           insured_name: "John Doe",
           carrier_guess: "Test Insurance",
-          created_at: "2024-01-01T00:00:00Z",
+          createdAt: "2024-01-01T00:00:00Z",
         },
       },
       {
@@ -108,7 +108,7 @@ describe("listAuthorizedRegistries", () => {
           status: "PENDING",
           insured_name: "Jane Smith",
           carrier_guess: "Other Insurance",
-          created_at: "2024-01-02T00:00:00Z",
+          createdAt: "2024-01-02T00:00:00Z",
         },
       },
     ];

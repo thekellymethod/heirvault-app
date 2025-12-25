@@ -62,7 +62,7 @@ Stores versioned updates with the following structure:
 - `submitted_by` - "CLIENT" or "ATTORNEY"
 - `submission_method` - "QR_CODE", "EMAIL", "PORTAL", etc.
 - `notes` - Optional notes
-- `created_at` - Timestamp
+- `createdAt` - Timestamp
 
 ## API Endpoints
 

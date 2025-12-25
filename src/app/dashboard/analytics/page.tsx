@@ -4,27 +4,27 @@ import { redirect } from "next/navigation";
 import { getCurrentUserWithOrg } from "@/lib/authz";
 
 interface InviteRow {
-  id: string;
-  client_id: string;
-  email: string;
-  token: string;
-  created_at: Date;
+  id: string,
+  clientId: string,
+  email: string,
+  token: string,
+  createdAt: Date;
   used_at: Date | null;
-  first_name: string;
-  last_name: string;
+  firstName: string,
+  lastName: string,
 }
 
 interface RecentInvite {
-  id: string;
-  clientId: string;
-  email: string;
-  token: string;
+  id: string,
+  clientId: string,
+  email: string,
+  token: string,
   createdAt: Date;
   usedAt: Date | null;
   client: {
-    id: string;
-    firstName: string;
-    lastName: string;
+    id: string,
+    firstName: string,
+    lastName: string,
   };
 }
 
@@ -54,7 +54,7 @@ export default async function AnalyticsPage() {
           `
         : prisma.$queryRaw<Array<{ count: bigint }>>`
             SELECT COUNT(DISTINCT aca.client_id) as count 
-            FROM attorney_client_access aca
+            FROM attorneyClientAccess aca
             WHERE aca.attorney_id = ${user.id} AND aca.is_active = true
           `,
       orgId
@@ -67,7 +67,7 @@ export default async function AnalyticsPage() {
         : prisma.$queryRaw<Array<{ count: bigint }>>`
             SELECT COUNT(*) as count 
             FROM policies p
-            INNER JOIN attorney_client_access aca ON aca.client_id = p.client_id
+            INNER JOIN attorneyClientAccess aca ON aca.client_id = p.client_id
             WHERE aca.attorney_id = ${user.id} AND aca.is_active = true
           `,
       orgId
@@ -80,7 +80,7 @@ export default async function AnalyticsPage() {
         : prisma.$queryRaw<Array<{ count: bigint }>>`
             SELECT COUNT(*) as count 
             FROM policies p
-            INNER JOIN attorney_client_access aca ON aca.client_id = p.client_id
+            INNER JOIN attorneyClientAccess aca ON aca.client_id = p.client_id
             WHERE aca.attorney_id = ${user.id} AND aca.is_active = true AND p.status = 'ACTIVE'
           `,
       orgId
@@ -93,7 +93,7 @@ export default async function AnalyticsPage() {
         : prisma.$queryRaw<Array<{ count: bigint }>>`
             SELECT COUNT(*) as count 
             FROM beneficiaries b
-            INNER JOIN attorney_client_access aca ON aca.client_id = b.client_id
+            INNER JOIN attorneyClientAccess aca ON aca.client_id = b.client_id
             WHERE aca.attorney_id = ${user.id} AND aca.is_active = true
           `,
       orgId
@@ -103,14 +103,14 @@ export default async function AnalyticsPage() {
               ci.client_id,
               ci.email,
               ci.token,
-              ci.created_at,
+              ci.createdAt,
               ci.used_at,
-              c.first_name,
-              c.last_name
+              c.firstName,
+              c.lastName
             FROM client_invites ci
             INNER JOIN clients c ON c.id = ci.client_id
             WHERE c.org_id = ${orgId}
-            ORDER BY ci.created_at DESC
+            ORDER BY ci.createdAt DESC
             LIMIT 10
           `
         : prisma.$queryRaw<Array<InviteRow>>`
@@ -119,15 +119,15 @@ export default async function AnalyticsPage() {
               ci.client_id,
               ci.email,
               ci.token,
-              ci.created_at,
+              ci.createdAt,
               ci.used_at,
-              c.first_name,
-              c.last_name
+              c.firstName,
+              c.lastName
             FROM client_invites ci
             INNER JOIN clients c ON c.id = ci.client_id
-            INNER JOIN attorney_client_access aca ON aca.client_id = c.id
+            INNER JOIN attorneyClientAccess aca ON aca.client_id = c.id
             WHERE aca.attorney_id = ${user.id} AND aca.is_active = true
-            ORDER BY ci.created_at DESC
+            ORDER BY ci.createdAt DESC
             LIMIT 10
           `,
     ]);
@@ -142,12 +142,12 @@ export default async function AnalyticsPage() {
       clientId: inv.client_id,
       email: inv.email,
       token: inv.token,
-      createdAt: inv.created_at,
+      createdAt: inv.createdAt,
       usedAt: inv.used_at,
       client: {
         id: inv.client_id,
-        firstName: inv.first_name,
-        lastName: inv.last_name,
+        firstName: inv.firstName,
+        lastName: inv.lastName,
       },
     }));
   } catch (sqlError: unknown) {
@@ -162,31 +162,31 @@ export default async function AnalyticsPage() {
         beneficiaryCountResult,
         recentInvitesResult,
       ] = await Promise.all([
-        orgId ? prisma.clients.count({ where: { org_id: orgId } }) : prisma.attorney_client_access.count({ where: { attorney_id: user.id, is_active: true } }),
+        orgId ? prisma.clients.count({ where: { org_id: orgId } }) : prisma.attorneyClientAccess.count({ where: { attorney_id: user.id, is_active: true } }),
         orgId ? prisma.policies.count({
           where: { clients: { org_id: orgId } },
         }) : prisma.policies.count({
-          where: { clients: { attorney_client_access: { some: { attorney_id: user.id, is_active: true } } } },
+          where: { clients: { attorneyClientAccess: { some: { attorney_id: user.id, is_active: true } } } },
         }),
         orgId ? prisma.policies.count({
           where: { clients: { org_id: orgId }, verification_status: "VERIFIED" },
         }) : prisma.policies.count({
-          where: { clients: { attorney_client_access: { some: { attorney_id: user.id, is_active: true } } }, verification_status: "VERIFIED" },
+          where: { clients: { attorneyClientAccess: { some: { attorney_id: user.id, is_active: true } } }, verification_status: "VERIFIED" },
         }),
         orgId ? prisma.beneficiaries.count({
           where: { clients: { org_id: orgId } },
         }) : prisma.beneficiaries.count({
-          where: { clients: { attorney_client_access: { some: { attorney_id: user.id, is_active: true } } } },
+          where: { clients: { attorneyClientAccess: { some: { attorney_id: user.id, is_active: true } } } },
         }),
         orgId ? prisma.client_invites.findMany({
           where: { clients: { org_id: orgId } },
           include: { clients: true },
-          orderBy: { created_at: "desc" },
+          orderBy: { createdAt: "desc" },
           take: 10,
         }) : prisma.client_invites.findMany({
-          where: { clients: { attorney_client_access: { some: { attorney_id: user.id, is_active: true } } } },
+          where: { clients: { attorneyClientAccess: { some: { attorney_id: user.id, is_active: true } } } },
           include: { clients: true },
-          orderBy: { created_at: "desc" },
+          orderBy: { createdAt: "desc" },
           take: 10,
         }),
       ]);
@@ -200,12 +200,12 @@ export default async function AnalyticsPage() {
         clientId: inv.client_id,
         email: inv.email,
         token: inv.token,
-        createdAt: inv.created_at,
+        createdAt: inv.createdAt,
         usedAt: inv.used_at,
         client: {
           id: inv.clients.id,
-          firstName: inv.clients.first_name,
-          lastName: inv.clients.last_name,
+          firstName: inv.clients.firstName,
+          lastName: inv.clients.lastName,
         },
       }));
     } catch (prismaError: unknown) {

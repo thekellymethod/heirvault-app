@@ -9,20 +9,20 @@ import { EmptyListState } from "@/components/ui/empty-state";
 import { Building2 } from "lucide-react";
 
 type InsurerRow = {
-  id: string;
-  name: string;
+  id: string,
+  name: string,
   contactPhone: string | null;
   contactEmail: string | null;
   website: string | null;
-  createdAt: string;
-  updatedAt: string;
+  createdAt: string,
+  updatedAt: string,
 };
 
 type Client = {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
+  id: string,
+  firstName: string,
+  lastName: string,
+  email: string,
 };
 
 export default function DashboardInsurersPage() {
@@ -39,7 +39,7 @@ export default function DashboardInsurersPage() {
   const [saving, setSaving] = React.useState(false);
   
   // State for post-creation flow
-  const [newlyCreatedInsurer, setNewlyCreatedInsurer] = React.useState<{ id: string; name: string } | null>(null);
+  const [newlyCreatedInsurer, setNewlyCreatedInsurer] = React.useState<{ id: string, name: string } | null>(null);
   const [showClientSelector, setShowClientSelector] = React.useState(false);
   const [clients, setClients] = React.useState<Client[]>([]);
   const [loadingClients, setLoadingClients] = React.useState(false);
@@ -290,11 +290,11 @@ function Field({
   required,
   placeholder,
 }: {
-  label: string;
-  value: string;
+  label: string,
+  value: string,
   onChange: (v: string) => void;
   required?: boolean;
-  placeholder?: string;
+  placeholder?: string,
 }) {
   return (
     <label className="block">

@@ -23,38 +23,38 @@ export async function POST(
     const contentType = req.headers.get("content-type") || "";
     let clientId: string;
     let client: {
-      firstName: string;
-      lastName: string;
-      email: string;
-      phone: string;
-      dateOfBirth: string;
-      addressLine1: string;
-      addressLine2: string;
-      city: string;
-      state: string;
-      postalCode: string;
-      country: string;
+      firstName: string,
+      lastName: string,
+      email: string,
+      phone: string,
+      dateOfBirth: string,
+      addressLine1: string,
+      addressLine2: string,
+      city: string,
+      state: string,
+      postalCode: string,
+      country: string,
     };
     let policies: Array<{
-      id: string;
-      policyNumber: string;
-      policyType: string;
-      insurerName: string;
+      id: string,
+      policyNumber: string,
+      policyType: string,
+      insurerName: string,
     }>;
     let beneficiaries: Array<{
-      id: string;
-      firstName: string;
-      lastName: string;
-      relationship: string;
-      email: string;
-      phone: string;
-      dateOfBirth: string;
+      id: string,
+      firstName: string,
+      lastName: string,
+      relationship: string,
+      email: string,
+      phone: string,
+      dateOfBirth: string,
     }>;
     const policyDocuments: File[] = [];
 
     if (contentType.includes("multipart/form-data")) {
       const formData = await req.formData();
-      clientId = formData.get("clientId") as string;
+      clientId = formData.get("clientId") as string,
       client = JSON.parse(formData.get("client") as string);
       policies = JSON.parse(formData.get("policies") as string);
       beneficiaries = JSON.parse(formData.get("beneficiaries") as string);
@@ -110,10 +110,10 @@ export async function POST(
 
     // Check if policies or beneficiaries have changed
     const currentPolicies = await prisma.$queryRawUnsafe<Array<{
-      id: string;
+      id: string,
       policy_number: string | null;
       policy_type: string | null;
-      insurer_name: string;
+      insurer_name: string,
     }>>(`
       SELECT 
         p.id,
@@ -123,23 +123,23 @@ export async function POST(
       FROM policies p
       LEFT JOIN insurers i ON i.id = p.insurer_id
       WHERE p.client_id = $1
-      ORDER BY p.created_at DESC
+      ORDER BY p.createdAt DESC
     `, clientId);
 
     const currentBeneficiaries = await prisma.$queryRawUnsafe<Array<{
-      id: string;
-      first_name: string;
-      last_name: string;
+      id: string,
+      firstName: string,
+      lastName: string,
       relationship: string | null;
       email: string | null;
       phone: string | null;
-      date_of_birth: Date | null;
+      dateOfBirth: Date | null;
     }>>(`
       SELECT 
-        id, first_name, last_name, relationship, email, phone, date_of_birth
+        id, firstName, lastName, relationship, email, phone, dateOfBirth
       FROM beneficiaries
       WHERE client_id = $1
-      ORDER BY created_at DESC
+      ORDER BY createdAt DESC
     `, clientId);
 
     // Check if policies changed
@@ -162,12 +162,12 @@ export async function POST(
         const current = currentBeneficiaries[index];
         if (!current) return true;
         return (
-          beneficiary.firstName !== current.first_name ||
-          beneficiary.lastName !== current.last_name ||
+          beneficiary.firstName !== current.firstName ||
+          beneficiary.lastName !== current.lastName ||
           beneficiary.relationship !== current.relationship ||
           beneficiary.email !== current.email ||
           beneficiary.phone !== current.phone ||
-          beneficiary.dateOfBirth !== (current.date_of_birth ? new Date(current.date_of_birth).toISOString().split("T")[0] : "")
+          beneficiary.dateOfBirth !== (current.dateOfBirth ? new Date(current.dateOfBirth).toISOString().split("T")[0] : "")
         );
       });
 
@@ -187,11 +187,11 @@ export async function POST(
 
     // Get current client data to calculate changes
     const currentClient = await prisma.$queryRawUnsafe<Array<{
-      first_name: string;
-      last_name: string;
-      email: string;
+      firstName: string,
+      lastName: string,
+      email: string,
       phone: string | null;
-      date_of_birth: Date | null;
+      dateOfBirth: Date | null;
       address_line1: string | null;
       address_line2: string | null;
       city: string | null;
@@ -200,7 +200,7 @@ export async function POST(
       country: string | null;
     }>>(`
       SELECT 
-        first_name, last_name, email, phone, date_of_birth,
+        firstName, lastName, email, phone, dateOfBirth,
         address_line1, address_line2, city, state, postal_code, country
       FROM clients
       WHERE id = $1
@@ -211,11 +211,11 @@ export async function POST(
     const changes: Record<string, { from: unknown; to: unknown }> = {};
     if (currentClient.length > 0) {
       const current = currentClient[0];
-      if (current.first_name !== client.firstName) {
-        changes.firstName = { from: current.first_name, to: client.firstName };
+      if (current.firstName !== client.firstName) {
+        changes.firstName = { from: current.firstName, to: client.firstName };
       }
-      if (current.last_name !== client.lastName) {
-        changes.lastName = { from: current.last_name, to: client.lastName };
+      if (current.lastName !== client.lastName) {
+        changes.lastName = { from: current.lastName, to: client.lastName };
       }
       if (current.email !== client.email) {
         changes.email = { from: current.email, to: client.email };
@@ -242,7 +242,7 @@ export async function POST(
       INSERT INTO client_versions (
         id, client_id, invite_id, version_number, previous_version_id,
         client_data, policies_data, beneficiaries_data, changes,
-        submitted_by, submission_method, created_at
+        submitted_by, submission_method, createdAt
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW()
       )
@@ -300,11 +300,11 @@ export async function POST(
     await prisma.$executeRawUnsafe(`
       UPDATE clients
       SET 
-        first_name = $2,
-        last_name = $3,
+        firstName = $2,
+        lastName = $3,
         email = $4,
         phone = $5,
-        date_of_birth = CASE WHEN $6 = '' OR $6 IS NULL THEN NULL ELSE $6::date END,
+        dateOfBirth = CASE WHEN $6 = '' OR $6 IS NULL THEN NULL ELSE $6::date END,
         address_line1 = $7,
         address_line2 = $8,
         city = $9,
@@ -453,7 +453,7 @@ export async function POST(
       // with policy-intake route. While the database has a default, using raw SQL
       // requires explicit values to ensure consistent behavior across all creation paths.
       await prisma.$executeRawUnsafe(`
-        INSERT INTO policies (id, client_id, insurer_id, carrier_name_raw, policy_number, policy_type, verification_status, created_at, updated_at)
+        INSERT INTO policies (id, client_id, insurer_id, carrier_name_raw, policy_number, policy_type, verification_status, createdAt, updated_at)
         VALUES ($1, $2, $3, $4, $5, $6, 'PENDING', NOW(), NOW())
       `, randomUUID(), clientId, insurerId, carrierNameRaw, policy.policyNumber?.trim() || null, policy.policyType?.trim() || null);
     }
@@ -467,7 +467,7 @@ export async function POST(
     for (const beneficiary of validBeneficiaries) {
       await prisma.$executeRawUnsafe(`
         INSERT INTO beneficiaries (
-          id, client_id, first_name, last_name, relationship, email, phone, date_of_birth, created_at, updated_at
+          id, client_id, firstName, lastName, relationship, email, phone, dateOfBirth, createdAt, updated_at
         ) VALUES (
           $1, $2, $3, $4, $5, $6, $7, 
           CASE WHEN $8 = '' OR $8 IS NULL THEN NULL ELSE $8::date END,
@@ -500,7 +500,7 @@ export async function POST(
         await prisma.$executeRawUnsafe(`
           INSERT INTO documents (
             id, client_id, file_name, file_type, file_size, file_path, mime_type,
-            uploaded_via, created_at, updated_at
+            uploaded_via, createdAt, updated_at
           ) VALUES (
             $1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW()
           )

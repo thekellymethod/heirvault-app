@@ -17,7 +17,7 @@ async function fixDatabase() {
 
     // Check if the constraint already exists
     const existingIndex = await prisma.$queryRawUnsafe<Array<{
-      indexname: string;
+      indexname: string,
     }>>(`
       SELECT indexname 
       FROM pg_indexes 
@@ -37,8 +37,8 @@ async function fixDatabase() {
 
     // Verify it was created
     const verifyIndex = await prisma.$queryRawUnsafe<Array<{
-      indexname: string;
-      indexdef: string;
+      indexname: string,
+      indexdef: string,
     }>>(`
       SELECT indexname, indexdef
       FROM pg_indexes 
@@ -54,8 +54,8 @@ async function fixDatabase() {
 
     // Also check if the column exists
     const columnCheck = await prisma.$queryRawUnsafe<Array<{
-      column_name: string;
-      data_type: string;
+      column_name: string,
+      data_type: string,
     }>>(`
       SELECT column_name, data_type
       FROM information_schema.columns
@@ -76,7 +76,7 @@ async function fixDatabase() {
       results,
     });
   } catch (e: unknown) {
-    const err = e as { message?: string; code?: string };
+    const err = e as { message?: string, code?: string };
     return NextResponse.json(
       {
         ok: false,

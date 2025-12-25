@@ -90,7 +90,7 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
     } catch (err: unknown) {
       setScanning(false);
       
-      const error = err as { name?: string; message?: string };
+      const error = err as { name?: string, message?: string };
       if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
         setError("Camera permission denied. Please allow camera access in your browser settings and try again.");
         setPermissionStatus("denied");

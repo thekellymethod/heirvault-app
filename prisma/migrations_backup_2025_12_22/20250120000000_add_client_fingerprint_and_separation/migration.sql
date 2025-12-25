@@ -36,7 +36,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS "clients_email_key" ON "clients"("email");
 CREATE UNIQUE INDEX IF NOT EXISTS "clients_client_fingerprint_key" ON "clients"("client_fingerprint") WHERE "client_fingerprint" IS NOT NULL;
 
 -- Create composite index for client name + DOB searches (helps identify potential duplicates)
-CREATE INDEX IF NOT EXISTS "clients_first_name_last_name_date_of_birth_idx" ON "clients"("first_name", "last_name", "date_of_birth");
+CREATE INDEX IF NOT EXISTS "clients_firstName_lastName_dateOfBirth_idx" ON "clients"("firstName", "lastName", "dateOfBirth");
 
 -- Create composite index for client address searches (helps identify potential duplicates by address)
 CREATE INDEX IF NOT EXISTS "clients_address_idx" ON "clients"("address_line1", "city", "state", "postal_code") WHERE "address_line1" IS NOT NULL;
@@ -48,7 +48,7 @@ CREATE INDEX IF NOT EXISTS "clients_client_fingerprint_idx" ON "clients"("client
 CREATE INDEX IF NOT EXISTS "clients_org_id_idx" ON "clients"("org_id") WHERE "org_id" IS NOT NULL;
 
 -- Create composite index for beneficiary name + DOB searches
-CREATE INDEX IF NOT EXISTS "beneficiaries_name_dob_idx" ON "beneficiaries"("first_name", "last_name", "date_of_birth");
+CREATE INDEX IF NOT EXISTS "beneficiaries_name_dob_idx" ON "beneficiaries"("firstName", "lastName", "dateOfBirth");
 
 -- Create composite index for beneficiary address searches
 CREATE INDEX IF NOT EXISTS "beneficiaries_address_idx" ON "beneficiaries"("address_line1", "city", "state", "postal_code") WHERE "address_line1" IS NOT NULL;
@@ -57,7 +57,7 @@ CREATE INDEX IF NOT EXISTS "beneficiaries_address_idx" ON "beneficiaries"("addre
 CREATE INDEX IF NOT EXISTS "beneficiaries_client_id_idx" ON "beneficiaries"("client_id");
 
 -- Create composite index for attorney name searches
-CREATE INDEX IF NOT EXISTS "users_name_idx" ON "users"("first_name", "last_name") WHERE "first_name" IS NOT NULL AND "last_name" IS NOT NULL;
+CREATE INDEX IF NOT EXISTS "users_name_idx" ON "users"("firstName", "lastName") WHERE "firstName" IS NOT NULL AND "lastName" IS NOT NULL;
 
 -- Create composite index for attorney address searches
 CREATE INDEX IF NOT EXISTS "users_address_idx" ON "users"("address_line1", "city", "state", "postal_code") WHERE "address_line1" IS NOT NULL;

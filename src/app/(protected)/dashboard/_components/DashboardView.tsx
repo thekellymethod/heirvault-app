@@ -13,6 +13,35 @@ interface DashboardViewProps {
   user: AppUser;
 }
 
+// Type to handle both camelCase (Prisma) and snake_case (Supabase) formats
+type RegistryRecordWithVariants = RegistryRecord | {
+  id: string,
+  status: string,
+  decedentName?: string,
+  createdAt?: string | Date;
+};
+
+// Helper functions to safely access properties regardless of format
+function getDecedentName(registry: RegistryRecordWithVariants): string {
+  if ("decedentName" in registry && registry.decedentName) {
+    return registry.decedentName;
+  }
+  if ("decedentName" in registry && registry.decedentName) {
+    return registry.decedentName;
+  }
+  return "";
+}
+
+function getCreatedAt(registry: RegistryRecordWithVariants): Date {
+  if ("createdAt" in registry && registry.createdAt) {
+    return registry.createdAt instanceof Date ? registry.createdAt : new Date(registry.createdAt);
+  }
+  if ("createdAt" in registry && registry.createdAt) {
+    return registry.createdAt instanceof Date ? registry.createdAt : new Date(registry.createdAt);
+  }
+  return new Date();
+}
+
 export function DashboardView({ registries }: DashboardViewProps) {
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -20,8 +49,10 @@ export function DashboardView({ registries }: DashboardViewProps) {
   const filteredRegistries = registries.filter((registry) => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
+    // Handle both camelCase (from transformed data) and snake_case (from Prisma type)
+    const decedentName = getDecedentName(registry as RegistryRecordWithVariants);
     return (
-      registry.decedentName.toLowerCase().includes(query) ||
+      decedentName.toLowerCase().includes(query) ||
       registry.status.toLowerCase().includes(query) ||
       registry.id.toLowerCase().includes(query)
     );
@@ -147,7 +178,9 @@ export function DashboardView({ registries }: DashboardViewProps) {
                   filteredRegistries.map((registry) => (
                     <tr key={registry.id} className="hover:bg-slateui-50">
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="font-medium text-ink-900">{registry.decedentName}</div>
+                        <div className="font-medium text-ink-900">
+                          {getDecedentName(registry as RegistryRecordWithVariants)}
+                        </div>
                         <div className="text-sm text-slateui-500 font-mono">{registry.id.substring(0, 8)}...</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -165,7 +198,7 @@ export function DashboardView({ registries }: DashboardViewProps) {
                         —
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-slateui-600">
-                        {new Date(registry.createdAt).toLocaleDateString()}
+                        {getCreatedAt(registry as RegistryRecordWithVariants).toLocaleDateString()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <Link href={`/records/${registry.id}`}>

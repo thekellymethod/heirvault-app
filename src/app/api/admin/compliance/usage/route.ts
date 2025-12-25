@@ -26,7 +26,7 @@ export async function GET() {
       prisma.$queryRawUnsafe<Array<{ count: number }>>(`SELECT COUNT(*)::int as count FROM organizations`),
       prisma.$queryRawUnsafe<Array<{ count: number }>>(`SELECT COUNT(*)::int as count FROM users WHERE role = 'attorney'`),
       prisma.$queryRawUnsafe<Array<{ count: number }>>(
-        `SELECT COUNT(*)::int as count FROM audit_logs WHERE created_at >= NOW() - INTERVAL '24 hours'`
+        `SELECT COUNT(*)::int as count FROM audit_logs WHERE createdAt >= NOW() - INTERVAL '24 hours'`
       ),
     ]);
 

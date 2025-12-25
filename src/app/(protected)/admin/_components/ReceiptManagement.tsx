@@ -7,15 +7,15 @@ import { useRouter } from "next/navigation";
 import { showSuccess, showError } from "@/lib/toast";
 
 interface Receipt {
-  id: string;
-  receiptId: string;
-  token: string;
-  clientId: string;
-  clientName: string;
-  email: string;
-  expiresAt: string;
+  id: string,
+  receiptId: string,
+  token: string,
+  clientId: string,
+  clientName: string,
+  email: string,
+  expiresAt: string,
   usedAt: string | null;
-  createdAt: string;
+  createdAt: string,
   isArchived: boolean;
 }
 

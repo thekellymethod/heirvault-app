@@ -8,14 +8,14 @@ import { ListSkeleton } from "@/components/ui/skeleton";
 import { EmptyListState } from "@/components/ui/empty-state";
 
 type Beneficiary = {
-  id: string;
-  firstName: string;
-  lastName: string;
+  id: string,
+  firstName: string,
+  lastName: string,
   relationship: string | null;
   email: string | null;
   phone: string | null;
   dateOfBirth: string | null;
-  createdAt?: string;
+  createdAt?: string,
 };
 
 export default function ClientBeneficiariesPage() {

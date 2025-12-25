@@ -13,10 +13,10 @@ import { eq } from "@/lib/db";
 import { randomUUID } from "crypto";
 
 // Test data
-let testClientId: string;
-let testInsurerId: string;
-let testAttorneyId: string;
-let testOrgId: string;
+let testClientId: string,
+let testInsurerId: string,
+let testAttorneyId: string,
+let testOrgId: string,
 
 describe("Policy API Integration Tests", () => {
   beforeAll(async () => {
@@ -58,7 +58,7 @@ describe("Policy API Integration Tests", () => {
         email: `test_client_${Date.now()}@test.com`,
       })
       .returning();
-    testClientId = testClient.id;
+    testclientId = testClient.id;
 
     // Grant attorney access to client
     await db.insert(attorneyClientAccess)
@@ -194,7 +194,7 @@ describe("Policy API Integration Tests", () => {
       expect(Array.isArray(data)).toBe(true);
     });
 
-    it("should return 400 when clientId is missing", async () => {
+    it("should return 400 when clientId:is missing", async () => {
       const req = new NextRequest("http://localhost:3000/api/policies", {
         method: "GET",
       });

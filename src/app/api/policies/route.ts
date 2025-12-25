@@ -67,8 +67,8 @@ export async function POST(req: NextRequest) {
           await prisma.insurers.update({
             where: { id: existingInsurer.id },
             data: {
-              contact_phone: insurerPhone || existingInsurer.contact_phone,
-              contact_email: insurerEmail || existingInsurer.contact_email,
+              contact_phone: insurerPhone || existingInsurer.contactPhone,
+              contact_email: insurerEmail || existingInsurer.contactEmail,
               website: insurerWebsite || existingInsurer.website,
               updated_at: new Date(),
             },
@@ -99,13 +99,13 @@ export async function POST(req: NextRequest) {
     const policy = await prisma.policies.create({
       data: {
         id: policyId,
-        client_id: clientId,
+        clientId: clientId,
         insurer_id: resolvedInsurerId,
         carrier_name_raw: resolvedCarrierNameRaw,
         carrier_confidence: carrierConfidence ? Number(carrierConfidence) : null,
         policy_number: policyNumber || null,
         policy_type: policyType || null,
-        created_at: now,
+        createdAt: now,
         updated_at: now,
       },
     });
@@ -138,7 +138,7 @@ export async function POST(req: NextRequest) {
 
         await sendPolicyAddedEmail({
           to: client.email,
-          clientName: `${client.first_name} ${client.last_name}`,
+          clientName: `${client.firstName} ${client.lastName}`,
           insurerName: emailInsurerName,
           policyNumber: policyNumber || undefined,
           policyType: policyType || undefined,
@@ -193,11 +193,11 @@ export async function GET(req: NextRequest) {
 
     // Get policies with insurers (left join to include policies without insurers)
     const policiesList = await prisma.policies.findMany({
-      where: { client_id: clientId },
+      where: { clientId:clientId },
       include: {
         insurers: true,
       },
-      orderBy: { created_at: 'desc' },
+      orderBy: { createdAt: 'desc' },
     });
 
     // Get policy beneficiaries

@@ -48,7 +48,7 @@ export default async function OrganizationDetailPage({
         },
       },
     },
-    orderBy: { created_at: 'desc' },
+    orderBy: { createdAt: 'desc' },
   });
 
   const membersList = members.map((m) => ({
@@ -57,7 +57,7 @@ export default async function OrganizationDetailPage({
     firstName: m.users.firstName,
     lastName: m.users.lastName,
     role: m.role,
-    joinedAt: m.created_at,
+    joinedAt: m.createdAt,
     isCurrentUser: m.users.id === currentUser.id,
   }));
 
@@ -96,7 +96,7 @@ export default async function OrganizationDetailPage({
           <div>
             <div className="text-slateui-600">Created</div>
             <div className="text-ink-900">
-              {new Date(membership.organizations.created_at).toLocaleDateString()}
+              {new Date(membership.organizations.createdAt).toLocaleDateString()}
             </div>
           </div>
           <div>

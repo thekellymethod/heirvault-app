@@ -26,7 +26,7 @@ This fingerprint ensures that:
 - `user_id` - Unique constraint (one client can be linked to one user account, if applicable)
 
 #### Composite Indexes for Search
-- `(first_name, last_name, date_of_birth)` - Helps identify potential duplicates by name and DOB
+- `(firstName, lastName, dateOfBirth)` - Helps identify potential duplicates by name and DOB
 - `(address_line1, city, state, postal_code)` - Helps identify potential duplicates by address
 - `client_fingerprint` - Fast lookups for fingerprint matching
 - `org_id` - Organization separation
@@ -51,7 +51,7 @@ This allows:
 Attorneys and clients are stored in separate tables:
 - **`users` table`** - Stores attorney accounts (authentication via Clerk)
 - **`clients` table`** - Stores client information (no accounts, access via invitation links)
-- **`attorney_client_access` table`** - Links attorneys to clients (many-to-many relationship)
+- **`attorneyClientAccess` table`** - Links attorneys to clients (many-to-many relationship)
 
 This ensures:
 - **No data mixing** between attorney and client records
@@ -63,7 +63,7 @@ This ensures:
 All attorneys can view all clients globally, but:
 - Each client has a **unique UUID** as primary key
 - Each client has a **unique fingerprint** to prevent duplicates
-- Each client can be associated with **multiple organizations** via `attorney_client_access`
+- Each client can be associated with **multiple organizations** via `attorneyClientAccess`
 - **No conflicts** occur because each record is uniquely identified by UUID, not by name/DOB/address
 
 ## How It Works

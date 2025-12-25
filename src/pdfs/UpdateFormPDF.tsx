@@ -88,10 +88,10 @@ const styles = StyleSheet.create({
 });
 
 interface UpdateFormData {
-  receiptId: string;
-  clientName: string;
-  token: string;
-  updateUrl: string;
+  receiptId: string,
+  clientName: string,
+  token: string,
+  updateUrl: string,
 }
 
 interface UpdateFormPDFProps {

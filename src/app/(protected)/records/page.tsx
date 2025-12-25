@@ -34,12 +34,12 @@ export default async function RecordsPage() {
         latestVersion: latestVersion
           ? {
               id: latestVersion.id,
-              createdAt: new Date(latestVersion.created_at),
+              createdAt: new Date(latestVersion.createdAt),
               submittedBy: latestVersion.submitted_by,
             }
           : null,
         versionCount: versions.length,
-        lastUpdated: latestVersion ? new Date(latestVersion.created_at) : null,
+        lastUpdated: latestVersion ? new Date(latestVersion.createdAt) : null,
       };
     })
   );

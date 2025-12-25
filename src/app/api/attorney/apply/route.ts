@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
     // When they sign in later with Clerk (Apple, Google, Microsoft), their account will be linked via email
     // Use case-insensitive email lookup to handle different OAuth providers
     const userByEmailResult = await prisma.$queryRawUnsafe<Array<{
-      id: string;
+      id: string,
     }>>(
       `SELECT id FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1`,
       email

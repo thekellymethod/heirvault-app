@@ -30,20 +30,20 @@ export async function POST(req: NextRequest) {
 
     // Check if client already exists
     let client: {
-      id: string;
-      email: string;
-      first_name: string;
-      last_name: string;
+      id: string,
+      email: string,
+      firstName: string,
+      lastName: string,
     } | null = null;
 
     try {
       const clientResult = await prisma.$queryRawUnsafe<Array<{
-        id: string;
-        email: string;
-        first_name: string;
-        last_name: string;
+        id: string,
+        email: string,
+        firstName: string,
+        lastName: string,
       }>>(`
-        SELECT id, email, first_name, last_name
+        SELECT id, email, firstName, lastName
         FROM clients
         WHERE email = $1
         LIMIT 1
@@ -63,18 +63,18 @@ export async function POST(req: NextRequest) {
       try {
         // Insert client and get the ID
         await prisma.$executeRawUnsafe(`
-          INSERT INTO clients (id, email, first_name, last_name, phone, date_of_birth, created_at, updated_at)
+          INSERT INTO clients (id, email, firstName, lastName, phone, dateOfBirth, createdAt, updated_at)
           VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, NOW(), NOW())
         `, normalizedEmail, firstName, lastName, phone || null, dateOfBirth || null);
 
         // Query the created client
         const createdClientResult = await prisma.$queryRawUnsafe<Array<{
-          id: string;
-          email: string;
-          first_name: string;
-          last_name: string;
+          id: string,
+          email: string,
+          firstName: string,
+          lastName: string,
         }>>(`
-          SELECT id, email, first_name, last_name
+          SELECT id, email, firstName, lastName
           FROM clients
           WHERE email = $1
           LIMIT 1
@@ -117,29 +117,29 @@ export async function POST(req: NextRequest) {
 
     // Create invite
     let invite: {
-      id: string;
-      token: string;
-      email: string;
+      id: string,
+      token: string,
+      email: string,
       expires_at: Date;
-      created_at: Date;
+      createdAt: Date;
     } | null = null;
 
     try {
       // Insert invite
       await prisma.$executeRawUnsafe(`
-        INSERT INTO client_invites (id, client_id, token, email, expires_at, invited_by_user_id, created_at, updated_at)
+        INSERT INTO client_invites (id, client_id, token, email, expires_at, invited_by_user_id, createdAt, updated_at)
         VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, NOW(), NOW())
       `, client.id, token, normalizedEmail, expiresAt, admin.id);
 
       // Query the created invite
       const createdInviteResult = await prisma.$queryRawUnsafe<Array<{
-        id: string;
-        token: string;
-        email: string;
+        id: string,
+        token: string,
+        email: string,
         expires_at: Date;
-        created_at: Date;
+        createdAt: Date;
       }>>(`
-        SELECT id, token, email, expires_at, created_at
+        SELECT id, token, email, expires_at, createdAt
         FROM client_invites
         WHERE token = $1
         LIMIT 1
@@ -203,13 +203,13 @@ export async function POST(req: NextRequest) {
         inviteUrl,
         email: invite.email,
         expiresAt: invite.expires_at.toISOString(),
-        createdAt: invite.created_at.toISOString(),
+        createdAt: invite.createdAt.toISOString(),
       },
       client: {
         id: client.id,
         email: client.email,
-        firstName: client.first_name,
-        lastName: client.last_name,
+        firstName: client.firstName,
+        lastName: client.lastName,
       },
     }, { status: 201 });
   } catch (error: unknown) {

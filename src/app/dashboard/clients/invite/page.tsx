@@ -6,19 +6,19 @@ import { Button } from "@/components/ui/button";
 import { Upload, Mail, FileText, X, Loader2, Copy, Check, ExternalLink } from "lucide-react";
 
 type ClientFormData = {
-  email: string;
-  firstName: string;
-  lastName: string;
-  phone: string;
-  dateOfBirth: string;
+  email: string,
+  firstName: string,
+  lastName: string,
+  phone: string,
+  dateOfBirth: string,
 };
 
 type ExtractedData = {
-  firstName?: string;
-  lastName?: string;
-  email?: string;
-  phone?: string;
-  dateOfBirth?: string;
+  firstName?: string,
+  lastName?: string,
+  email?: string,
+  phone?: string,
+  dateOfBirth?: string,
 };
 
 export default function InviteClientPage() {
@@ -426,11 +426,11 @@ function Field({
   required,
   type = "text",
 }: {
-  label: string;
-  value: string;
+  label: string,
+  value: string,
   onChange: (v: string) => void;
   required?: boolean;
-  type?: string;
+  type?: string,
 }) {
   return (
     <label className="block">

@@ -155,37 +155,37 @@ const styles = StyleSheet.create({
 });
 
 interface BallotData {
-  receiptId: string;
+  receiptId: string,
   client: {
-    firstName: string;
-    lastName: string;
-    email: string;
+    firstName: string,
+    lastName: string,
+    email: string,
     phone: string | null;
     dateOfBirth: Date | null;
   };
   policies: Array<{
-    id: string;
+    id: string,
     policyNumber: string | null;
     policyType: string | null;
     insurer: {
-      name: string;
+      name: string,
       contactPhone: string | null;
       contactEmail: string | null;
     };
   }>;
   organization: {
-    name: string;
-    addressLine1?: string;
-    addressLine2?: string;
-    city?: string;
-    state?: string;
-    postalCode?: string;
-    phone?: string;
+    name: string,
+    addressLine1?: string,
+    addressLine2?: string,
+    city?: string,
+    state?: string,
+    postalCode?: string,
+    phone?: string,
   } | null;
-  registeredAt: Date | string;
-  receiptGeneratedAt: Date | string;
-  updateUrl?: string;
-  qrCodeDataUrl?: string;
+  registeredAt: Date | string,
+  receiptGeneratedAt: Date | string,
+  updateUrl?: string,
+  qrCodeDataUrl?: string,
 }
 
 interface ClientBallotPDFProps {

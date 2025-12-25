@@ -1,43 +1,43 @@
 // src/lib/email/email-templates.ts
 
 type BaseBrand = {
-    appName?: string; // default "HeirVault"
-    supportEmail?: string; // optional footer
-    logoUrl?: string; // optional <img>
-    primaryColor?: string; // default navy
-    accentColor?: string; // default gold
+    appName?: string, // default "HeirVault"
+    supportEmail?: string, // optional footer
+    logoUrl?: string, // optional <img>
+    primaryColor?: string, // default navy
+    accentColor?: string, // default gold
   };
   
   type ClientInviteArgs = BaseBrand & {
-    clientName: string;
-    firmName?: string;
-    inviteUrl: string;
+    clientName: string,
+    firmName?: string,
+    inviteUrl: string,
   };
   
   type PolicyAddedArgs = BaseBrand & {
-    clientName: string;
-    firmName?: string;
-    insurerName: string;
-    policyNumber?: string;
-    policyType?: string;
-    dashboardUrl: string;
+    clientName: string,
+    firmName?: string,
+    insurerName: string,
+    policyNumber?: string,
+    policyType?: string,
+    dashboardUrl: string,
   };
   
   type AccessGrantedArgs = BaseBrand & {
-    attorneyName: string;
-    firmName?: string;
-    clientName: string;
-    dashboardUrl: string;
+    attorneyName: string,
+    firmName?: string,
+    clientName: string,
+    dashboardUrl: string,
   };
   
   type AttorneyNotificationArgs = BaseBrand & {
-    attorneyName: string;
-    firmName?: string;
-    clientName: string;
-    receiptId: string;
+    attorneyName: string,
+    firmName?: string,
+    clientName: string,
+    receiptId: string,
     policiesCount: number;
-    updateUrl: string;
-    qrCodeImage?: string; // base64 WITHOUT data prefix OR with it; handled below
+    updateUrl: string,
+    qrCodeImage?: string, // base64 WITHOUT data prefix OR with it; handled below
   };
   
   function escapeHtml(input: string) {
@@ -60,9 +60,9 @@ type BaseBrand = {
   }
   
   function layout(opts: {
-    title: string;
-    preheader?: string;
-    bodyHtml: string;
+    title: string,
+    preheader?: string,
+    bodyHtml: string,
     brand?: BaseBrand;
   }) {
     const brand = brandDefaults(opts.brand);

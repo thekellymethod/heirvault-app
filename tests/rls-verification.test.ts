@@ -12,9 +12,9 @@ import { eq, and } from "@/lib/db";
 import { randomUUID } from "crypto";
 
 describe("RLS Policy Verification", () => {
-  let testRegistryId: string;
-  let testUserId: string;
-  let testClientId: string;
+  let testRegistryId: string,
+  let testUserId: string,
+  let testClientId: string,
 
   beforeAll(async () => {
     // Create test registry
@@ -46,7 +46,7 @@ describe("RLS Policy Verification", () => {
         email: `test_client_${Date.now()}@test.com`,
       })
       .returning();
-    testClientId = testClient.id;
+    testclientId = testClient.id;
   });
 
   describe("registry_permissions table", () => {

@@ -15,43 +15,43 @@ import {
 } from "lucide-react";
 
 interface Policy {
-  id: string;
-  policyNumber: string;
-  policyType: string;
-  insurerName: string;
+  id: string,
+  policyNumber: string,
+  policyType: string,
+  insurerName: string,
 }
 
 interface Beneficiary {
-  id: string;
-  firstName: string;
-  lastName: string;
-  relationship: string;
-  email: string;
-  phone: string;
-  dateOfBirth: string;
+  id: string,
+  firstName: string,
+  lastName: string,
+  relationship: string,
+  email: string,
+  phone: string,
+  dateOfBirth: string,
 }
 
 interface CurrentData {
   client: {
-    firstName: string;
-    lastName: string;
-    email: string;
-    phone: string;
-    dateOfBirth: string;
-    addressLine1: string;
-    addressLine2: string;
-    city: string;
-    state: string;
-    postalCode: string;
-    country: string;
+    firstName: string,
+    lastName: string,
+    email: string,
+    phone: string,
+    dateOfBirth: string,
+    addressLine1: string,
+    addressLine2: string,
+    city: string,
+    state: string,
+    postalCode: string,
+    country: string,
   };
   policies: Policy[];
   beneficiaries: Beneficiary[];
 }
 
 interface QRUpdateFormProps {
-  token: string;
-  clientId: string;
+  token: string,
+  clientId: string,
   currentData: CurrentData;
 }
 

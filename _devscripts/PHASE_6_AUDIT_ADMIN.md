@@ -213,9 +213,9 @@ SELECT
   al.timestamp,
   al.action,
   u.email as user_email,
-  u.first_name || ' ' || u.last_name as user_name,
+  u.firstName || ' ' || u.lastName as user_name,
   al.metadata,
-  rr.decedent_name
+  rr.decedentName
 FROM access_logs al
 LEFT JOIN users u ON al.user_id = u.id
 LEFT JOIN registry_records rr ON al.registry_id = rr.id

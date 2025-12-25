@@ -4,12 +4,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 type ExecResponse =
   | { ok: true; data: unknown; meta?: unknown }
-  | { ok: false; error: string; details?: unknown; meta?: unknown };
+  | { ok: false; error: string, details?: unknown; meta?: unknown };
 
 type HistoryItem = {
-  id: string;
+  id: string,
   ts: number;
-  cmd: string;
+  cmd: string,
   args: Record<string, unknown>;
   res?: ExecResponse;
 };
@@ -17,10 +17,10 @@ type HistoryItem = {
 type NLPlan = {
   cmd: string | null;
   args: Record<string, unknown>;
-  next: Array<{ cmd: string; args: Record<string, unknown> }>;
+  next: Array<{ cmd: string, args: Record<string, unknown> }>;
   requiresConfirm: boolean;
   confidence: number;
-  explanation: string;
+  explanation: string,
   safetyFlags: string[];
 };
 
@@ -28,14 +28,14 @@ type PlanResponse = {
   ok: true;
   data: {
     plan: NLPlan;
-    auditId: string;
+    auditId: string,
   };
 } | {
   ok: false;
-  error: string;
+  error: string,
 };
 
-const PRESETS: Array<{ cmd: string; args: Record<string, unknown> }> = [
+const PRESETS: Array<{ cmd: string, args: Record<string, unknown> }> = [
   { cmd: "help", args: {} },
   { cmd: "auth:whoami", args: {} },
   { cmd: "db:health", args: {} },

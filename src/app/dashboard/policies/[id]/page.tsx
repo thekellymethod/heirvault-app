@@ -6,11 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Plus, X, ArrowLeft, UserCheck, Users } from "lucide-react";
 
 type Attached = {
-  linkId: string;
-  attachedAt: string;
-  id: string;
-  firstName: string;
-  lastName: string;
+  linkId: string,
+  attachedAt: string,
+  id: string,
+  firstName: string,
+  lastName: string,
   relationship: string | null;
   email: string | null;
   phone: string | null;
@@ -18,30 +18,30 @@ type Attached = {
 };
 
 type Available = {
-  id: string;
-  firstName: string;
-  lastName: string;
+  id: string,
+  firstName: string,
+  lastName: string,
   relationship: string | null;
   email: string | null;
 };
 
 type PolicyInfo = {
-  id: string;
-  clientId: string;
+  id: string,
+  clientId: string,
   client: {
-    id: string;
-    firstName: string;
-    lastName: string;
+    id: string,
+    firstName: string,
+    lastName: string,
   };
   insurer: {
-    id: string;
-    name: string;
+    id: string,
+    name: string,
   };
   policyNumber: string | null;
   policyType: string | null;
 };
 
-export default function PolicyBeneficiariesPage() {
+export default function policy_beneficiariesPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const policyId = params.id;

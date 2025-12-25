@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 export const runtime = "nodejs";
 
 type Body = {
-  cmd: string;
+  cmd: string,
   args?: Record<string, unknown>;
 };
 
@@ -80,10 +80,10 @@ export async function POST(req: Request) {
   await prisma.audit_logs.create({
     data: {
       id: auditId,
-      user_id: actor.id,
+      userId: actor.id,
       action: "GLOBAL_POLICY_SEARCH_PERFORMED", // Use an existing enum value; add a dedicated one later.
       message: `AdminConsole cmd=${cmd}`,
-      created_at: new Date(),
+      createdAt: new Date(),
       // Optional: add org_id/client_id/policy_id if you want later
     },
   });

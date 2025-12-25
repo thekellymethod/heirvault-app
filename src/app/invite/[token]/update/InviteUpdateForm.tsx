@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button";
 import { FileText, QrCode, CheckCircle } from "lucide-react";
 
 interface Props {
-  token: string;
-  clientName: string;
+  token: string,
+  clientName: string,
 }
 
 export function InviteUpdateForm({ token, clientName }: Props) {

@@ -11,21 +11,21 @@ export async function GET(
     const { token } = await params;
 
     // Try to get or create test invite first
-    let invite = await getOrCreateTestInvite(token);
+    let invite: Awaited<ReturnType<typeof getOrCreateTestInvite>> | Awaited<ReturnType<typeof lookupClientInvite>> | null = await getOrCreateTestInvite(token);
 
     // If not a test code, do normal lookup
     if (!invite) {
       invite = await lookupClientInvite(token);
       
       // If we got the basic invite, fetch policies and beneficiaries separately using raw SQL
-      if (invite && invite.clientId) {
+      if (invite && typeof invite === "object" && invite !== null && "clientId" in invite) {
         try {
           const [policiesResult, beneficiariesResult] = await Promise.all([
             prisma.$queryRaw<Array<{
-              id: string;
+              id: string,
               policy_number: string | null;
               policy_type: string | null;
-              insurer_name: string;
+              insurer_name: string,
             }>>`
               SELECT 
                 p.id,
@@ -37,16 +37,16 @@ export async function GET(
               WHERE p.client_id = ${invite.clientId}
             `,
             prisma.$queryRaw<Array<{
-              id: string;
-              first_name: string;
-              last_name: string;
+              id: string,
+              firstName: string,
+              lastName: string,
               relationship: string | null;
               percentage: number | null;
             }>>`
               SELECT 
                 b.id,
-                b.first_name,
-                b.last_name,
+                b.firstName,
+                b.lastName,
                 b.relationship,
                 COALESCE(
                   (SELECT SUM(pb.share_percentage) 
@@ -59,8 +59,9 @@ export async function GET(
             `,
           ]);
           
-          invite.client = {
-            ...invite.client,
+          const inviteAny = invite as any;
+          inviteAny.client = {
+            ...inviteAny.client,
             policies: (policiesResult || []).map(p => ({
               id: p.id,
               policyNumber: p.policy_number,
@@ -71,8 +72,8 @@ export async function GET(
             })),
             beneficiaries: (beneficiariesResult || []).map(b => ({
               id: b.id,
-              firstName: b.first_name,
-              lastName: b.last_name,
+              firstName: b.firstName,
+              lastName: b.lastName,
               relationship: b.relationship,
               percentage: b.percentage,
             })),
@@ -81,8 +82,9 @@ export async function GET(
           const sqlErrorMessage = sqlError instanceof Error ? sqlError.message : "Unknown error";
           console.error("Client data: Failed to fetch policies/beneficiaries:", sqlErrorMessage);
           // Continue with empty arrays
-          invite.client = {
-            ...invite.client,
+          const inviteAny = invite as any;
+          inviteAny.client = {
+            ...inviteAny.client,
             policies: [],
             beneficiaries: [],
           };
@@ -97,16 +99,17 @@ export async function GET(
       );
     }
 
+    const inviteAny = invite as any;
     return NextResponse.json({
-      email: invite.client.email,
-      phone: invite.client.phone,
-      policies: invite.client.policies.map((p) => ({
+      email: inviteAny.client.email,
+      phone: inviteAny.client.phone,
+      policies: inviteAny.client.policies.map((p: any) => ({
         id: p.id,
         policyNumber: p.policyNumber,
         insurerName: p.insurer.name,
         policyType: p.policyType,
       })),
-      beneficiaries: invite.client.beneficiaries.map((b) => ({
+      beneficiaries: inviteAny.client.beneficiaries.map((b: any) => ({
         id: b.id,
         firstName: b.firstName,
         lastName: b.lastName,
@@ -114,10 +117,10 @@ export async function GET(
         percentage: b.percentage,
       })),
       address: {
-        street: invite.client.addressLine1 || "",
-        city: invite.client.city || "",
-        state: invite.client.state || "",
-        zipCode: invite.client.postalCode || "",
+        street: inviteAny.client.addressLine1 || "",
+        city: inviteAny.client.city || "",
+        state: inviteAny.client.state || "",
+        zipCode: inviteAny.client.postalCode || "",
       },
     });
   } catch (error: unknown) {

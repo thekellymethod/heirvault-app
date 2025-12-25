@@ -23,14 +23,14 @@ export async function GET(
 
     // Fetch receipt from database
     const receipt = await prisma.$queryRawUnsafe<Array<{
-      id: string;
-      receipt_number: string;
-      client_id: string;
+      id: string,
+      receipt_number: string,
+      clientId: string,
       submission_id: string | null;
-      created_at: Date;
+      createdAt: Date;
     }>>(`
       SELECT 
-        id, receipt_number, client_id, submission_id, created_at
+        id, receipt_number, client_id, submission_id, createdAt
       FROM receipts
       WHERE receipt_number = $1
       LIMIT 1
@@ -49,10 +49,10 @@ export async function GET(
     let submissionData: Record<string, unknown> | null = null;
     if (receiptData.submission_id) {
       const submission = await prisma.$queryRawUnsafe<Array<{
-        submitted_data: string;
-        created_at: Date;
+        submitted_data: string,
+        createdAt: Date;
       }>>(`
-        SELECT submitted_data, created_at
+        SELECT submitted_data, createdAt
         FROM submissions
         WHERE id = $1
         LIMIT 1
@@ -69,11 +69,11 @@ export async function GET(
 
     // Fetch client data
     const client = await prisma.$queryRawUnsafe<Array<{
-      first_name: string;
-      last_name: string;
-      email: string;
+      firstName: string,
+      lastName: string,
+      email: string,
     }>>(`
-      SELECT first_name, last_name, email
+      SELECT firstName, lastName, email
       FROM clients
       WHERE id = $1
       LIMIT 1
@@ -83,12 +83,12 @@ export async function GET(
     const policy = await prisma.$queryRawUnsafe<Array<{
       policy_number: string | null;
       policy_type: string | null;
-      insurer_id: string;
+      insurer_id: string,
     }>>(`
       SELECT policy_number, policy_type, insurer_id
       FROM policies
       WHERE client_id = $1
-      ORDER BY created_at DESC
+      ORDER BY createdAt DESC
       LIMIT 1
     `, receiptData.client_id);
 
@@ -96,7 +96,7 @@ export async function GET(
     let insurerName: string | null = null;
     if (policy && policy.length > 0 && policy[0].insurer_id) {
       const insurer = await prisma.$queryRawUnsafe<Array<{
-        name: string;
+        name: string,
       }>>(`
         SELECT name
         FROM insurers
@@ -111,8 +111,8 @@ export async function GET(
 
     // Extract data from submission or use database values
     const clientData = submissionData?.clientData || (client && client.length > 0 ? {
-      firstName: client[0].first_name,
-      lastName: client[0].last_name,
+      firstName: client[0].firstName,
+      lastName: client[0].lastName,
       email: client[0].email,
     } : null);
 
@@ -125,7 +125,7 @@ export async function GET(
     return NextResponse.json({
       success: true,
       receiptId: receiptData.receipt_number,
-      submittedAt: receiptData.created_at.toISOString(),
+      submittedAt: receiptData.createdAt.toISOString(),
       decedentName: clientData 
         ? `${clientData.firstName || ""} ${clientData.lastName || ""}`.trim() 
         : null,

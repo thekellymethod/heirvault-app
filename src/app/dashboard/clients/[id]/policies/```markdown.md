@@ -215,7 +215,7 @@
     │   │   ├── 📂 policies/
     │   │   │   └── 📂 [id]/
     │   │   │       ├── 📂 _components/
-    │   │   │       │   └── 📄 PolicyBeneficiariesManager.tsx
+    │   │   │       │   └── 📄 policy_beneficiariesManager.tsx
     │   │   │       └── 📄 page.tsx
     │   │   ├── 📂 policy-locator/
     │   │   │   ├── 📂 global/

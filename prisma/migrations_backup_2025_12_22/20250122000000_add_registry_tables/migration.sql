@@ -9,14 +9,14 @@ CREATE TYPE "AccessLogAction" AS ENUM ('VIEWED', 'CREATED', 'UPDATED', 'VERIFIED
 -- Registry records table - main registry table (registry-first design)
 CREATE TABLE "registry_records" (
   "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  "decedent_name" TEXT NOT NULL,
+  "decedentName" TEXT NOT NULL,
   "status" "RegistryStatus" NOT NULL DEFAULT 'PENDING_VERIFICATION',
-  "created_at" TIMESTAMP NOT NULL DEFAULT NOW()
+  "createdAt" TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX "registry_records_decedent_name_idx" ON "registry_records" ("decedent_name");
+CREATE INDEX "registry_records_decedentName_idx" ON "registry_records" ("decedentName");
 CREATE INDEX "registry_records_status_idx" ON "registry_records" ("status");
-CREATE INDEX "registry_records_created_at_idx" ON "registry_records" ("created_at");
+CREATE INDEX "registry_records_createdAt_idx" ON "registry_records" ("createdAt");
 
 -- Registry versions table - immutable versioned data (nothing updates in place)
 CREATE TABLE "registry_versions" (
@@ -25,12 +25,12 @@ CREATE TABLE "registry_versions" (
   "data_json" JSONB NOT NULL,
   "submitted_by" "RegistrySubmissionSource" NOT NULL,
   "hash" TEXT NOT NULL,
-  "created_at" TIMESTAMP NOT NULL DEFAULT NOW()
+  "createdAt" TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX "registry_versions_registry_id_idx" ON "registry_versions" ("registry_id");
 CREATE INDEX "registry_versions_hash_idx" ON "registry_versions" ("hash");
-CREATE INDEX "registry_versions_created_at_idx" ON "registry_versions" ("created_at");
+CREATE INDEX "registry_versions_createdAt_idx" ON "registry_versions" ("createdAt");
 CREATE INDEX "registry_versions_submitted_by_idx" ON "registry_versions" ("submitted_by");
 
 -- Access logs table - audit trail for registry access

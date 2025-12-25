@@ -179,7 +179,7 @@ export function RecordDetailView({
                           Version {index + 1} - {version.submitted_by}
                         </div>
                         <div className="text-sm text-slateui-500">
-                          {new Date(version.created_at).toLocaleString()}
+                          {new Date(version.createdAt).toLocaleString()}
                         </div>
                       </div>
                       <div className="text-xs text-slateui-500 font-mono">

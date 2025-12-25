@@ -15,7 +15,7 @@ export async function createInvite(
 
   const inviteId = randomUUID();
   await prisma.$executeRawUnsafe(
-    `INSERT INTO invites (id, token, attorney_id, organization_id, client_email, expires_at, status, created_at)
+    `INSERT INTO invites (id, token, attorney_id, organization_id, client_email, expires_at, status, createdAt)
      VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())`,
     inviteId,
     token,
@@ -52,17 +52,17 @@ export async function createInvite(
 export async function acceptInvite(token: string, userId: string) {
   // Get invite
   const inviteResult = await prisma.$queryRawUnsafe<Array<{
-    id: string;
-    token: string;
-    attorney_id: string;
+    id: string,
+    token: string,
+    attorney_id: string,
     organization_id: string | null;
-    client_email: string;
-    status: string;
+    client_email: string,
+    status: string,
     expires_at: Date;
     accepted_at: Date | null;
-    created_at: Date;
+    createdAt: Date;
   }>>(
-    `SELECT id, token, attorney_id, organization_id, client_email, status, expires_at, accepted_at, created_at
+    `SELECT id, token, attorney_id, organization_id, client_email, status, expires_at, accepted_at, createdAt
      FROM invites WHERE token = $1 LIMIT 1`,
     token
   );
@@ -81,7 +81,7 @@ export async function acceptInvite(token: string, userId: string) {
     status: inviteRow.status,
     expiresAt: inviteRow.expires_at,
     acceptedAt: inviteRow.accepted_at,
-    createdAt: inviteRow.created_at,
+    createdAt: inviteRow.createdAt,
   };
 
   if (invite.status !== 'pending') {
@@ -101,12 +101,12 @@ export async function acceptInvite(token: string, userId: string) {
 
   // Get user to link client record
   const userResult = await prisma.$queryRawUnsafe<Array<{
-    id: string;
-    email: string;
-    first_name: string | null;
-    last_name: string | null;
+    id: string,
+    email: string,
+    firstName: string | null;
+    lastName: string | null;
   }>>(
-    `SELECT id, email, first_name, last_name FROM users WHERE id = $1 LIMIT 1`,
+    `SELECT id, email, firstName, lastName FROM users WHERE id = $1 LIMIT 1`,
     userId
   );
 
@@ -117,27 +117,27 @@ export async function acceptInvite(token: string, userId: string) {
   const user = {
     id: userResult[0].id,
     email: userResult[0].email,
-    firstName: userResult[0].first_name,
-    lastName: userResult[0].last_name,
+    firstName: userResult[0].firstName,
+    lastName: userResult[0].lastName,
   };
 
   // Get or create client record
   const clientResult = await prisma.$queryRawUnsafe<Array<{
-    id: string;
-    email: string;
-    first_name: string;
-    last_name: string;
+    id: string,
+    email: string,
+    firstName: string,
+    lastName: string,
     user_id: string | null;
   }>>(
-    `SELECT id, email, first_name, last_name, user_id FROM clients WHERE email = $1 LIMIT 1`,
+    `SELECT id, email, firstName, lastName, user_id FROM clients WHERE email = $1 LIMIT 1`,
     invite.clientEmail
   );
 
   let client: {
-    id: string;
-    email: string;
-    firstName: string;
-    lastName: string;
+    id: string,
+    email: string,
+    firstName: string,
+    lastName: string,
     userId: string | null;
   };
 
@@ -145,7 +145,7 @@ export async function acceptInvite(token: string, userId: string) {
     // Create client record
     const clientId = randomUUID();
     await prisma.$executeRawUnsafe(
-      `INSERT INTO clients (id, email, first_name, last_name, user_id, created_at, updated_at)
+      `INSERT INTO clients (id, email, firstName, lastName, user_id, createdAt, updated_at)
        VALUES ($1, $2, $3, $4, $5, NOW(), NOW())`,
       clientId,
       invite.clientEmail,
@@ -165,8 +165,8 @@ export async function acceptInvite(token: string, userId: string) {
     client = {
       id: clientRow.id,
       email: clientRow.email,
-      firstName: clientRow.first_name,
-      lastName: clientRow.last_name,
+      firstName: clientRow.firstName,
+      lastName: clientRow.lastName,
       userId: clientRow.user_id,
     };
 
@@ -185,7 +185,7 @@ export async function acceptInvite(token: string, userId: string) {
   try {
     const accessId = randomUUID();
     await prisma.$executeRawUnsafe(
-      `INSERT INTO attorney_client_access (id, attorney_id, client_id, organization_id, is_active, granted_at)
+      `INSERT INTO attorneyClientAccess (id, attorney_id, client_id, organization_id, is_active, granted_at)
        VALUES ($1, $2, $3, $4, $5, NOW())`,
       accessId,
       invite.attorneyId,
@@ -197,13 +197,13 @@ export async function acceptInvite(token: string, userId: string) {
     // May already exist, check if active
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     const existingResult = await prisma.$queryRawUnsafe<Array<{
-      id: string;
-      attorney_id: string;
-      client_id: string;
+      id: string,
+      attorney_id: string,
+      clientId:string,
       is_active: boolean;
     }>>(
       `SELECT id, attorney_id, client_id, is_active
-       FROM attorney_client_access
+       FROM attorneyClientAccess
        WHERE attorney_id = $1 AND client_id = $2
        LIMIT 1`,
       invite.attorneyId,
@@ -221,7 +221,7 @@ export async function acceptInvite(token: string, userId: string) {
       // Update to active if exists but inactive
       if (existing) {
         await prisma.$executeRawUnsafe(
-          `UPDATE attorney_client_access SET is_active = $1, revoked_at = NULL WHERE id = $2`,
+          `UPDATE attorneyClientAccess SET is_active = $1, revoked_at = NULL WHERE id = $2`,
           true,
           existing.id
         );

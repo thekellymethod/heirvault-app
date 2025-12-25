@@ -38,9 +38,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   // Check if old token is expired
   const isExpired = oldToken.expiresAt && oldToken.expiresAt < new Date();
   
-  // If expired, set new token expiry to null (no expiry) to prevent inheriting past date
-  // Otherwise, copy the expiry from the old token
-  const newExpiresAt = isExpired ? null : oldToken.expiresAt;
+  // If expired, set new token expiry to undefined (no expiry) to prevent inheriting past date
+  // Otherwise, copy the expiry from the old token (convert null to undefined)
+  const newExpiresAt = isExpired ? undefined : (oldToken.expiresAt ?? undefined);
 
   // Create new token with same scopes and name (with " (rotated)" suffix)
   const { token, record: newToken } = await createApiToken({
@@ -54,10 +54,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   await prisma.audit_logs.create({
     data: {
       id: crypto.randomUUID(),
-      user_id: actor.id,
+      userId: actor.id,
       action: "API_TOKEN_ROTATED",
       message: `API token rotated: oldTokenId=${id}, newTokenId=${newToken.id}, name=${oldToken.name}${isExpired ? " (expired token, new token has no expiry)" : ""}`,
-      created_at: new Date(),
+      createdAt: new Date(),
     },
   });
 

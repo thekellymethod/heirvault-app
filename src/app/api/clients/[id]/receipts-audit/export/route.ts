@@ -20,13 +20,13 @@ export async function GET(
 
     // Get client info
     const clientData = await prisma.$queryRawUnsafe<Array<{
-      id: string;
-      first_name: string;
-      last_name: string;
-      email: string;
-      created_at: Date;
+      id: string,
+      firstName: string,
+      lastName: string,
+      email: string,
+      createdAt: Date;
     }>>(`
-      SELECT id, first_name, last_name, email, created_at
+      SELECT id, firstName, lastName, email, createdAt
       FROM clients
       WHERE id = $1
       LIMIT 1
@@ -40,50 +40,50 @@ export async function GET(
 
     // Get all receipts
     const receipts = await prisma.$queryRawUnsafe<Array<{
-      receipt_number: string;
-      created_at: Date;
+      receipt_number: string,
+      createdAt: Date;
       email_sent: boolean;
       email_sent_at: Date | null;
     }>>(`
-      SELECT receipt_number, created_at, email_sent, email_sent_at
+      SELECT receipt_number, createdAt, email_sent, email_sent_at
       FROM receipts
       WHERE client_id = $1
-      ORDER BY created_at DESC
+      ORDER BY createdAt DESC
     `, clientId);
 
     // Get all audit logs
     const auditLogs = await prisma.$queryRawUnsafe<Array<{
-      action: string;
-      message: string;
-      created_at: Date;
+      action: string,
+      message: string,
+      createdAt: Date;
       user_email: string | null;
-      user_first_name: string | null;
-      user_last_name: string | null;
+      user_firstName: string | null;
+      user_lastName: string | null;
     }>>(`
       SELECT 
         al.action,
         al.message,
-        al.created_at,
+        al.createdAt,
         u.email as user_email,
-        u.first_name as user_first_name,
-        u.last_name as user_last_name
+        u.firstName as user_firstName,
+        u.lastName as user_lastName
       FROM audit_logs al
       LEFT JOIN users u ON u.id = al.user_id
       WHERE al.client_id = $1
-      ORDER BY al.created_at DESC
+      ORDER BY al.createdAt DESC
       LIMIT 1000
     `, clientId);
 
     const reportData = {
       client: {
         id: client.id,
-        name: `${client.first_name} ${client.last_name}`,
+        name: `${client.firstName} ${client.lastName}`,
         email: client.email,
-        createdAt: client.created_at,
+        createdAt: client.createdAt,
       },
       receipts: receipts.map(r => ({
         receiptNumber: r.receipt_number,
-        createdAt: r.created_at,
+        createdAt: r.createdAt,
         emailSent: r.email_sent,
         emailSentAt: r.email_sent_at,
       })),
@@ -91,10 +91,10 @@ export async function GET(
         action: log.action,
         message: log.message,
         actor: log.user_email 
-          ? `${log.user_first_name || ""} ${log.user_last_name || ""}`.trim() || log.user_email
+          ? `${log.user_firstName || ""} ${log.user_lastName || ""}`.trim() || log.user_email
           : "System",
         actorEmail: log.user_email,
-        timestamp: log.created_at,
+        timestamp: log.createdAt,
       })),
       generatedAt: new Date(),
     };

@@ -6,7 +6,7 @@ import { getCurrentUserWithOrg } from '@/lib/authz'
 
 export async function POST(request: NextRequest) {
   try {
-    const user = await requireAuth('attorney')
+    const user = await requireAuth()
     const body = await request.json()
 
     const { clientEmail } = body
@@ -15,7 +15,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Client email is required' }, { status: 400 })
     }
 
-    const organizationId = user.orgMemberships[0]?.organizationId || null
+    const { orgMember } = await getCurrentUserWithOrg()
+    const organizationId = orgMember?.organizationId || null
 
     const invite = await createInvite(
       user.id,
@@ -25,7 +26,6 @@ export async function POST(request: NextRequest) {
 
     // Send invite email
     try {
-      const { orgMember } = await getCurrentUserWithOrg()
       const baseUrl = process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin
       const inviteUrl = `${baseUrl}/invite/${invite.token}`
       const firmName = orgMember?.organizations?.name || undefined

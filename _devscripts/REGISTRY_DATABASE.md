@@ -169,10 +169,10 @@ type RegistryWithVersions = RegistryRecord & {
 // Registry version with documents
 type RegistryVersionWithDocuments = RegistryVersion & {
   documents: Array<{
-    id: string;
-    fileName: string;
-    filePath: string;
-    documentHash: string;
+    id: string,
+    fileName: string,
+    filePath: string,
+    documentHash: string,
     createdAt: Date;
   }>;
 };

@@ -20,7 +20,9 @@ export async function POST(req: Request) {
     const registry = await getRegistryById(registryId);
     if (!registry) return NextResponse.json({ error: "registry_not_found" }, { status: 404 });
 
-    const insured_name = String(form.get("insured_name") ?? registry.decedentName).trim();
+    const insured_name = String(form.get("insured_name") ?? ("decedentName" in registry 
+      ? (registry.decedentName as string)
+      : (registry.decedentName as string))).trim();
     const carrier_guess = String(form.get("carrier_guess") ?? "").trim() || null;
 
     const policyholder_name = String(form.get("policyholder_name") ?? "").trim();
@@ -81,7 +83,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       receiptId: version.id,
       registryId,
-      createdAt: version.created_at,
+      createdAt: version.createdAt,
       confirmationMessage: "Update recorded successfully.",
     });
   } catch (e: unknown) {

@@ -11,9 +11,9 @@ import { db, clients, beneficiaries, attorneyClientAccess, users, orgMembers, or
 import { eq } from "@/lib/db";
 import { randomUUID } from "crypto";
 
-let testClientId: string;
-let testAttorneyId: string;
-let testOrgId: string;
+let testClientId: string,
+let testAttorneyId: string,
+let testOrgId: string,
 
 describe("Beneficiary API Integration Tests", () => {
   beforeAll(async () => {
@@ -52,7 +52,7 @@ describe("Beneficiary API Integration Tests", () => {
         email: `test_client_beneficiaries_${Date.now()}@test.com`,
       })
       .returning();
-    testClientId = testClient.id;
+    testclientId = testClient.id;
 
     await db.insert(attorneyClientAccess)
       .values({

@@ -25,24 +25,24 @@ export async function POST(req: NextRequest) {
 
     // Look up the invite
     let invite: {
-      id: string;
-      client_id: string;
-      token: string;
-      email: string;
+      id: string,
+      clientId: string,
+      token: string,
+      email: string,
       expires_at: Date;
       used_at: Date | null;
-      created_at: Date;
+      createdAt: Date;
     } | null = null;
 
     try {
       const inviteResult = await prisma.$queryRawUnsafe<Array<{
-        id: string;
-        client_id: string;
-        token: string;
-        email: string;
+        id: string,
+        clientId: string,
+        token: string,
+        email: string,
         expires_at: Date;
         used_at: Date | null;
-        created_at: Date;
+        createdAt: Date;
       }>>(`
         SELECT 
           id,
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
           email,
           expires_at,
           used_at,
-          created_at
+          createdAt
         FROM client_invites
         WHERE token = $1
         LIMIT 1

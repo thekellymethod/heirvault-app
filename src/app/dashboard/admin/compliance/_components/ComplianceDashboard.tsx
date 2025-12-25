@@ -27,29 +27,29 @@ type UsageStats = {
 };
 
 type ComplianceRule = {
-  id: string;
-  name: string;
-  description: string;
+  id: string,
+  name: string,
+  description: string,
   status: "active" | "inactive";
-  lastUpdated: string;
+  lastUpdated: string,
 };
 
 type AttorneyCredential = {
-  id: string;
-  email: string;
-  name: string;
+  id: string,
+  email: string,
+  name: string,
   barNumber: string | null;
   status: "verified" | "pending" | "revoked";
   lastVerified: string | null;
 };
 
 type TakedownRequest = {
-  id: string;
+  id: string,
   type: "client" | "policy" | "document";
-  entityId: string;
-  reason: string;
-  requestedBy: string;
-  requestedAt: string;
+  entityId: string,
+  reason: string,
+  requestedBy: string,
+  requestedAt: string,
   status: "pending" | "approved" | "rejected";
 };
 

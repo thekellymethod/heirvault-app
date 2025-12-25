@@ -19,11 +19,11 @@ export async function GET(req: NextRequest) {
 
     // Search invitation codes by token, email, or client name
     let invites: Array<{
-      id: string;
-      token: string;
-      clientId: string;
-      clientName: string;
-      email: string;
+      id: string,
+      token: string,
+      clientId: string,
+      clientName: string,
+      email: string,
       phone: string | null;
       expiresAt: Date;
       usedAt: Date | null;
@@ -38,15 +38,15 @@ export async function GET(req: NextRequest) {
         const archivedClause = archived ? "AND ci.used_at IS NOT NULL" : "";
         
         const invitesResult = await prisma.$queryRawUnsafe<Array<{
-          id: string;
-          client_id: string;
-          token: string;
-          email: string;
+          id: string,
+          clientId: string,
+          token: string,
+          email: string,
           expires_at: Date;
           used_at: Date | null;
-          created_at: Date;
-          first_name: string;
-          last_name: string;
+          createdAt: Date;
+          firstName: string,
+          lastName: string,
           phone: string | null;
         }>>(`
           SELECT 
@@ -56,19 +56,19 @@ export async function GET(req: NextRequest) {
             ci.email,
             ci.expires_at,
             ci.used_at,
-            ci.created_at,
-            c.first_name,
-            c.last_name,
+            ci.createdAt,
+            c.firstName,
+            c.lastName,
             c.phone
           FROM client_invites ci
           INNER JOIN clients c ON c.id = ci.client_id
           WHERE 
             (LOWER(ci.token) LIKE LOWER($1) OR
              LOWER(ci.email) LIKE LOWER($1) OR
-             LOWER(c.first_name) LIKE LOWER($1) OR
-             LOWER(c.last_name) LIKE LOWER($1))
+             LOWER(c.firstName) LIKE LOWER($1) OR
+             LOWER(c.lastName) LIKE LOWER($1))
             ${archivedClause}
-          ORDER BY ci.created_at DESC
+          ORDER BY ci.createdAt DESC
           LIMIT $2
           OFFSET $3
         `, searchPattern, limit, offset);
@@ -77,12 +77,12 @@ export async function GET(req: NextRequest) {
           id: row.id,
           token: row.token,
           clientId: row.client_id,
-          clientName: `${row.first_name} ${row.last_name}`,
+          clientName: `${row.firstName} ${row.lastName}`,
           email: row.email,
           phone: row.phone,
           expiresAt: row.expires_at,
           usedAt: row.used_at,
-          createdAt: row.created_at,
+          createdAt: row.createdAt,
           isArchived: row.used_at !== null,
           isExpired: new Date(row.expires_at) < new Date(),
         }));
@@ -90,15 +90,15 @@ export async function GET(req: NextRequest) {
         // Get all invites if no search query
         const archivedClause = archived ? "WHERE ci.used_at IS NOT NULL" : "";
         const invitesResult = await prisma.$queryRawUnsafe<Array<{
-          id: string;
-          client_id: string;
-          token: string;
-          email: string;
+          id: string,
+          clientId: string,
+          token: string,
+          email: string,
           expires_at: Date;
           used_at: Date | null;
-          created_at: Date;
-          first_name: string;
-          last_name: string;
+          createdAt: Date;
+          firstName: string,
+          lastName: string,
           phone: string | null;
         }>>(`
           SELECT 
@@ -108,14 +108,14 @@ export async function GET(req: NextRequest) {
             ci.email,
             ci.expires_at,
             ci.used_at,
-            ci.created_at,
-            c.first_name,
-            c.last_name,
+            ci.createdAt,
+            c.firstName,
+            c.lastName,
             c.phone
           FROM client_invites ci
           INNER JOIN clients c ON c.id = ci.client_id
           ${archivedClause}
-          ORDER BY ci.created_at DESC
+          ORDER BY ci.createdAt DESC
           LIMIT $1
           OFFSET $2
         `, limit, offset);
@@ -124,12 +124,12 @@ export async function GET(req: NextRequest) {
           id: row.id,
           token: row.token,
           clientId: row.client_id,
-          clientName: `${row.first_name} ${row.last_name}`,
+          clientName: `${row.firstName} ${row.lastName}`,
           email: row.email,
           phone: row.phone,
           expiresAt: row.expires_at,
           usedAt: row.used_at,
-          createdAt: row.created_at,
+          createdAt: row.createdAt,
           isArchived: row.used_at !== null,
           isExpired: new Date(row.expires_at) < new Date(),
         }));

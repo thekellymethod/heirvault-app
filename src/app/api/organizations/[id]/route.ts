@@ -55,33 +55,19 @@ export async function PUT(req: NextRequest, { params }: Params) {
       where: { id },
       data: {
         name,
-        address_line1: addressLine1 || null,
-        address_line2: addressLine2 || null,
+        addressLine1: addressLine1 || null,
+        addressLine2: addressLine2 || null,
         city: city || null,
         state: state || null,
-        postal_code: postalCode || null,
+        postalCode: postalCode || null,
         country: country || null,
         phone: phone || null,
-        logo_url: logoUrl || null,
+        logoUrl: logoUrl || null,
       },
     });
 
-    // Map snake_case to camelCase
-    const organization = {
-      id: updated.id,
-      name: updated.name,
-      slug: updated.slug,
-      addressLine1: updated.address_line1,
-      addressLine2: updated.address_line2,
-      city: updated.city,
-      state: updated.state,
-      postalCode: updated.postal_code,
-      country: updated.country,
-      phone: updated.phone,
-      logoUrl: updated.logo_url,
-      createdAt: updated.created_at,
-      updatedAt: updated.updated_at,
-    };
+    // Return directly - Prisma now uses camelCase
+    const organization = updated;
 
     if (!organization) {
       return NextResponse.json({ error: "Failed to update organization" }, { status: 500 });
@@ -130,7 +116,7 @@ export async function DELETE(req: NextRequest, { params }: Params) {
 
     // Check if organization has members (besides the current user)
     const memberCount = await prisma.org_members.count({
-      where: { organization_id: id },
+      where: { organizationId: id },
     });
 
     // Warn if there are other members (optional - you can make this a hard requirement)

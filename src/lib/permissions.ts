@@ -41,7 +41,7 @@ export async function canAccessRegistry({
   registryId,
 }: {
   user: User;
-  registryId: string;
+  registryId: string,
 }): Promise<boolean> {
   // ADMIN can access all registries - check roles array
   const { hasAdminRole } = await import("@/lib/auth/admin-bypass");
@@ -94,7 +94,7 @@ export async function requireAccessRegistry({
   registryId,
 }: {
   user: User;
-  registryId: string;
+  registryId: string,
 }): Promise<void> {
   const hasAccess = await canAccessRegistry({ user, registryId });
   

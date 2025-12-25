@@ -7,13 +7,13 @@ import Link from "next/link";
 import { CheckCircle, Copy, ExternalLink } from "lucide-react";
 
 interface InviteData {
-  inviteId: string;
-  inviteUrl: string;
-  token: string;
-  expiresAt: string;
-  clientId: string;
-  email: string;
-  clientName?: string;
+  inviteId: string,
+  inviteUrl: string,
+  token: string,
+  expiresAt: string,
+  clientId: string,
+  email: string,
+  clientName?: string,
 }
 
 export default function CreateTestInvitePage() {

@@ -16,10 +16,10 @@ export type { EmailSendArgs, EmailAttachment } from "./email/send";
 
 // Export all email notification functions directly
 export async function sendClientInviteEmail(opts: {
-  to: string;
-  clientName: string;
-  firmName?: string;
-  inviteUrl: string;
+  to: string,
+  clientName: string,
+  firmName?: string,
+  inviteUrl: string,
 }) {
   return sendEmail({
     to: opts.to,
@@ -30,11 +30,11 @@ export async function sendClientInviteEmail(opts: {
 }
 
 export async function sendClientReceiptEmail(opts: {
-  to: string;
-  clientName: string;
-  receiptId: string;
+  to: string,
+  clientName: string,
+  receiptId: string,
   receiptPdf: Buffer;
-  firmName?: string;
+  firmName?: string,
 }) {
   return sendEmail({
     to: opts.to,
@@ -75,14 +75,14 @@ export async function sendClientReceiptEmail(opts: {
 }
 
 export async function sendAttorneyNotificationEmail(opts: {
-  to: string;
-  attorneyName: string;
-  clientName: string;
-  receiptId: string;
+  to: string,
+  attorneyName: string,
+  clientName: string,
+  receiptId: string,
   policiesCount: number;
-  updateUrl: string;
-  firmName?: string;
-  qrCodeImage?: string;
+  updateUrl: string,
+  firmName?: string,
+  qrCodeImage?: string,
 }) {
   return sendEmail({
     to: opts.to,
@@ -93,13 +93,13 @@ export async function sendAttorneyNotificationEmail(opts: {
 }
 
 export async function sendPolicyAddedEmail(opts: {
-  to: string;
-  clientName: string;
-  insurerName: string;
-  policyNumber?: string;
-  policyType?: string;
-  firmName?: string;
-  dashboardUrl: string;
+  to: string,
+  clientName: string,
+  insurerName: string,
+  policyNumber?: string,
+  policyType?: string,
+  firmName?: string,
+  dashboardUrl: string,
 }) {
   return sendEmail({
     to: opts.to,
@@ -110,11 +110,11 @@ export async function sendPolicyAddedEmail(opts: {
 }
 
 export async function sendAccessGrantedEmail(opts: {
-  to: string;
-  attorneyName: string;
-  clientName: string;
-  firmName?: string;
-  dashboardUrl: string;
+  to: string,
+  attorneyName: string,
+  clientName: string,
+  firmName?: string,
+  dashboardUrl: string,
 }) {
   return sendEmail({
     to: opts.to,

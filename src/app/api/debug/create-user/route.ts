@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
           email,
           firstName,
           lastName,
-          role: clerkRole || existing.role || "attorney",
+          role: (clerkRole === "attorney" ? "attorney" : existing.role) || "attorney",
         },
       });
       return NextResponse.json({ 
@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
           email,
           firstName,
           lastName,
-          role: clerkRole || "attorney",
+          role: "attorney",
         },
       });
       return NextResponse.json({ 

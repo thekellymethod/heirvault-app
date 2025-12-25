@@ -202,10 +202,10 @@ curl -X POST http://localhost:3000/api/records \
 
 ```sql
 -- Check that old versions remain intact
-SELECT id, created_at, data_json->>'decedentName' as decedent_name
+SELECT id, createdAt, data_json->>'decedentName' as decedentName
 FROM registry_versions
 WHERE registry_id = 'your-registry-id'
-ORDER BY created_at DESC;
+ORDER BY createdAt DESC;
 
 -- Should show all versions, oldest to newest
 -- Each version should have different data

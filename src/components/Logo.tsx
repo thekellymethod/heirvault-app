@@ -3,10 +3,10 @@ import Image from "next/image";
 import Link from "next/link";
 
 interface LogoProps {
-  className?: string;
+  className?: string,
   showTagline?: boolean;
   size?: "sm" | "md" | "lg";
-  href?: string;
+  href?: string,
 }
 
 export function Logo({ className = "", showTagline = false, size = "md", href = "/" }: LogoProps) {

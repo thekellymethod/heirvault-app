@@ -43,6 +43,6 @@ CREATE INDEX IF NOT EXISTS "documents_document_hash_idx" ON "documents"("documen
 -- Update existing documents to have a hash (if they don't have one)
 -- Note: This sets a placeholder - actual hashes should be computed from file content
 UPDATE "documents" 
-SET "document_hash" = encode(sha256(("id" || "file_name" || "created_at"::text)::bytea), 'hex')
+SET "document_hash" = encode(sha256(("id" || "file_name" || "createdAt"::text)::bytea), 'hex')
 WHERE "document_hash" = '' OR "document_hash" IS NULL;
 

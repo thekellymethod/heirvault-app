@@ -10,8 +10,8 @@ export async function assertCanCreateClient() {
   }
 
   const orgResult = await prisma.$queryRawUnsafe<Array<{
-    id: string;
-    billing_plan: string;
+    id: string,
+    billing_plan: string,
     client_count: number;
   }>>(
     `SELECT 
@@ -46,7 +46,7 @@ export async function assertCanCreateClient() {
   }
 
   if (clientCount >= limit) {
-    const err = new Error("Client limit reached") as Error & { code?: string; limit?: number };
+    const err = new Error("Client limit reached") as Error & { code?: string, limit?: number };
     err.code = "PLAN_LIMIT";
     err.limit = limit;
     throw err;

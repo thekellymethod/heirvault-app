@@ -10,9 +10,9 @@ type PrismaTransactionClient = Omit<typeof prisma, "$connect" | "$disconnect" | 
 // If your guards return this shape already, keep it.
 // Otherwise adjust fields to match your AppUser type.
 export type AdminActor = {
-  id: string;       // Prisma User.id
-  clerkId?: string; // Clerk user id (optional - not present for API token auth)
-  email: string;
+  id: string,       // Prisma User.id
+  clerkId?: string, // Clerk user id (optional - not present for API token auth)
+  email: string,
   roles: string[];
 };
 
@@ -22,13 +22,13 @@ export type ConsoleContext = {
 
 export type ConsoleResult =
   | { ok: true; data: unknown }
-  | { ok: false; error: string; details?: unknown };
+  | { ok: false; error: string, details?: unknown };
 
 export type CommandDef = {
-  id: string;
-  title: string;
-  description: string;
-  usage: string;
+  id: string,
+  title: string,
+  description: string,
+  usage: string,
   // args is always an object; UI sends JSON-ish.
   handler: (ctx: ConsoleContext, args: Record<string, unknown>) => Promise<ConsoleResult>;
 };
@@ -120,10 +120,10 @@ export const COMMANDS: CommandDef[] = [
     handler: async (_ctx, args) => {
       const limit = Math.min(Math.max(args?.limit ? requireNumber(args, "limit") : 25, 1), 200);
       type MigrationRow = {
-        id: string;
-        checksum: string;
+        id: string,
+        checksum: string,
         finished_at: Date | null;
-        migration_name: string;
+        migration_name: string,
         logs: string | null;
         applied_steps_count: number;
       };
@@ -210,7 +210,7 @@ export const COMMANDS: CommandDef[] = [
             user_id: ctx.actor.id,
             action: "INVITE_ACCEPTED", // If you want a dedicated action, add it to enum later.
             message: `Admin console verified attorney userId=${userId}`,
-            created_at: new Date(),
+            createdAt: new Date(),
           },
         });
 
@@ -259,7 +259,7 @@ export const COMMANDS: CommandDef[] = [
             user_id: ctx.actor.id,
             action: "INVITE_ACCEPTED",
             message: `Admin console revoked attorney userId=${userId}`,
-            created_at: new Date(),
+            createdAt: new Date(),
           },
         });
 
@@ -279,7 +279,7 @@ export const COMMANDS: CommandDef[] = [
       const limit = Math.min(Math.max(args?.limit ? requireNumber(args, "limit") : 50, 1), 200);
       const rows = await prisma.audit_logs.findMany({
         take: limit,
-        orderBy: { created_at: "desc" },
+        orderBy: { createdAt: "desc" },
       });
       return { ok: true, data: rows };
     },
@@ -343,10 +343,10 @@ export const COMMANDS: CommandDef[] = [
       }
 
       type OrgMemberWithOrg = {
-        organizationId?: string;
+        organizationId?: string,
         organizations?: {
-          id?: string;
-          name?: string;
+          id?: string,
+          name?: string,
         };
       };
       const orgMemberWithOrg = orgMember as OrgMemberWithOrg;
@@ -372,10 +372,10 @@ export const COMMANDS: CommandDef[] = [
           dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
         });
 
-        const existingClientId = await findClientByFingerprint(fingerprint, prisma);
+        const existingclientId = await findClientByFingerprint(fingerprint, prisma);
         if (existingClientId) {
           const existing = await prisma.clients.findFirst({
-            where: { id: existingClientId },
+            where: { id: existingclientId },
           });
           if (existing) client = existing;
         }
@@ -393,13 +393,13 @@ export const COMMANDS: CommandDef[] = [
             data: {
               id: clientId,
               email,
-              first_name: firstName,
-              last_name: lastName,
+              firstName: firstName,
+              lastName: lastName,
               phone: phone || null,
-              date_of_birth: dateOfBirthValue,
+              dateOfBirth: dateOfBirthValue,
               org_id: organizationId,
               client_fingerprint: fingerprint,
-              created_at: now,
+              createdAt: now,
               updated_at: now,
             },
           });
@@ -409,11 +409,11 @@ export const COMMANDS: CommandDef[] = [
 
       // Grant attorney access
       try {
-        await prisma.attorney_client_access.create({
+        await prisma.attorneyClientAccess.create({
           data: {
             id: randomUUID(),
             attorney_id: ctx.actor.id,
-            client_id: client.id,
+            clientId:client.id,
             organization_id: organizationId,
             is_active: true,
             granted_at: new Date(),
@@ -431,12 +431,12 @@ export const COMMANDS: CommandDef[] = [
       const invite = await prisma.client_invites.create({
         data: {
           id: randomUUID(),
-          client_id: client.id,
+          clientId:client.id,
           email,
           token,
           expires_at: expiresAt,
           invited_by_user_id: ctx.actor.id,
-          created_at: new Date(),
+          createdAt: new Date(),
           updated_at: new Date(),
         },
       });
@@ -448,7 +448,7 @@ export const COMMANDS: CommandDef[] = [
       try {
         await sendClientInviteEmail({
           to: email,
-          clientName: `${client.first_name} ${client.last_name}`,
+          clientName: `${client.firstName} ${client.lastName}`,
           firmName: organizationName,
           inviteUrl,
         });
@@ -465,7 +465,7 @@ export const COMMANDS: CommandDef[] = [
           user_id: ctx.actor.id,
           action: "INVITE_CREATED",
           message: `Admin console sent client invitation to ${email}`,
-          created_at: new Date(),
+          createdAt: new Date(),
         },
       });
 
@@ -475,8 +475,8 @@ export const COMMANDS: CommandDef[] = [
           client: {
             id: client.id,
             email: client.email,
-            firstName: client.first_name,
-            lastName: client.last_name,
+            firstName: client.firstName,
+            lastName: client.lastName,
           },
           invite: {
             id: invite.id,
@@ -560,13 +560,13 @@ export const COMMANDS: CommandDef[] = [
       const policy = await prisma.policies.create({
         data: {
           id: policyId,
-          client_id: clientId,
+          clientId:clientId,
           insurer_id: resolvedInsurerId,
           carrier_name_raw: resolvedCarrierNameRaw,
           carrier_confidence: null,
           policy_number: policyNumber || null,
           policy_type: policyType || null,
-          created_at: now,
+          createdAt: now,
           updated_at: now,
         },
       });

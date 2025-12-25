@@ -6,13 +6,13 @@ import { createHash } from "crypto";
  * Used for legal defensibility in disputes, compliance audits, and court proceedings.
  */
 export function generateAuditHash(entry: {
-  id: string;
-  action: string;
-  message: string;
+  id: string,
+  action: string,
+  message: string,
   userId: string | null;
   clientId: string | null;
   policyId: string | null;
-  createdAt: Date | string;
+  createdAt: Date | string,
   orgId: string | null;
 }): string {
   // Create a deterministic string representation of the audit entry
@@ -37,10 +37,10 @@ export function generateAuditHash(entry: {
  * Generate a hash for a receipt to prove its integrity.
  */
 export function generateReceiptHash(receipt: {
-  receiptId: string;
-  clientId: string;
-  createdAt: Date | string;
-  policies: Array<{ id: string; policyNumber: string | null }>;
+  receiptId: string,
+  clientId: string,
+  createdAt: Date | string,
+  policies: Array<{ id: string, policyNumber: string | null }>;
 }): string {
   const data = JSON.stringify({
     receiptId: receipt.receiptId,
@@ -62,9 +62,9 @@ export function generateReceiptHash(receipt: {
  * This creates an immutable chain of events.
  */
 export function generateChainHash(previousHash: string | null, currentEntry: {
-  id: string;
-  action: string;
-  createdAt: Date | string;
+  id: string,
+  action: string,
+  createdAt: Date | string,
 }): string {
   const currentData = JSON.stringify({
     id: currentEntry.id,

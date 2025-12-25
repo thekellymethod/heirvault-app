@@ -137,7 +137,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 - `organizations` - Law firms
 - `org_members` - Links users to organizations
 - `clients` - Client records
-- `attorney_client_access` - Access control
+- `attorneyClientAccess` - Access control
 - `invites` - Invitation system
 - `insurers` - Insurance companies
 - `policies` - Insurance policies (no amounts)
