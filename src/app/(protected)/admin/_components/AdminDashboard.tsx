@@ -133,7 +133,12 @@ export function AdminDashboard({ admin: _admin }: AdminDashboardProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeTab, statusFilter]);
+
+  // Load data based on active tab
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const handleApproveRequest = async (requestId: string, action: "APPROVE" | "REJECT", reason?: string) => {
     setLoading(true);
