@@ -34,7 +34,7 @@ export function DashboardView({ registries }: DashboardViewProps) {
         return "bg-green-100 text-green-800";
       case "PENDING_VERIFICATION":
         return "bg-yellow-100 text-yellow-800";
-      case "DISCREPANCY":
+      case "DISPUTED":
         return "bg-red-100 text-red-800";
       case "ARCHIVED":
         return "bg-gray-100 text-gray-800";
@@ -50,7 +50,7 @@ export function DashboardView({ registries }: DashboardViewProps) {
         return <CheckCircle className="h-4 w-4" />;
       case "PENDING_VERIFICATION":
         return <Clock className="h-4 w-4" />;
-      case "DISCREPANCY":
+      case "DISPUTED":
         return <AlertCircle className="h-4 w-4" />;
       default:
         return <FileText className="h-4 w-4" />;
@@ -89,9 +89,9 @@ export function DashboardView({ registries }: DashboardViewProps) {
             </div>
           </div>
           <div className="card p-4">
-            <div className="text-sm font-medium text-slateui-600 mb-1">Discrepancy</div>
+            <div className="text-sm font-medium text-slateui-600 mb-1">Disputed</div>
             <div className="text-2xl font-bold text-red-600">
-              {registries.filter((r) => r.status === "DISCREPANCY").length}
+              {registries.filter((r) => r.status === "DISPUTED").length}
             </div>
           </div>
         </div>
