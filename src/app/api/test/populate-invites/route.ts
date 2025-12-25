@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { randomUUID } from "crypto";
 
 const testClients = [
   { email: "test1@example.com", firstName: "John", lastName: "Doe", token: "TEST-CODE-001" },
@@ -14,22 +15,27 @@ async function populateInvites(baseUrl: string) {
 
   for (const clientData of testClients) {
     // Find or create client
-    let client = await prisma.client.findFirst({
+    let client = await prisma.clients.findFirst({
       where: { email: clientData.email },
     });
 
     if (!client) {
-      client = await prisma.client.create({
+      const clientId = randomUUID();
+      const now = new Date();
+      client = await prisma.clients.create({
         data: {
-          firstName: clientData.firstName,
-          lastName: clientData.lastName,
+          id: clientId,
+          first_name: clientData.firstName,
+          last_name: clientData.lastName,
           email: clientData.email,
+          created_at: now,
+          updated_at: now,
         },
       });
     }
 
     // Check if invite already exists
-    const existingInvite = await prisma.clientInvite.findUnique({
+    const existingInvite = await prisma.client_invites.findUnique({
       where: { token: clientData.token },
     });
 
@@ -49,12 +55,15 @@ async function populateInvites(baseUrl: string) {
     expiresAt.setDate(expiresAt.getDate() + 14);
 
     // Create invite with fixed token
-    await prisma.clientInvite.create({
+    await prisma.client_invites.create({
       data: {
-        clientId: client.id,
+        id: randomUUID(),
+        client_id: client.id,
         email: clientData.email,
         token: clientData.token,
-        expiresAt,
+        expires_at: expiresAt,
+        created_at: new Date(),
+        updated_at: new Date(),
       },
     });
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth, currentUser } from "@clerk/nextjs/server";
-import { db, users, organizations, orgMembers, eq } from "@/lib/db";
+import { auth } from "@clerk/nextjs/server";
+import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/utils/clerk";
 import { randomUUID } from "crypto";
 
@@ -36,12 +36,11 @@ export async function POST(req: NextRequest) {
     }
 
     // Check if user already has an organization
-    const existingMembership = await db.select()
-      .from(orgMembers)
-      .where(eq(orgMembers.userId, user.id))
-      .limit(1);
+    const existingMembership = await prisma.org_members.findFirst({
+      where: { user_id: user.id },
+    });
 
-    if (existingMembership && existingMembership.length > 0) {
+    if (existingMembership) {
       return NextResponse.json(
         { error: "You already have an organization" },
         { status: 400 }
@@ -57,10 +56,9 @@ export async function POST(req: NextRequest) {
       .replace(/^-+|-+$/g, "");
 
     // Check if slug already exists
-    const [existingOrg] = await db.select()
-      .from(organizations)
-      .where(eq(organizations.slug, slug))
-      .limit(1);
+    const existingOrg = await prisma.organizations.findFirst({
+      where: { slug },
+    });
 
     let finalSlug = slug;
     if (existingOrg) {
@@ -71,20 +69,29 @@ export async function POST(req: NextRequest) {
     // Create organization and add user as owner
     console.log("Creating organization for user:", user.id, "with name:", name.trim());
     
-    const [organization] = await db.insert(organizations)
-      .values({
+    const orgId = randomUUID();
+    const now = new Date();
+    const organization = await prisma.organizations.create({
+      data: {
+        id: orgId,
         name: name.trim(),
         slug: finalSlug,
-        billingPlan: "FREE",
-      })
-      .returning();
+        billing_plan: "FREE",
+        created_at: now,
+        updated_at: now,
+      },
+    });
     
-    await db.insert(orgMembers)
-      .values({
-        userId: user.id,
-        organizationId: organization.id,
+    await prisma.org_members.create({
+      data: {
+        id: randomUUID(),
+        user_id: user.id,
+        organization_id: organization.id,
         role: "OWNER",
-      });
+        created_at: now,
+        updated_at: now,
+      },
+    });
     
     console.log("Organization created successfully:", organization.id);
     

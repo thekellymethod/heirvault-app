@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { db, attorneyClientAccess, clients, eq, desc, and } from "@/lib/db";
+import { prisma } from "@/lib/db";
 import { requireAuth } from "@/lib/utils/clerk";
 import { Button } from "@/components/ui/button";
 import { EmptyListState } from "@/components/ui/empty-state";
@@ -8,42 +8,33 @@ import { EmptyListState } from "@/components/ui/empty-state";
 export default async function ClientsPage() {
   const user = await requireAuth();
 
-  // Use Drizzle ORM to fetch clients
-  const rows = await db
-    .select({
-      grantedAt: attorneyClientAccess.grantedAt,
-      id: clients.id,
-      firstName: clients.firstName,
-      lastName: clients.lastName,
-      email: clients.email,
-      phone: clients.phone,
-      updatedAt: clients.updatedAt,
-      createdAt: clients.createdAt,
-    })
-    .from(attorneyClientAccess)
-    .innerJoin(clients, eq(attorneyClientAccess.clientId, clients.id))
-    .where(
-      and(
-        eq(attorneyClientAccess.attorneyId, user.id),
-        eq(attorneyClientAccess.isActive, true)
-      )
-    )
-    .orderBy(desc(attorneyClientAccess.grantedAt))
-    .catch((error) => {
-      console.error("ClientsPage error:", error);
-      return null;
-    });
+  // Use Prisma to fetch clients
+  const accessRecords = await prisma.attorney_client_access.findMany({
+    where: {
+      attorney_id: user.id,
+      is_active: true,
+    },
+    include: {
+      clients: true,
+    },
+    orderBy: {
+      granted_at: 'desc',
+    },
+  }).catch((error) => {
+    console.error("ClientsPage error:", error);
+    return null;
+  });
 
-  if (!rows) notFound();
+  if (!accessRecords) notFound();
 
-  const clientList = rows.map((r) => ({
-    id: r.id,
-    firstName: r.firstName,
-    lastName: r.lastName,
-    email: r.email,
-    phone: r.phone,
-    updatedAt: r.updatedAt,
-    createdAt: r.createdAt,
+  const clientList = accessRecords.map((r) => ({
+    id: r.clients.id,
+    firstName: r.clients.first_name,
+    lastName: r.clients.last_name,
+    email: r.clients.email,
+    phone: r.clients.phone,
+    updatedAt: r.clients.updated_at,
+    createdAt: r.clients.created_at,
   }));
 
   return (

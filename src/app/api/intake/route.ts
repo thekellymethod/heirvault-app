@@ -84,10 +84,9 @@ export async function POST(req: Request) {
       confirmationMessage: "Submission received and recorded.",
     });
   } catch (e: unknown) {
-  const message = e instanceof Error ? e.message : "Unknown error";
-} {
+    const message = e instanceof Error ? e.message : "Unknown error";
     return NextResponse.json(
-      { error: "intake_failed", details: String(e?.message ?? e) },
+      { error: "intake_failed", details: message },
       { status: 500 }
     );
   }

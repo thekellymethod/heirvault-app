@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db, insurers, policies, beneficiaries, policyBeneficiaries, clients, eq, desc, inArray, AuditAction } from '@/lib/db'
+import { prisma } from '@/lib/db'
+import { AuditAction } from '@/lib/db/enums'
 import { getCurrentUserWithOrg, assertAttorneyCanAccessClient, assertClientSelfAccess } from '@/lib/authz'
 import { audit } from '@/lib/audit'
 import { sendPolicyAddedEmail } from '@/lib/email'
+import { randomUUID } from 'crypto'
 
 export const runtime = "nodejs";
 
@@ -54,23 +56,23 @@ export async function POST(req: NextRequest) {
       resolvedInsurerId = insurerId;
     } else if (insurerName) {
       // Try to find or create insurer
-      const [existingInsurer] = await db.select()
-        .from(insurers)
-        .where(eq(insurers.name, insurerName))
-        .limit(1);
+      const existingInsurer = await prisma.insurers.findFirst({
+        where: { name: insurerName },
+      });
 
       if (existingInsurer) {
         resolvedInsurerId = existingInsurer.id;
         // Update existing insurer if new contact info provided
         if (insurerPhone || insurerEmail || insurerWebsite) {
-          await db.update(insurers)
-            .set({
-              contactPhone: insurerPhone || existingInsurer.contactPhone,
-              contactEmail: insurerEmail || existingInsurer.contactEmail,
+          await prisma.insurers.update({
+            where: { id: existingInsurer.id },
+            data: {
+              contact_phone: insurerPhone || existingInsurer.contact_phone,
+              contact_email: insurerEmail || existingInsurer.contact_email,
               website: insurerWebsite || existingInsurer.website,
-              updatedAt: new Date(),
-            })
-            .where(eq(insurers.id, existingInsurer.id));
+              updated_at: new Date(),
+            },
+          });
         }
       } else {
         // Insurer not found - store raw name instead of creating
@@ -92,33 +94,37 @@ export async function POST(req: NextRequest) {
     }
 
     // Create policy
-    const [policy] = await db.insert(policies)
-      .values({
-        clientId,
-        insurerId: resolvedInsurerId,
-        carrierNameRaw: resolvedCarrierNameRaw,
-        carrierConfidence: carrierConfidence ? Number(carrierConfidence) : null,
-        policyNumber: policyNumber || null,
-        policyType: policyType || null,
-      })
-      .returning();
+    const policyId = randomUUID();
+    const now = new Date();
+    const policy = await prisma.policies.create({
+      data: {
+        id: policyId,
+        client_id: clientId,
+        insurer_id: resolvedInsurerId,
+        carrier_name_raw: resolvedCarrierNameRaw,
+        carrier_confidence: carrierConfidence ? Number(carrierConfidence) : null,
+        policy_number: policyNumber || null,
+        policy_type: policyType || null,
+        created_at: now,
+        updated_at: now,
+      },
+    });
 
     const insurerDisplayName = resolvedInsurerId 
-      ? (await db.select().from(insurers).where(eq(insurers.id, resolvedInsurerId)).limit(1))[0]?.name || 'Unknown'
+      ? (await prisma.insurers.findFirst({ where: { id: resolvedInsurerId } }))?.name || 'Unknown'
       : resolvedCarrierNameRaw || 'Unknown';
     
     await audit(AuditAction.POLICY_CREATED, {
-      clientId: policy.clientId,
+      clientId: policy.client_id,
       policyId: policy.id,
-      message: `Policy created for client ${policy.clientId} with insurer ${insurerDisplayName}${resolvedCarrierNameRaw ? ' (unresolved)' : ''}`,
+      message: `Policy created for client ${policy.client_id} with insurer ${insurerDisplayName}${resolvedCarrierNameRaw ? ' (unresolved)' : ''}`,
     })
 
     // Send email notification to client (if email exists)
     try {
-      const [client] = await db.select()
-        .from(clients)
-        .where(eq(clients.id, clientId))
-        .limit(1);
+      const client = await prisma.clients.findFirst({
+        where: { id: clientId },
+      });
 
       if (client && client.email) {
         const { orgMember } = await getCurrentUserWithOrg();
@@ -127,12 +133,12 @@ export async function POST(req: NextRequest) {
         const firmName = orgMember?.organizations?.name || undefined;
 
         const emailInsurerName = resolvedInsurerId
-          ? (await db.select().from(insurers).where(eq(insurers.id, resolvedInsurerId)).limit(1))[0]?.name || 'Unknown'
+          ? (await prisma.insurers.findFirst({ where: { id: resolvedInsurerId } }))?.name || 'Unknown'
           : resolvedCarrierNameRaw || 'Unknown';
 
         await sendPolicyAddedEmail({
           to: client.email,
-          clientName: `${client.firstName} ${client.lastName}`,
+          clientName: `${client.first_name} ${client.last_name}`,
           insurerName: emailInsurerName,
           policyNumber: policyNumber || undefined,
           policyType: policyType || undefined,
@@ -186,34 +192,32 @@ export async function GET(req: NextRequest) {
     }
 
     // Get policies with insurers (left join to include policies without insurers)
-    const policiesList = await db.select({
-      policy: policies,
-      insurer: insurers,
-    })
-      .from(policies)
-      .leftJoin(insurers, eq(policies.insurerId, insurers.id))
-      .where(eq(policies.clientId, clientId))
-      .orderBy(desc(policies.createdAt));
+    const policiesList = await prisma.policies.findMany({
+      where: { client_id: clientId },
+      include: {
+        insurers: true,
+      },
+      orderBy: { created_at: 'desc' },
+    });
 
     // Get policy beneficiaries
-    const policyIds = policiesList.map(p => p.policy.id);
+    const policyIds = policiesList.map(p => p.id);
     const policyBeneficiaryData = policyIds.length > 0
-      ? await db.select({
-          policyId: policyBeneficiaries.policyId,
-          beneficiary: beneficiaries,
+      ? await prisma.policy_beneficiaries.findMany({
+          where: { policy_id: { in: policyIds } },
+          include: {
+            beneficiaries: true,
+          },
         })
-          .from(policyBeneficiaries)
-          .innerJoin(beneficiaries, eq(policyBeneficiaries.beneficiaryId, beneficiaries.id))
-          .where(inArray(policyBeneficiaries.policyId, policyIds))
       : [];
 
     // Combine policies with beneficiaries
     const policiesWithRelations = policiesList.map(p => ({
-      ...p.policy,
-      insurer: p.insurer,
+      ...p,
+      insurer: p.insurers,
       beneficiaries: policyBeneficiaryData
-        .filter(pb => pb.policyId === p.policy.id)
-        .map(pb => ({ beneficiary: pb.beneficiary })),
+        .filter(pb => pb.policy_id === p.id)
+        .map(pb => ({ beneficiary: pb.beneficiaries })),
     }));
 
     // Audit logging for policy list view

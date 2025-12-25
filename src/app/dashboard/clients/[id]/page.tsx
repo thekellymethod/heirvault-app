@@ -16,55 +16,43 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
     redirect("/error?type=forbidden");
   }
 
-  // Get client data using raw SQL
-  const clientData = await prisma.$queryRawUnsafe<Array<{
-    id: string;
-    first_name: string;
-    last_name: string;
-    email: string;
-    phone: string | null;
-    date_of_birth: Date | null;
-    created_at: Date;
-    updated_at: Date;
-    policy_count: bigint;
-    beneficiary_count: bigint;
-  }>>(`
-    SELECT 
-      c.id,
-      c.first_name,
-      c.last_name,
-      c.email,
-      c.phone,
-      c.date_of_birth,
-      c.created_at,
-      c.updated_at,
-      COUNT(DISTINCT p.id)::bigint as policy_count,
-      COUNT(DISTINCT b.id)::bigint as beneficiary_count
-    FROM clients c
-    LEFT JOIN policies p ON p.client_id = c.id
-    LEFT JOIN beneficiaries b ON b.client_id = c.id
-    WHERE c.id = $1
-    GROUP BY c.id, c.first_name, c.last_name, c.email, c.phone, c.date_of_birth, c.created_at, c.updated_at
-    LIMIT 1
-  `, clientId);
+  // Get client data using Prisma
+  const clientData = await prisma.clients.findUnique({
+    where: { id: clientId },
+    select: {
+      id: true,
+      first_name: true,
+      last_name: true,
+      email: true,
+      phone: true,
+      date_of_birth: true,
+      created_at: true,
+      updated_at: true,
+      _count: {
+        select: {
+          policies: true,
+          beneficiaries: true,
+        },
+      },
+    },
+  });
 
-  if (!clientData || clientData.length === 0) {
+  if (!clientData) {
     redirect("/error?type=not_found");
   }
 
-  const clientRow = clientData[0];
   const client = {
-    id: clientRow.id,
-    firstName: clientRow.first_name,
-    lastName: clientRow.last_name,
-    email: clientRow.email,
-    phone: clientRow.phone,
-    dateOfBirth: clientRow.date_of_birth,
-    createdAt: clientRow.created_at,
-    updatedAt: clientRow.updated_at,
+    id: clientData.id,
+    firstName: clientData.first_name,
+    lastName: clientData.last_name,
+    email: clientData.email,
+    phone: clientData.phone,
+    dateOfBirth: clientData.date_of_birth,
+    createdAt: clientData.created_at,
+    updatedAt: clientData.updated_at,
     _count: {
-      policies: Number(clientRow.policy_count),
-      beneficiaries: Number(clientRow.beneficiary_count),
+      policies: clientData._count.policies,
+      beneficiaries: clientData._count.beneficiaries,
     },
   };
 

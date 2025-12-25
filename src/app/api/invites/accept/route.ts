@@ -24,9 +24,9 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const invite = await prisma.clientInvite.findUnique({
+    const invite = await prisma.client_invites.findUnique({
       where: { token },
-      include: { client: true },
+      include: { clients: true },
     })
 
     if (!invite) {
@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
     }
 
     const now = new Date()
-    if (invite.usedAt || invite.expiresAt < now) {
+    if (invite.used_at || invite.expires_at < now) {
       return NextResponse.json(
         { error: 'Invite expired or already used' },
         { status: 400 }
@@ -56,51 +56,51 @@ export async function POST(req: NextRequest) {
     }
 
     // Link the client to this user (using userId field, not primaryUserId)
-    await prisma.client.update({
-      where: { id: invite.clientId },
+    await prisma.clients.update({
+      where: { id: invite.client_id },
       data: {
-        userId: user.id,
+        user_id: user.id,
       },
     })
 
     // Mark invite used
-    await prisma.clientInvite.update({
+    await prisma.client_invites.update({
       where: { id: invite.id },
       data: {
-        usedAt: now,
+        used_at: now,
       },
     })
 
     // Grant attorney access via AttorneyClientAccess
-    if (invite.invitedByUserId) {
-      const orgMember = await prisma.orgMember.findFirst({
-        where: { userId: invite.invitedByUserId },
+    if (invite.invited_by_user_id) {
+      const orgMember = await prisma.org_members.findFirst({
+        where: { user_id: invite.invited_by_user_id },
       })
 
       if (orgMember) {
         // Check if access already exists
-        const existingAccess = await prisma.attorneyClientAccess.findFirst({
+        const existingAccess = await prisma.attorney_client_access.findFirst({
           where: {
-            attorneyId: invite.invitedByUserId,
-            clientId: invite.clientId,
-            organizationId: orgMember.organizationId,
+            attorney_id: invite.invited_by_user_id,
+            client_id: invite.client_id,
+            organization_id: orgMember.organization_id,
           },
         })
 
         if (!existingAccess) {
-          await prisma.attorneyClientAccess.create({
+          await prisma.attorney_client_access.create({
             data: {
-              attorneyId: invite.invitedByUserId,
-              clientId: invite.clientId,
-              organizationId: orgMember.organizationId,
-              isActive: true,
+              attorney_id: invite.invited_by_user_id,
+              client_id: invite.client_id,
+              organization_id: orgMember.organization_id,
+              is_active: true,
             },
           })
-        } else if (!existingAccess.isActive) {
+        } else if (!existingAccess.is_active) {
           // Reactivate if it was revoked
-          await prisma.attorneyClientAccess.update({
+          await prisma.attorney_client_access.update({
             where: { id: existingAccess.id },
-            data: { isActive: true, revokedAt: null },
+            data: { is_active: true, revoked_at: null },
           })
         }
       }
@@ -110,7 +110,7 @@ export async function POST(req: NextRequest) {
       action: 'INVITE_ACCEPTED',
       resourceType: 'client_invite',
       resourceId: invite.id,
-      details: { clientId: invite.clientId, userId: user.id },
+      details: { clientId: invite.client_id, userId: user.id },
       userId: user.id,
     })
 

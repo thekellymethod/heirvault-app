@@ -32,23 +32,23 @@ export async function POST(req: NextRequest) {
     const TEST_TOKEN = `TEST-${randomBytes(12).toString("hex").toUpperCase()}`;
 
     // Check if a client with this email already exists and has an active invite
-    const existingClient = await prisma.client.findFirst({
+    const existingClient = await prisma.clients.findFirst({
       where: { email: TEST_EMAIL },
       include: {
-        invites: {
+        client_invites: {
           where: {
-            expiresAt: { gt: new Date() },
-            usedAt: null,
+            expires_at: { gt: new Date() },
+            used_at: null,
           },
-          orderBy: { createdAt: "desc" },
+          orderBy: { created_at: "desc" },
           take: 1,
         },
       },
     });
 
     // If client exists with active invite, return it
-    if (existingClient && existingClient.invites.length > 0) {
-      const existingInvite = existingClient.invites[0];
+    if (existingClient && existingClient.client_invites.length > 0) {
+      const existingInvite = existingClient.client_invites[0];
       const requestUrl = req.nextUrl;
       const baseUrl = 
         process.env.NEXT_PUBLIC_APP_URL || 
@@ -61,25 +61,30 @@ export async function POST(req: NextRequest) {
         token: existingInvite.token,
         url: inviteUrl,
         email: existingInvite.email,
-        clientName: `${existingClient.firstName} ${existingClient.lastName}`,
+        clientName: `${existingClient.first_name} ${existingClient.last_name}`,
         clientId: existingClient.id,
-        expiresAt: existingInvite.expiresAt.toISOString(),
+        expiresAt: existingInvite.expires_at.toISOString(),
         inviteUrl: inviteUrl,
         inviteCodePage: `${baseUrl}/client/invite-code`,
       });
     }
 
     // Find or create a test client
-    let client = await prisma.client.findFirst({
+    let client = await prisma.clients.findFirst({
       where: { email: TEST_EMAIL },
     });
 
     if (!client) {
-      client = await prisma.client.create({
+      const clientId = randomUUID();
+      const now = new Date();
+      client = await prisma.clients.create({
         data: {
-          firstName: TEST_CLIENT_NAME.firstName,
-          lastName: TEST_CLIENT_NAME.lastName,
+          id: clientId,
+          first_name: TEST_CLIENT_NAME.firstName,
+          last_name: TEST_CLIENT_NAME.lastName,
           email: TEST_EMAIL,
+          created_at: now,
+          updated_at: now,
         },
       });
     }
@@ -89,14 +94,17 @@ export async function POST(req: NextRequest) {
     expiresAt.setDate(expiresAt.getDate() + 14);
 
     // Create the invite
-    const invite = await prisma.clientInvite.create({
+    const invite = await prisma.client_invites.create({
       data: {
-        clientId: client.id,
+        id: randomUUID(),
+        client_id: client.id,
         email: TEST_EMAIL,
         token: TEST_TOKEN,
-        expiresAt,
+        expires_at: expiresAt,
+        created_at: new Date(),
+        updated_at: new Date(),
       },
-      include: { client: true },
+      include: { clients: true },
     });
 
     // Get base URL from request if available, otherwise use env or default
@@ -113,9 +121,9 @@ export async function POST(req: NextRequest) {
       token: invite.token,
       url: inviteUrl,
       email: invite.email,
-      clientName: `${client.firstName} ${client.lastName}`,
+      clientName: `${client.first_name} ${client.last_name}`,
       clientId: client.id,
-      expiresAt: invite.expiresAt.toISOString(),
+      expiresAt: invite.expires_at.toISOString(),
       inviteUrl: inviteUrl,
       inviteCodePage: `${baseUrl}/client/invite-code`,
       instructions: [

@@ -9,7 +9,7 @@ interface Params {
 
 export async function PUT(req: NextRequest, { params }: Params) {
   try {
-    const user = await requireAuth("attorney");
+    const user = await requireAuth();
     const { id } = await params;
     const body = await req.json();
 
@@ -29,124 +29,53 @@ export async function PUT(req: NextRequest, { params }: Params) {
       );
     }
 
-    // Use raw SQL first for reliability
-    let updated: {
-      id: string;
-      clientId: string;
-      firstName: string;
-      lastName: string;
-      relationship: string | null;
-      email: string | null;
-      phone: string | null;
-      dateOfBirth: Date | null;
-      createdAt: Date;
-      updatedAt: Date;
-    } | null = null;
-    try {
-      // Check if beneficiary exists
-      const existsResult = await prisma.$queryRaw<Array<{ id: string; client_id: string }>>`
-        SELECT id, client_id FROM beneficiaries WHERE id = ${id} LIMIT 1
-      `;
+    // Check if beneficiary exists
+    const existing = await prisma.beneficiaries.findUnique({
+      where: { id },
+      select: { id: true, client_id: true },
+    });
 
-      if (!existsResult || existsResult.length === 0) {
-        return NextResponse.json({ error: "Beneficiary not found" }, { status: 404 });
-      }
+    if (!existing) {
+      return NextResponse.json({ error: "Beneficiary not found" }, { status: 404 });
+    }
 
-      const clientId = existsResult[0].client_id;
-
-      // Parse dateOfBirth if provided
-      let parsedDateOfBirth: Date | null = null;
-      if (dateOfBirth) {
-        if (typeof dateOfBirth === 'string') {
-          const [year, month, day] = dateOfBirth.split('-').map(Number);
-          parsedDateOfBirth = new Date(year, month - 1, day);
-        } else {
-          parsedDateOfBirth = new Date(dateOfBirth);
-        }
-      }
-
-      // Update beneficiary using raw SQL
-      await prisma.$executeRaw`
-        UPDATE beneficiaries
-        SET 
-          first_name = ${firstName.trim()},
-          last_name = ${lastName.trim()},
-          relationship = ${relationship?.trim() || null},
-          email = ${email?.trim() || null},
-          phone = ${phone?.trim() || null},
-          date_of_birth = ${parsedDateOfBirth},
-          updated_at = NOW()
-        WHERE id = ${id}
-      `;
-
-      // Fetch updated beneficiary
-      const updatedResult = await prisma.$queryRaw<Array<{
-        id: string;
-        client_id: string;
-        first_name: string;
-        last_name: string;
-        relationship: string | null;
-        email: string | null;
-        phone: string | null;
-        date_of_birth: Date | null;
-        created_at: Date;
-        updated_at: Date;
-      }>>`
-        SELECT 
-          id, client_id, first_name, last_name, relationship, 
-          email, phone, date_of_birth, created_at, updated_at
-        FROM beneficiaries
-        WHERE id = ${id}
-      `;
-
-      if (updatedResult && updatedResult.length > 0) {
-        const row = updatedResult[0];
-        updated = {
-          id: row.id,
-          clientId: row.client_id,
-          firstName: row.first_name,
-          lastName: row.last_name,
-          relationship: row.relationship,
-          email: row.email,
-          phone: row.phone,
-          dateOfBirth: row.date_of_birth,
-          createdAt: row.created_at,
-          updatedAt: row.updated_at,
-        };
-      }
-    } catch (sqlError: unknown) {
-      const sqlErrorMessage = sqlError instanceof Error ? sqlError.message : "Unknown error";
-      console.error("Beneficiary update: Raw SQL failed, trying Prisma:", sqlErrorMessage);
-      // Fallback to Prisma
-      try {
-        // Parse dateOfBirth if provided
-        let parsedDateOfBirth: Date | null = null;
-        if (dateOfBirth) {
-          if (typeof dateOfBirth === 'string') {
-            const [year, month, day] = dateOfBirth.split('-').map(Number);
-            parsedDateOfBirth = new Date(year, month - 1, day);
-          } else {
-            parsedDateOfBirth = new Date(dateOfBirth);
-          }
-        }
-
-        updated = await prisma.beneficiary.update({
-          where: { id },
-          data: {
-            firstName: firstName.trim(),
-            lastName: lastName.trim(),
-            relationship: relationship?.trim() || null,
-            email: email?.trim() || null,
-            phone: phone?.trim() || null,
-            dateOfBirth: parsedDateOfBirth,
-          },
-        });
-      } catch (prismaError: unknown) {
-        const prismaErrorMessage = prismaError instanceof Error ? prismaError.message : "Unknown error";
-        console.error("Beneficiary update: Prisma also failed:", prismaErrorMessage);
-        throw prismaError;
+    // Parse dateOfBirth if provided
+    let parsedDateOfBirth: Date | null = null;
+    if (dateOfBirth) {
+      if (typeof dateOfBirth === 'string') {
+        const [year, month, day] = dateOfBirth.split('-').map(Number);
+        parsedDateOfBirth = new Date(year, month - 1, day);
+      } else {
+        parsedDateOfBirth = new Date(dateOfBirth);
       }
     }
+
+    const prismaResult = await prisma.beneficiaries.update({
+      where: { id },
+      data: {
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+        relationship: relationship?.trim() || null,
+        email: email?.trim() || null,
+        phone: phone?.trim() || null,
+        date_of_birth: parsedDateOfBirth,
+        updated_at: new Date(),
+      },
+    });
+    
+    // Map Prisma snake_case to camelCase
+    const updated = {
+      id: prismaResult.id,
+      clientId: prismaResult.client_id,
+      firstName: prismaResult.first_name,
+      lastName: prismaResult.last_name,
+      relationship: prismaResult.relationship,
+      email: prismaResult.email,
+      phone: prismaResult.phone,
+      dateOfBirth: prismaResult.date_of_birth,
+      createdAt: prismaResult.created_at,
+      updatedAt: prismaResult.updated_at,
+    };
 
     if (!updated) {
       return NextResponse.json(
@@ -157,9 +86,14 @@ export async function PUT(req: NextRequest, { params }: Params) {
 
     await logAuditEvent({
       action: "BENEFICIARY_UPDATED",
-      message: `Updated beneficiary ${id}: ${firstName} ${lastName}`,
+      resourceType: "beneficiary",
+      resourceId: id,
+      details: { 
+        firstName, 
+        lastName,
+        clientId: updated.clientId,
+      },
       userId: user.id,
-      clientId: updated.clientId,
     });
 
     return NextResponse.json(updated);
@@ -174,67 +108,36 @@ export async function PUT(req: NextRequest, { params }: Params) {
 
 export async function DELETE(req: NextRequest, { params }: Params) {
   try {
-    const user = await requireAuth("attorney");
+    const user = await requireAuth();
     const { id } = await params;
 
-    // Use raw SQL first for reliability
-    try {
-      // Check if beneficiary exists and get clientId for audit
-      const existsResult = await prisma.$queryRaw<Array<{ id: string; client_id: string; first_name: string; last_name: string }>>`
-        SELECT id, client_id, first_name, last_name FROM beneficiaries WHERE id = ${id} LIMIT 1
-      `;
+    // Get beneficiary for audit before deleting
+    const beneficiary = await prisma.beneficiaries.findUnique({
+      where: { id },
+      select: { id: true, client_id: true, first_name: true, last_name: true },
+    });
 
-      if (!existsResult || existsResult.length === 0) {
-        return NextResponse.json({ error: "Beneficiary not found" }, { status: 404 });
-      }
-
-      const beneficiary = existsResult[0];
-      const clientId = beneficiary.client_id;
-
-      // Delete beneficiary (cascade deletes will handle policy_beneficiaries)
-      await prisma.$executeRaw`DELETE FROM beneficiaries WHERE id = ${id}`;
-
-      await logAuditEvent({
-        action: "BENEFICIARY_UPDATED", // Using BENEFICIARY_UPDATED as there's no BENEFICIARY_DELETED action
-        message: `Deleted beneficiary ${id}: ${beneficiary.first_name} ${beneficiary.last_name}`,
-        userId: user.id,
-        clientId,
-      });
-
-      return new NextResponse(null, { status: 204 });
-    } catch (sqlError: unknown) {
-      const sqlErrorMessage = sqlError instanceof Error ? sqlError.message : "Unknown error";
-      console.error("Beneficiary delete: Raw SQL failed, trying Prisma:", sqlErrorMessage);
-      // Fallback to Prisma
-      try {
-        // Get beneficiary for audit before deleting
-        const beneficiary = await prisma.beneficiary.findUnique({
-          where: { id },
-          select: { id: true, clientId: true, firstName: true, lastName: true },
-        });
-
-        if (!beneficiary) {
-          return NextResponse.json({ error: "Beneficiary not found" }, { status: 404 });
-        }
-
-        await prisma.beneficiary.delete({
-          where: { id },
-        });
-
-        await logAuditEvent({
-          action: "BENEFICIARY_UPDATED",
-          message: `Deleted beneficiary ${id}: ${beneficiary.firstName} ${beneficiary.lastName}`,
-          userId: user.id,
-          clientId: beneficiary.clientId,
-        });
-
-        return new NextResponse(null, { status: 204 });
-      } catch (prismaError: unknown) {
-        const prismaErrorMessage = prismaError instanceof Error ? prismaError.message : "Unknown error";
-        console.error("Beneficiary delete: Prisma also failed:", prismaErrorMessage);
-        throw prismaError;
-      }
+    if (!beneficiary) {
+      return NextResponse.json({ error: "Beneficiary not found" }, { status: 404 });
     }
+
+    await prisma.beneficiaries.delete({
+      where: { id },
+    });
+
+    await logAuditEvent({
+      action: "BENEFICIARY_UPDATED",
+      resourceType: "beneficiary",
+      resourceId: id,
+      details: { 
+        firstName: beneficiary.first_name,
+        lastName: beneficiary.last_name,
+        clientId: beneficiary.client_id,
+      },
+      userId: user.id,
+    });
+
+    return new NextResponse(null, { status: 204 });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Unable to delete beneficiary";
     return NextResponse.json(

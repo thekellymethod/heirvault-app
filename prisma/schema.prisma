@@ -87,17 +87,20 @@ model beneficiaries {
 }
 
 model client_invites {
-  id                 String    @id
+  id                 String            @id
   client_id          String
-  token              String    @unique
+  token              String            @unique
   email              String
   expires_at         DateTime
   used_at            DateTime?
-  created_at         DateTime  @default(now())
+  created_at         DateTime          @default(now())
   updated_at         DateTime
   invited_by_user_id String?
-  clients            clients   @relation(fields: [client_id], references: [id], onDelete: Cascade)
-  users              User?     @relation("ClientInviteInviter", fields: [invited_by_user_id], references: [id])
+  clients            clients           @relation(fields: [client_id], references: [id], onDelete: Cascade)
+  users              User?            @relation("ClientInviteInviter", fields: [invited_by_user_id], references: [id])
+  submissions        submissions[]
+  receipts           receipts[]
+  client_versions     client_versions[]
 }
 
 model clients {
@@ -131,6 +134,9 @@ model clients {
   users                  User?                    @relation("UserClient", fields: [user_id], references: [id])
   documents              documents[]
   policies               policies[]
+  submissions            submissions[]
+  receipts               receipts[]
+  client_versions        client_versions[]
 
   @@unique([email])
   @@index([first_name, last_name, date_of_birth])
@@ -140,25 +146,37 @@ model clients {
 }
 
 model documents {
-  id             String    @id
-  client_id      String
-  policy_id      String?
-  file_name      String
-  file_type      String
-  file_size      Int
-  file_path      String
-  mime_type      String
-  uploaded_via   String?
-  extracted_data Json?
-  ocr_confidence Float?
-  created_at     DateTime  @default(now())
-  updated_at     DateTime
-  clients        clients   @relation(fields: [client_id], references: [id], onDelete: Cascade)
-  policies       policies? @relation(fields: [policy_id], references: [id])
+  id                  String           @id
+  client_id           String
+  submission_id       String?
+  policy_id           String?
+  registry_version_id String?
+  file_name           String
+  file_type           String
+  file_size           Int
+  file_path           String
+  mime_type           String
+  uploaded_via        String?
+  extracted_data      Json?
+  ocr_confidence       Int?
+  document_hash        String
+  verified_at         DateTime?
+  verified_by_user_id String?
+  verification_notes  String?
+  created_at          DateTime         @default(now())
+  updated_at          DateTime
+  clients             clients           @relation(fields: [client_id], references: [id], onDelete: Cascade)
+  policies            policies?          @relation(fields: [policy_id], references: [id])
+  submissions         submissions?      @relation(fields: [submission_id], references: [id], onDelete: SetNull)
+  registry_versions    registry_versions? @relation(fields: [registry_version_id], references: [id], onDelete: SetNull)
+  users               User?             @relation("DocumentVerifier", fields: [verified_by_user_id], references: [id])
 
   @@index([client_id])
   @@index([created_at])
   @@index([policy_id])
+  @@index([submission_id])
+  @@index([document_hash])
+  @@index([registry_version_id])
 }
 
 model insurers {
@@ -233,12 +251,18 @@ model policies {
   carrier_confidence  Float?
   policy_number       String?
   policy_type         String?
+  verification_status PolicyVerificationStatus @default(PENDING)
+  verified_at         DateTime?
+  verified_by_user_id String?
+  verification_notes  String?
+  document_hash       String?
   created_at          DateTime               @default(now())
   updated_at          DateTime
   audit_logs          audit_logs[]
   documents           documents[]
   clients             clients                @relation(fields: [client_id], references: [id], onDelete: Cascade)
-  insurers            insurers?               @relation(fields: [insurer_id], references: [id], onDelete: SetNull)
+  insurers            insurers?              @relation(fields: [insurer_id], references: [id], onDelete: SetNull)
+  users               User?                  @relation("PolicyVerifier", fields: [verified_by_user_id], references: [id])
   policy_beneficiaries policy_beneficiaries[]
 }
 
@@ -281,6 +305,9 @@ model User {
   auditLogs            audit_logs[]
   attorneyProfile      attorneyProfile?
   apiTokens            ApiToken[]
+  verifiedDocuments    documents[]              @relation("DocumentVerifier")
+  verifiedPolicies     policies[]               @relation("PolicyVerifier")
+  accessLogs           access_logs[]
 
   @@index([firstName, lastName])
   @@index([address_line1, city, state, postal_code])
@@ -382,4 +409,162 @@ enum LicenseStatus {
   ACTIVE
   SUSPENDED
   REVOKED
+}
+
+enum SubmissionStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum RegistryStatus {
+  ACTIVE
+  ARCHIVED
+  PENDING_VERIFICATION
+  VERIFIED
+  DISPUTED
+}
+
+enum RegistrySubmissionSource {
+  SYSTEM
+  ATTORNEY
+  INTAKE
+}
+
+enum AccessLogAction {
+  VIEWED
+  CREATED
+  UPDATED
+  VERIFIED
+  ARCHIVED
+  EXPORTED
+  DELETED
+  INTAKE_SUBMITTED
+  REGISTRY_UPDATED_BY_TOKEN
+  DASHBOARD_VIEW
+  REGISTRY_VIEW
+  SEARCH_PERFORMED
+  ACCESS_REQUESTED
+  ACCESS_GRANTED
+}
+
+enum PolicyVerificationStatus {
+  PENDING
+  VERIFIED
+  DISCREPANCY
+  INCOMPLETE
+  REJECTED
+}
+
+model submissions {
+  id             String            @id
+  client_id      String
+  invite_id      String?
+  status         SubmissionStatus  @default(PENDING)
+  submission_type String
+  submitted_data Json?
+  error_message  String?
+  processed_at   DateTime?
+  created_at     DateTime          @default(now())
+  updated_at     DateTime
+  clients        clients           @relation(fields: [client_id], references: [id], onDelete: Cascade)
+  client_invites client_invites?   @relation(fields: [invite_id], references: [id], onDelete: SetNull)
+  documents      documents[]
+  receipts       receipts[]
+
+  @@index([client_id])
+  @@index([invite_id])
+  @@index([status])
+  @@index([created_at])
+}
+
+model receipts {
+  id             String            @id
+  submission_id  String?
+  client_id      String
+  invite_id      String?
+  receipt_number String            @unique
+  pdf_path       String?
+  email_sent      Boolean           @default(false)
+  email_sent_at  DateTime?
+  created_at     DateTime          @default(now())
+  clients        clients           @relation(fields: [client_id], references: [id], onDelete: Cascade)
+  client_invites client_invites?   @relation(fields: [invite_id], references: [id], onDelete: SetNull)
+  submissions    submissions?      @relation(fields: [submission_id], references: [id], onDelete: Cascade)
+
+  @@index([submission_id])
+  @@index([client_id])
+  @@index([invite_id])
+  @@index([receipt_number])
+  @@index([created_at])
+}
+
+model client_versions {
+  id                  String            @id
+  client_id           String
+  invite_id           String?
+  version_number       Int
+  previous_version_id String?
+  client_data         Json
+  policies_data       Json?
+  beneficiaries_data  Json?
+  changes             Json?
+  submitted_by        String?
+  submission_method   String?
+  notes               String?
+  created_at          DateTime          @default(now())
+  clients             clients           @relation(fields: [client_id], references: [id], onDelete: Cascade)
+  client_invites      client_invites?   @relation(fields: [invite_id], references: [id], onDelete: SetNull)
+
+  @@index([client_id])
+  @@index([invite_id])
+  @@index([version_number])
+  @@index([created_at])
+  @@index([previous_version_id])
+}
+
+model registry_records {
+  id            String            @id
+  decedent_name String
+  status        RegistryStatus    @default(PENDING_VERIFICATION)
+  created_at    DateTime          @default(now())
+  registry_versions registry_versions[]
+  access_logs   access_logs[]
+
+  @@index([decedent_name])
+  @@index([status])
+  @@index([created_at])
+}
+
+model registry_versions {
+  id            String                @id
+  registry_id   String
+  data_json     Json
+  submitted_by  RegistrySubmissionSource
+  hash          String
+  created_at    DateTime              @default(now())
+  registry_records registry_records   @relation(fields: [registry_id], references: [id], onDelete: Cascade)
+  documents     documents[]
+
+  @@index([registry_id])
+  @@index([hash])
+  @@index([created_at])
+  @@index([submitted_by])
+}
+
+model access_logs {
+  id         String          @id
+  registry_id String
+  user_id    String?
+  action     AccessLogAction
+  metadata   Json?
+  timestamp  DateTime        @default(now())
+  registry_records registry_records @relation(fields: [registry_id], references: [id], onDelete: Cascade)
+  users      User?           @relation(fields: [user_id], references: [id], onDelete: SetNull)
+
+  @@index([registry_id])
+  @@index([user_id])
+  @@index([timestamp])
+  @@index([action])
 }

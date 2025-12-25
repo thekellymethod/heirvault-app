@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
         const message = uploadError instanceof Error ? uploadError.message : "Unknown error";
         console.error("License document upload error:", uploadError);
         return NextResponse.json(
-          { error: `Failed to upload license document: ${uploadError.message}` },
+          { error: `Failed to upload license document: ${message}` },
           { status: 400 }
         );
       }
@@ -186,10 +186,11 @@ export async function POST(req: NextRequest) {
     );
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Failed to submit attorney application";
+    const status = (error && typeof error === "object" && "status" in error && typeof error.status === "number") ? error.status : 500;
     console.error("Attorney apply error:", error);
     return NextResponse.json(
       { error: message },
-      { status: error.status || 500 }
+      { status }
     );
   }
 }

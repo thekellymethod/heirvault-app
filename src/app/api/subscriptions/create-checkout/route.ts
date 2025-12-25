@@ -37,10 +37,10 @@ export async function POST(req: NextRequest) {
 
       customerId = customer.id;
 
-      await prisma.organization.update({
+      await prisma.organizations.update({
         where: { id: org.id },
         data: {
-          stripeCustomerId: customerId,
+          stripe_customer_id: customerId,
         },
       });
     }

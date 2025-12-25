@@ -1,6 +1,6 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import { db, users, eq, prisma } from "@/lib/db";
+import { prisma } from "@/lib/db";
 import { randomUUID } from "crypto";
 
 type Role = "attorney";
@@ -50,52 +50,34 @@ export async function getCurrentUser(): Promise<DbUser | null> {
 
     const role: Role = "attorney";
 
-    // One deterministic DB write using raw SQL to avoid schema/column mismatches
-    // - Insert if missing
-    // - Update if exists (by clerkId)
-    //
-    // Using raw SQL because the database table may not have all columns defined in the Drizzle schema
-    // The initial migration only created: id, clerkId, email, first_name, last_name, role, created_at, updated_at
-    const result = await prisma.$queryRawUnsafe<Array<{
-      id: string;
-      clerkId: string;
-      email: string;
-      first_name: string | null;
-      last_name: string | null;
-      role: string;
-      bar_number: string | null;
-    }>>(`
-      INSERT INTO "users" ("id", "clerkId", "email", "first_name", "last_name", "role", "updated_at")
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
-      ON CONFLICT ("clerkId") 
-      DO UPDATE SET 
-        "email" = $3,
-        "first_name" = $4,
-        "last_name" = $5,
-        "role" = $6,
-        "updated_at" = $7
-      RETURNING "id", "clerkId", "email", "first_name", "last_name", "role", "bar_number"
-    `,
-      randomUUID(),
-      userId,
-      email,
-      firstName,
-      lastName,
-      role,
-      new Date()
-    );
-
-    const row = result[0];
-    if (!row) return null;
+    // Upsert user using Prisma
+    const user = await prisma.user.upsert({
+      where: { clerkId: userId },
+      update: {
+        email,
+        firstName,
+        lastName,
+        role,
+        updatedAt: new Date(),
+      },
+      create: {
+        id: randomUUID(),
+        clerkId: userId,
+        email,
+        firstName,
+        lastName,
+        role,
+      },
+    });
 
     return {
-      id: row.id,
-      clerkId: row.clerkId,
-      email: row.email,
-      firstName: row.first_name,
-      lastName: row.last_name,
-      role: row.role as Role,
-      barNumber: row.bar_number,
+      id: user.id,
+      clerkId: user.clerkId,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      role: user.role as Role,
+      barNumber: user.barNumber,
     };
   } catch (error: unknown) {
     // Minimal, safe error logging that won't throw
@@ -164,7 +146,7 @@ export async function getCurrentUser(): Promise<DbUser | null> {
         log(`  routine: ${cause.routine ?? "N/A"}`);
       } else {
         log("==================================================================================");
-        log("No nested cause found - error may be wrapped by Drizzle");
+        log("No nested cause found - error details unavailable");
         log("==================================================================================");
       }
     } catch {
@@ -186,10 +168,10 @@ export async function requireAuth(): Promise<NonNullable<Awaited<ReturnType<type
   // Enforce attorney role
   if (user.role !== "attorney") {
     try {
-      await db
-        .update(users)
-        .set({ role: "attorney", updatedAt: new Date() })
-        .where(eq(users.id, user.id));
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { role: "attorney", updatedAt: new Date() },
+      });
       user.role = "attorney";
     } catch (error: unknown) {
       console.error("requireAuth: Error forcing attorney role:", error);

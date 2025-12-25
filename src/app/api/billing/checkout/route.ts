@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { auth } from "@clerk/nextjs/server";
-import { prisma } from "@/lib/db";
+import { prisma } from "@/lib/prisma";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
   apiVersion: "2025-11-17.clover" as Stripe.LatestApiVersion,
@@ -32,7 +32,7 @@ export async function POST(req: Request) {
   const user = await prisma.user.findUnique({
     where: { clerkId: userId },
     include: {
-      orgMemberships: {
+      org_members: {
         include: {
           organizations: true,
         },
@@ -40,7 +40,7 @@ export async function POST(req: Request) {
     },
   });
 
-  const orgMember = user?.orgMemberships?.[0];
+  const orgMember = user?.org_members?.[0];
   if (!user || !orgMember) {
     return new NextResponse("No organization found", { status: 400 });
   }
@@ -60,10 +60,10 @@ export async function POST(req: Request) {
 
     customerId = customer.id;
 
-    await prisma.organization.update({
+    await prisma.organizations.update({
       where: { id: org.id },
       data: {
-        stripeCustomerId: customerId,
+        stripe_customer_id: customerId,
       },
     });
   }

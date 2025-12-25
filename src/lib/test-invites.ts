@@ -76,27 +76,44 @@ export async function getOrCreateTestInvite(token: string) {
   const clientInfo = extractTestClientInfo(normalizedToken);
 
   // Try to find existing invite (use normalized token)
-  // Use the same model names as the rest of the codebase
-  let invite = await prisma.clientInvite.findUnique({
+  const existingInvite = await prisma.client_invites.findFirst({
     where: { token: normalizedToken },
-    include: { client: true },
+    include: {
+      clients: true,
+    },
   });
 
-  if (invite) {
-    return invite; // Already exists, return it
+  if (existingInvite) {
+    return {
+      id: existingInvite.id,
+      clientId: existingInvite.client_id,
+      email: existingInvite.email,
+      token: existingInvite.token,
+      expiresAt: existingInvite.expires_at,
+      usedAt: existingInvite.used_at,
+      createdAt: existingInvite.created_at,
+      client: {
+        id: existingInvite.clients.id,
+        firstName: existingInvite.clients.first_name || "",
+        lastName: existingInvite.clients.last_name || "",
+        email: existingInvite.clients.email,
+        phone: existingInvite.clients.phone || null,
+        dateOfBirth: existingInvite.clients.date_of_birth || null,
+      },
+    };
   }
 
   // Find or create client
-  let client = await prisma.client.findFirst({
+  let client = await prisma.clients.findFirst({
     where: { email: clientInfo.email },
   });
 
   if (!client) {
-    client = await prisma.client.create({
+    client = await prisma.clients.create({
       data: {
         email: clientInfo.email,
-        firstName: clientInfo.firstName,
-        lastName: clientInfo.lastName,
+        first_name: clientInfo.firstName,
+        last_name: clientInfo.lastName,
       },
     });
   }
@@ -105,16 +122,31 @@ export async function getOrCreateTestInvite(token: string) {
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + 14);
 
-  invite = await prisma.clientInvite.create({
+  const newInvite = await prisma.client_invites.create({
     data: {
-      clientId: client.id,
+      client_id: client.id,
       email: clientInfo.email,
       token: normalizedToken,
-      expiresAt,
+      expires_at: expiresAt,
     },
-    include: { client: true },
   });
 
-  return invite;
+  return {
+    id: newInvite.id,
+    clientId: newInvite.client_id,
+    email: newInvite.email,
+    token: newInvite.token,
+    expiresAt: newInvite.expires_at,
+    usedAt: newInvite.used_at,
+    createdAt: newInvite.created_at,
+    client: {
+      id: client.id,
+      firstName: client.first_name || "",
+      lastName: client.last_name || "",
+      email: client.email,
+      phone: client.phone || null,
+      dateOfBirth: client.date_of_birth || null,
+    },
+  };
 }
 

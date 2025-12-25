@@ -10,9 +10,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 import { POST as SearchPOST } from "@/app/api/search/route";
-import { GET as RecordsGET } from "@/app/(protected)/records/[id]/page";
-import { requireAttorney, requireAccessRegistry } from "@/lib/permissions";
-import { listAuthorizedRegistries } from "@/lib/db";
+import { requireAccessRegistry } from "@/lib/permissions";
+import { listAuthorizedRegistries, type RegistryRecord } from "@/lib/db";
 import type { AppUser } from "@/lib/auth";
 
 // Mock dependencies
@@ -33,20 +32,18 @@ describe("API Security", () => {
     role: "ATTORNEY",
   };
 
-  const registryA = {
+  const registryA: RegistryRecord = {
     id: "registry_a",
-    insured_name: "John Doe",
-    carrier_guess: "Insurance A",
+    decedentName: "John Doe",
     status: "ACTIVE",
-    created_at: new Date().toISOString(),
+    createdAt: new Date(),
   };
 
-  const registryB = {
+  const registryB: RegistryRecord = {
     id: "registry_b",
-    insured_name: "Jane Smith",
-    carrier_guess: "Insurance B",
+    decedentName: "Jane Smith",
     status: "ACTIVE",
-    created_at: new Date().toISOString(),
+    createdAt: new Date(),
   };
 
   beforeEach(() => {
@@ -56,7 +53,6 @@ describe("API Security", () => {
   describe("Search API", () => {
     it("should only return results from authorized registries", async () => {
       // User A has access to Registry A only
-      vi.mocked(requireAttorney).mockResolvedValue(mockUserA);
       vi.mocked(listAuthorizedRegistries).mockResolvedValue([registryA]);
 
       const req = new NextRequest("http://localhost:3000/api/search", {
@@ -80,7 +76,6 @@ describe("API Security", () => {
     });
 
     it("should return results when user has access", async () => {
-      vi.mocked(requireAttorney).mockResolvedValue(mockUserA);
       vi.mocked(listAuthorizedRegistries).mockResolvedValue([registryA]);
 
       const req = new NextRequest("http://localhost:3000/api/search", {
@@ -105,7 +100,6 @@ describe("API Security", () => {
 
   describe("Records API", () => {
     it("should return 403 when user lacks access to registry", async () => {
-      vi.mocked(requireAttorney).mockResolvedValue(mockUserA);
       vi.mocked(requireAccessRegistry).mockRejectedValue(
         new Error("Access denied to registry registry_b")
       );
@@ -121,7 +115,6 @@ describe("API Security", () => {
     });
 
     it("should allow access when user has permission", async () => {
-      vi.mocked(requireAttorney).mockResolvedValue(mockUserA);
       vi.mocked(requireAccessRegistry).mockResolvedValue(undefined);
 
       await expect(

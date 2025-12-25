@@ -1,4 +1,4 @@
-import { db, registryRecords, registryVersions, accessLogs, documents, type RegistryRecord, type RegistryVersion, type AccessLog, type RegistryStatus, type RegistrySubmissionSource, type AccessLogAction, eq, desc, sql } from "./index";
+import { prisma, type RegistryRecord, type RegistryVersion, type AccessLog, type RegistryStatus, type RegistrySubmissionSource, type AccessLogAction } from "./index";
 import { randomUUID } from "crypto";
 import { createHash } from "crypto";
 
@@ -58,29 +58,35 @@ export async function createRegistry(input: CreateRegistryInput): Promise<Regist
   const hash = createHash("sha256").update(dataJson).digest("hex");
 
   // Create registry record and first version in a transaction
-  await db.transaction(async (tx) => {
+  await prisma.$transaction(async (tx) => {
     // Insert registry record
-    await tx.insert(registryRecords).values({
-      id: registryId,
-      decedentName: input.decedentName,
-      status: input.status || "PENDING_VERIFICATION",
+    await tx.registry_records.create({
+      data: {
+        id: registryId,
+        decedent_name: input.decedentName,
+        status: input.status || "PENDING_VERIFICATION",
+      },
     });
 
     // Insert first version
-    await tx.insert(registryVersions).values({
-      id: versionId,
-      registryId,
-      dataJson: input.initialData,
-      submittedBy: input.submittedBy,
-      hash,
+    await tx.registry_versions.create({
+      data: {
+        id: versionId,
+        registry_id: registryId,
+        data_json: input.initialData,
+        submitted_by: input.submittedBy,
+        hash: hash,
+      },
     });
 
     // Log creation
-    await tx.insert(accessLogs).values({
-      id: randomUUID(),
-      registryId,
-      userId: null, // System action
-      action: "CREATED",
+    await tx.access_logs.create({
+      data: {
+        id: randomUUID(),
+        registry_id: registryId,
+        user_id: null, // System action
+        action: "CREATED",
+      },
     });
   });
 
@@ -102,19 +108,15 @@ export async function appendRegistryVersion(input: AppendVersionInput): Promise<
   const hash = createHash("sha256").update(dataJson).digest("hex");
 
   // Insert new version
-  const [newVersion] = await db.insert(registryVersions)
-    .values({
+  const newVersion = await prisma.registry_versions.create({
+    data: {
       id: versionId,
-      registryId: input.registryId,
-      dataJson: input.data,
-      submittedBy: input.submittedBy,
-      hash,
-    })
-    .returning();
-
-  if (!newVersion) {
-    throw new Error("Failed to create registry version");
-  }
+      registry_id: input.registryId,
+      data_json: input.data,
+      submitted_by: input.submittedBy,
+      hash: hash,
+    },
+  });
 
   // Log the update
   await logAccess({
@@ -136,32 +138,55 @@ export async function appendRegistryVersion(input: AppendVersionInput): Promise<
  */
 export async function getRegistryById(registryId: string): Promise<RegistryWithVersions> {
   // Fetch registry record
-  const [registry] = await db.select()
-    .from(registryRecords)
-    .where(eq(registryRecords.id, registryId))
-    .limit(1);
+  const registry = await prisma.registry_records.findUnique({
+    where: { id: registryId },
+  });
 
   if (!registry) {
     throw new Error(`Registry not found: ${registryId}`);
   }
 
   // Fetch all versions (ordered by creation time, newest first)
-  const versions = await db.select()
-    .from(registryVersions)
-    .where(eq(registryVersions.registryId, registryId))
-    .orderBy(desc(registryVersions.createdAt));
+  const versions = await prisma.registry_versions.findMany({
+    where: { registry_id: registryId },
+    orderBy: { created_at: 'desc' },
+  });
 
   // Fetch access logs (ordered by timestamp, newest first)
-  const logs = await db.select()
-    .from(accessLogs)
-    .where(eq(accessLogs.registryId, registryId))
-    .orderBy(desc(accessLogs.timestamp));
+  const logs = await prisma.access_logs.findMany({
+    where: { registry_id: registryId },
+    orderBy: { created_at: 'desc' },
+  });
 
   return {
-    ...registry,
-    versions,
-    latestVersion: versions[0] || null,
-    accessLogs: logs,
+    id: registry.id,
+    decedentName: registry.decedent_name,
+    status: registry.status as RegistryStatus,
+    createdAt: registry.created_at,
+    versions: versions.map(v => ({
+      id: v.id,
+      registryId: v.registry_id,
+      dataJson: v.data_json as Record<string, unknown>,
+      submittedBy: v.submitted_by as RegistrySubmissionSource,
+      hash: v.hash,
+      createdAt: v.created_at,
+    })),
+    latestVersion: versions[0] ? {
+      id: versions[0].id,
+      registryId: versions[0].registry_id,
+      dataJson: versions[0].data_json as Record<string, unknown>,
+      submittedBy: versions[0].submitted_by as RegistrySubmissionSource,
+      hash: versions[0].hash,
+      createdAt: versions[0].created_at,
+    } : null,
+    accessLogs: logs.map(l => ({
+      id: l.id,
+      registryId: l.registry_id,
+      userId: l.user_id,
+      action: l.action as AccessLogAction,
+      metadata: l.metadata as Record<string, unknown> | null,
+      timestamp: l.created_at,
+    })),
   };
 }
 
@@ -184,21 +209,24 @@ export async function getRegistryById(registryId: string): Promise<RegistryWithV
 export async function logAccess(input: LogAccessInput): Promise<AccessLog> {
   const logId = randomUUID();
 
-  const [log] = await db.insert(accessLogs)
-    .values({
+  const log = await prisma.access_logs.create({
+    data: {
       id: logId,
-      registryId: input.registryId,
-      userId: input.userId || null,
+      registry_id: input.registryId,
+      user_id: input.userId || null,
       action: input.action,
       metadata: input.metadata || null,
-    })
-    .returning();
+    },
+  });
 
-  if (!log) {
-    throw new Error("Failed to create access log");
-  }
-
-  return log;
+  return {
+    id: log.id,
+    registryId: log.registry_id,
+    userId: log.user_id,
+    action: log.action as AccessLogAction,
+    metadata: log.metadata as Record<string, unknown> | null,
+    timestamp: log.created_at,
+  };
 }
 
 /**
@@ -221,48 +249,46 @@ export async function getAllRegistries(): Promise<Array<{
   lastUpdated: Date | null;
 }>> {
   // Fetch all registries with their latest version
-  const registries = await db.select({
-    id: registryRecords.id,
-    decedentName: registryRecords.decedentName,
-    status: registryRecords.status,
-    createdAt: registryRecords.createdAt,
-  })
-    .from(registryRecords)
-    .orderBy(desc(registryRecords.createdAt));
+  const registries = await prisma.registry_records.findMany({
+    orderBy: { created_at: 'desc' },
+    select: {
+      id: true,
+      decedent_name: true,
+      status: true,
+      created_at: true,
+    },
+  });
 
   // For each registry, get latest version info
   const registriesWithVersions = await Promise.all(
     registries.map(async (registry) => {
-      const [latestVersion] = await db.select({
-        id: registryVersions.id,
-        createdAt: registryVersions.createdAt,
-        submittedBy: registryVersions.submittedBy,
-      })
-        .from(registryVersions)
-        .where(eq(registryVersions.registryId, registry.id))
-        .orderBy(desc(registryVersions.createdAt))
-        .limit(1);
+      const latestVersion = await prisma.registry_versions.findFirst({
+        where: { registry_id: registry.id },
+        orderBy: { created_at: 'desc' },
+        select: {
+          id: true,
+          created_at: true,
+          submitted_by: true,
+        },
+      });
 
       // Count versions for this registry
-      const versionCountResult = await db.execute(sql`
-        SELECT COUNT(*)::int as count
-        FROM registry_versions
-        WHERE registry_id = ${registry.id}
-      `);
-      const versionCount = (versionCountResult.rows[0] as { count: number })?.count || 0;
+      const versionCount = await prisma.registry_versions.count({
+        where: { registry_id: registry.id },
+      });
 
       return {
         id: registry.id,
-        decedentName: registry.decedentName,
+        decedentName: registry.decedent_name,
         status: registry.status,
-        createdAt: registry.createdAt,
+        createdAt: registry.created_at,
         latestVersion: latestVersion ? {
           id: latestVersion.id,
-          createdAt: latestVersion.createdAt,
-          submittedBy: latestVersion.submittedBy,
+          createdAt: latestVersion.created_at,
+          submittedBy: latestVersion.submitted_by,
         } : null,
         versionCount,
-        lastUpdated: latestVersion?.createdAt || null,
+        lastUpdated: latestVersion?.created_at || null,
       };
     })
   );
@@ -274,35 +300,40 @@ export async function getAllRegistries(): Promise<Array<{
  * Get registry version by ID with associated documents
  */
 export async function getRegistryVersionById(versionId: string): Promise<RegistryVersionWithDocuments> {
-  const [version] = await db.select()
-    .from(registryVersions)
-    .where(eq(registryVersions.id, versionId))
-    .limit(1);
+  const version = await prisma.registry_versions.findUnique({
+    where: { id: versionId },
+  });
 
   if (!version) {
     throw new Error(`Registry version not found: ${versionId}`);
   }
 
-  // Fetch associated documents using Drizzle
-  const docs = await db.select({
-    id: documents.id,
-    fileName: documents.fileName,
-    filePath: documents.filePath,
-    documentHash: documents.documentHash,
-    createdAt: documents.createdAt,
-  })
-    .from(documents)
-    .where(eq(documents.registryVersionId, versionId))
-    .orderBy(desc(documents.createdAt));
+  // Fetch associated documents using Prisma
+  const docs = await prisma.documents.findMany({
+    where: { registry_version_id: versionId },
+    orderBy: { created_at: 'desc' },
+    select: {
+      id: true,
+      file_name: true,
+      storage_path: true,
+      sha256: true,
+      created_at: true,
+    },
+  });
 
   return {
-    ...version,
+    id: version.id,
+    registryId: version.registry_id,
+    dataJson: version.data_json as Record<string, unknown>,
+    submittedBy: version.submitted_by as RegistrySubmissionSource,
+    hash: version.hash,
+    createdAt: version.created_at,
     documents: docs.map(doc => ({
       id: doc.id,
-      fileName: doc.fileName,
-      filePath: doc.filePath,
-      documentHash: doc.documentHash,
-      createdAt: doc.createdAt,
+      fileName: doc.file_name,
+      filePath: doc.storage_path,
+      documentHash: doc.sha256,
+      createdAt: doc.created_at,
     })),
   };
 }

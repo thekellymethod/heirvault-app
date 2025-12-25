@@ -73,30 +73,15 @@ export async function POST(
         console.error("Update client: Raw SQL address update failed, trying Prisma:", sqlErrorMessage);
         // Fallback to Prisma
         try {
-          const prismaAny = prisma as unknown as Record<string, unknown>;
-          if (prismaAny.clients && typeof prismaAny.clients === "object") {
-            const clients = prismaAny.clients as { update: (args: { where: { id: string }; data: unknown }) => Promise<unknown> };
-            await clients.update({
-              where: { id: invite.clientId },
-              data: {
-                address_line1: address.street || null,
-                city: address.city || null,
-                state: address.state || null,
-                postal_code: address.zipCode || null,
-              },
-            });
-          } else if (prismaAny.client && typeof prismaAny.client === "object") {
-            const client = prismaAny.client as { update: (args: { where: { id: string }; data: unknown }) => Promise<unknown> };
-            await client.update({
-              where: { id: invite.clientId },
-              data: {
-                addressLine1: address.street || null,
-                city: address.city || null,
-                state: address.state || null,
-                postalCode: address.zipCode || null,
-              },
-            });
-          }
+          await prisma.clients.update({
+            where: { id: invite.clientId },
+            data: {
+              address_line1: address.street || null,
+              city: address.city || null,
+              state: address.state || null,
+              postal_code: address.zipCode || null,
+            },
+          });
         } catch (prismaError: unknown) {
           const prismaErrorMessage = prismaError instanceof Error ? prismaError.message : "Unknown error";
           console.error("Update client: Prisma address update also failed:", prismaErrorMessage);

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { prisma } from "@/lib/prisma";
 import { decodePassportForm } from "@/lib/ocr-form-decoder";
 import { uploadDocument } from "@/lib/storage";
 import { renderToStream } from "@react-pdf/renderer";
@@ -8,6 +8,7 @@ import { sendClientReceiptEmail, sendAttorneyNotificationEmail } from "@/lib/ema
 import { AuditAction } from "@/lib/db";
 import { getOrCreateTestInvite } from "@/lib/test-invites";
 import { lookupClientInvite } from "@/lib/invite-lookup";
+import { randomUUID } from "crypto";
 
 export const runtime = "nodejs";
 
@@ -80,17 +81,18 @@ export async function POST(
         contentType: file.type,
       });
       const filePath = storagePath;
-      archivedDocument = await prisma.document.create({
+      archivedDocument = await prisma.documents.create({
         data: {
-          clientId: invite.clientId,
-          fileName: file.name,
-          fileType: file.type,
-          fileSize: file.size,
-          filePath: filePath,
-          mimeType: file.type,
-          uploadedVia: "update-form",
-          extractedData: decodedData,
-          ocrConfidence: decodedData.confidence,
+          client_id: invite.clientId,
+          file_name: file.name,
+          file_type: file.type,
+          file_size: file.size,
+          file_path: filePath,
+          mime_type: file.type,
+          uploaded_via: "update-form",
+          extracted_data: decodedData,
+          ocr_confidence: decodedData.confidence ? Math.round(decodedData.confidence * 100) : null,
+          document_hash: "", // Will be calculated if needed
         },
       });
     } catch (archiveError) {
@@ -99,16 +101,16 @@ export async function POST(
     }
 
     // Update client information
-    const updatedClient = await prisma.client.update({
+    const updatedClient = await prisma.clients.update({
       where: { id: invite.clientId },
       data: {
-        firstName: decodedData.firstName || invite.client.firstName,
-        lastName: decodedData.lastName || invite.client.lastName,
-        email: decodedData.email || invite.client.email,
-        phone: decodedData.phone || invite.client.phone,
-        dateOfBirth: decodedData.dateOfBirth
+        first_name: decodedData.firstName || invite.client.firstName || "",
+        last_name: decodedData.lastName || invite.client.lastName || "",
+        email: decodedData.email || invite.client.email || "",
+        phone: decodedData.phone || invite.client.phone || null,
+        date_of_birth: decodedData.dateOfBirth
           ? new Date(decodedData.dateOfBirth)
-          : invite.client.dateOfBirth,
+          : invite.client.dateOfBirth || null,
       },
     });
 
@@ -118,7 +120,7 @@ export async function POST(
       // Find or create insurer
       let insurer = null;
       if (decodedData.insurerName) {
-        insurer = await prisma.insurer.findFirst({
+        insurer = await prisma.insurers.findFirst({
           where: {
             name: {
               equals: decodedData.insurerName,
@@ -128,7 +130,7 @@ export async function POST(
         });
 
         if (!insurer) {
-          insurer = await prisma.insurer.create({
+          insurer = await prisma.insurers.create({
             data: {
               name: decodedData.insurerName,
             },
@@ -138,52 +140,52 @@ export async function POST(
 
       // Update existing policy or create new one
       if (insurer) {
-        const existingPolicy = await prisma.policy.findFirst({
+        const existingPolicy = await prisma.policies.findFirst({
           where: {
-            clientId: invite.clientId,
-            insurerId: insurer.id,
+            client_id: invite.clientId,
+            insurer_id: insurer.id,
           },
         });
 
         if (existingPolicy) {
-          updatedPolicy = await prisma.policy.update({
+          updatedPolicy = await prisma.policies.update({
             where: { id: existingPolicy.id },
             data: {
-              policyNumber: decodedData.policyNumber || existingPolicy.policyNumber,
-              policyType: decodedData.policyType || existingPolicy.policyType,
+              policy_number: decodedData.policyNumber || existingPolicy.policy_number || null,
+              policy_type: decodedData.policyType || existingPolicy.policy_type || null,
             },
           });
         } else {
-          updatedPolicy = await prisma.policy.create({
+          updatedPolicy = await prisma.policies.create({
             data: {
-              clientId: invite.clientId,
-              insurerId: insurer.id,
-              policyNumber: decodedData.policyNumber || null,
-              policyType: decodedData.policyType || null,
+              client_id: invite.clientId,
+              insurer_id: insurer.id,
+              policy_number: decodedData.policyNumber || null,
+              policy_type: decodedData.policyType || null,
             },
           });
         }
 
         // Link document to policy
         if (archivedDocument && updatedPolicy) {
-          await prisma.document.update({
+          await prisma.documents.update({
             where: { id: archivedDocument.id },
-            data: { policyId: updatedPolicy.id },
+            data: { policy_id: updatedPolicy.id },
           });
         }
       }
     }
 
     // Get organization and attorney info
-    const access = await prisma.attorneyClientAccess.findFirst({
+    const access = await prisma.attorney_client_access.findFirst({
       where: {
-        clientId: invite.clientId,
-        isActive: true,
+        client_id: invite.clientId,
+        is_active: true,
       },
       include: {
-        attorney: {
+        users: {
           include: {
-            orgMemberships: {
+            org_members: {
               include: {
                 organizations: true,
               },
@@ -193,13 +195,13 @@ export async function POST(
       },
     });
 
-    const organization = access?.attorney?.orgMemberships?.[0]?.organizations;
-    const attorney = access?.attorney;
+    const organization = access?.users?.org_members?.[0]?.organizations;
+    const attorney = access?.users;
 
     // Get updated policies for receipt
-    const updatedPolicies = await prisma.policy.findMany({
-      where: { clientId: invite.clientId },
-      include: { insurer: true },
+    const updatedPolicies = await prisma.policies.findMany({
+      where: { client_id: invite.clientId },
+      include: { insurers: true },
     });
 
     // Generate new receipt data
@@ -289,7 +291,7 @@ export async function POST(
           receiptId,
           receiptPdf: receiptPdfBuffer,
           firmName: organization?.name,
-        }).catch((emailError) => {
+        }).then(() => undefined).catch((emailError) => {
           console.error("Error sending client receipt email:", emailError);
         })
       );
@@ -310,7 +312,7 @@ export async function POST(
             receiptId,
             policiesCount: receiptData.policies.length,
             updateUrl,
-          }).catch((emailError) => {
+          }).then(() => undefined).catch((emailError) => {
             console.error("Error sending attorney notification email:", emailError);
           })
         );
@@ -323,14 +325,17 @@ export async function POST(
     });
 
     // Log audit event
-    await prisma.auditLog.create({
+    const auditLogId = randomUUID();
+    await prisma.audit_logs.create({
       data: {
+        id: auditLogId,
         action: AuditAction.CLIENT_UPDATED,
         message: `Client information updated via scanned form: ${file.name}`,
-        clientId: invite.clientId,
-        policyId: updatedPolicy?.id || null,
-        userId: null,
-        orgId: null,
+        client_id: invite.clientId,
+        policy_id: updatedPolicy?.id || null,
+        user_id: null,
+        org_id: null,
+        created_at: new Date(),
       },
     });
 

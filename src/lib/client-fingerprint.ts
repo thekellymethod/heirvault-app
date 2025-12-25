@@ -1,7 +1,6 @@
 import { createHash } from "crypto";
-import { clients, eq } from "@/lib/db";
-import type { NodePgDatabase } from "drizzle-orm/node-postgres";
-import type * as schema from "@/lib/db/schema";
+import { prisma } from "@/lib/db";
+import type { PrismaClient } from "@prisma/client";
 
 /**
  * Generate a unique fingerprint for a client based on identifying information.
@@ -69,13 +68,13 @@ export function generateClientFingerprint(clientData: {
  */
 export async function findClientByFingerprint(
   fingerprint: string,
-  db: NodePgDatabase<typeof schema>
+  db: PrismaClient = prisma
 ): Promise<string | null> {
   try {
-    const [client] = await db.select({ id: clients.id })
-      .from(clients)
-      .where(eq(clients.clientFingerprint, fingerprint))
-      .limit(1);
+    const client = await db.clients.findFirst({
+      where: { client_fingerprint: fingerprint },
+      select: { id: true },
+    });
     
     return client?.id || null;
   } catch (error: unknown) {

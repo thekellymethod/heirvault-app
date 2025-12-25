@@ -3,13 +3,15 @@ import { prisma } from "@/lib/prisma";
 import { supabaseServer } from "@/lib/supabase";
 
 // Type helper for Prisma transaction client
-type PrismaTransactionClient = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
+// Use the same type as prisma but exclude transaction-related methods
+// The transaction client has the same model access as the main client
+type PrismaTransactionClient = Omit<typeof prisma, "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends">;
 
 // If your guards return this shape already, keep it.
 // Otherwise adjust fields to match your AppUser type.
 export type AdminActor = {
   id: string;       // Prisma User.id
-  clerkId: string;  // Clerk user id
+  clerkId?: string; // Clerk user id (optional - not present for API token auth)
   email: string;
   roles: string[];
 };
@@ -87,11 +89,10 @@ export const COMMANDS: CommandDef[] = [
           prisma.user.count(),
           prisma.organizations.count(),
         ]);
-        // Note: clients table is in Drizzle/Supabase, not Prisma
-        // We'll use a raw query to check if it exists
-        const clientsCount = await prisma.$queryRawUnsafe<Array<{ count: bigint }>>(
+        // Check clients table using raw query
+        const clientsCount = (await prisma.$queryRawUnsafe(
           `SELECT COUNT(*) as count FROM clients LIMIT 1`
-        ).catch(() => [{ count: BigInt(0) }]);
+        ).catch(() => [{ count: BigInt(0) }])) as Array<{ count: bigint }>;
         return {
           ok: true,
           data: {
@@ -126,12 +127,12 @@ export const COMMANDS: CommandDef[] = [
         logs: string | null;
         applied_steps_count: number;
       };
-      const rows = await prisma.$queryRawUnsafe<MigrationRow[]>(`
+      const rows = (await prisma.$queryRawUnsafe(`
         SELECT id, checksum, finished_at, migration_name, logs, applied_steps_count
         FROM "_prisma_migrations"
         ORDER BY finished_at DESC NULLS LAST
         LIMIT ${limit};
-      `);
+      `)) as MigrationRow[];
       return { ok: true, data: rows };
     },
   },
@@ -330,11 +331,9 @@ export const COMMANDS: CommandDef[] = [
       const dateOfBirth = args?.dateOfBirth ? String(args.dateOfBirth) : null;
 
       // Import dependencies
-      const { db, clients, attorneyClientAccess, clientInvites, eq } = await import("@/lib/db");
       const { getCurrentUserWithOrg } = await import("@/lib/authz");
       const { sendClientInviteEmail } = await import("@/lib/email");
       const { generateClientFingerprint, findClientByFingerprint } = await import("@/lib/client-fingerprint");
-      const { randomBytes, randomUUID } = await import("crypto");
 
       // Get or create organization for admin (getCurrentUserWithOrg auto-creates if needed)
       const { orgMember } = await getCurrentUserWithOrg();
@@ -359,10 +358,9 @@ export const COMMANDS: CommandDef[] = [
       }
 
       // Check if client already exists
-      const [existingClient] = await db.select()
-        .from(clients)
-        .where(eq(clients.email, email))
-        .limit(1);
+      const existingClient = await prisma.clients.findFirst({
+        where: { email },
+      });
 
       let client = existingClient || null;
 
@@ -374,40 +372,53 @@ export const COMMANDS: CommandDef[] = [
           dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
         });
 
-        const existingClientId = await findClientByFingerprint(fingerprint, db);
+        const existingClientId = await findClientByFingerprint(fingerprint, prisma);
         if (existingClientId) {
-          const [existing] = await db.select()
-            .from(clients)
-            .where(eq(clients.id, existingClientId))
-            .limit(1);
+          const existing = await prisma.clients.findFirst({
+            where: { id: existingClientId },
+          });
           if (existing) client = existing;
         }
 
         if (!client) {
-          const [newClient] = await db.insert(clients)
-            .values({
+          const clientId = randomUUID();
+          const now = new Date();
+          const dateOfBirthValue = dateOfBirth 
+            ? (typeof dateOfBirth === 'string' 
+                ? new Date(dateOfBirth) 
+                : new Date(dateOfBirth))
+            : null;
+          
+          const newClient = await prisma.clients.create({
+            data: {
+              id: clientId,
               email,
-              firstName,
-              lastName,
+              first_name: firstName,
+              last_name: lastName,
               phone: phone || null,
-              dateOfBirth: dateOfBirth ? (typeof dateOfBirth === 'string' ? dateOfBirth : new Date(dateOfBirth).toISOString().split('T')[0]) : null,
-              orgId: organizationId,
-              clientFingerprint: fingerprint,
-            })
-            .returning();
+              date_of_birth: dateOfBirthValue,
+              org_id: organizationId,
+              client_fingerprint: fingerprint,
+              created_at: now,
+              updated_at: now,
+            },
+          });
           client = newClient;
         }
       }
 
       // Grant attorney access
       try {
-        await db.insert(attorneyClientAccess)
-          .values({
-            attorneyId: ctx.actor.id,
-            clientId: client.id,
-            organizationId: organizationId,
-            isActive: true,
-          });
+        await prisma.attorney_client_access.create({
+          data: {
+            id: randomUUID(),
+            attorney_id: ctx.actor.id,
+            client_id: client.id,
+            organization_id: organizationId,
+            is_active: true,
+            granted_at: new Date(),
+          },
+        });
       } catch {
         // Access might already exist, ignore
       }
@@ -417,15 +428,18 @@ export const COMMANDS: CommandDef[] = [
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + 14);
 
-      const [invite] = await db.insert(clientInvites)
-        .values({
-          clientId: client.id,
+      const invite = await prisma.client_invites.create({
+        data: {
+          id: randomUUID(),
+          client_id: client.id,
           email,
           token,
-          expiresAt,
-          invitedByUserId: ctx.actor.id,
-        })
-        .returning();
+          expires_at: expiresAt,
+          invited_by_user_id: ctx.actor.id,
+          created_at: new Date(),
+          updated_at: new Date(),
+        },
+      });
 
       const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
       const inviteUrl = `${baseUrl}/invite/${invite.token}`;
@@ -434,7 +448,7 @@ export const COMMANDS: CommandDef[] = [
       try {
         await sendClientInviteEmail({
           to: email,
-          clientName: `${client.firstName} ${client.lastName}`,
+          clientName: `${client.first_name} ${client.last_name}`,
           firmName: organizationName,
           inviteUrl,
         });
@@ -461,8 +475,8 @@ export const COMMANDS: CommandDef[] = [
           client: {
             id: client.id,
             email: client.email,
-            firstName: client.firstName,
-            lastName: client.lastName,
+            firstName: client.first_name,
+            lastName: client.last_name,
           },
           invite: {
             id: invite.id,
@@ -489,14 +503,14 @@ export const COMMANDS: CommandDef[] = [
       const policyType = args?.policyType ? String(args.policyType).trim() : null;
 
       // Import dependencies
-      const { db, insurers, policies, clients, eq } = await import("@/lib/db");
-      const { audit, AuditAction } = await import("@/lib/audit");
+      const { AuditAction } = await import("@/lib/db/enums");
+      const { audit } = await import("@/lib/audit");
 
       // Verify client exists
-      const [clientExists] = await db.select({ id: clients.id })
-        .from(clients)
-        .where(eq(clients.id, clientId))
-        .limit(1);
+      const clientExists = await prisma.clients.findFirst({
+        where: { id: clientId },
+        select: { id: true },
+      });
 
       if (!clientExists) {
         return { ok: false, error: "Client not found" };
@@ -508,10 +522,10 @@ export const COMMANDS: CommandDef[] = [
 
       if (insurerId) {
         // Verify insurer exists before using it (prevents foreign key constraint errors)
-        const [insurerExists] = await db.select({ id: insurers.id })
-          .from(insurers)
-          .where(eq(insurers.id, insurerId))
-          .limit(1);
+        const insurerExists = await prisma.insurers.findFirst({
+          where: { id: insurerId },
+          select: { id: true },
+        });
 
         if (!insurerExists) {
           return { ok: false, error: `Insurer not found with ID: ${insurerId}` };
@@ -519,10 +533,9 @@ export const COMMANDS: CommandDef[] = [
 
         resolvedInsurerId = insurerId;
       } else if (insurerName) {
-        const [existingInsurer] = await db.select()
-          .from(insurers)
-          .where(eq(insurers.name, insurerName))
-          .limit(1);
+        const existingInsurer = await prisma.insurers.findFirst({
+          where: { name: insurerName },
+        });
 
         if (existingInsurer) {
           resolvedInsurerId = existingInsurer.id;
@@ -542,19 +555,24 @@ export const COMMANDS: CommandDef[] = [
       }
 
       // Create policy
-      const [policy] = await db.insert(policies)
-        .values({
-          clientId,
-          insurerId: resolvedInsurerId,
-          carrierNameRaw: resolvedCarrierNameRaw,
-          carrierConfidence: null,
-          policyNumber: policyNumber || null,
-          policyType: policyType || null,
-        })
-        .returning();
+      const policyId = randomUUID();
+      const now = new Date();
+      const policy = await prisma.policies.create({
+        data: {
+          id: policyId,
+          client_id: clientId,
+          insurer_id: resolvedInsurerId,
+          carrier_name_raw: resolvedCarrierNameRaw,
+          carrier_confidence: null,
+          policy_number: policyNumber || null,
+          policy_type: policyType || null,
+          created_at: now,
+          updated_at: now,
+        },
+      });
 
       const insurerDisplayName = resolvedInsurerId
-        ? (await db.select().from(insurers).where(eq(insurers.id, resolvedInsurerId)).limit(1))[0]?.name || 'Unknown'
+        ? (await prisma.insurers.findFirst({ where: { id: resolvedInsurerId } }))?.name || 'Unknown'
         : resolvedCarrierNameRaw || 'Unknown';
 
       await audit(AuditAction.POLICY_CREATED, {

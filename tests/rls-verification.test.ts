@@ -7,8 +7,8 @@
 
 import { describe, it, expect, beforeAll } from "vitest";
 import { supabaseServer } from "@/lib/supabase";
-import { db, registryRecords, registryPermissions, users, clients, attorneyClientAccess } from "@/lib/db";
-import { eq } from "@/lib/db";
+import { db, registryRecords, users, clients, attorneyClientAccess, prisma } from "@/lib/db";
+import { eq, and } from "@/lib/db";
 import { randomUUID } from "crypto";
 
 describe("RLS Policy Verification", () => {
@@ -20,8 +20,7 @@ describe("RLS Policy Verification", () => {
     // Create test registry
     const [testRegistry] = await db.insert(registryRecords)
       .values({
-        insured_name: "Test Insured",
-        carrier_guess: "Test Carrier",
+        decedentName: "Test Insured",
         status: "ACTIVE",
       })
       .returning();
@@ -67,28 +66,30 @@ describe("RLS Policy Verification", () => {
     });
 
     it("should enforce unique constraint on (registry_id, user_id)", async () => {
-      // Create first permission
-      await db.insert(registryPermissions)
-        .values({
-          registry_id: testRegistryId,
-          user_id: testUserId,
-          role: "ATTORNEY",
-        });
+      // Create first permission using raw SQL (table not in Drizzle schema)
+      await prisma.$executeRawUnsafe(
+        `INSERT INTO registry_permissions (registry_id, user_id, role) VALUES ($1, $2, $3)`,
+        testRegistryId,
+        testUserId,
+        "ATTORNEY"
+      );
 
       // Try to create duplicate (should fail)
       await expect(
-        db.insert(registryPermissions)
-          .values({
-            registry_id: testRegistryId,
-            user_id: testUserId,
-            role: "ATTORNEY",
-          })
+        prisma.$executeRawUnsafe(
+          `INSERT INTO registry_permissions (registry_id, user_id, role) VALUES ($1, $2, $3)`,
+          testRegistryId,
+          testUserId,
+          "ATTORNEY"
+        )
       ).rejects.toThrow();
 
       // Cleanup
-      await db.delete(registryPermissions)
-        .where(eq(registryPermissions.registry_id, testRegistryId))
-        .where(eq(registryPermissions.user_id, testUserId));
+      await prisma.$executeRawUnsafe(
+        `DELETE FROM registry_permissions WHERE registry_id = $1 AND user_id = $2`,
+        testRegistryId,
+        testUserId
+      );
     });
   });
 
@@ -126,23 +127,24 @@ describe("RLS Policy Verification", () => {
 
       // Cleanup
       await db.delete(attorneyClientAccess)
-        .where(eq(attorneyClientAccess.attorneyId, testUserId))
-        .where(eq(attorneyClientAccess.clientId, testClientId));
+        .where(and(
+          eq(attorneyClientAccess.attorneyId, testUserId),
+          eq(attorneyClientAccess.clientId, testClientId)
+        ));
     });
   });
 
   describe("user_has_registry_permission function", () => {
     it("should return true when user has permission", async () => {
-      // Grant permission
-      await db.insert(registryPermissions)
-        .values({
-          registry_id: testRegistryId,
-          user_id: testUserId,
-          role: "ATTORNEY",
-        });
+      // Grant permission using raw SQL (table not in Drizzle schema)
+      await prisma.$executeRawUnsafe(
+        `INSERT INTO registry_permissions (registry_id, user_id, role) VALUES ($1, $2, $3)`,
+        testRegistryId,
+        testUserId,
+        "ATTORNEY"
+      );
 
       // Test function via raw SQL
-      const { prisma } = await import("@/lib/db");
       const result = await prisma.$queryRawUnsafe<Array<{ user_has_registry_permission: boolean }>>(
         `SELECT user_has_registry_permission($1, $2, $3) as user_has_registry_permission`,
         testUserId,
@@ -153,13 +155,14 @@ describe("RLS Policy Verification", () => {
       expect(result[0]?.user_has_registry_permission).toBe(true);
 
       // Cleanup
-      await db.delete(registryPermissions)
-        .where(eq(registryPermissions.registry_id, testRegistryId))
-        .where(eq(registryPermissions.user_id, testUserId));
+      await prisma.$executeRawUnsafe(
+        `DELETE FROM registry_permissions WHERE registry_id = $1 AND user_id = $2`,
+        testRegistryId,
+        testUserId
+      );
     });
 
     it("should return false when user lacks permission", async () => {
-      const { prisma } = await import("@/lib/db");
       const unauthorizedUserId = "unauthorized_user_123";
 
       const result = await prisma.$queryRawUnsafe<Array<{ user_has_registry_permission: boolean }>>(

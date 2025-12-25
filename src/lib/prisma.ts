@@ -1,13 +1,13 @@
 import "server-only";
-import { PrismaClient } from "@prisma/client";
+import * as Prisma from "@prisma/client";
 import { withAccelerate } from "@prisma/extension-accelerate";
 import "@/lib/env";
 
-// Create a stable exported type that matches whatever $extends returns.
-type ExtendedPrismaClient = ReturnType<PrismaClient["$extends"]>;
+// Type for the extended Prisma client
+// Use PrismaClient as the base type - extensions preserve all model types
+type ExtendedPrismaClient = Prisma.PrismaClient;
 
 declare global {
-   
   var __prisma: ExtendedPrismaClient | undefined;
 }
 
@@ -24,12 +24,15 @@ function createClient(): ExtendedPrismaClient {
     );
   }
 
-  const base = new PrismaClient(options);
+  const base = new Prisma.PrismaClient(options);
 
   // Always extend so the returned type is consistent (prevents union headaches).
-  return process.env.PRISMA_ACCELERATE_URL
+  const extended = process.env.PRISMA_ACCELERATE_URL
     ? base.$extends(withAccelerate())
     : base.$extends({});
+  
+  // Cast to PrismaClient - extensions preserve all model types and are compatible
+  return extended as unknown as ExtendedPrismaClient;
 }
 
 export const prisma: ExtendedPrismaClient = globalThis.__prisma ?? createClient();

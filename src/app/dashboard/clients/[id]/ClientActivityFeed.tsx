@@ -1,12 +1,12 @@
 import { prisma } from "@/lib/db";
 
 export async function ClientActivityFeed({ clientId }: { clientId: string }) {
-  const logs = await prisma.auditLog.findMany({
-    where: { clientId },
-    orderBy: { createdAt: "desc" },
+  const logs = await prisma.audit_logs.findMany({
+    where: { client_id: clientId },
+    orderBy: { created_at: "desc" },
     take: 50,
     include: {
-      user: true,
+      users: true,
     },
   });
 
@@ -34,14 +34,14 @@ export async function ClientActivityFeed({ clientId }: { clientId: string }) {
                 {humanizeAuditAction(log.action)}
               </div>
               <div className="text-slate-400">{log.message}</div>
-              {log.user && (
+              {log.users && (
                 <div className="mt-0.5 text-[11px] text-slate-500">
-                  By: {log.user.email}
+                  By: {log.users.email}
                 </div>
               )}
             </div>
             <div className="text-[11px] text-slate-500">
-              {log.createdAt.toLocaleString("en-US", {
+              {log.created_at.toLocaleString("en-US", {
                 year: "numeric",
                 month: "short",
                 day: "numeric",

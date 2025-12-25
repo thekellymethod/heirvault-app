@@ -88,11 +88,12 @@ export async function POST(req: NextRequest) {
         const errorMessage = error instanceof Error ? error.message : "Unknown error";
         console.error("Create user error:", error);
         // Handle unique constraint violation on email
+        const errorAny = error as { code?: string; meta?: { target?: string[]; target_name?: string }; message?: string };
         const isEmailConstraintError = 
-          error?.code === 'P2002' && 
-          (error?.meta?.target?.includes('email') || 
-           error?.meta?.target_name === 'users_email_key' ||
-           error?.message?.includes('email'));
+          errorAny?.code === 'P2002' && 
+          (errorAny?.meta?.target?.includes('email') || 
+           errorAny?.meta?.target_name === 'users_email_key' ||
+           errorAny?.message?.includes('email'));
         
         if (isEmailConstraintError) {
           console.log("Email constraint violation during create, email was taken by another user");

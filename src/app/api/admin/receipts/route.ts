@@ -9,7 +9,7 @@ import { requireAuth } from "@/lib/utils/clerk";
 export async function GET(req: NextRequest) {
   try {
     // Require attorney authentication
-    const user = await requireAuth("attorney");
+    const _user = await requireAuth();
 
     const { searchParams } = new URL(req.url);
     const q = searchParams.get("q") || "";
@@ -81,7 +81,7 @@ export async function GET(req: NextRequest) {
 
         receipts = receiptsResult.map(row => ({
           id: row.id,
-          receiptId: row.receipt_id,
+          receiptId: row.receipt_id ?? `REC-${row.client_id}-${Math.floor(row.created_at.getTime() / 1000)}`,
           token: row.token,
           clientId: row.client_id,
           clientName: `${row.first_name} ${row.last_name}`,
@@ -171,28 +171,50 @@ export async function GET(req: NextRequest) {
       console.error("Admin receipts search: Raw SQL failed, trying Prisma:", sqlErrorMessage);
       
       // Fallback to Prisma (may not work due to schema issues, but try anyway)
-      const invites = await prisma.clientInvite.findMany({
-        where: archived ? { usedAt: { not: null } } : undefined,
-        include: {
-          clients: true,
-        },
-        take: limit,
-        skip: offset,
-        orderBy: { createdAt: "desc" },
-      });
+      // Note: Using raw SQL query as Prisma model may not be available
+      const invitesResult = await prisma.$queryRawUnsafe<Array<{
+        id: string;
+        client_id: string;
+        token: string;
+        email: string;
+        expires_at: Date;
+        used_at: Date | null;
+        created_at: Date;
+        first_name: string;
+        last_name: string;
+        phone: string | null;
+      }>>(`
+        SELECT 
+          ci.id,
+          ci.client_id,
+          ci.token,
+          ci.email,
+          ci.expires_at,
+          ci.used_at,
+          ci.created_at,
+          c.first_name,
+          c.last_name,
+          c.phone
+        FROM client_invites ci
+        INNER JOIN clients c ON c.id = ci.client_id
+        ${archived ? "WHERE ci.used_at IS NOT NULL" : ""}
+        ORDER BY ci.created_at DESC
+        LIMIT $1
+        OFFSET $2
+      `, limit, offset);
 
-      const receipts = invites.map(invite => ({
+      const receipts = invitesResult.map((invite) => ({
         id: invite.id,
-        receiptId: `REC-${invite.clientId}-${Math.floor(invite.createdAt.getTime() / 1000)}`,
+        receiptId: `REC-${invite.client_id}-${Math.floor(invite.created_at.getTime() / 1000)}`,
         token: invite.token,
-        clientId: invite.clientId,
-        clientName: `${invite.clients.firstName} ${invite.clients.lastName}`,
+        clientId: invite.client_id,
+        clientName: `${invite.first_name} ${invite.last_name}`,
         email: invite.email,
-        phone: invite.clients.phone,
-        expiresAt: invite.expiresAt,
-        usedAt: invite.usedAt,
-        createdAt: invite.createdAt,
-        isArchived: invite.usedAt !== null,
+        phone: invite.phone,
+        expiresAt: invite.expires_at,
+        usedAt: invite.used_at,
+        createdAt: invite.created_at,
+        isArchived: invite.used_at !== null,
       }));
 
       return NextResponse.json({
@@ -206,7 +228,7 @@ export async function GET(req: NextRequest) {
     const message = error instanceof Error ? error.message : "Unknown error";
     console.error("Error searching receipts:", error);
     return NextResponse.json(
-      { error: error.message || "Failed to search receipts" },
+      { error: message },
       { status: 500 }
     );
   }
@@ -217,7 +239,7 @@ export async function GET(req: NextRequest) {
  */
 export async function POST(req: NextRequest) {
   try {
-    const user = await requireAuth("attorney");
+    const _user = await requireAuth();
     const body = await req.json();
     const { receiptId, token } = body;
 
@@ -256,12 +278,13 @@ export async function POST(req: NextRequest) {
       const sqlErrorMessage = sqlError instanceof Error ? sqlError.message : "Unknown error";
       console.error("Archive receipt: Raw SQL failed, trying Prisma:", sqlErrorMessage);
       
-      // Fallback to Prisma
+      // Fallback to Prisma - use raw SQL since Prisma model may not be available
       if (token) {
-        await prisma.clientInvite.updateMany({
-          where: { token, usedAt: null },
-          data: { usedAt: new Date() },
-        });
+        await prisma.$executeRawUnsafe(`
+          UPDATE client_invites
+          SET used_at = NOW(), updated_at = NOW()
+          WHERE token = $1 AND used_at IS NULL
+        `, token);
       }
 
       return NextResponse.json({ success: true });

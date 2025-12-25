@@ -2,9 +2,9 @@ import { supabaseServer } from "@/lib/supabase";
 import { isRecord } from "@/lib/typeguards";
 import type { RegistryRecord } from "./db/index";
 
-// Re-export everything from db/index (Drizzle ORM, schema, query helpers)
-// This allows existing code to import { prisma, db, clients, policies, eq, ... } from "@/lib/db"
-// Note: RegistryRecord type is exported from ./db/index (from schema.ts)
+// Re-export everything from db/index (Prisma client and types)
+// This allows existing code to import { prisma, db, ... } from "@/lib/db"
+// Note: RegistryRecord type is exported from ./db/index (from Prisma types)
 export * from "./db/index";
 
 export type RegistryVersion = {

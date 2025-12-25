@@ -1,5 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
-import { db, users, orgMembers, organizations, eq, sql, prisma } from "./db";
+import { prisma } from "./db";
 import { getCurrentUser } from "./utils/clerk";
 import { randomUUID } from "crypto";
 
@@ -39,37 +39,27 @@ export async function getCurrentUserWithOrg() {
   } | null = null;
 
   try {
-    const result = await db
-      .select({
-        userId: users.id,
-        userEmail: users.email,
-        userFirstName: users.firstName,
-        userLastName: users.lastName,
-        userRole: users.role,
-        orgId: orgMembers.organizationId,
-        orgRole: orgMembers.role,
-        orgName: organizations.name,
-      })
-      .from(orgMembers)
-      .innerJoin(organizations, eq(orgMembers.organizationId, organizations.id))
-      .innerJoin(users, eq(orgMembers.userId, users.id))
-      .where(eq(orgMembers.userId, user.id))
-      .limit(1);
+    const orgMemberData = await prisma.org_members.findFirst({
+      where: { user_id: user.id },
+      include: {
+        organizations: true,
+        users: true,
+      },
+    });
 
-    if (result && result.length > 0) {
-      const row = result[0];
+    if (orgMemberData) {
       userWithOrg = {
-        id: row.userId,
-        email: row.userEmail,
-        firstName: row.userFirstName,
-        lastName: row.userLastName,
-        role: row.userRole || 'attorney',
+        id: orgMemberData.users.id,
+        email: orgMemberData.users.email,
+        firstName: orgMemberData.users.firstName,
+        lastName: orgMemberData.users.lastName,
+        role: orgMemberData.users.role || 'attorney',
         orgMemberships: [{
-          organizationId: row.orgId,
-          role: row.orgRole,
+          organizationId: orgMemberData.organization_id,
+          role: orgMemberData.role || 'STAFF',
           organizations: {
-            id: row.orgId,
-            name: row.orgName,
+            id: orgMemberData.organizations.id,
+            name: orgMemberData.organizations.name,
           },
         }],
       };
@@ -125,66 +115,62 @@ export async function getCurrentUserWithOrg() {
         .replace(/^-+|-+$/g, "");
 
       // Check if slug already exists, append random suffix if needed
-      const existingOrg = await prisma.$queryRawUnsafe<Array<{ id: string }>>(
-        `SELECT id FROM organizations WHERE slug = $1 LIMIT 1`,
-        slug
-      );
+      const existingOrg = await prisma.organizations.findFirst({
+        where: { slug },
+        select: { id: true },
+      });
 
       let finalSlug = slug;
-      if (existingOrg && existingOrg.length > 0) {
+      if (existingOrg) {
         finalSlug = `${slug}-${randomUUID().slice(0, 8)}`;
       }
 
       // Create organization and add user as OWNER in a transaction
-      const orgId = randomUUID();
-      const memberId = randomUUID();
-
-      await db.transaction(async (tx) => {
-        // Create organization using raw SQL
-        await tx.execute(
-          sql`INSERT INTO organizations (id, name, slug, created_at, updated_at)
-              VALUES (${orgId}, ${orgName}, ${finalSlug}, NOW(), NOW())`
-        );
+      const result = await prisma.$transaction(async (tx) => {
+        // Create organization
+        const org = await tx.organizations.create({
+          data: {
+            id: randomUUID(),
+            name: orgName,
+            slug: finalSlug,
+          },
+        });
 
         // Add user as OWNER of the organization
-        await tx.execute(
-          sql`INSERT INTO org_members (id, user_id, organization_id, role, created_at, updated_at)
-              VALUES (${memberId}, ${user.id}, ${orgId}, 'OWNER', NOW(), NOW())`
-        );
+        await tx.org_members.create({
+          data: {
+            id: randomUUID(),
+            user_id: user.id,
+            organization_id: org.id,
+            role: 'OWNER',
+          },
+        });
+
+        return org;
       });
 
       // Fetch the newly created organization and membership
-      const newResult = await db
-        .select({
-          userId: users.id,
-          userEmail: users.email,
-          userFirstName: users.firstName,
-          userLastName: users.lastName,
-          userRole: users.role,
-          orgId: orgMembers.organizationId,
-          orgRole: orgMembers.role,
-          orgName: organizations.name,
-        })
-        .from(orgMembers)
-        .innerJoin(organizations, eq(orgMembers.organizationId, organizations.id))
-        .innerJoin(users, eq(orgMembers.userId, users.id))
-        .where(eq(orgMembers.userId, user.id))
-        .limit(1);
+      const orgMemberData = await prisma.org_members.findFirst({
+        where: { user_id: user.id },
+        include: {
+          organizations: true,
+          users: true,
+        },
+      });
 
-      if (newResult && newResult.length > 0) {
-        const row = newResult[0];
+      if (orgMemberData) {
         userWithOrg = {
-          id: row.userId,
-          email: row.userEmail,
-          firstName: row.userFirstName,
-          lastName: row.userLastName,
-          role: row.userRole || 'attorney',
+          id: orgMemberData.users.id,
+          email: orgMemberData.users.email,
+          firstName: orgMemberData.users.firstName,
+          lastName: orgMemberData.users.lastName,
+          role: orgMemberData.users.role || 'attorney',
           orgMemberships: [{
-            organizationId: row.orgId,
-            role: row.orgRole,
+            organizationId: orgMemberData.organization_id,
+            role: orgMemberData.role || 'STAFF',
             organizations: {
-              id: row.orgId,
-              name: row.orgName,
+              id: orgMemberData.organizations.id,
+              name: orgMemberData.organizations.name,
             },
           }],
         };

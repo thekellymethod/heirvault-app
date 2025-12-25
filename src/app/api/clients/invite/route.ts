@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db, clients, attorneyClientAccess, clientInvites, eq } from '@/lib/db'
+import { prisma } from '@/lib/db'
 import { requireAuthApi } from '@/lib/utils/clerk'
 import { logAuditEvent } from '@/lib/audit'
 import { sendClientInviteEmail } from '@/lib/email'
@@ -52,10 +52,9 @@ export async function POST(req: NextRequest) {
     }
 
     // Check if client already exists
-    const [existingClient] = await db.select()
-      .from(clients)
-      .where(eq(clients.email, email))
-      .limit(1);
+    const existingClient = await prisma.clients.findFirst({
+      where: { email },
+    });
     
     let client = existingClient || null;
 
@@ -69,12 +68,11 @@ export async function POST(req: NextRequest) {
       });
 
       // Check if client with same fingerprint already exists
-      const existingClientId = await findClientByFingerprint(fingerprint, db);
+      const existingClientId = await findClientByFingerprint(fingerprint, prisma);
       if (existingClientId) {
-        const [existing] = await db.select()
-          .from(clients)
-          .where(eq(clients.id, existingClientId))
-          .limit(1);
+        const existing = await prisma.clients.findFirst({
+          where: { id: existingClientId },
+        });
         
         if (existing) {
           client = existing;
@@ -83,30 +81,33 @@ export async function POST(req: NextRequest) {
 
       if (!client) {
         // Create new client
-        const [newClient] = await db.insert(clients)
-          .values({
+        const newClient = await prisma.clients.create({
+          data: {
             email,
-            firstName,
-            lastName,
+            first_name: firstName,
+            last_name: lastName,
             phone: phone || null,
-            dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
-            orgId: organizationId,
-            clientFingerprint: fingerprint,
-          })
-          .returning();
+            date_of_birth: dateOfBirth ? new Date(dateOfBirth) : null,
+            org_id: organizationId,
+            client_fingerprint: fingerprint,
+          },
+        });
         
         client = newClient;
       }
 
       // Grant attorney access
       try {
-        await db.insert(attorneyClientAccess)
-          .values({
-            attorneyId: user.id,
-            clientId: client.id,
-            organizationId: organizationId,
-            isActive: true,
-          });
+        await prisma.attorney_client_access.create({
+          data: {
+            id: randomUUID(),
+            attorney_id: user.id,
+            client_id: client.id,
+            organization_id: organizationId,
+            is_active: true,
+            granted_at: now,
+          },
+        });
       } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : "Unknown error";
         console.error("Client invite: Access grant failed:", errorMessage);
@@ -132,15 +133,15 @@ export async function POST(req: NextRequest) {
       expiresAt.setDate(expiresAt.getDate() + 14) // 14-day expiry
 
       // Create invite
-      const [newInvite] = await db.insert(clientInvites)
-        .values({
-          clientId: client.id,
+      const newInvite = await prisma.client_invites.create({
+        data: {
+          client_id: client.id,
           email,
           token,
-          expiresAt,
-          invitedByUserId: user.id,
-        })
-        .returning();
+          expires_at: expiresAt,
+          invited_by_user_id: user.id,
+        },
+      });
       
       invite = newInvite;
 
@@ -153,7 +154,7 @@ export async function POST(req: NextRequest) {
       try {
         await sendClientInviteEmail({
           to: email,
-          clientName: `${client.firstName} ${client.lastName}`,
+          clientName: `${client.first_name} ${client.last_name}`,
           firmName: organizationName,
           inviteUrl,
         })
@@ -176,14 +177,14 @@ export async function POST(req: NextRequest) {
         client: {
           id: client.id,
           email: client.email,
-          firstName: client.firstName,
-          lastName: client.lastName,
+          firstName: client.first_name,
+          lastName: client.last_name,
         },
         invite: invite
           ? {
               id: invite.id,
               inviteUrl,
-              expiresAt: invite.expiresAt,
+              expiresAt: invite.expires_at,
               token: invite.token,
             }
           : null,

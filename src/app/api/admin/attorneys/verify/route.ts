@@ -2,7 +2,7 @@ import "server-only";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth/guards";
 import { prisma } from "@/lib/prisma";
-import { randomUUID } from "crypto";
+import { LicenseStatus } from "@prisma/client";
 import { sendEmail } from "@/lib/email";
 import { audit } from "@/lib/audit";
 
@@ -49,11 +49,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Get attorney profile
-    const profile = await prisma.attorneyProfile.findUnique({
-      where: { userId },
-      select: { lawFirm: true },
-    });
 
     // Update attorney profile
     const updatedProfile = await prisma.attorneyProfile.update({
@@ -134,9 +129,11 @@ export async function POST(req: NextRequest) {
     });
   } catch (error: unknown) {
     console.error("Attorney verify error:", error);
+    const message = error instanceof Error ? error.message : "Failed to verify attorney";
+    const status = (error as { status?: number })?.status || 500;
     return NextResponse.json(
-      { error: error.message || "Failed to verify attorney" },
-      { status: error.status || 500 }
+      { error: message },
+      { status }
     );
   }
 }
@@ -148,9 +145,9 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const status = searchParams.get("status");
 
-    const where: { licenseStatus?: string } = {};
-    if (status) {
-      where.licenseStatus = status;
+    const where: { licenseStatus?: LicenseStatus } = {};
+    if (status && (status === "ACTIVE" || status === "SUSPENDED" || status === "REVOKED" || status === "PENDING")) {
+      where.licenseStatus = status as LicenseStatus;
     }
 
     const profiles = await prisma.attorneyProfile.findMany({
@@ -184,9 +181,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ profiles });
   } catch (error: unknown) {
     console.error("Attorney list error:", error);
+    const message = error instanceof Error ? error.message : "Failed to list attorneys";
+    const status = (error as { status?: number })?.status || 500;
     return NextResponse.json(
-      { error: error.message || "Failed to list attorneys" },
-      { status: error.status || 500 }
+      { error: message },
+      { status }
     );
   }
 }

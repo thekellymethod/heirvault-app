@@ -1,0 +1,24 @@
+.main {
+  padding: 24px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.form {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.error {
+  color: crimson;
+  margin-top: 16px;
+}
+
+.receipt {
+  margin-top: 24px;
+  padding: 16px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+}
+

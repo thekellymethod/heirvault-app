@@ -13,9 +13,9 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const invite = await prisma.clientInvite.findUnique({
+    const invite = await prisma.client_invites.findUnique({
       where: { token },
-      include: { client: true },
+      include: { clients: true },
     });
 
     if (!invite) {
@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
     }
 
     const now = new Date();
-    const daysSinceExpiration = (now.getTime() - invite.expiresAt.getTime()) / (1000 * 60 * 60 * 24);
+    const daysSinceExpiration = (now.getTime() - invite.expires_at.getTime()) / (1000 * 60 * 60 * 24);
     const isExpired = daysSinceExpiration > 30;
 
     return NextResponse.json({
@@ -34,9 +34,9 @@ export async function GET(req: NextRequest) {
       invite: {
         token: invite.token,
         email: invite.email,
-        clientName: `${invite.client.firstName} ${invite.client.lastName}`,
-        expiresAt: invite.expiresAt.toISOString(),
-        usedAt: invite.usedAt?.toISOString() || null,
+        clientName: `${invite.clients.first_name} ${invite.clients.last_name}`,
+        expiresAt: invite.expires_at.toISOString(),
+        usedAt: invite.used_at?.toISOString() || null,
         daysSinceExpiration: Math.round(daysSinceExpiration * 100) / 100,
         isExpired,
         isValid: !isExpired,

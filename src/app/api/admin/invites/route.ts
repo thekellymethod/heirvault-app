@@ -9,7 +9,7 @@ import { requireAuth } from "@/lib/utils/clerk";
 export async function GET(req: NextRequest) {
   try {
     // Require attorney authentication
-    const user = await requireAuth("attorney");
+    await requireAuth();
 
     const { searchParams } = new URL(req.url);
     const q = searchParams.get("q") || "";
@@ -153,39 +153,10 @@ export async function GET(req: NextRequest) {
       });
     } catch (sqlError: unknown) {
       const sqlErrorMessage = sqlError instanceof Error ? sqlError.message : "Unknown error";
-      console.error("Admin invites search: Raw SQL failed, trying Prisma:", sqlErrorMessage);
+      console.error("Admin invites search: Raw SQL failed:", sqlErrorMessage);
       
-      // Fallback to Prisma
-      const invitesData = await prisma.clientInvite.findMany({
-        where: archived ? { usedAt: { not: null } } : undefined,
-        include: {
-          clients: true,
-        },
-        take: limit,
-        skip: offset,
-        orderBy: { createdAt: "desc" },
-      });
-
-      const invites = invitesData.map(invite => ({
-        id: invite.id,
-        token: invite.token,
-        clientId: invite.clientId,
-        clientName: `${invite.clients.firstName} ${invite.clients.lastName}`,
-        email: invite.email,
-        phone: invite.clients.phone,
-        expiresAt: invite.expiresAt,
-        usedAt: invite.usedAt,
-        createdAt: invite.createdAt,
-        isArchived: invite.usedAt !== null,
-        isExpired: new Date(invite.expiresAt) < new Date(),
-      }));
-
-      return NextResponse.json({
-        invites,
-        total: invites.length,
-        limit,
-        offset,
-      });
+      // Re-throw the error since we don't have a Prisma fallback
+      throw sqlError;
     }
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Failed to search invites";
@@ -202,7 +173,7 @@ export async function GET(req: NextRequest) {
  */
 export async function POST(req: NextRequest) {
   try {
-    const user = await requireAuth("attorney");
+    await requireAuth();
     const body = await req.json();
     const { token } = body;
 
@@ -224,15 +195,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true });
     } catch (sqlError: unknown) {
       const sqlErrorMessage = sqlError instanceof Error ? sqlError.message : "Unknown error";
-      console.error("Archive invite: Raw SQL failed, trying Prisma:", sqlErrorMessage);
+      console.error("Archive invite: Raw SQL failed:", sqlErrorMessage);
       
-      // Fallback to Prisma
-      await prisma.clientInvite.updateMany({
-        where: { token, usedAt: null },
-        data: { usedAt: new Date() },
-      });
-
-      return NextResponse.json({ success: true });
+      // Re-throw the error since we don't have a Prisma fallback
+      throw sqlError;
     }
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Failed to archive invite";

@@ -39,9 +39,9 @@ export async function POST(req: Request) {
 
     const customerId = subscription.customer as string;
 
-    // Look up org by stripeCustomerId
-    const org = await prisma.organization.findFirst({
-      where: { stripeCustomerId: customerId },
+    // Look up org by stripe_customer_id
+    const org = await prisma.organizations.findFirst({
+      where: { stripe_customer_id: customerId },
     });
 
     if (!org) {
@@ -58,12 +58,12 @@ export async function POST(req: Request) {
 
     const status = subscription.status; // "active", "past_due", etc.
 
-    await prisma.organization.update({
+    await prisma.organizations.update({
       where: { id: org.id },
       data: {
-        billingPlan: plan,
-        stripeSubscriptionId: subscription.id,
-        billingStatus: status,
+        billing_plan: plan,
+        stripe_subscription_id: subscription.id,
+        billing_status: status,
       },
     });
   }

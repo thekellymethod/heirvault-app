@@ -78,10 +78,11 @@ export async function GET(req: NextRequest) {
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Unknown error";
+    const status = error && typeof error === "object" && "status" in error && typeof error.status === "number" ? error.status : 500;
     console.error("License document download error:", error);
     return NextResponse.json(
-      { error: error.message || "Failed to download license document" },
-      { status: error.status || 500 }
+      { error: message || "Failed to download license document" },
+      { status }
     );
   }
 }

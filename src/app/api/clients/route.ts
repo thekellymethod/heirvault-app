@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db, attorneyClientAccess, clients, eq, and, desc, sql } from "@/lib/db";
 import { prisma } from "@/lib/db";
 import { requireAuthApi } from "@/lib/utils/clerk";
 import { logAuditEvent } from "@/lib/audit";
@@ -19,31 +18,29 @@ export async function GET() {
   const { user } = auth;
 
   // Attorney's accessible clients (via AttorneyClientAccess)
-  const rows = await db
-    .select({
-      client: {
-        id: clients.id,
-        firstName: clients.firstName,
-        lastName: clients.lastName,
-        email: clients.email,
-        phone: clients.phone,
-        dateOfBirth: clients.dateOfBirth,
-        createdAt: clients.createdAt,
-        updatedAt: clients.updatedAt,
-      },
-      grantedAt: attorneyClientAccess.grantedAt,
-    })
-    .from(attorneyClientAccess)
-    .innerJoin(clients, eq(attorneyClientAccess.clientId, clients.id))
-    .where(
-      and(
-        eq(attorneyClientAccess.attorneyId, user.id),
-        eq(attorneyClientAccess.isActive, true)
-      )
-    )
-    .orderBy(desc(attorneyClientAccess.grantedAt));
+  const accessRecords = await prisma.attorney_client_access.findMany({
+    where: {
+      attorney_id: user.id,
+      is_active: true,
+    },
+    include: {
+      clients: true,
+    },
+    orderBy: {
+      granted_at: 'desc',
+    },
+  });
 
-  const clientList = rows.map((r) => r.client);
+  const clientList = accessRecords.map((r) => ({
+    id: r.clients.id,
+    firstName: r.clients.first_name,
+    lastName: r.clients.last_name,
+    email: r.clients.email,
+    phone: r.clients.phone,
+    dateOfBirth: r.clients.date_of_birth,
+    createdAt: r.clients.created_at,
+    updatedAt: r.clients.updated_at,
+  }));
 
   return NextResponse.json({ clients: clientList });
 }
@@ -68,37 +65,29 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Create client + grant attorney access in one transaction.
-  // Use raw SQL to only insert columns that exist in the database
-  const clientId = randomUUID();
-  const accessId = randomUUID();
-  
-  // Use Drizzle transaction with raw SQL to avoid columns that don't exist
-  const result = await db.transaction(async (tx) => {
-    // Insert client using raw SQL within transaction
-    const clientResult = await tx.execute<Array<{
-      id: string;
-      first_name: string;
-      last_name: string;
-      email: string;
-    }>>(
-      sql`INSERT INTO clients (id, email, first_name, last_name, phone, date_of_birth, created_at, updated_at)
-          VALUES (${clientId}, ${email}, ${firstName}, ${lastName}, ${phone || null}, ${dateOfBirth || null}, NOW(), NOW())
-          RETURNING id, first_name, last_name, email`
-    );
+  // Create client + grant attorney access in one transaction
+  const result = await prisma.$transaction(async (tx) => {
+    // Create client
+    const client = await tx.clients.create({
+      data: {
+        id: randomUUID(),
+        email,
+        first_name: firstName,
+        last_name: lastName,
+        phone: phone || null,
+        date_of_birth: dateOfBirth || null,
+      },
+    });
 
-    if (!clientResult.rows || clientResult.rows.length === 0) {
-      throw new Error("Failed to create client");
-    }
-
-    const client = clientResult.rows[0] as { id: string; first_name: string; last_name: string; email: string };
-
-    // Grant attorney access using raw SQL within transaction
-    // Note: attorney_client_access table only has: id, attorney_id, client_id, organization_id, granted_at, revoked_at, is_active
-    await tx.execute(
-      sql`INSERT INTO attorney_client_access (id, attorney_id, client_id, is_active, granted_at)
-          VALUES (${accessId}, ${user.id}, ${client.id}, true, NOW())`
-    );
+    // Grant attorney access
+    await tx.attorney_client_access.create({
+      data: {
+        id: randomUUID(),
+        attorney_id: user.id,
+        client_id: client.id,
+        is_active: true,
+      },
+    });
 
     return {
       id: client.id,

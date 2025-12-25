@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
-import { db, users } from "@/lib/db";
+import { prisma } from "@/lib/db";
 
 export const runtime = "nodejs";
 
@@ -37,26 +37,26 @@ export async function POST() {
     const firstName = cu?.firstName ?? null;
     const lastName = cu?.lastName ?? null;
 
-    const [user] = await db
-      .insert(users)
-      .values({
+    const user = await prisma.user.upsert({
+      where: { clerkId: userId },
+      update: {
+        email,
+        firstName,
+        lastName,
+        role: "attorney",
+        updatedAt: new Date(),
+      },
+      create: {
+        id: randomUUID(),
         clerkId: userId,
         email,
         firstName,
         lastName,
         role: "attorney",
-      })
-      .onConflictDoUpdate({
-        target: users.clerkId,
-        set: {
-          email,
-          firstName,
-          lastName,
-          role: "attorney",
-          updatedAt: new Date(),
-        },
-      })
-      .returning({ id: users.id, clerkId: users.clerkId, role: users.role, email: users.email });
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    });
 
     if (!user) {
       return NextResponse.json(

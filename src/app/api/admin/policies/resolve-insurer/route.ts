@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth/guards";
-import { prisma } from "@/lib/prisma";
-import { db, insurers, policies, eq } from "@/lib/db";
+import { prisma } from "@/lib/db";
+import { randomUUID } from "crypto";
 
 export const runtime = "nodejs";
 
@@ -43,24 +43,22 @@ export async function POST(req: Request) {
   }
 
   // Find or create insurer by exact name match
-  let insurer;
-  const existingInsurer = await db
-    .select()
-    .from(insurers)
-    .where(eq(insurers.name, body.insurerName.trim()))
-    .limit(1);
+  let insurer = await prisma.insurers.findFirst({
+    where: { name: body.insurerName.trim() },
+  });
 
-  if (existingInsurer.length > 0) {
-    insurer = existingInsurer[0];
-  } else {
+  if (!insurer) {
     // Create new insurer
-    const [newInsurer] = await db
-      .insert(insurers)
-      .values({
+    const insurerId = randomUUID();
+    const now = new Date();
+    insurer = await prisma.insurers.create({
+      data: {
+        id: insurerId,
         name: body.insurerName.trim(),
-      })
-      .returning();
-    insurer = newInsurer;
+        created_at: now,
+        updated_at: now,
+      },
+    });
   }
 
   // Update policy to link to insurer
@@ -74,13 +72,15 @@ export async function POST(req: Request) {
   });
 
   // Audit log
+  const auditLogId = randomUUID();
+  const auditNow = new Date();
   await prisma.audit_logs.create({
     data: {
-      id: crypto.randomUUID(),
+      id: auditLogId,
       user_id: actor.id,
       action: "POLICY_UPDATED", // TODO: Add POLICY_INSURER_RESOLVED to AuditAction enum
       message: `Resolved insurer for policyId=${body.policyId} to insurerId=${insurer.id}, name=${insurer.name}`,
-      created_at: new Date(),
+      created_at: auditNow,
     },
   });
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db, clients, clientInvites, attorneyClientAccess, eq } from '@/lib/db'
+import { prisma } from '@/lib/db'
 import { requireAuthApi } from '@/lib/utils/clerk'
 import { logAuditEvent } from '@/lib/audit'
 import { sendClientInviteEmail } from '@/lib/email'
@@ -28,10 +28,9 @@ export async function POST(req: NextRequest, { params }: Params) {
     }
 
     // Verify client exists
-    const [client] = await db.select()
-      .from(clients)
-      .where(eq(clients.id, id))
-      .limit(1);
+    const client = await prisma.clients.findFirst({
+      where: { id },
+    });
 
     if (!client) {
       return NextResponse.json(
@@ -47,15 +46,19 @@ export async function POST(req: NextRequest, { params }: Params) {
     const expiresAt = new Date()
     expiresAt.setDate(expiresAt.getDate() + 14) // 14-day expiry
 
-    const [invite] = await db.insert(clientInvites)
-      .values({
-        clientId: id,
+    const inviteId = randomUUID();
+    const invite = await prisma.client_invites.create({
+      data: {
+        id: inviteId,
+        client_id: id,
         email,
         token,
-        expiresAt,
-        invitedByUserId: user.id,
-      })
-      .returning();
+        expires_at: expiresAt,
+        invited_by_user_id: user.id,
+        created_at: new Date(),
+        updated_at: new Date(),
+      },
+    });
 
     const baseUrl =
       process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
@@ -70,7 +73,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     try {
       await sendClientInviteEmail({
         to: email,
-        clientName: `${client.firstName} ${client.lastName}`,
+        clientName: `${client.first_name} ${client.last_name}`,
         firmName: organizationName,
         inviteUrl,
       })
@@ -82,9 +85,10 @@ export async function POST(req: NextRequest, { params }: Params) {
 
     await logAuditEvent({
       action: 'INVITE_CREATED',
-      message: `Created client invite for ${email}`,
+      resourceType: 'client_invite',
+      resourceId: inviteId,
+      details: { email, clientId: id },
       userId: user.id,
-      clientId: id,
     })
 
     return NextResponse.json(
@@ -98,9 +102,10 @@ export async function POST(req: NextRequest, { params }: Params) {
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Failed to create invite';
     console.error('Error creating client invite:', error)
+    const status = message === 'Unauthorized' || message === 'Forbidden' ? 401 : 500;
     return NextResponse.json(
       { error: message },
-      { status: error.message === 'Unauthorized' || error.message === 'Forbidden' ? 401 : 500 }
+      { status }
     )
   }
 }

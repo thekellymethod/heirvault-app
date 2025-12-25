@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { db, organizations, orgMembers, users, eq, desc, and } from "@/lib/db";
+import { prisma } from "@/lib/db";
 import { getCurrentUserWithOrg } from "@/lib/authz";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -18,26 +18,15 @@ export default async function OrganizationDetailPage({
   }
 
   // Verify user is a member of this organization
-  const [membership] = await db
-    .select({
-      organization: {
-        id: organizations.id,
-        name: organizations.name,
-        slug: organizations.slug,
-        createdAt: organizations.createdAt,
-        updatedAt: organizations.updatedAt,
-      },
-      role: orgMembers.role,
-    })
-    .from(orgMembers)
-    .innerJoin(organizations, eq(orgMembers.organizationId, organizations.id))
-    .where(
-      and(
-        eq(orgMembers.userId, currentUser.id),
-        eq(orgMembers.organizationId, orgId)
-      )
-    )
-    .limit(1);
+  const membership = await prisma.org_members.findFirst({
+    where: {
+      user_id: currentUser.id,
+      organization_id: orgId,
+    },
+    include: {
+      organizations: true,
+    },
+  });
 
   if (!membership) {
     redirect("/dashboard/organizations");
@@ -47,32 +36,29 @@ export default async function OrganizationDetailPage({
   const canManageMembers = isOwner || membership.role === "ATTORNEY";
 
   // Get all members of this organization
-  const members = await db
-    .select({
-      user: {
-        id: users.id,
-        email: users.email,
-        firstName: users.firstName,
-        lastName: users.lastName,
+  const members = await prisma.org_members.findMany({
+    where: { organization_id: orgId },
+    include: {
+      users: {
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+        },
       },
-      membership: {
-        role: orgMembers.role,
-        createdAt: orgMembers.createdAt,
-      },
-    })
-    .from(orgMembers)
-    .innerJoin(users, eq(orgMembers.userId, users.id))
-    .where(eq(orgMembers.organizationId, orgId))
-    .orderBy(desc(orgMembers.createdAt));
+    },
+    orderBy: { created_at: 'desc' },
+  });
 
   const membersList = members.map((m) => ({
-    id: m.user.id,
-    email: m.user.email,
-    firstName: m.user.firstName,
-    lastName: m.user.lastName,
-    role: m.membership.role,
-    joinedAt: m.membership.createdAt,
-    isCurrentUser: m.user.id === currentUser.id,
+    id: m.users.id,
+    email: m.users.email,
+    firstName: m.users.firstName,
+    lastName: m.users.lastName,
+    role: m.role,
+    joinedAt: m.created_at,
+    isCurrentUser: m.users.id === currentUser.id,
   }));
 
   return (
@@ -86,7 +72,7 @@ export default async function OrganizationDetailPage({
             ← Back to Organizations
           </Link>
           <h1 className="text-2xl font-semibold text-ink-900">
-            {membership.organization.name}
+            {membership.organizations.name}
           </h1>
           <p className="text-sm text-slateui-600">
             Manage organization settings and team members.
@@ -105,12 +91,12 @@ export default async function OrganizationDetailPage({
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
             <div className="text-slateui-600">Slug</div>
-            <div className="text-ink-900">{membership.organization.slug}</div>
+            <div className="text-ink-900">{membership.organizations.slug}</div>
           </div>
           <div>
             <div className="text-slateui-600">Created</div>
             <div className="text-ink-900">
-              {new Date(membership.organization.createdAt).toLocaleDateString()}
+              {new Date(membership.organizations.created_at).toLocaleDateString()}
             </div>
           </div>
           <div>

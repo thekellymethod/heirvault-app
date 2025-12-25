@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { db, organizations, orgMembers, eq, desc, sql } from "@/lib/db";
+import { prisma } from "@/lib/db";
 import { requireAuth } from "@/lib/utils/clerk";
 import { getCurrentUserWithOrg } from "@/lib/authz";
 import { Button } from "@/components/ui/button";
@@ -8,41 +8,35 @@ export default async function OrganizationsPage() {
   await requireAuth();
   const { user: currentUser } = await getCurrentUserWithOrg();
 
+  if (!currentUser) {
+    return <div>Unauthorized</div>;
+  }
+
   // Get all organizations the user is a member of
-  const userOrganizations = await db
-    .select({
-      organization: {
-        id: organizations.id,
-        name: organizations.name,
-        slug: organizations.slug,
-        createdAt: organizations.createdAt,
-        updatedAt: organizations.updatedAt,
-      },
-      membership: {
-        role: orgMembers.role,
-        createdAt: orgMembers.createdAt,
-      },
-    })
-    .from(orgMembers)
-    .innerJoin(organizations, eq(orgMembers.organizationId, organizations.id))
-    .where(eq(orgMembers.userId, currentUser.id))
-    .orderBy(desc(orgMembers.createdAt));
+  const userMemberships = await prisma.org_members.findMany({
+    where: { user_id: currentUser.id },
+    include: {
+      organizations: true,
+    },
+    orderBy: { created_at: 'desc' },
+  });
 
   // Get member counts for each organization
   const orgsWithCounts = await Promise.all(
-    userOrganizations.map(async (org) => {
-      const memberCountResult = await db.execute(sql`
-        SELECT COUNT(*)::int as count
-        FROM org_members
-        WHERE organization_id = ${org.organization.id}
-      `);
-      const memberCount = (memberCountResult.rows[0] as { count: number })?.count || 0;
+    userMemberships.map(async (membership) => {
+      const memberCount = await prisma.org_members.count({
+        where: { organization_id: membership.organization_id },
+      });
 
       return {
-        ...org.organization,
-        role: org.membership.role,
+        id: membership.organizations.id,
+        name: membership.organizations.name,
+        slug: membership.organizations.slug,
+        createdAt: membership.organizations.created_at,
+        updatedAt: membership.organizations.updated_at,
+        role: membership.role,
         memberCount,
-        joinedAt: org.membership.createdAt,
+        joinedAt: membership.created_at,
       };
     })
   );

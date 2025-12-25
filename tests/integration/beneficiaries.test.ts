@@ -4,7 +4,7 @@
  * Tests the /api/beneficiaries route with real database interactions
  */
 
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { NextRequest } from "next/server";
 import { POST, GET } from "@/app/api/beneficiaries/route";
 import { db, clients, beneficiaries, attorneyClientAccess, users, orgMembers, organizations } from "@/lib/db";

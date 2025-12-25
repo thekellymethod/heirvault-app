@@ -1,84 +1,38 @@
-import { drizzle } from "drizzle-orm/node-postgres";
-import { Pool } from "pg";
-import * as schema from "./schema";
-import { eq, and, or, inArray, sql, desc, asc, like, ilike } from "drizzle-orm";
+// Re-export Prisma client from the main prisma module
+export { prisma } from "../prisma";
+export { prisma as db } from "../prisma";
 
-// Configure pool with SSL for Prisma/cloud databases
-const connectionConfig: {
-  connectionString: string | undefined;
-  connectionTimeoutMillis: number;
-  ssl?: { rejectUnauthorized: boolean };
-} = {
-  connectionString: process.env.DATABASE_URL,
-  connectionTimeoutMillis: 30000, // 30 second timeout
-};
+// Export Prisma model types
+export type {
+  User,
+  clients as Client,
+  policies as Policy,
+  beneficiaries as Beneficiary,
+  organizations as Organization,
+  org_members as OrgMember,
+  submissions as Submission,
+  receipts as Receipt,
+  documents as Document,
+  client_versions as ClientVersion,
+  registry_records as RegistryRecord,
+  registry_versions as RegistryVersion,
+  access_logs as AccessLog,
+} from "@prisma/client";
 
-// Enable SSL for Prisma and other cloud databases
-if (process.env.DATABASE_URL?.includes('prisma.io') || process.env.DATABASE_URL?.includes('neon.tech') || process.env.DATABASE_URL?.includes('supabase.co')) {
-  connectionConfig.ssl = {
-    rejectUnauthorized: false
-  };
-}
-
-const pool = new Pool(connectionConfig);
-
-// Create Drizzle instance
-export const db = drizzle(pool, { schema });
-
-// Export schema for use in queries
-export * from "./schema";
-
-// Export enum constants for compatibility (types are already exported from schema)
-export {
+// Export Prisma enum types
+export type {
   AuditAction,
   OrgRole,
   BillingPlan,
   UserRole,
   InviteStatus,
   AccessGrantStatus,
-} from "./enums";
+  SubmissionStatus,
+  RegistryStatus,
+  RegistrySubmissionSource,
+  AccessLogAction,
+  PolicyVerificationStatus,
+} from "@prisma/client";
 
-// Export common query helpers
-export { eq, and, or, inArray, sql, desc, asc, like, ilike };
-
-// Prisma compatibility layer for raw SQL queries
-// This allows existing code using prisma.$queryRawUnsafe and prisma.$queryRaw to continue working
-export const prisma = {
-  /**
-   * Execute raw SQL query with unsafe string interpolation
-   * Supports parameterized queries with $1, $2, etc.
-   */
-  async $queryRawUnsafe<T = unknown>(query: string, ...params: unknown[]): Promise<T> {
-    // Use the pool directly for parameterized queries ($1, $2, etc.)
-    // This matches Prisma's behavior for $queryRawUnsafe
-    const result = await pool.query(query, params);
-    return result.rows as T;
-  },
-
-  /**
-   * Execute raw SQL query with template literal (safer)
-   * Supports template literal syntax like: sql`SELECT * FROM users WHERE id = ${id}`
-   */
-  async $queryRaw<T = unknown>(query: TemplateStringsArray, ...values: unknown[]): Promise<T> {
-    // Drizzle's sql template handles this natively
-    const result = await db.execute(sql(query, ...values));
-    return result.rows as T;
-  },
-
-  /**
-   * Execute raw SQL without returning results (for INSERT, UPDATE, DELETE)
-   */
-  async $executeRawUnsafe(query: string, ...params: unknown[]): Promise<number> {
-    const result = await pool.query(query, params);
-    return result.rowCount || 0;
-  },
-
-  /**
-   * Execute raw SQL with template literal (for INSERT, UPDATE, DELETE)
-   */
-  async $executeRaw(query: TemplateStringsArray, ...values: unknown[]): Promise<number> {
-    const result = await db.execute(sql(query, ...values));
-    return result.rowCount || 0;
-  },
-};
-
+// Re-export enum constants from enums file for backward compatibility
+export { AuditAction, OrgRole, BillingPlan, UserRole, InviteStatus, AccessGrantStatus } from "./enums";

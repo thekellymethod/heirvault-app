@@ -8,7 +8,7 @@ export async function GET(
   try {
     const { token } = await params
     
-    const invite = await prisma.invite.findUnique({
+    const invite = await prisma.invites.findUnique({
       where: { token },
     })
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { requireAuth } from '@/lib/utils/clerk'
 import { logAuditEvent } from '@/lib/audit'
+import { randomUUID } from 'crypto'
 
 interface Params {
   params: Promise<{ id: string }>
@@ -12,14 +13,14 @@ export async function GET(req: NextRequest, { params }: Params) {
     const user = await requireAuth()
     const { id } = await params
 
-    const policy = await prisma.policy.findUnique({
+    const policy = await prisma.policies.findUnique({
       where: { id },
       include: {
-        insurer: true,
-        client: true,
-        beneficiaries: {
+        insurers: true,
+        clients: true,
+        policy_beneficiaries: {
           include: {
-            beneficiary: true,
+            beneficiaries: true,
           },
         },
       },
@@ -41,11 +42,11 @@ export async function GET(req: NextRequest, { params }: Params) {
       // Global access granted - no need to check specific access
     } else {
       // Client can only view their own policies
-      const client = await prisma.client.findUnique({
-        where: { id: policy.clientId },
+      const client = await prisma.clients.findUnique({
+        where: { id: policy.client_id },
       })
 
-      if (!client || client.userId !== user.id) {
+      if (!client || client.user_id !== user.id) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
       }
     }
@@ -59,9 +60,10 @@ export async function GET(req: NextRequest, { params }: Params) {
 
     return NextResponse.json(policy)
   } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error'
     return NextResponse.json(
-      { error: error.message },
-      { status: error.message === 'Unauthorized' || error.message === 'Forbidden' ? 401 : 400 }
+      { error: message },
+      { status: message === 'Unauthorized' || message === 'Forbidden' ? 401 : 400 }
     )
   }
 }
@@ -73,9 +75,9 @@ export async function PUT(req: NextRequest, { params }: Params) {
     const body = await req.json()
 
     // Check if policy exists and get clientId for access check
-    const existingPolicy = await prisma.policy.findUnique({
+    const existingPolicy = await prisma.policies.findUnique({
       where: { id },
-      include: { client: true },
+      include: { clients: true },
     })
 
     if (!existingPolicy) {
@@ -87,7 +89,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
     if (user.role === 'attorney') {
       // Global access granted - no need to check specific access
     } else {
-      if (existingPolicy.client.userId !== user.id) {
+      if (existingPolicy.clients.user_id !== user.id) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
       }
     }
@@ -99,29 +101,32 @@ export async function PUT(req: NextRequest, { params }: Params) {
     } = body
 
     // Update insurer if provided (separate from policy)
-    let insurerIdToUse = existingPolicy.insurerId
+    let insurerIdToUse = existingPolicy.insurer_id
     if (body.insurerName) {
       // Find or create insurer
-      let insurer = await prisma.insurer.findFirst({
+      let insurer = await prisma.insurers.findFirst({
         where: { name: body.insurerName },
       })
 
       if (!insurer) {
-        insurer = await prisma.insurer.create({
+        insurer = await prisma.insurers.create({
           data: {
+            id: randomUUID(),
             name: body.insurerName,
-            contactPhone: body.insurerPhone || null,
-            contactEmail: body.insurerEmail || null,
+            contact_phone: body.insurerPhone || null,
+            contact_email: body.insurerEmail || null,
             website: body.insurerWebsite || null,
+            created_at: new Date(),
+            updated_at: new Date(),
           },
         })
       } else {
         // Update existing insurer
-        insurer = await prisma.insurer.update({
+        insurer = await prisma.insurers.update({
           where: { id: insurer.id },
           data: {
-            contactPhone: body.insurerPhone || insurer.contactPhone,
-            contactEmail: body.insurerEmail || insurer.contactEmail,
+            contact_phone: body.insurerPhone || insurer.contact_phone,
+            contact_email: body.insurerEmail || insurer.contact_email,
             website: body.insurerWebsite || insurer.website,
           },
         })
@@ -130,12 +135,12 @@ export async function PUT(req: NextRequest, { params }: Params) {
     }
 
     // Update policy
-    const policy = await prisma.policy.update({
+    const policy = await prisma.policies.update({
       where: { id },
       data: {
-        insurerId: insurerId || insurerIdToUse,
-        policyNumber: policyNumber ?? null,
-        policyType: policyType ?? null,
+        insurer_id: insurerId || insurerIdToUse,
+        policy_number: policyNumber ?? null,
+        policy_type: policyType ?? null,
       },
     })
 
@@ -149,9 +154,10 @@ export async function PUT(req: NextRequest, { params }: Params) {
 
     return NextResponse.json(policy)
   } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error'
     return NextResponse.json(
-      { error: error.message },
-      { status: error.message === 'Unauthorized' || error.message === 'Forbidden' ? 401 : 400 }
+      { error: message },
+      { status: message === 'Unauthorized' || message === 'Forbidden' ? 401 : 400 }
     )
   }
 }
@@ -162,9 +168,9 @@ export async function DELETE(req: NextRequest, { params }: Params) {
     const { id } = await params
 
     // Check if policy exists and get clientId for access check
-    const existingPolicy = await prisma.policy.findUnique({
+    const existingPolicy = await prisma.policies.findUnique({
       where: { id },
-      include: { client: true },
+      include: { clients: true },
     })
 
     if (!existingPolicy) {
@@ -176,12 +182,12 @@ export async function DELETE(req: NextRequest, { params }: Params) {
     if (user.role === 'attorney') {
       // Global access granted - no need to check specific access
     } else {
-      if (existingPolicy.client.userId !== user.id) {
+      if (existingPolicy.clients.user_id !== user.id) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
       }
     }
 
-    await prisma.policy.delete({
+    await prisma.policies.delete({
       where: { id },
     })
 
@@ -197,9 +203,10 @@ export async function DELETE(req: NextRequest, { params }: Params) {
 
     return new NextResponse(null, { status: 204 })
   } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error'
     return NextResponse.json(
-      { error: error.message },
-      { status: error.message === 'Unauthorized' || error.message === 'Forbidden' ? 401 : 400 }
+      { error: message },
+      { status: message === 'Unauthorized' || message === 'Forbidden' ? 401 : 400 }
     )
   }
 }

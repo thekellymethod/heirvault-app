@@ -36,15 +36,15 @@ export async function POST(req: NextRequest, { params }: Params) {
   }
 
   try {
-    const client = await prisma.client.findUnique({
+    const client = await prisma.clients.findUnique({
       where: { id },
       include: {
         policies: {
           include: {
-            insurer: true,
-            beneficiaries: {
+            insurers: true,
+            policy_beneficiaries: {
               include: {
-                beneficiary: true,
+                beneficiaries: true,
               },
             },
           },
@@ -62,8 +62,8 @@ export async function POST(req: NextRequest, { params }: Params) {
       ClientRegistrySummaryPDF({
         client: {
           ...client,
-          dateOfBirth: client.dateOfBirth,
-          createdAt: client.createdAt,
+          dateOfBirth: client.date_of_birth,
+          createdAt: client.created_at,
         },
         firmName: orgMember?.organizations.name,
         generatedAt: new Date(),
@@ -86,8 +86,8 @@ export async function POST(req: NextRequest, { params }: Params) {
     const pdfBuffer = Buffer.concat(chunks);
 
     // Send email with PDF attachment
-    const clientName = `${client.firstName} ${client.lastName}`;
-    const fileName = `heirvault-${client.lastName}-${client.firstName}.pdf`;
+    const clientName = `${client.first_name} ${client.last_name}`;
+    const fileName = `heirvault-${client.last_name}-${client.first_name}.pdf`;
 
     await sendEmail({
       to: email,
@@ -118,7 +118,7 @@ export async function POST(req: NextRequest, { params }: Params) {
 
     await audit(AuditAction.CLIENT_SUMMARY_PDF_DOWNLOADED, {
       clientId: client.id,
-      message: `Summary PDF emailed to ${email} for ${client.firstName} ${client.lastName}`,
+      message: `Summary PDF emailed to ${email} for ${client.first_name} ${client.last_name}`,
       userId: user.id,
     });
 

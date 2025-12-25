@@ -80,7 +80,7 @@ export async function PUT(req: NextRequest) {
       console.error("User profile update: Raw SQL failed, trying Prisma:", sqlErrorMessage);
       // Fallback to Prisma
       try {
-        updated = await prisma.user.update({
+        const prismaResult = await prisma.user.update({
           where: { id: currentUser.id },
           data: {
             firstName: firstName.trim(),
@@ -88,6 +88,15 @@ export async function PUT(req: NextRequest) {
             barNumber: barNumber?.trim() || null,
           },
         });
+        updated = {
+          id: prismaResult.id,
+          email: prismaResult.email,
+          firstName: prismaResult.firstName,
+          lastName: prismaResult.lastName,
+          barNumber: prismaResult.barNumber,
+          createdAt: prismaResult.createdAt,
+          updatedAt: prismaResult.updatedAt,
+        };
       } catch (prismaError: unknown) {
         const prismaErrorMessage = prismaError instanceof Error ? prismaError.message : "Unknown error";
         console.error("User profile update: Prisma also failed:", prismaErrorMessage);

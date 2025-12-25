@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
+import { prisma } from '@/lib/prisma'
 import { requireAttorneyOrOwner } from '@/lib/authz'
 import { assertCanCreateClient } from '@/lib/client-limits'
 import { audit, logAuditEvent } from '@/lib/audit'
-import { AuditAction } from '@/lib/db'
+import { AuditAction } from '@/lib/db/enums'
 import { z } from 'zod'
 import { jsonError, jsonOk } from '@/lib/http'
 import { generateClientFingerprint, findClientByFingerprint } from '@/lib/client-fingerprint'
+import { randomUUID } from 'crypto'
 
 const createClientSchema = z.object({
   firstName: z.string().min(1).max(100),
@@ -28,33 +29,34 @@ export async function POST(req: Request) {
   try {
     await requireAttorneyOrOwner();
   } catch (e: unknown) {
-  const message = e instanceof Error ? e.message : "Unknown error";
-} {
+    const message = e instanceof Error ? e.message : "Unknown error";
     console.error("requireAttorneyOrOwner error:", e);
-    return jsonError(e.message || "Unauthorized", e.status || 401);
+    const status = (e && typeof e === "object" && "status" in e && typeof e.status === "number") ? e.status : 401;
+    return jsonError(message || "Unauthorized", status);
   }
 
   let orgInfo;
   try {
     orgInfo = await assertCanCreateClient();
   } catch (e: unknown) {
-  const message = e instanceof Error ? e.message : "Unknown error";
-} {
+    const message = e instanceof Error ? e.message : "Unknown error";
     console.error("assertCanCreateClient error:", e);
-    if (e.code === "PLAN_LIMIT") {
+    if (e && typeof e === "object" && "code" in e && e.code === "PLAN_LIMIT") {
+      const limit = (e && typeof e === "object" && "limit" in e && typeof e.limit === "number") ? e.limit : 0;
       return jsonError(
-        `Client limit reached for your plan. Limit: ${e.limit}`,
+        `Client limit reached for your plan. Limit: ${limit}`,
         403,
         "PLAN_LIMIT",
       );
     }
-    return jsonError(e.message || "Unauthorized", 401);
+    return jsonError(message || "Unauthorized", 401);
   }
 
   let body;
   try {
     body = await req.json();
-  } catch (e) {
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : "Unknown error";
     console.error("JSON parse error:", e);
     return jsonError("Invalid request body", 400);
   }
@@ -94,81 +96,112 @@ export async function POST(req: Request) {
     const existingClientId = await findClientByFingerprint(fingerprint, prisma);
     if (existingClientId) {
       // Return existing client instead of creating duplicate
-      const existingClient = await prisma.client.findUnique({
+      const existingClient = await prisma.clients.findUnique({
         where: { id: existingClientId },
       });
       
       if (existingClient) {
         // Grant attorney access to existing client if not already granted
-        const existingAccess = await prisma.attorneyClientAccess.findFirst({
+        const existingAccess = await prisma.attorney_client_access.findFirst({
           where: {
-            attorneyId: orgInfo.user.id,
-            clientId: existingClientId,
-            organizationId: org.id,
+            attorney_id: orgInfo.user.id,
+            client_id: existingClientId,
+            organization_id: org.id,
           },
         });
 
         if (!existingAccess) {
-          await prisma.attorneyClientAccess.create({
+          await prisma.attorney_client_access.create({
             data: {
-              attorneyId: orgInfo.user.id,
-              clientId: existingClientId,
-              organizationId: org.id,
-              isActive: true,
+              id: randomUUID(),
+              attorney_id: orgInfo.user.id,
+              client_id: existingClientId,
+              organization_id: org.id,
+              is_active: true,
+              granted_at: new Date(),
             },
           });
         }
 
         await audit(AuditAction.CLIENT_CREATED, {
           clientId: existingClient.id,
-          message: `Client access granted to existing client: ${existingClient.firstName} ${existingClient.lastName} (${existingClient.email})`,
+          message: `Client access granted to existing client: ${existingClient.first_name} ${existingClient.last_name} (${existingClient.email})`,
         });
 
-        return jsonOk(existingClient, { status: 200 });
+        return jsonOk({
+          id: existingClient.id,
+          firstName: existingClient.first_name,
+          lastName: existingClient.last_name,
+          email: existingClient.email,
+          phone: existingClient.phone,
+          dateOfBirth: existingClient.date_of_birth,
+          createdAt: existingClient.created_at,
+          updatedAt: existingClient.updated_at,
+        }, { status: 200 });
       }
     }
 
     // Create new client with fingerprint
-    const client = await prisma.client.create({
+    const clientId = randomUUID();
+    const now = new Date();
+    const client = await prisma.clients.create({
       data: {
-        firstName,
-        lastName,
+        id: clientId,
+        first_name: firstName,
+        last_name: lastName,
         email,
-        dateOfBirth: parsedDateOfBirth,
+        date_of_birth: parsedDateOfBirth,
         phone: phone ?? null,
-        orgId: org.id,
-        clientFingerprint: fingerprint,
+        org_id: org.id,
+        client_fingerprint: fingerprint,
+        created_at: now,
+        updated_at: now,
       },
     });
 
     // Grant attorney access via AttorneyClientAccess
-    await prisma.attorneyClientAccess.create({
+    await prisma.attorney_client_access.create({
       data: {
-        attorneyId: orgInfo.user.id,
-        clientId: client.id,
-        organizationId: org.id,
-        isActive: true,
+        id: randomUUID(),
+        attorney_id: orgInfo.user.id,
+        client_id: client.id,
+        organization_id: org.id,
+        is_active: true,
+        granted_at: now,
       },
     });
 
     // Create policy if provided
     if (policy?.insurerId) {
-      await prisma.policy.create({
+      const policyId = randomUUID();
+      await prisma.policies.create({
         data: {
-          clientId: client.id,
-          insurerId: policy.insurerId,
-          policyNumber: policy.policyNumber || null,
-          policyType: policy.policyType || null,
+          id: policyId,
+          client_id: client.id,
+          insurer_id: policy.insurerId,
+          policy_number: policy.policyNumber || null,
+          policy_type: policy.policyType || null,
+          created_at: now,
+          updated_at: now,
         },
       });
     }
 
     await audit(AuditAction.CLIENT_CREATED, {
       clientId: client.id,
-      message: `Client created: ${client.firstName} ${client.lastName} (${client.email})${policy ? ' with policy' : ''}`,
+      message: `Client created: ${client.first_name} ${client.last_name} (${client.email})${policy ? ' with policy' : ''}`,
     });
 
-    return jsonOk(client, { status: 201 });
+    return jsonOk({
+      id: client.id,
+      firstName: client.first_name,
+      lastName: client.last_name,
+      email: client.email,
+      phone: client.phone,
+      dateOfBirth: client.date_of_birth,
+      createdAt: client.created_at,
+      updatedAt: client.updated_at,
+    }, { status: 201 });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Internal server error";
     const status = error && typeof error === "object" && "status" in error && typeof error.status === "number" ? error.status : 500;
@@ -236,20 +269,20 @@ export async function GET(req: NextRequest) {
       console.error("Client list: Raw SQL failed, trying Prisma:", sqlErrorMessage);
       // Fallback to Prisma
       try {
-        const prismaClients = await prisma.client.findMany({
+        const prismaClients = await prisma.clients.findMany({
           orderBy: {
-            createdAt: "desc",
+            created_at: "desc",
           },
         });
         clients = prismaClients.map(c => ({
           id: c.id,
-          firstName: c.firstName,
-          lastName: c.lastName,
+          firstName: c.first_name,
+          lastName: c.last_name,
           email: c.email,
           phone: c.phone,
-          dateOfBirth: c.dateOfBirth,
-          createdAt: c.createdAt,
-          updatedAt: c.updatedAt,
+          dateOfBirth: c.date_of_birth,
+          createdAt: c.created_at,
+          updatedAt: c.updated_at,
         }));
       } catch (prismaError: unknown) {
         const prismaErrorMessage = prismaError instanceof Error ? prismaError.message : "Unknown error";
@@ -266,9 +299,10 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(clients)
   } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
-      { error: error.message },
-      { status: error.message === 'Unauthorized' || error.message === 'Forbidden' ? 401 : 400 }
+      { error: message },
+      { status: message === 'Unauthorized' || message === 'Forbidden' ? 401 : 400 }
     )
   }
 }

@@ -18,7 +18,7 @@ export async function GET() {
       return NextResponse.json({ 
         ok: false, 
         error: "users table does not exist",
-        fix: "Run your database migrations: npx drizzle-kit push or npx prisma migrate dev"
+        fix: "Run your database migrations: npx prisma migrate dev"
       });
     }
 

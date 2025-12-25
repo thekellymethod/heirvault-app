@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import styles from "./page.module.css";
 
 interface Receipt {
   receiptId: string | number;
@@ -36,10 +37,10 @@ export default function IntakePage() {
   }
 
   return (
-    <main style={{ padding: 24, maxWidth: 900, margin: "0 auto" }}>
+    <main className={styles.main}>
       <h1>Policy Intake</h1>
 
-      <form onSubmit={onSubmit} style={{ display: "grid", gap: 12, marginTop: 16 }}>
+      <form onSubmit={onSubmit} className={styles.form}>
         <input name="insured_name" placeholder="Insured Name (required)" required />
         <input name="carrier_guess" placeholder="Carrier (optional)" />
         <input name="policyholder_name" placeholder="Policyholder Name (optional)" />
@@ -55,10 +56,10 @@ export default function IntakePage() {
         </button>
       </form>
 
-      {error && <p style={{ color: "crimson", marginTop: 16 }}>{error}</p>}
+      {error && <p className={styles.error}>{error}</p>}
 
       {receipt && (
-        <section style={{ marginTop: 24, padding: 16, border: "1px solid #ddd", borderRadius: 8 }}>
+        <section className={styles.receipt}>
           <h2>Receipt</h2>
           <p><strong>Receipt ID:</strong> {receipt.receiptId}</p>
           <p><strong>Registry ID:</strong> {receipt.registryId}</p>

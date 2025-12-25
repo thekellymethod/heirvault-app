@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin, requireVerifiedAttorney } from "@/lib/auth/guards";
-import { db, registryRecords, users, logAccess } from "@/lib/db";
-import { eq } from "@/lib/db";
+import { prisma, logAccess } from "@/lib/db";
 import { randomUUID } from "crypto";
 import { sendAccessGrantedEmail } from "@/lib/email";
 
@@ -55,13 +54,13 @@ export async function POST(req: NextRequest) {
     }
 
     // Verify registry exists
-    const [registry] = await db.select({
-      id: registryRecords.id,
-      decedentName: registryRecords.decedentName,
-    })
-      .from(registryRecords)
-      .where(eq(registryRecords.id, registryId))
-      .limit(1);
+    const registry = await prisma.registry_records.findFirst({
+      where: { id: registryId },
+      select: {
+        id: true,
+        decedent_name: true,
+      },
+    });
 
     if (!registry) {
       return NextResponse.json(
@@ -119,14 +118,14 @@ export async function POST(req: NextRequest) {
 
     // Audit: ACCESS_REQUESTED
     await logAccess({
-      registryId,
-      userId: user.id,
+      registry_id: registryId,
+      user_id: user.id,
       action: "ACCESS_REQUESTED",
       metadata: {
         source: "access_api",
         requestId,
         reason: reason || null,
-        decedentName: registry.decedentName,
+        decedentName: registry.decedent_name,
       },
     });
 
@@ -176,28 +175,28 @@ export async function GET(req: NextRequest) {
     const enrichedRequests = await Promise.all(
       requests.map(async (req) => {
         // Get registry info
-        const [registry] = await db.select({
-          id: registryRecords.id,
-          decedentName: registryRecords.decedentName,
-        })
-          .from(registryRecords)
-          .where(eq(registryRecords.id, req.registryId))
-          .limit(1);
+        const registry = await prisma.registry_records.findFirst({
+          where: { id: req.registryId },
+          select: {
+            id: true,
+            decedent_name: true,
+          },
+        });
 
         // Get requester info
-        const [requester] = await db.select({
-          id: users.id,
-          email: users.email,
-          firstName: users.firstName,
-          lastName: users.lastName,
-        })
-          .from(users)
-          .where(eq(users.id, req.requestedByUserId))
-          .limit(1);
+        const requester = await prisma.user.findFirst({
+          where: { id: req.requestedByUserId },
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+          },
+        });
 
         return {
           ...req,
-          decedentName: registry?.decedentName || null,
+          decedentName: registry?.decedent_name || null,
           requesterEmail: requester?.email || null,
           requesterName: requester?.firstName && requester?.lastName
             ? `${requester.firstName} ${requester.lastName}`
@@ -280,18 +279,18 @@ export async function PATCH(req: NextRequest) {
     accessRequests.set(requestId, accessRequest);
 
     // Get registry info for audit
-    const [registry] = await db.select({
-      id: registryRecords.id,
-      decedentName: registryRecords.decedentName,
-    })
-      .from(registryRecords)
-      .where(eq(registryRecords.id, accessRequest.registryId))
-      .limit(1);
+    const registry = await prisma.registry_records.findFirst({
+      where: { id: accessRequest.registryId },
+      select: {
+        id: true,
+        decedent_name: true,
+      },
+    });
 
     // Audit: ACCESS_GRANTED for approvals, ACCESS_REQUESTED for rejections (with action=REJECT in metadata)
     await logAccess({
-      registryId: accessRequest.registryId,
-      userId: admin.id,
+      registry_id: accessRequest.registryId,
+      user_id: admin.id,
       action: action === "APPROVE" ? "ACCESS_GRANTED" : "ACCESS_REQUESTED",
       metadata: {
         source: "access_api",
@@ -299,7 +298,7 @@ export async function PATCH(req: NextRequest) {
         action: action, // "APPROVE" or "REJECT"
         requestedByUserId: accessRequest.requestedByUserId,
         reason: reason || null,
-        decedentName: registry?.decedentName || null,
+        decedentName: registry?.decedent_name || null,
         status: accessRequest.status,
       },
     });
@@ -316,15 +315,15 @@ export async function PATCH(req: NextRequest) {
 
       // Send email notification to the attorney who was granted access
       try {
-        const [attorney] = await db.select({
-          id: users.id,
-          email: users.email,
-          firstName: users.firstName,
-          lastName: users.lastName,
-        })
-          .from(users)
-          .where(eq(users.id, accessRequest.requestedByUserId))
-          .limit(1);
+        const attorney = await prisma.user.findFirst({
+          where: { id: accessRequest.requestedByUserId },
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+          },
+        });
 
         if (attorney && attorney.email) {
           const baseUrl = process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin;
@@ -332,7 +331,7 @@ export async function PATCH(req: NextRequest) {
           const attorneyName = attorney.firstName && attorney.lastName
             ? `${attorney.firstName} ${attorney.lastName}`
             : attorney.email;
-          const clientName = registry?.decedentName || "Registry";
+          const clientName = registry?.decedent_name || "Registry";
 
           await sendAccessGrantedEmail({
             to: attorney.email,

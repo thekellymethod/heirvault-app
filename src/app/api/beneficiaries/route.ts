@@ -1,71 +1,77 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db, beneficiaries, clients, policyBeneficiaries, policies, insurers, eq, desc, sql, inArray } from "@/lib/db";
+import { prisma } from "@/lib/db";
 import { requireAuthApi } from "@/lib/utils/clerk";
 import { logAuditEvent } from "@/lib/audit";
+import { randomUUID } from "crypto";
 
-export async function GET(req: NextRequest) {
+export async function GET(_req: NextRequest) {
   const authResult = await requireAuthApi();
   if (authResult.response) return authResult.response;
-  const { user } = authResult;
 
   try {
     // Get ALL beneficiaries globally - all attorneys can see all beneficiaries
-    const beneficiariesList = await db.select({
-      beneficiary: beneficiaries,
-      client: {
-        id: clients.id,
-        firstName: clients.firstName,
-        lastName: clients.lastName,
-        email: clients.email,
+    const beneficiariesList = await prisma.beneficiaries.findMany({
+      include: {
+        clients: {
+          select: {
+            id: true,
+            first_name: true,
+            last_name: true,
+            email: true,
+          },
+        },
       },
-    })
-      .from(beneficiaries)
-      .innerJoin(clients, eq(beneficiaries.clientId, clients.id))
-      .orderBy(desc(beneficiaries.createdAt));
+      orderBy: { created_at: 'desc' },
+    });
 
     // Get policies for each beneficiary
-    const beneficiaryIds = beneficiariesList.map(b => b.beneficiary.id);
+    const beneficiaryIds = beneficiariesList.map(b => b.id);
     const policiesData = beneficiaryIds.length > 0
-      ? await db.select({
-          beneficiaryId: policyBeneficiaries.beneficiaryId,
-          policy: {
-            id: policies.id,
-            policyNumber: policies.policyNumber,
-            policyType: policies.policyType,
-          },
-          insurer: {
-            name: insurers.name,
+      ? await prisma.policy_beneficiaries.findMany({
+          where: { beneficiary_id: { in: beneficiaryIds } },
+          include: {
+            policies: {
+              include: {
+                insurers: {
+                  select: {
+                    name: true,
+                  },
+                },
+              },
+            },
           },
         })
-          .from(policyBeneficiaries)
-          .innerJoin(policies, eq(policyBeneficiaries.policyId, policies.id))
-          .leftJoin(insurers, eq(policies.insurerId, insurers.id))
-          .where(inArray(policyBeneficiaries.beneficiaryId, beneficiaryIds))
       : [];
 
     // Combine beneficiaries with their policies
     const beneficiariesWithPolicies = beneficiariesList.map(b => {
       const beneficiaryPolicies = policiesData
-        .filter(p => p.beneficiaryId === b.beneficiary.id)
+        .filter(p => p.beneficiary_id === b.id)
         .map(p => ({
-          id: p.policy.id,
-          policyNumber: p.policy.policyNumber,
-          policyType: p.policy.policyType,
+          id: p.policies.id,
+          policyNumber: p.policies.policy_number,
+          policyType: p.policies.policy_type,
           // Handle null insurer from leftJoin - return null instead of { name: null }
-          insurer: p.insurer?.name ? { name: p.insurer.name } : null,
+          insurer: p.policies.insurers?.name ? { name: p.policies.insurers.name } : null,
         }));
 
       return {
-        ...b.beneficiary,
-        client: b.client,
+        ...b,
+        client: {
+          id: b.clients.id,
+          firstName: b.clients.first_name,
+          lastName: b.clients.last_name,
+          email: b.clients.email,
+        },
         policies: beneficiaryPolicies,
       };
     });
 
     return NextResponse.json(beneficiariesWithPolicies);
   } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Unable to fetch beneficiaries";
     return NextResponse.json(
-      { error: error.message || "Unable to fetch beneficiaries" },
+      { error: message },
       { status: 400 }
     );
   }
@@ -97,38 +103,52 @@ export async function POST(req: NextRequest) {
     }
 
     // All attorneys can create beneficiaries for any client (global access)
-    const [clientExists] = await db.select({ id: clients.id })
-      .from(clients)
-      .where(eq(clients.id, clientId))
-      .limit(1);
+    const clientExists = await prisma.clients.findFirst({
+      where: { id: clientId },
+      select: { id: true },
+    });
 
     if (!clientExists) {
       return NextResponse.json({ error: "Client not found" }, { status: 404 });
     }
 
-    const [beneficiary] = await db.insert(beneficiaries)
-      .values({
-        clientId,
-        firstName,
-        lastName,
+    const beneficiaryId = randomUUID();
+    const now = new Date();
+    const dateOfBirthValue = dateOfBirth 
+      ? (typeof dateOfBirth === 'string' 
+          ? new Date(dateOfBirth.slice(0, 10)) 
+          : new Date(dateOfBirth))
+      : null;
+
+    const beneficiary = await prisma.beneficiaries.create({
+      data: {
+        id: beneficiaryId,
+        client_id: clientId,
+        first_name: firstName,
+        last_name: lastName,
         relationship: relationship || null,
         email: email ?? null,
         phone: phone ?? null,
-        dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
-      })
-      .returning();
+        date_of_birth: dateOfBirthValue,
+        created_at: now,
+        updated_at: now,
+      },
+    });
 
     await logAuditEvent({
       action: "BENEFICIARY_CREATED",
-      message: "Beneficiary created",
+      resourceType: "beneficiary",
+      resourceId: beneficiaryId,
+      details: { clientId, firstName, lastName },
       userId: user.id,
-      clientId,
     });
 
     return NextResponse.json(beneficiary, { status: 201 });
-  } catch (error) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Unable to create beneficiary";
+    console.error("Error creating beneficiary:", error);
     return NextResponse.json(
-      { error: "Unable to create beneficiary" },
+      { error: message },
       { status: 400 }
     );
   }

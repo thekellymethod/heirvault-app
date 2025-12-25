@@ -2,7 +2,6 @@ import "server-only";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth/guards";
 import { prisma } from "@/lib/prisma";
-import { db, clients, sql } from "@/lib/db";
 import { randomUUID } from "crypto";
 import { logAuditEvent } from "@/lib/audit";
 
@@ -147,11 +146,12 @@ export async function POST(req: NextRequest) {
         }
 
         // Check if client already exists
-        const existingClient = await db.execute<Array<{ id: string }>>(
-          sql`SELECT id FROM clients WHERE email = ${email} LIMIT 1`
-        );
+        const existingClient = await prisma.clients.findFirst({
+          where: { email },
+          select: { id: true },
+        });
 
-        if (existingClient.rows && existingClient.rows.length > 0) {
+        if (existingClient) {
           return NextResponse.json(
             { error: "Client with this email already exists" },
             { status: 400 }
@@ -160,24 +160,33 @@ export async function POST(req: NextRequest) {
 
         const clientId = randomUUID();
         const dateOfBirthValue = dateOfBirth ? new Date(dateOfBirth) : null;
+        const now = new Date();
 
-        // Create client using raw SQL
-        const clientResult = await db.execute<Array<{
-          id: string;
-          first_name: string;
-          last_name: string;
-          email: string;
-        }>>(
-          sql`INSERT INTO clients (id, email, first_name, last_name, phone, date_of_birth, address_line1, address_line2, city, state, postal_code, country, created_at, updated_at)
-              VALUES (${clientId}, ${email}, ${firstName}, ${lastName}, ${phone || null}, ${dateOfBirthValue || null}, ${addressLine1 || null}, ${addressLine2 || null}, ${city || null}, ${state || null}, ${postalCode || null}, ${country || null}, NOW(), NOW())
-              RETURNING id, first_name, last_name, email`
-        );
-
-        if (!clientResult.rows || clientResult.rows.length === 0) {
-          throw new Error("Failed to create client");
-        }
-
-        const client = clientResult.rows[0];
+        // Create client using Prisma
+        const client = await prisma.clients.create({
+          data: {
+            id: clientId,
+            email,
+            first_name: firstName,
+            last_name: lastName,
+            phone: phone || null,
+            date_of_birth: dateOfBirthValue,
+            address_line1: addressLine1 || null,
+            address_line2: addressLine2 || null,
+            city: city || null,
+            state: state || null,
+            postal_code: postalCode || null,
+            country: country || null,
+            created_at: now,
+            updated_at: now,
+          },
+          select: {
+            id: true,
+            first_name: true,
+            last_name: true,
+            email: true,
+          },
+        });
 
         await logAuditEvent({
           action: "CLIENT_CREATED",
@@ -224,11 +233,12 @@ export async function POST(req: NextRequest) {
         }
 
         // Verify client exists
-        const clientCheck = await db.execute<Array<{ id: string }>>(
-          sql`SELECT id FROM clients WHERE id = ${clientId} LIMIT 1`
-        );
+        const clientExists = await prisma.clients.findFirst({
+          where: { id: clientId },
+          select: { id: true },
+        });
 
-        if (!clientCheck.rows || clientCheck.rows.length === 0) {
+        if (!clientExists) {
           return NextResponse.json(
             { error: "Client not found" },
             { status: 404 }
@@ -237,23 +247,34 @@ export async function POST(req: NextRequest) {
 
         const beneficiaryId = randomUUID();
         const dateOfBirthValue = dateOfBirth ? new Date(dateOfBirth) : null;
+        const now = new Date();
 
-        // Create beneficiary using raw SQL
-        const beneficiaryResult = await db.execute<Array<{
-          id: string;
-          first_name: string;
-          last_name: string;
-        }>>(
-          sql`INSERT INTO beneficiaries (id, client_id, first_name, last_name, relationship, email, phone, date_of_birth, address_line1, address_line2, city, state, postal_code, country, created_at, updated_at)
-              VALUES (${beneficiaryId}, ${clientId}, ${firstName}, ${lastName}, ${relationship || null}, ${email || null}, ${phone || null}, ${dateOfBirthValue || null}, ${addressLine1 || null}, ${addressLine2 || null}, ${city || null}, ${state || null}, ${postalCode || null}, ${country || null}, NOW(), NOW())
-              RETURNING id, first_name, last_name`
-        );
-
-        if (!beneficiaryResult.rows || beneficiaryResult.rows.length === 0) {
-          throw new Error("Failed to create beneficiary");
-        }
-
-        const beneficiary = beneficiaryResult.rows[0];
+        // Create beneficiary using Prisma
+        const beneficiary = await prisma.beneficiaries.create({
+          data: {
+            id: beneficiaryId,
+            client_id: clientId,
+            first_name: firstName,
+            last_name: lastName,
+            relationship: relationship || null,
+            email: email || null,
+            phone: phone || null,
+            date_of_birth: dateOfBirthValue,
+            address_line1: addressLine1 || null,
+            address_line2: addressLine2 || null,
+            city: city || null,
+            state: state || null,
+            postal_code: postalCode || null,
+            country: country || null,
+            created_at: now,
+            updated_at: now,
+          },
+          select: {
+            id: true,
+            first_name: true,
+            last_name: true,
+          },
+        });
 
         await logAuditEvent({
           action: "BENEFICIARY_CREATED",
@@ -281,11 +302,12 @@ export async function POST(req: NextRequest) {
         );
     }
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Unknown error";
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const errorStatus = error && typeof error === "object" && "status" in error && typeof error.status === "number" ? error.status : 500;
     console.error("Manual upload error:", error);
     return NextResponse.json(
-      { error: error.message || "Failed to create record" },
-      { status: error.status || 500 }
+      { error: errorMessage || "Failed to create record" },
+      { status: errorStatus }
     );
   }
 }

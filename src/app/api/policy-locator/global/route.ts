@@ -47,15 +47,15 @@ export async function GET(req: NextRequest) {
 
     // Build search query - search across ALL organizations
     const where: {
-      firstName: { contains: string; mode: "insensitive" };
-      lastName: { contains: string; mode: "insensitive" };
-      dateOfBirth?: Date;
+      first_name: { contains: string; mode: "insensitive" };
+      last_name: { contains: string; mode: "insensitive" };
+      date_of_birth?: Date;
     } = {
-      firstName: {
+      first_name: {
         contains: firstName,
         mode: "insensitive",
       },
-      lastName: {
+      last_name: {
         contains: lastName,
         mode: "insensitive",
       },
@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
 
     // Add optional filters
     if (dateOfBirth) {
-      where.dateOfBirth = new Date(dateOfBirth);
+      where.date_of_birth = new Date(dateOfBirth);
     }
 
     if (dateOfDeath) {
@@ -72,10 +72,10 @@ export async function GET(req: NextRequest) {
     }
 
     // Search for clients matching the criteria across ALL organizations
-    const clients = await prisma.client.findMany({
+    const clients = await prisma.clients.findMany({
       where,
       include: {
-        org: {
+        organizations: {
           select: {
             id: true,
             name: true,
@@ -83,17 +83,17 @@ export async function GET(req: NextRequest) {
         },
         policies: {
           include: {
-            insurer: {
+            insurers: {
               select: {
                 name: true,
               },
             },
-            beneficiaries: {
+            policy_beneficiaries: {
               include: {
-                beneficiary: {
+                beneficiaries: {
                   select: {
-                    firstName: true,
-                    lastName: true,
+                    first_name: true,
+                    last_name: true,
                     relationship: true,
                   },
                 },
@@ -109,35 +109,38 @@ export async function GET(req: NextRequest) {
     const results = clients.flatMap((client) =>
       client.policies.map((policy) => ({
         id: policy.id,
-        policyNumber: policy.policyNumber,
-        policyType: policy.policyType,
-        insurerName: policy.insurer.name,
+        policyNumber: policy.policy_number,
+        policyType: policy.policy_type,
+        insurerName: policy.insurers?.name || null,
         client: {
           id: client.id,
-          firstName: client.firstName,
-          lastName: client.lastName,
+          firstName: client.first_name,
+          lastName: client.last_name,
           email: client.email,
-          organization: client.org ? {
-            id: client.org.id,
-            name: client.org.name,
+          organization: client.organizations ? {
+            id: client.organizations.id,
+            name: client.organizations.name,
           } : null,
         },
-        beneficiaries: policy.beneficiaries.map((pb) => ({
-          firstName: pb.beneficiary.firstName,
-          lastName: pb.beneficiary.lastName,
-          relationship: pb.beneficiary.relationship,
+        beneficiaries: policy.policy_beneficiaries.map((pb) => ({
+          firstName: pb.beneficiaries.first_name,
+          lastName: pb.beneficiaries.last_name,
+          relationship: pb.beneficiaries.relationship,
         })),
       }))
     );
 
     // Log the search for audit purposes (internal audit log, not visible to users)
     try {
-      await prisma.auditLog.create({
+      const auditLogId = randomUUID();
+      await prisma.audit_logs.create({
         data: {
+          id: auditLogId,
           action: "GLOBAL_POLICY_SEARCH_PERFORMED",
           message: `Global policy search: ${firstName} ${lastName}${dateOfBirth ? ` (DOB: ${dateOfBirth})` : ""}${proofOfDeathCertNumber ? ` | Death Cert: ${proofOfDeathCertNumber}` : ""} | Results: ${results.length} policy(ies)`,
-          userId: user.id,
-          orgId: userWithOrg?.orgMemberships?.[0]?.organizations?.id || userWithOrg?.orgMemberships?.[0]?.organization_id || null,
+          user_id: user.id,
+          org_id: userWithOrg?.org_members?.[0]?.organizations?.id || userWithOrg?.org_members?.[0]?.organization_id || null,
+          created_at: new Date(),
         },
       });
     } catch (auditError) {

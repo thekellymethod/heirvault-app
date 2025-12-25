@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { db, sql } from "@/lib/db";
+import { prisma } from "@/lib/db";
 import { createRegistryRecord, appendRegistryVersion, getRegistryById, getRegistryVersions } from "@/lib/db";
 import { sha256String, sha256Buffer } from "@/lib/hash";
 import { signToken, verifyToken } from "@/lib/qr";
@@ -32,8 +32,8 @@ export async function GET() {
     const results: Record<string, unknown> = {};
 
     // 1. Test database connection
-    const dbTest = await db.execute(sql`SELECT 1 as test`);
-    results.database = { connected: true, test: dbTest.rows?.[0] || { test: 1 } };
+    const dbTest = await prisma.$queryRaw<Array<{ test: number }>>`SELECT 1 as test`;
+    results.database = { connected: true, test: dbTest[0] || { test: 1 } };
 
     // 2. Test roles
     results.roles = {

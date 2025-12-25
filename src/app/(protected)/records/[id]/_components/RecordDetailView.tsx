@@ -66,7 +66,7 @@ export function RecordDetailView({
   };
 
   const latestVersion = versions.length > 0 ? versions[versions.length - 1] : null;
-  const latestData = latestVersion?.dataJson as Record<string, unknown> | undefined;
+  const latestData = latestVersion?.data_json as Record<string, unknown> | undefined;
 
   return (
     <div className="min-h-screen bg-paper-50 py-6">
@@ -168,7 +168,7 @@ export function RecordDetailView({
             ) : (
               versions.map((version, index) => {
                 const versionDocs = documentsByVersion.get(version.id) || [];
-                const versionData = version.dataJson as Record<string, unknown>;
+                const versionData = version.data_json as Record<string, unknown>;
                 const delta = versionData.delta as Record<string, { from: unknown; to: unknown }> | undefined;
 
                 return (
@@ -176,10 +176,10 @@ export function RecordDetailView({
                     <div className="flex items-start justify-between mb-3">
                       <div>
                         <div className="font-medium text-ink-900">
-                          Version {index + 1} - {version.submittedBy}
+                          Version {index + 1} - {version.submitted_by}
                         </div>
                         <div className="text-sm text-slateui-500">
-                          {new Date(version.createdAt).toLocaleString()}
+                          {new Date(version.created_at).toLocaleString()}
                         </div>
                       </div>
                       <div className="text-xs text-slateui-500 font-mono">
@@ -210,12 +210,14 @@ export function RecordDetailView({
                     <div className="mt-3 pt-3 border-t border-slateui-200">
                       <div className="text-sm font-medium text-ink-900 mb-2">Documents:</div>
                       <div className="space-y-2">
-                        {versionDocs.map((doc) => (
+                        {versionDocs.map((doc) => {
+                          const fileName = doc.storage_path.split('/').pop() || 'document';
+                          return (
                           <div key={doc.id} className="flex items-center justify-between p-2 bg-slateui-50 rounded">
                             <div className="flex items-center gap-2">
                               <FileText className="h-4 w-4 text-slateui-500" />
-                              <span className="text-sm text-ink-900">{doc.fileName}</span>
-                              <span className="text-xs text-slateui-500">({formatFileSize(doc.fileSize)})</span>
+                              <span className="text-sm text-ink-900">{fileName}</span>
+                              <span className="text-xs text-slateui-500">({formatFileSize(doc.size_bytes)})</span>
                             </div>
                             <div className="flex items-center gap-2">
                               <div className="text-xs text-slateui-500 font-mono">
@@ -224,7 +226,8 @@ export function RecordDetailView({
                               </div>
                             </div>
                           </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   )}

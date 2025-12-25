@@ -10,25 +10,25 @@ export async function GET(
     const user = await requireAuth("attorney");
     const { id: policyId } = await params;
 
-    const policy = await prisma.policy.findUnique({
+    const policy = await prisma.policies.findUnique({
       where: { id: policyId },
       select: {
         id: true,
-        clientId: true,
-        beneficiaries: {
-          orderBy: { createdAt: "desc" },
+        client_id: true,
+        policy_beneficiaries: {
+          orderBy: { created_at: "desc" },
           select: {
             id: true,
-            createdAt: true,
-            beneficiary: {
+            created_at: true,
+            beneficiaries: {
               select: {
                 id: true,
-                firstName: true,
-                lastName: true,
+                first_name: true,
+                last_name: true,
                 relationship: true,
                 email: true,
                 phone: true,
-                dateOfBirth: true,
+                date_of_birth: true,
               },
             },
           },
@@ -40,11 +40,11 @@ export async function GET(
       return NextResponse.json({ error: "Policy not found" }, { status: 404 });
     }
 
-    const access = await prisma.attorneyClientAccess.findFirst({
+    const access = await prisma.attorney_client_access.findFirst({
       where: {
-        attorneyId: user.id,
-        clientId: policy.clientId,
-        isActive: true,
+        attorney_id: user.id,
+        client_id: policy.client_id,
+        is_active: true,
       },
       select: { id: true },
     });
@@ -53,35 +53,50 @@ export async function GET(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const allClientBeneficiaries = await prisma.beneficiary.findMany({
-      where: { clientId: policy.clientId },
-      orderBy: { createdAt: "desc" },
+    const allClientBeneficiaries = await prisma.beneficiaries.findMany({
+      where: { client_id: policy.client_id },
+      orderBy: { created_at: "desc" },
       select: {
         id: true,
-        firstName: true,
-        lastName: true,
+        first_name: true,
+        last_name: true,
         relationship: true,
         email: true,
         phone: true,
-        dateOfBirth: true,
-        createdAt: true,
+        date_of_birth: true,
+        created_at: true,
       },
     });
 
     const attachedIds = new Set(
-      policy.beneficiaries.map((pb) => pb.beneficiary.id)
+      policy.policy_beneficiaries.map((pb) => pb.beneficiaries.id)
     );
 
     return NextResponse.json({
-      attached: policy.beneficiaries.map((pb) => ({
+      attached: policy.policy_beneficiaries.map((pb) => ({
         linkId: pb.id,
-        attachedAt: pb.createdAt,
-        beneficiaryId: pb.beneficiary.id,
-        ...pb.beneficiary,
+        attachedAt: pb.created_at,
+        beneficiaryId: pb.beneficiaries.id,
+        id: pb.beneficiaries.id,
+        firstName: pb.beneficiaries.first_name,
+        lastName: pb.beneficiaries.last_name,
+        relationship: pb.beneficiaries.relationship,
+        email: pb.beneficiaries.email,
+        phone: pb.beneficiaries.phone,
+        dateOfBirth: pb.beneficiaries.date_of_birth,
       })),
-      available: allClientBeneficiaries.filter(
-        (b) => !attachedIds.has(b.id)
-      ),
+      available: allClientBeneficiaries
+        .filter((b) => !attachedIds.has(b.id))
+        .map((b) => ({
+          id: b.id,
+          firstName: b.first_name,
+          lastName: b.last_name,
+          relationship: b.relationship,
+          email: b.email,
+          phone: b.phone,
+          dateOfBirth: b.date_of_birth,
+          createdAt: b.created_at,
+        })),
     });
   } catch {
     return NextResponse.json(
@@ -107,9 +122,9 @@ export async function POST(
       );
     }
 
-    const policy = await prisma.policy.findUnique({
+    const policy = await prisma.policies.findUnique({
       where: { id: policyId },
-      select: { clientId: true },
+      select: { client_id: true },
     });
 
     if (!policy) {
@@ -119,19 +134,25 @@ export async function POST(
     // All attorneys have global access - just verify policy exists
     // (already checked above)
 
-    await prisma.policyBeneficiary.upsert({
+    const existingLink = await prisma.policy_beneficiaries.findFirst({
       where: {
-        policyId_beneficiaryId: {
-          policyId,
-          beneficiaryId,
-        },
-      },
-      update: {},
-      create: {
-        policyId,
-        beneficiaryId,
+        policy_id: policyId,
+        beneficiary_id: beneficiaryId,
       },
     });
+
+    if (!existingLink) {
+      await prisma.policy_beneficiaries.create({
+        data: {
+          id: randomUUID(),
+          policy_id: policyId,
+          beneficiary_id: beneficiaryId,
+          share_percentage: null,
+          created_at: new Date(),
+          updated_at: new Date(),
+        },
+      });
+    }
 
     return NextResponse.json({ ok: true });
   } catch {
@@ -158,9 +179,9 @@ export async function DELETE(
       );
     }
 
-    const policy = await prisma.policy.findUnique({
+    const policy = await prisma.policies.findUnique({
       where: { id: policyId },
-      select: { clientId: true },
+      select: { client_id: true },
     });
 
     if (!policy) {
@@ -170,8 +191,8 @@ export async function DELETE(
     // All attorneys have global access - just verify policy exists
     // (already checked above)
 
-    await prisma.policyBeneficiary.deleteMany({
-      where: { policyId, beneficiaryId },
+    await prisma.policy_beneficiaries.deleteMany({
+      where: { policy_id: policyId, beneficiary_id: beneficiaryId },
     });
 
     return NextResponse.json({ ok: true });

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { db, attorneyClientAccess, clients, policies, insurers, eq, desc, and, or, ilike } from "@/lib/db";
+import { prisma } from "@/lib/db";
 import { requireAuth } from "@/lib/utils/clerk";
 import { EmptyListState, EmptySearchState } from "@/components/ui/empty-state";
 import { SortSelect } from "@/components/ui/sort-select";
@@ -15,75 +15,90 @@ export default async function PoliciesPage({
   const sortBy = params.sort || "createdAt";
 
   // Build search conditions (case-insensitive)
-  // Note: carrier_name_raw search would require raw SQL or separate query
-  const searchConditions = searchTerm
-    ? [
-        ilike(policies.policyNumber, `%${searchTerm}%`),
-        ilike(policies.policyType, `%${searchTerm}%`),
-        ilike(insurers.name, `%${searchTerm}%`),
-        ilike(policies.carrierNameRaw, `%${searchTerm}%`), // Search unresolved insurers too
-        ilike(clients.firstName, `%${searchTerm}%`),
-        ilike(clients.lastName, `%${searchTerm}%`),
-        ilike(clients.email, `%${searchTerm}%`),
-      ]
-    : [];
+  const searchWhere = searchTerm
+    ? {
+        OR: [
+          { policy_number: { contains: searchTerm, mode: 'insensitive' as const } },
+          { policy_type: { contains: searchTerm, mode: 'insensitive' as const } },
+          { carrier_name_raw: { contains: searchTerm, mode: 'insensitive' as const } },
+          { clients: {
+              OR: [
+                { first_name: { contains: searchTerm, mode: 'insensitive' as const } },
+                { last_name: { contains: searchTerm, mode: 'insensitive' as const } },
+                { email: { contains: searchTerm, mode: 'insensitive' as const } },
+              ],
+            },
+          },
+          { insurers: { name: { contains: searchTerm, mode: 'insensitive' as const } } },
+        ],
+      }
+    : {};
 
   // Build sort order
-  let orderBy;
+  let orderBy: Array<Record<string, unknown>> | Record<string, unknown>;
   switch (sortBy) {
     case "clientName":
-      orderBy = [desc(clients.lastName), desc(clients.firstName)];
+      orderBy = [{ clients: { last_name: 'desc' } }, { clients: { first_name: 'desc' } }];
       break;
     case "insurer":
-      orderBy = [desc(insurers.name)];
+      orderBy = [{ insurers: { name: 'desc' } }];
       break;
     case "policyNumber":
-      orderBy = [desc(policies.policyNumber)];
+      orderBy = [{ policy_number: 'desc' }];
       break;
     case "verificationStatus":
-      orderBy = [desc(policies.verificationStatus)];
+      orderBy = [{ verification_status: 'desc' }];
       break;
     case "createdAt":
     default:
-      orderBy = [desc(policies.createdAt)];
+      orderBy = [{ created_at: 'desc' }];
       break;
   }
 
   // Fetch policies joined with authorized clients (left join insurers to include unresolved)
-  const rows = await db
-    .select({
+  const accessRecords = await prisma.attorney_client_access.findMany({
+    where: {
+      attorney_id: user.id,
+      is_active: true,
+    },
+    include: {
+      clients: {
+        include: {
+          policies: {
+            where: searchWhere,
+            include: {
+              insurers: true,
+            },
+            orderBy: (Array.isArray(orderBy) && orderBy.length === 1 ? orderBy[0] : orderBy) as Record<string, unknown> | undefined,
+          },
+        },
+      },
+    },
+  });
+
+  const rows = accessRecords.flatMap(access =>
+    access.clients.policies.map(policy => ({
       policy: {
-        id: policies.id,
-        policyNumber: policies.policyNumber,
-        policyType: policies.policyType,
-        carrierNameRaw: policies.carrierNameRaw,
-        verificationStatus: policies.verificationStatus,
-        createdAt: policies.createdAt,
-        updatedAt: policies.updatedAt,
+        id: policy.id,
+        policyNumber: policy.policy_number,
+        policyType: policy.policy_type,
+        carrierNameRaw: policy.carrier_name_raw,
+        verificationStatus: (policy as { verification_status?: string }).verification_status || 'PENDING',
+        createdAt: policy.created_at,
+        updatedAt: policy.updated_at,
       },
       client: {
-        id: clients.id,
-        firstName: clients.firstName,
-        lastName: clients.lastName,
-        email: clients.email,
+        id: access.clients.id,
+        firstName: access.clients.first_name,
+        lastName: access.clients.last_name,
+        email: access.clients.email,
       },
-      insurer: {
-        id: insurers.id,
-        name: insurers.name,
-      },
-    })
-    .from(attorneyClientAccess)
-    .innerJoin(clients, eq(attorneyClientAccess.clientId, clients.id))
-    .innerJoin(policies, eq(policies.clientId, clients.id))
-    .leftJoin(insurers, eq(policies.insurerId, insurers.id))
-    .where(
-      and(
-        eq(attorneyClientAccess.attorneyId, user.id),
-        eq(attorneyClientAccess.isActive, true),
-        searchConditions.length > 0 ? or(...searchConditions) : undefined
-      )
-    )
-    .orderBy(...orderBy);
+      insurer: policy.insurers ? {
+        id: policy.insurers.id,
+        name: policy.insurers.name,
+      } : null,
+    }))
+  );
 
   const policiesList = rows.map((r: typeof rows[number]) => {
     const displayName = r.insurer?.name ?? r.policy.carrierNameRaw ?? "Unknown";

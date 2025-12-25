@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db, insurers, eq, asc } from "@/lib/db";
+import { prisma } from "@/lib/db";
 import { requireAuthApi } from "@/lib/utils/clerk";
+import { randomUUID } from "crypto";
 
 export async function GET() {
   const authResult = await requireAuthApi();
   if (authResult.response) return authResult.response;
-  const { user } = authResult;
 
   try {
-    const insurersList = await db.select()
-      .from(insurers)
-      .orderBy(asc(insurers.name));
+    const insurersList = await prisma.insurers.findMany({
+      orderBy: { name: 'asc' },
+    });
 
     return NextResponse.json({ insurers: insurersList }, { status: 200 });
   } catch (error: unknown) {
@@ -25,7 +25,6 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const authResult = await requireAuthApi();
   if (authResult.response) return authResult.response;
-  const { user } = authResult;
 
   try {
     const body = await req.json();
@@ -38,14 +37,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "name is required" }, { status: 400 });
     }
 
-    const [newInsurer] = await db.insert(insurers)
-      .values({
+    const newInsurerId = randomUUID();
+    const now = new Date();
+    const newInsurer = await prisma.insurers.create({
+      data: {
+        id: newInsurerId,
         name,
-        contactPhone,
-        contactEmail,
+        contact_phone: contactPhone,
+        contact_email: contactEmail,
         website,
-      })
-      .returning();
+        created_at: now,
+        updated_at: now,
+      },
+    });
     
     const insurerId = newInsurer.id;
 

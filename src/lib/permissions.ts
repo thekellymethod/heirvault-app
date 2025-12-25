@@ -67,7 +67,7 @@ export async function canAccessRegistry({
 
   // ATTORNEY: Check if registry is in authorized list
   if (user.role === "ATTORNEY") {
-    const authorizedRegistries = await listAuthorizedRegistries(user.clerkId);
+    const authorizedRegistries = await listAuthorizedRegistries(user.id);
     return authorizedRegistries.some((registry) => registry.id === registryId);
   }
 

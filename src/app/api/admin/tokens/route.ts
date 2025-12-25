@@ -10,7 +10,7 @@ export const runtime = "nodejs";
  * List all API tokens (no hash shown)
  */
 export async function GET() {
-  const actor = await requireAdmin();
+  await requireAdmin(); // Authorization check
 
   const tokens = await prisma.apiToken.findMany({
     orderBy: { createdAt: "desc" },
@@ -26,7 +26,7 @@ export async function GET() {
 
   return NextResponse.json({
     ok: true,
-    data: tokens.map((token) => ({
+    data: tokens.map((token: (typeof tokens)[0]) => ({
       id: token.id,
       name: token.name,
       scopes: token.scopes,

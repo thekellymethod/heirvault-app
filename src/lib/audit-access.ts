@@ -25,8 +25,8 @@ export async function logAccessWithUser(
   metadata?: Record<string, unknown>
 ): Promise<void> {
   await logAccess({
-    registryId,
-    userId: user.id,
+    registry_id: registryId,
+    user_id: user.id,
     action,
     metadata: metadata || undefined,
   });
@@ -43,8 +43,8 @@ export async function logSystemAccess(
   metadata?: Record<string, unknown>
 ): Promise<void> {
   await logAccess({
-    registryId,
-    userId: null,
+    registry_id: registryId,
+    user_id: null,
     action,
     metadata: metadata || undefined,
   });

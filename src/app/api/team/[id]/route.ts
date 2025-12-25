@@ -16,10 +16,10 @@ export async function PUT(req: NextRequest, { params }: Params) {
     }
 
     // Check if current user is owner
-    const currentMember = await prisma.orgMember.findFirst({
+    const currentMember = await prisma.org_members.findFirst({
       where: {
-        userId: user.id,
-        organizationId: orgMember.organizationId,
+        user_id: user.id,
+        organization_id: orgMember.organizationId,
       },
     });
 
@@ -41,7 +41,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
     }
 
     // Get the member being updated
-    const memberToUpdate = await prisma.orgMember.findUnique({
+    const memberToUpdate = await prisma.org_members.findUnique({
       where: { id },
       include: {
         organizations: true,
@@ -53,15 +53,15 @@ export async function PUT(req: NextRequest, { params }: Params) {
     }
 
     // Ensure member is in the same org
-    if (memberToUpdate.organizationId !== orgMember.organizationId) {
+    if (memberToUpdate.organization_id !== orgMember.organizationId) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     // Prevent removing the last owner
     if (memberToUpdate.role === "OWNER" && role !== "OWNER") {
-      const ownerCount = await prisma.orgMember.count({
+      const ownerCount = await prisma.org_members.count({
         where: {
-          organizationId: orgMember.organizationId,
+          organization_id: orgMember.organizationId,
           role: "OWNER",
         },
       });
@@ -74,7 +74,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
       }
     }
 
-    const updated = await prisma.orgMember.update({
+    const updated = await prisma.org_members.update({
       where: { id },
       data: { role },
     });
