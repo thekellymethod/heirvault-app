@@ -1,7 +1,5 @@
 // src/lib/email.ts
 // Main email module - exports all email functionality
-export { sendEmail } from "./email/send";
-export type { EmailSendArgs, EmailAttachment } from "./email/send";
 
 // Import email templates and sendEmail
 import {
@@ -10,7 +8,11 @@ import {
   getAccessGrantedEmailTemplate,
   getAttorneyNotificationEmailTemplate,
 } from "./email-templates";
-import { sendEmail as _sendEmail } from "./email/send";
+import { sendEmail } from "./email/send";
+
+// Re-export sendEmail and types explicitly
+export { sendEmail };
+export type { EmailSendArgs, EmailAttachment } from "./email/send";
 
 // Export all email notification functions directly
 export async function sendClientInviteEmail(opts: {
@@ -19,7 +21,7 @@ export async function sendClientInviteEmail(opts: {
   firmName?: string;
   inviteUrl: string;
 }) {
-  return _sendEmail({
+  return sendEmail({
     to: opts.to,
     subject: "Complete your Life Insurance & Beneficiary Registry",
     html: getClientInviteEmailTemplate(opts),
@@ -34,7 +36,7 @@ export async function sendClientReceiptEmail(opts: {
   receiptPdf: Buffer;
   firmName?: string;
 }) {
-  return _sendEmail({
+  return sendEmail({
     to: opts.to,
     subject: "Your HeirVault Registration Confirmation",
     html: `
@@ -82,7 +84,7 @@ export async function sendAttorneyNotificationEmail(opts: {
   firmName?: string;
   qrCodeImage?: string;
 }) {
-  return _sendEmail({
+  return sendEmail({
     to: opts.to,
     subject: `New Client Registration: ${opts.clientName}`,
     html: getAttorneyNotificationEmailTemplate(opts),
@@ -99,7 +101,7 @@ export async function sendPolicyAddedEmail(opts: {
   firmName?: string;
   dashboardUrl: string;
 }) {
-  return _sendEmail({
+  return sendEmail({
     to: opts.to,
     subject: `New Policy Added: ${opts.insurerName}`,
     html: getPolicyAddedEmailTemplate(opts),
@@ -114,7 +116,7 @@ export async function sendAccessGrantedEmail(opts: {
   firmName?: string;
   dashboardUrl: string;
 }) {
-  return _sendEmail({
+  return sendEmail({
     to: opts.to,
     subject: `Access Granted: ${opts.clientName}`,
     html: getAccessGrantedEmailTemplate(opts),
