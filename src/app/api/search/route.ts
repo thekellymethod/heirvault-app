@@ -11,7 +11,7 @@ export const runtime = "nodejs";
  * Constrained search endpoint - requires authentication
  * 
  * - Validates purpose is non-empty
- * - Only searches across limited fields: insured_name, beneficiary_name, carrier_guess
+ * - Only searches across limited fields: decedent_name (from registry), insured_name, beneficiary_name, carrier_guess (from versions)
  * - Returns redacted results (no full policy numbers)
  * - Audits SEARCH_PERFORMED with purpose and resultCount
  */
@@ -80,21 +80,16 @@ export async function POST(req: NextRequest) {
     }
 
     // CRITICAL: Only search across limited fields
+    // Search in registry records for: decedent_name
     // Search in registry versions for: insured_name, beneficiary_name, carrier_guess
-    // We'll search through versions and match registries
+    // We'll search through all authorized registries and their versions
     const searchTerm = searchString.trim().toLowerCase();
 
     // Get all authorized registries for this user (respects permissions)
     const authorizedRegistries = await listAuthorizedRegistries(user.clerkId, 1000);
-    
-    // Filter by search term in authorized registries only
-    const allRegistries = authorizedRegistries.filter((registry) => {
-      // Basic name matching on registry record
-      const decedentName = (registry.decedentName || "").toLowerCase();
-      return decedentName.includes(searchTerm);
-    });
 
-    // Also search through versions for insured_name, beneficiary_name, carrier_guess
+    // Search through all authorized registries and their versions
+    // Search fields: decedentName (from registry), insured_name, beneficiary_name, carrier_guess (from versions)
     // This is a simplified approach - in production, you'd want a more efficient query
     const matchingRegistries: Array<{
       id: string;
@@ -110,40 +105,55 @@ export async function POST(req: NextRequest) {
       };
     }> = [];
 
-    for (const registry of allRegistries) {
-      const versions = await getRegistryVersions(registry.id);
-      const latestVersion = versions.length > 0 ? versions[0] : null;
+    for (const registry of authorizedRegistries) {
+      // Check decedentName on the registry record
+      const decedentName = (registry.decedentName || "").toLowerCase();
+      let matchedField: string | undefined;
+      
+      if (decedentName.includes(searchTerm)) {
+        matchedField = "decedent_name";
+      } else {
+        // If not matched on registry record, check version data
+        const versions = await getRegistryVersions(registry.id);
+        const latestVersion = versions.length > 0 ? versions[0] : null;
 
-      if (latestVersion) {
-        const data = latestVersion.data_json as Record<string, unknown>;
-        const insuredName = String(data.insured_name || "").toLowerCase();
-        const beneficiaryName = String(data.beneficiary_name || "").toLowerCase();
-        const carrierGuess = String(data.carrier_guess || "").toLowerCase();
+        if (latestVersion) {
+          const data = latestVersion.data_json as Record<string, unknown>;
+          const insuredName = String(data.insured_name || "").toLowerCase();
+          const beneficiaryName = String(data.beneficiary_name || "").toLowerCase();
+          const carrierGuess = String(data.carrier_guess || "").toLowerCase();
 
-        let matchedField: string | undefined;
-        if (insuredName.includes(searchTerm)) {
-          matchedField = "insured_name";
-        } else if (beneficiaryName.includes(searchTerm)) {
-          matchedField = "beneficiary_name";
-        } else if (carrierGuess.includes(searchTerm)) {
-          matchedField = "carrier_guess";
+          if (insuredName.includes(searchTerm)) {
+            matchedField = "insured_name";
+          } else if (beneficiaryName.includes(searchTerm)) {
+            matchedField = "beneficiary_name";
+          } else if (carrierGuess.includes(searchTerm)) {
+            matchedField = "carrier_guess";
+          }
         }
+      }
 
-        if (matchedField) {
-          matchingRegistries.push({
-            id: registry.id,
-            decedentName: registry.decedentName,
-            status: registry.status,
-            createdAt: registry.createdAt,
-            matchedField,
-            redactedData: {
-              insuredName: data.insured_name ? String(data.insured_name) : undefined,
-              beneficiaryName: data.beneficiary_name ? String(data.beneficiary_name) : undefined,
-              carrierGuess: data.carrier_guess ? String(data.carrier_guess) : undefined,
-              policyNumber: maskPolicyNumber(data.policy_number_optional as string | null | undefined),
-            },
-          });
-        }
+      // If matched, get the latest version data for redacted response
+      if (matchedField) {
+        const versions = await getRegistryVersions(registry.id);
+        const latestVersion = versions.length > 0 ? versions[0] : null;
+        const data = latestVersion?.data_json as Record<string, unknown> | undefined;
+
+        matchingRegistries.push({
+          id: registry.id,
+          decedentName: registry.decedentName,
+          status: registry.status,
+          createdAt: registry.createdAt,
+          matchedField,
+          redactedData: data
+            ? {
+                insuredName: data.insured_name ? String(data.insured_name) : undefined,
+                beneficiaryName: data.beneficiary_name ? String(data.beneficiary_name) : undefined,
+                carrierGuess: data.carrier_guess ? String(data.carrier_guess) : undefined,
+                policyNumber: maskPolicyNumber(data.policy_number_optional as string | null | undefined),
+              }
+            : undefined,
+        });
       }
     }
 
@@ -159,7 +169,7 @@ export async function POST(req: NextRequest) {
         purpose,
         searchString: searchTerm,
         resultCount,
-        matchedFields: ["insured_name", "beneficiary_name", "carrier_guess"],
+        matchedFields: ["decedent_name", "insured_name", "beneficiary_name", "carrier_guess"],
         timestamp: new Date().toISOString(),
       },
     });
