@@ -19,7 +19,7 @@ export type {
   access_logs as AccessLog,
 } from "@prisma/client";
 
-// Export Prisma enum types
+// Export Prisma enum types (for type annotations)
 export type {
   AuditAction,
   OrgRole,
@@ -34,5 +34,7 @@ export type {
   PolicyVerificationStatus,
 } from "@prisma/client";
 
-// Re-export enum constants from enums file for backward compatibility
+// Re-export enum constants from enums file (values)
+// These provide enum values like AuditAction.CLIENT_CREATED
+// Note: Prisma enums are also available as values, but these provide backward compatibility
 export { AuditAction, OrgRole, BillingPlan, UserRole, InviteStatus, AccessGrantStatus } from "./enums";

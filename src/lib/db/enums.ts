@@ -48,11 +48,6 @@ export const AccessGrantStatus = {
   REVOKED: "REVOKED",
 } as const;
 
-// Type exports
-export type AuditAction = typeof AuditAction[keyof typeof AuditAction];
-export type OrgRole = typeof OrgRole[keyof typeof OrgRole];
-export type BillingPlan = typeof BillingPlan[keyof typeof BillingPlan];
-export type UserRole = typeof UserRole[keyof typeof UserRole];
-export type InviteStatus = typeof InviteStatus[keyof typeof InviteStatus];
-export type AccessGrantStatus = typeof AccessGrantStatus[keyof typeof AccessGrantStatus];
+// Note: Type exports are handled in index.ts from Prisma
+// This file only exports the enum value constants for backward compatibility
 
