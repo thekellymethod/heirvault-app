@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { type AppUser } from "@/lib/auth/CurrentUser";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,10 +11,8 @@ import {
   FileText,
   CheckCircle,
   X,
-  Clock,
   Search,
   AlertCircle,
-  Users,
   Scale,
   Eye,
   Download,
@@ -63,7 +61,7 @@ interface AttorneyCredential {
  * Only admins
  * Approvals, credential reviews, compliance
  */
-export function AdminDashboard({ admin }: AdminDashboardProps) {
+export function AdminDashboard({ admin: _admin }: AdminDashboardProps) {
   const [activeTab, setActiveTab] = useState<"overview" | "approvals" | "credentials" | "compliance" | "manual-upload">("overview");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -77,12 +75,7 @@ export function AdminDashboard({ admin }: AdminDashboardProps) {
   const [attorneyCredentials, setAttorneyCredentials] = useState<AttorneyCredential[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Load data based on active tab
-  useEffect(() => {
-    loadData();
-  }, [activeTab, statusFilter]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
 
