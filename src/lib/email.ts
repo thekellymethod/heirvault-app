@@ -10,8 +10,8 @@ import {
 } from "./email-templates";
 import { sendEmail } from "./email/send";
 
-// Re-export sendEmail and types explicitly
-export { sendEmail };
+// Re-export sendEmail and types
+export { sendEmail } from "./email/send";
 export type { EmailSendArgs, EmailAttachment } from "./email/send";
 
 // Export all email notification functions directly
