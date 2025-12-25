@@ -4,7 +4,7 @@ import {
     getAccessGrantedEmailTemplate,
     getAttorneyNotificationEmailTemplate,
   } from "../email-templates";
-  import { sendEmail } from "../email";
+  import { sendEmail } from "./send";
   
   export async function sendClientInviteEmail(opts: {
     to: string;
