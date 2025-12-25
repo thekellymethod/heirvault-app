@@ -27,10 +27,9 @@ export default async function UpdateTokenPage({ params }: { params: { token: str
   return (
     <main style={{ padding: 24, maxWidth: 900, margin: "0 auto" }}>
       <h1>Update Submission</h1>
-      <p><strong>Insured:</strong> {registry.insured_name}</p>
-      <p><strong>Carrier:</strong> {registry.carrier_guess ?? "—"}</p>
+      <p><strong>Decedent Name:</strong> {registry.decedentName}</p>
 
-      <UpdateForm token={params.token} defaultInsured={registry.insured_name} defaultCarrier={registry.carrier_guess ?? ""} />
+      <UpdateForm token={params.token} defaultInsured={registry.decedentName} defaultCarrier="" />
     </main>
   );
 }

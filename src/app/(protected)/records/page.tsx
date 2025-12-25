@@ -28,9 +28,9 @@ export default async function RecordsPage() {
       
       return {
         id: registry.id,
-        decedentName: registry.insured_name,
+        decedentName: registry.decedentName,
         status: registry.status,
-        createdAt: new Date(registry.created_at),
+        createdAt: registry.createdAt,
         latestVersion: latestVersion
           ? {
               id: latestVersion.id,

@@ -1,17 +1,11 @@
 import { supabaseServer } from "@/lib/supabase";
 import { isRecord } from "@/lib/typeguards";
+import type { RegistryRecord } from "./db/index";
 
 // Re-export everything from db/index (Drizzle ORM, schema, query helpers)
 // This allows existing code to import { prisma, db, clients, policies, eq, ... } from "@/lib/db"
+// Note: RegistryRecord type is exported from ./db/index (from schema.ts)
 export * from "./db/index";
-
-export type RegistryRecord = {
-  id: string;
-  status: string;
-  insured_name: string;
-  carrier_guess: string | null;
-  created_at: string;
-};
 
 export type RegistryVersion = {
   id: string;
@@ -42,21 +36,26 @@ export type AccessLogRow = {
 };
 
 export async function createRegistryRecord(input: {
-  insured_name: string;
-  carrier_guess?: string | null;
+  decedentName: string;
 }): Promise<RegistryRecord> {
   const sb = supabaseServer();
   const { data, error } = await sb
     .from("registry_records")
     .insert({
-      insured_name: input.insured_name.trim(),
-      carrier_guess: input.carrier_guess?.trim() ?? null,
+      decedent_name: input.decedentName.trim(),
     })
     .select("*")
     .single();
 
   if (error) throw error;
-  return data as RegistryRecord;
+  // Supabase returns snake_case, but we need to map to camelCase for TypeScript type
+  const record = data as { decedent_name: string; status: string; created_at: string; id: string };
+  return {
+    id: record.id,
+    decedentName: record.decedent_name,
+    status: record.status,
+    createdAt: new Date(record.created_at),
+  } as RegistryRecord;
 }
 
 export async function appendRegistryVersion(input: {
@@ -109,7 +108,15 @@ export async function getRegistryById(id: string): Promise<RegistryRecord | null
   const sb = supabaseServer();
   const { data, error } = await sb.from("registry_records").select("*").eq("id", id).maybeSingle();
   if (error) throw error;
-  return (data ?? null) as RegistryRecord | null;
+  if (!data) return null;
+  // Map snake_case to camelCase for TypeScript type
+  const record = data as { decedent_name: string; status: string; created_at: string; id: string };
+  return {
+    id: record.id,
+    decedentName: record.decedent_name,
+    status: record.status,
+    createdAt: new Date(record.created_at),
+  } as RegistryRecord;
 }
 
 export async function getRegistryVersions(registryId: string): Promise<RegistryVersion[]> {
@@ -157,7 +164,13 @@ export async function listRegistries(limit = 50): Promise<RegistryRecord[]> {
     .limit(limit);
 
   if (error) throw error;
-  return (data ?? []) as RegistryRecord[];
+  // Map snake_case to camelCase for TypeScript type
+  return (data ?? []).map((record: { decedent_name: string; status: string; created_at: string; id: string }) => ({
+    id: record.id,
+    decedentName: record.decedent_name,
+    status: record.status,
+    createdAt: new Date(record.created_at),
+  })) as RegistryRecord[];
 }
 
 export async function logAccess(input: {
@@ -184,16 +197,22 @@ export async function constrainedSearch(input: {
   const q = input.query.trim();
   const limit = input.limit ?? 25;
 
-  // Constrained search: insured_name or carrier_guess only (v1)
+  // Constrained search: decedent_name only (v1)
   const { data, error } = await sb
     .from("registry_records")
     .select("*")
-    .or(`insured_name.ilike.%${q}%,carrier_guess.ilike.%${q}%`)
+    .ilike("decedent_name", `%${q}%`)
     .order("created_at", { ascending: false })
     .limit(limit);
 
   if (error) throw error;
-  return (data ?? []) as RegistryRecord[];
+  // Map snake_case to camelCase for TypeScript type
+  return (data ?? []).map((record: { decedent_name: string; status: string; created_at: string; id: string }) => ({
+    id: record.id,
+    decedentName: record.decedent_name,
+    status: record.status,
+    createdAt: new Date(record.created_at),
+  })) as RegistryRecord[];
 }
 
 // New type representing a registry permission record
@@ -231,6 +250,13 @@ export async function listAuthorizedRegistries(userId: string, limit = 50): Prom
     if (!isRecord(row) || !isRecord(row.registry_records)) {
       throw new Error("Invalid registry record row");
     }
-    return row.registry_records as RegistryRecord;
+    const record = row.registry_records as { decedent_name: string; status: string; created_at: string; id: string };
+    // Map snake_case to camelCase for TypeScript type
+    return {
+      id: record.id,
+      decedentName: record.decedent_name,
+      status: record.status,
+      createdAt: new Date(record.created_at),
+    } as RegistryRecord;
   });
 }

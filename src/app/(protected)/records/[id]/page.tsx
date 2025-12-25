@@ -33,8 +33,7 @@ export default async function RecordDetailPage({ params }: { params: { id: strin
   return (
     <main className={styles.main}>
       <h1>Registry Record</h1>
-      <p><strong>Insured:</strong> {registry.insured_name}</p>
-      <p><strong>Carrier:</strong> {registry.carrier_guess ?? "—"}</p>
+      <p><strong>Decedent Name:</strong> {registry.decedentName}</p>
       <p><strong>Status:</strong> {registry.status}</p>
 
       <h2 className={styles.sectionTitle}>Versions</h2>

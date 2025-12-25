@@ -90,9 +90,8 @@ export async function POST(req: NextRequest) {
     // Filter by search term in authorized registries only
     const allRegistries = authorizedRegistries.filter((registry) => {
       // Basic name matching on registry record
-      const insuredName = (registry.insured_name || "").toLowerCase();
-      const carrierGuess = (registry.carrier_guess || "").toLowerCase();
-      return insuredName.includes(searchTerm) || carrierGuess.includes(searchTerm);
+      const decedentName = (registry.decedentName || "").toLowerCase();
+      return decedentName.includes(searchTerm);
     });
 
     // Also search through versions for insured_name, beneficiary_name, carrier_guess
@@ -133,9 +132,9 @@ export async function POST(req: NextRequest) {
         if (matchedField) {
           matchingRegistries.push({
             id: registry.id,
-            decedentName: registry.insured_name, // Use insured_name as decedentName for display
+            decedentName: registry.decedentName,
             status: registry.status,
-            createdAt: new Date(registry.created_at),
+            createdAt: registry.createdAt,
             matchedField,
             redactedData: {
               insuredName: data.insured_name ? String(data.insured_name) : undefined,

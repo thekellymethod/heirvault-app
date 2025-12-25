@@ -20,8 +20,8 @@ export async function POST(req: Request) {
     const registry = await getRegistryById(registryId);
     if (!registry) return NextResponse.json({ error: "registry_not_found" }, { status: 404 });
 
-    const insured_name = String(form.get("insured_name") ?? registry.insured_name).trim();
-    const carrier_guess = String(form.get("carrier_guess") ?? registry.carrier_guess ?? "").trim() || null;
+    const insured_name = String(form.get("insured_name") ?? registry.decedentName).trim();
+    const carrier_guess = String(form.get("carrier_guess") ?? "").trim() || null;
 
     const policyholder_name = String(form.get("policyholder_name") ?? "").trim();
     const beneficiary_name = String(form.get("beneficiary_name") ?? "").trim();

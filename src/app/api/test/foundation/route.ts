@@ -77,13 +77,12 @@ export async function GET() {
 
     // 6. Test registry creation
     const registry = await createRegistryRecord({
-      insured_name: "Test Foundation User",
-      carrier_guess: "Test Carrier",
+      decedentName: "Test Foundation User",
     });
     results.registry = {
       created: true,
       id: registry.id,
-      insuredName: registry.insured_name,
+      insuredName: registry.decedentName,
       status: registry.status,
     };
 
