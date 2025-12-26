@@ -17,23 +17,33 @@ const VERIFICATION_STATUSES = [
 
 type VerificationStatus = (typeof VERIFICATION_STATUSES)[number];
 
-function asVerificationStatus(value: unknown): VerificationStatus {
-  if (typeof value !== "string") return "PENDING";
-  return (VERIFICATION_STATUSES as readonly string[]).includes(value)
-    ? (value as VerificationStatus)
-    : "PENDING";
-}
-
-/* -----------------------------
-   Redirect error guard
------------------------------- */
-
 type RedirectError = { redirectTo: string };
 
 function isRedirectError(error: unknown): error is RedirectError {
   if (typeof error !== "object" || error === null) return false;
   const e = error as Record<string, unknown>;
   return typeof e.redirectTo === "string";
+}
+
+/**
+ * UI-only derived status (since DB may not have a verificationStatus column)
+ * Keep this deterministic and conservative.
+ */
+function deriveVerificationStatus(input: {
+  insurerId: string | null;
+  carrierConfidence: number | null;
+  carrierNameRaw: string | null;
+}): VerificationStatus {
+  const raw = (input.carrierNameRaw ?? "").trim();
+  const conf = input.carrierConfidence ?? null;
+
+  if (!input.insurerId) {
+    if (raw.length > 0) return "DISCREPANCY";
+    return "PENDING";
+  }
+
+  if (conf !== null && conf < 0.6) return "DISCREPANCY";
+  return "VERIFIED";
 }
 
 /* -----------------------------
@@ -81,28 +91,20 @@ export default async function DashboardPage() {
     redirect("/attorney/apply");
   }
 
-  /**
-   * DB-SAFE RULE:
-   * Only select what you *know* exists in the physical database.
-   *
-   * If you still get P2022 after this, the mismatch is inside the `policies`
-   * table itself (or your connection points to an older DB). Then you must
-   * run migrations / introspection to reconcile.
-   */
   const policiesRows = await prisma.policies.findMany({
     take: 10,
     orderBy: { updatedAt: "desc" },
     select: {
       id: true,
-      clientId: true,
       insurerId: true,
       policyNumber: true,
       policyType: true,
-      verificationStatus: true,
       createdAt: true,
       updatedAt: true,
+      carrierConfidence: true,
+      carrierNameRaw: true,
 
-      // Relations (camelCase per Prisma Client types)
+      // Relations (use Prisma client field names)
       clients: {
         select: {
           id: true,
@@ -112,6 +114,7 @@ export default async function DashboardPage() {
         },
       },
 
+      // If your Prisma schema relation field is NOT "insurers", rename this to "insurer"
       insurers: {
         select: {
           id: true,
@@ -119,11 +122,8 @@ export default async function DashboardPage() {
         },
       },
 
-      // Document count via relation count
       _count: {
-        select: {
-          documents: true,
-        },
+        select: { documents: true },
       },
     },
   });
@@ -134,11 +134,17 @@ export default async function DashboardPage() {
         ? { id: p.insurers.id, name: p.insurers.name }
         : null;
 
+    const verificationStatus = deriveVerificationStatus({
+      insurerId: p.insurerId ?? null,
+      carrierConfidence: p.carrierConfidence ?? null,
+      carrierNameRaw: p.carrierNameRaw ?? null,
+    });
+
     return {
       id: p.id,
       policyNumber: p.policyNumber ?? null,
       policyType: p.policyType ?? null,
-      verificationStatus: asVerificationStatus(p.verificationStatus),
+      verificationStatus,
       updatedAt: p.updatedAt,
       createdAt: p.createdAt,
       client: {
@@ -152,21 +158,15 @@ export default async function DashboardPage() {
     };
   });
 
-  // Stats
-  const [totalPolicies, totalClients, verificationCounts] = await Promise.all([
+  const [totalPolicies, totalClients] = await Promise.all([
     prisma.policies.count(),
     prisma.clients.count(),
-    prisma.policies.groupBy({
-      by: ["verificationStatus"],
-      _count: { _all: true },
-    }),
   ]);
 
-  const counts = new Map<string, number>();
-  for (const row of verificationCounts) {
-    const key = row.verificationStatus ?? "PENDING";
-    counts.set(key, row._count._all);
-  }
+  // Stats derived from the 10 rows we fetched (DB has no verificationStatus field)
+  const counts = new Map<VerificationStatus, number>();
+  for (const s of VERIFICATION_STATUSES) counts.set(s, 0);
+  for (const p of policies) counts.set(p.verificationStatus, (counts.get(p.verificationStatus) ?? 0) + 1);
 
   const stats: DashboardStatsVM = {
     totalPolicies,
