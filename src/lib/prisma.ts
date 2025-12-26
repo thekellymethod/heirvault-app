@@ -24,7 +24,10 @@ function createClient(): ExtendedPrismaClient {
     );
   }
 
-  const base = new Prisma.PrismaClient(options);
+  const base = new Prisma.PrismaClient({
+    ...options,
+    log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
+  });
 
   // Always extend so the returned type is consistent (prevents union headaches).
   const extended = process.env.PRISMA_ACCELERATE_URL
