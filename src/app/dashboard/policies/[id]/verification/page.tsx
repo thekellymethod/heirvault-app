@@ -23,14 +23,14 @@ interface Props {
  */
 export default async function DocumentVerificationPage({ params }: Props) {
   const { id } = await params;
-  const { userId } = await requireAuth();
+  const user = await requireAuth();
 
   // First, get only the client_id to verify access
   // This prevents unauthorized access to policy data
   const policyClient = await prisma.$queryRawUnsafe<Array<{
-    clientId:string,
+    clientId: string,
   }>>(`
-    SELECT client_id
+    SELECT client_id as "clientId"
     FROM policies
     WHERE id = $1
     LIMIT 1
@@ -40,7 +40,7 @@ export default async function DocumentVerificationPage({ params }: Props) {
     redirect("/dashboard/policies");
   }
 
-  const clientId = policyClient[0].client_id;
+  const clientId = policyClient[0].clientId;
 
   // CRITICAL: Verify attorney has access to this client before proceeding
   // This prevents any authenticated user from accessing any policy's data
@@ -82,7 +82,7 @@ export default async function DocumentVerificationPage({ params }: Props) {
       p.document_hash,
       p.createdAt,
       p.updated_at,
-      p.client_id,
+      p.client_id as "clientId",
       p.insurer_id,
       p.carrier_name_raw,
       i.name as insurer_name,
@@ -152,7 +152,7 @@ export default async function DocumentVerificationPage({ params }: Props) {
     WHERE client_id = $1
     ORDER BY createdAt DESC
     LIMIT 10
-  `, policyData.client_id);
+  `, policyData.clientId);
 
   return (
     <DocumentVerificationView
@@ -168,7 +168,7 @@ export default async function DocumentVerificationPage({ params }: Props) {
         createdAt: policyData.createdAt,
         updatedAt: policyData.updated_at,
         client: {
-          id: policyData.client_id,
+          id: policyData.clientId,
           firstName: policyData.client_firstName,
           lastName: policyData.client_lastName,
           email: policyData.client_email,
@@ -186,7 +186,7 @@ export default async function DocumentVerificationPage({ params }: Props) {
         fileSize: d.file_size,
         filePath: d.file_path,
         mimeType: d.mime_type,
-        extractedData: d.extracted_data,
+        extractedData: (d.extracted_data as Record<string, unknown>) || {},
         ocrConfidence: d.ocr_confidence,
         documentHash: d.document_hash,
         verifiedAt: d.verified_at,
@@ -198,11 +198,11 @@ export default async function DocumentVerificationPage({ params }: Props) {
         id: s.id,
         status: s.status,
         submissionType: s.submission_type,
-        submittedData: s.submitted_data,
+        submittedData: (s.submitted_data as Record<string, unknown>) || {},
         createdAt: s.createdAt,
         processedAt: s.processed_at,
       }))}
-      currentUserId={userId}
+      currentUserId={user.id}
       isAdmin={isAdmin}
     />
   );

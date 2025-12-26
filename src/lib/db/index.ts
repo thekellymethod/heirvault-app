@@ -19,6 +19,18 @@ export type {
   access_logs as AccessLog,
 } from "@prisma/client";
 
+// Export additional Prisma model types for convenience
+export type {
+  clients,
+  beneficiaries,
+  policies,
+  organizations,
+  org_members,
+  attorneyClientAccess,
+  insurers,
+  registry_records,
+} from "@prisma/client";
+
 // Export Prisma enum types (for type annotations)
 // Note: AuditAction, OrgRole, BillingPlan, UserRole, InviteStatus are exported as values from ./enums below
 // and can be used as types via typeof when needed

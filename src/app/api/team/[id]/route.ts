@@ -18,8 +18,8 @@ export async function PUT(req: NextRequest, { params }: Params) {
     // Check if current user is owner
     const currentMember = await prisma.org_members.findFirst({
       where: {
-        user_id: user.id,
-        organization_id: orgMember.organizationId,
+        userId: user.id,
+        organizationId: orgMember.organizationId,
       },
     });
 
@@ -53,7 +53,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
     }
 
     // Ensure member is in the same org
-    if (memberToUpdate.organization_id !== orgMember.organizationId) {
+    if (memberToUpdate.organizationId !== orgMember.organizationId) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -61,7 +61,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
     if (memberToUpdate.role === "OWNER" && role !== "OWNER") {
       const ownerCount = await prisma.org_members.count({
         where: {
-          organization_id: orgMember.organizationId,
+          organizationId: orgMember.organizationId,
           role: "OWNER",
         },
       });
@@ -81,10 +81,11 @@ export async function PUT(req: NextRequest, { params }: Params) {
 
     return NextResponse.json(updated);
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Unknown error";
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const isAuthError = errorMessage === "Unauthorized" || errorMessage === "Forbidden";
     return NextResponse.json(
-      { error: message },
-      { status: error.message === "Unauthorized" || error.message === "Forbidden" ? 401 : 400 }
+      { error: errorMessage },
+      { status: isAuthError ? 401 : 400 }
     );
   }
 }

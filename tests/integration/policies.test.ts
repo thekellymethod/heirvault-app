@@ -5,97 +5,103 @@
  * Verifies authentication, authorization, and data integrity
  */
 
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
 import { NextRequest } from "next/server";
 import { POST, GET } from "@/app/api/policies/route";
-import { db, clients, policies, insurers, attorneyClientAccess, users, orgMembers, organizations } from "@/lib/db";
-import { eq } from "@/lib/db";
+import { db } from "@/lib/db";
 import { randomUUID } from "crypto";
 
 // Test data
-let testClientId: string,
-let testInsurerId: string,
-let testAttorneyId: string,
-let testOrgId: string,
+let testClientId: string;
+let testInsurerId: string;
+let testAttorneyId: string;
+let testOrgId: string;
 
 describe("Policy API Integration Tests", () => {
   beforeAll(async () => {
     // Create test organization
-    const [testOrg] = await db.insert(organizations)
-      .values({
+    const testOrg = await db.organizations.create({
+      data: {
+        id: randomUUID(),
         name: "Test Law Firm",
         slug: `test-firm-${Date.now()}`,
         billingPlan: "FREE",
-      })
-      .returning();
+      },
+    });
     testOrgId = testOrg.id;
 
     // Create test attorney user
-    const [testUser] = await db.insert(users)
-      .values({
+    const testUser = await db.user.create({
+      data: {
         clerkId: `test_attorney_${Date.now()}`,
         email: `test_attorney_${Date.now()}@test.com`,
         firstName: "Test",
         lastName: "Attorney",
         role: "attorney",
-      })
-      .returning();
+      },
+    });
     testAttorneyId = testUser.id;
 
     // Add user to organization
-    await db.insert(orgMembers)
-      .values({
+    await db.org_members.create({
+      data: {
+        id: randomUUID(),
         userId: testUser.id,
         organizationId: testOrgId,
         role: "ATTORNEY",
-      });
+      },
+    });
 
     // Create test client
-    const [testClient] = await db.insert(clients)
-      .values({
+    const testClient = await db.clients.create({
+      data: {
+        id: randomUUID(),
         firstName: "Test",
         lastName: "Client",
         email: `test_client_${Date.now()}@test.com`,
-      })
-      .returning();
-    testclientId = testClient.id;
+      },
+    });
+    testClientId = testClient.id;
 
     // Grant attorney access to client
-    await db.insert(attorneyClientAccess)
-      .values({
+    await db.attorneyClientAccess.create({
+      data: {
+        id: randomUUID(),
         attorneyId: testUser.id,
         clientId: testClient.id,
         organizationId: testOrgId,
         isActive: true,
-      });
+      },
+    });
 
     // Create test insurer
-    const [testInsurer] = await db.insert(insurers)
-      .values({
+    const testInsurer = await db.insurers.create({
+      data: {
+        id: randomUUID(),
         name: "Test Insurance Company",
         contactPhone: "555-0100",
         contactEmail: "test@insurance.com",
-      })
-      .returning();
+      },
+    });
     testInsurerId = testInsurer.id;
   });
 
   afterAll(async () => {
     // Cleanup test data
     if (testClientId) {
-      await db.delete(policies).where(eq(policies.clientId, testClientId));
-      await db.delete(attorneyClientAccess).where(eq(attorneyClientAccess.clientId, testClientId));
-      await db.delete(clients).where(eq(clients.id, testClientId));
+      await db.policies.deleteMany({ where: { clientId: testClientId } });
+      await db.attorneyClientAccess.deleteMany({ where: { clientId: testClientId } });
+      await db.clients.delete({ where: { id: testClientId } });
     }
     if (testAttorneyId) {
-      await db.delete(orgMembers).where(eq(orgMembers.userId, testAttorneyId));
-      await db.delete(users).where(eq(users.id, testAttorneyId));
+      await db.org_members.deleteMany({ where: { userId: testAttorneyId } });
+      await db.user.delete({ where: { id: testAttorneyId } });
     }
     if (testOrgId) {
-      await db.delete(organizations).where(eq(organizations.id, testOrgId));
+      await db.organizations.delete({ where: { id: testOrgId } });
     }
     if (testInsurerId) {
-      await db.delete(insurers).where(eq(insurers.id, testInsurerId));
+      await db.insurers.delete({ where: { id: testInsurerId } });
     }
   });
 

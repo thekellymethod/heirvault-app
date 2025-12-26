@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { supabaseServer } from "@/lib/supabase";
+import { randomUUID, randomBytes } from "crypto";
 
 // Type helper for Prisma transaction client
 // Use the same type as prisma but exclude transaction-related methods
@@ -206,8 +207,8 @@ export const COMMANDS: CommandDef[] = [
         // Audit
         await tx.audit_logs.create({
           data: {
-            id: crypto.randomUUID(),
-            user_id: ctx.actor.id,
+            id: randomUUID(),
+            userId: ctx.actor.id,
             action: "INVITE_ACCEPTED", // If you want a dedicated action, add it to enum later.
             message: `Admin console verified attorney userId=${userId}`,
             createdAt: new Date(),
@@ -255,8 +256,8 @@ export const COMMANDS: CommandDef[] = [
 
         await tx.audit_logs.create({
           data: {
-            id: crypto.randomUUID(),
-            user_id: ctx.actor.id,
+            id: randomUUID(),
+            userId: ctx.actor.id,
             action: "INVITE_ACCEPTED",
             message: `Admin console revoked attorney userId=${userId}`,
             createdAt: new Date(),
@@ -372,10 +373,10 @@ export const COMMANDS: CommandDef[] = [
           dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
         });
 
-        const existingclientId = await findClientByFingerprint(fingerprint, prisma);
+        const existingClientId = await findClientByFingerprint(fingerprint, prisma);
         if (existingClientId) {
           const existing = await prisma.clients.findFirst({
-            where: { id: existingclientId },
+            where: { id: existingClientId },
           });
           if (existing) client = existing;
         }
@@ -397,10 +398,10 @@ export const COMMANDS: CommandDef[] = [
               lastName: lastName,
               phone: phone || null,
               dateOfBirth: dateOfBirthValue,
-              org_id: organizationId,
-              client_fingerprint: fingerprint,
+              orgId: organizationId,
+              clientFingerprint: fingerprint,
               createdAt: now,
-              updated_at: now,
+              updatedAt: now,
             },
           });
           client = newClient;
@@ -412,11 +413,11 @@ export const COMMANDS: CommandDef[] = [
         await prisma.attorneyClientAccess.create({
           data: {
             id: randomUUID(),
-            attorney_id: ctx.actor.id,
-            clientId:client.id,
-            organization_id: organizationId,
-            is_active: true,
-            granted_at: new Date(),
+            attorneyId: ctx.actor.id,
+            clientId: client.id,
+            organizationId: organizationId,
+            isActive: true,
+            grantedAt: new Date(),
           },
         });
       } catch {
@@ -431,13 +432,13 @@ export const COMMANDS: CommandDef[] = [
       const invite = await prisma.client_invites.create({
         data: {
           id: randomUUID(),
-          clientId:client.id,
+          clientId: client.id,
           email,
           token,
-          expires_at: expiresAt,
-          invited_by_user_id: ctx.actor.id,
+          expiresAt: expiresAt,
+          invitedByUserId: ctx.actor.id,
           createdAt: new Date(),
-          updated_at: new Date(),
+          updatedAt: new Date(),
         },
       });
 
@@ -461,8 +462,8 @@ export const COMMANDS: CommandDef[] = [
       const { prisma: prismaClient } = await import("@/lib/prisma");
       await prismaClient.audit_logs.create({
         data: {
-          id: randomUUID(),
-          user_id: ctx.actor.id,
+          id: crypto.randomUUID(),
+          userId: ctx.actor.id,
           action: "INVITE_CREATED",
           message: `Admin console sent client invitation to ${email}`,
           createdAt: new Date(),
@@ -561,13 +562,13 @@ export const COMMANDS: CommandDef[] = [
         data: {
           id: policyId,
           clientId:clientId,
-          insurer_id: resolvedInsurerId,
-          carrier_name_raw: resolvedCarrierNameRaw,
-          carrier_confidence: null,
-          policy_number: policyNumber || null,
-          policy_type: policyType || null,
+          insurerId: resolvedInsurerId,
+          carrierNameRaw: resolvedCarrierNameRaw,
+          carrierConfidence: null,
+          policyNumber: policyNumber || null,
+          policyType: policyType || null,
           createdAt: now,
-          updated_at: now,
+          updatedAt: now,
         },
       });
 

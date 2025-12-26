@@ -5,48 +5,70 @@
  * match the application-layer permission rules
  */
 
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { supabaseServer } from "@/lib/supabase";
-import { db, registryRecords, users, clients, attorneyClientAccess, prisma } from "@/lib/db";
-import { eq, and } from "@/lib/db";
+import { db, prisma } from "@/lib/db";
 import { randomUUID } from "crypto";
 
 describe("RLS Policy Verification", () => {
-  let testRegistryId: string,
-  let testUserId: string,
-  let testClientId: string,
+  let testRegistryId: string;
+  let testUserId: string;
+  let testClientId: string;
 
   beforeAll(async () => {
-    // Create test registry
-    const [testRegistry] = await db.insert(registryRecords)
-      .values({
+    // Create test registry using Supabase (registry_records is in Supabase, not Prisma)
+    const sb = supabaseServer();
+    const { data: registryData, error: registryError } = await sb
+      .from("registry_records")
+      .insert({
         decedentName: "Test Insured",
         status: "ACTIVE",
       })
-      .returning();
-    testRegistryId = testRegistry.id;
+      .select()
+      .single();
+    
+    if (registryError || !registryData) {
+      throw new Error(`Failed to create test registry: ${registryError?.message}`);
+    }
+    testRegistryId = registryData.id;
 
     // Create test user
-    const [testUser] = await db.insert(users)
-      .values({
+    const testUser = await db.user.create({
+      data: {
         clerkId: `test_user_${Date.now()}`,
         email: `test_user_${Date.now()}@test.com`,
         firstName: "Test",
         lastName: "User",
         role: "attorney",
-      })
-      .returning();
+      },
+    });
     testUserId = testUser.id;
 
     // Create test client
-    const [testClient] = await db.insert(clients)
-      .values({
+    const testClient = await db.clients.create({
+      data: {
+        id: randomUUID(),
         firstName: "Test",
         lastName: "Client",
         email: `test_client_${Date.now()}@test.com`,
-      })
-      .returning();
-    testclientId = testClient.id;
+      },
+    });
+    testClientId = testClient.id;
+  });
+
+  afterAll(async () => {
+    // Cleanup
+    if (testClientId) {
+      await db.attorneyClientAccess.deleteMany({ where: { clientId: testClientId } });
+      await db.clients.delete({ where: { id: testClientId } });
+    }
+    if (testUserId) {
+      await db.user.delete({ where: { id: testUserId } });
+    }
+    if (testRegistryId) {
+      const sb = supabaseServer();
+      await sb.from("registry_records").delete().eq("id", testRegistryId);
+    }
   });
 
   describe("registry_permissions table", () => {
@@ -108,29 +130,34 @@ describe("RLS Policy Verification", () => {
   describe("attorneyClientAccess table", () => {
     it("should enforce unique constraint on (attorney_id, client_id)", async () => {
       // Create first access grant
-      await db.insert(attorneyClientAccess)
-        .values({
+      await db.attorneyClientAccess.create({
+        data: {
+          id: randomUUID(),
           attorneyId: testUserId,
           clientId: testClientId,
           isActive: true,
-        });
+        },
+      });
 
       // Try to create duplicate (should fail)
       await expect(
-        db.insert(attorneyClientAccess)
-          .values({
+        db.attorneyClientAccess.create({
+          data: {
+            id: randomUUID(),
             attorneyId: testUserId,
             clientId: testClientId,
             isActive: true,
-          })
+          },
+        })
       ).rejects.toThrow();
 
       // Cleanup
-      await db.delete(attorneyClientAccess)
-        .where(and(
-          eq(attorneyClientAccess.attorneyId, testUserId),
-          eq(attorneyClientAccess.clientId, testClientId)
-        ));
+      await db.attorneyClientAccess.deleteMany({
+        where: {
+          attorneyId: testUserId,
+          clientId: testClientId,
+        },
+      });
     });
   });
 

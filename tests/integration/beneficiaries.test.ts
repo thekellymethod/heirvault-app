@@ -7,75 +7,80 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { NextRequest } from "next/server";
 import { POST, GET } from "@/app/api/beneficiaries/route";
-import { db, clients, beneficiaries, attorneyClientAccess, users, orgMembers, organizations } from "@/lib/db";
-import { eq } from "@/lib/db";
+import { db } from "@/lib/db";
 import { randomUUID } from "crypto";
 
-let testClientId: string,
-let testAttorneyId: string,
-let testOrgId: string,
+let testClientId: string;
+let testAttorneyId: string;
+let testOrgId: string;
 
 describe("Beneficiary API Integration Tests", () => {
   beforeAll(async () => {
     // Setup test data (similar to policies test)
-    const [testOrg] = await db.insert(organizations)
-      .values({
+    const testOrg = await db.organizations.create({
+      data: {
+        id: randomUUID(),
         name: "Test Law Firm",
         slug: `test-firm-beneficiaries-${Date.now()}`,
         billingPlan: "FREE",
-      })
-      .returning();
+      },
+    });
     testOrgId = testOrg.id;
 
-    const [testUser] = await db.insert(users)
-      .values({
+    const testUser = await db.user.create({
+      data: {
         clerkId: `test_attorney_beneficiaries_${Date.now()}`,
         email: `test_attorney_beneficiaries_${Date.now()}@test.com`,
         firstName: "Test",
         lastName: "Attorney",
         role: "attorney",
-      })
-      .returning();
+      },
+    });
     testAttorneyId = testUser.id;
 
-    await db.insert(orgMembers)
-      .values({
+    await db.org_members.create({
+      data: {
+        id: randomUUID(),
         userId: testUser.id,
         organizationId: testOrgId,
         role: "ATTORNEY",
-      });
+      },
+    });
 
-    const [testClient] = await db.insert(clients)
-      .values({
+    const testClient = await db.clients.create({
+      data: {
+        id: randomUUID(),
         firstName: "Test",
         lastName: "Client",
         email: `test_client_beneficiaries_${Date.now()}@test.com`,
-      })
-      .returning();
-    testclientId = testClient.id;
+      },
+    });
+    testClientId = testClient.id;
 
-    await db.insert(attorneyClientAccess)
-      .values({
+    await db.attorneyClientAccess.create({
+      data: {
+        id: randomUUID(),
         attorneyId: testUser.id,
         clientId: testClient.id,
         organizationId: testOrgId,
         isActive: true,
-      });
+      },
+    });
   });
 
   afterAll(async () => {
     // Cleanup
     if (testClientId) {
-      await db.delete(beneficiaries).where(eq(beneficiaries.clientId, testClientId));
-      await db.delete(attorneyClientAccess).where(eq(attorneyClientAccess.clientId, testClientId));
-      await db.delete(clients).where(eq(clients.id, testClientId));
+      await db.beneficiaries.deleteMany({ where: { clientId: testClientId } });
+      await db.attorneyClientAccess.deleteMany({ where: { clientId: testClientId } });
+      await db.clients.delete({ where: { id: testClientId } });
     }
     if (testAttorneyId) {
-      await db.delete(orgMembers).where(eq(orgMembers.userId, testAttorneyId));
-      await db.delete(users).where(eq(users.id, testAttorneyId));
+      await db.org_members.deleteMany({ where: { userId: testAttorneyId } });
+      await db.user.delete({ where: { id: testAttorneyId } });
     }
     if (testOrgId) {
-      await db.delete(organizations).where(eq(organizations.id, testOrgId));
+      await db.organizations.delete({ where: { id: testOrgId } });
     }
   });
 

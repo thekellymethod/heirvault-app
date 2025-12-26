@@ -4,7 +4,7 @@ import { useState } from "react";
 
 type Plan = "FREE" | "SOLO" | "SMALL_FIRM" | "ENTERPRISE";
 
-export function BillingActions({ currentPlan }: { currentPlan: Plan }) {
+export function BillingActions({ currentPlan: _currentPlan }: { currentPlan: Plan }) {
   const [loadingPlan, setLoadingPlan] = useState<Plan | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,9 +27,8 @@ export function BillingActions({ currentPlan }: { currentPlan: Plan }) {
       const data = await res.json();
       window.location.href = data.url;
     } catch (e: unknown) {
-  const message = e instanceof Error ? e.message : "Unknown error";
-} {
-      setError(e.message || "Something went wrong.");
+      const errorMessage = e instanceof Error ? e.message : "Unknown error";
+      setError(errorMessage || "Something went wrong.");
       setLoadingPlan(null);
     }
   }
