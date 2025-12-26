@@ -16,11 +16,11 @@ export async function GET(req: NextRequest) {
     const firstName = searchParams.get("firstName")?.trim();
     const lastName = searchParams.get("lastName")?.trim();
     const dateOfBirth = searchParams.get("dateOfBirth");
-    const dateOfDeath = searchParams.get("dateOfDeath");
-    const state = searchParams.get("state");
-    const relationship = searchParams.get("relationship");
-    const ssn = searchParams.get("ssn")?.trim();
-    const address = searchParams.get("address")?.trim();
+    const _dateOfDeath = searchParams.get("dateOfDeath");
+    const _state = searchParams.get("state");
+    const _relationship = searchParams.get("relationship");
+    const _ssn = searchParams.get("ssn")?.trim();
+    const _address = searchParams.get("address")?.trim();
     const policyNumber = searchParams.get("policyNumber")?.trim();
 
     if (!firstName || !lastName) {
@@ -108,9 +108,10 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ results });
   } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error("Error in policy locator search:", error);
     return NextResponse.json(
-      { error: error.message || "Internal server error" },
+      { error: errorMessage || "Internal server error" },
       { status: 500 }
     );
   }
