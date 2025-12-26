@@ -26,6 +26,7 @@ export async function getCurrentUserWithOrg() {
       organizations: {
         id: string,
         name: string,
+        stripeCustomerId: string | null;
       };
     }>;
   } | null = null;
@@ -35,12 +36,13 @@ export async function getCurrentUserWithOrg() {
     organizations: {
       id: string,
       name: string,
+      stripeCustomerId: string | null;
     };
   } | null = null;
 
   try {
     const orgMemberData = await prisma.org_members.findFirst({
-      where: { user_id: user.id },
+      where: { userId: user.id },
       include: {
         organizations: true,
         users: true,
@@ -55,11 +57,12 @@ export async function getCurrentUserWithOrg() {
         lastName: orgMemberData.users.lastName,
         role: orgMemberData.users.role || 'attorney',
         orgMemberships: [{
-          organizationId: orgMemberData.organization_id,
+          organizationId: orgMemberData.organizationId,
           role: orgMemberData.role || 'STAFF',
           organizations: {
             id: orgMemberData.organizations.id,
             name: orgMemberData.organizations.name,
+            stripeCustomerId: orgMemberData.organizations.stripeCustomerId,
           },
         }],
       };
@@ -68,8 +71,8 @@ export async function getCurrentUserWithOrg() {
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Unknown error";
     console.error("getCurrentUserWithOrg: Error fetching org membership:", message);
-    // Return user without org if query fails
-    userWithOrg = user;
+    // Return user without org if query fails - will be handled at end of function
+    userWithOrg = null;
     orgMember = null;
   }
 
@@ -126,7 +129,7 @@ export async function getCurrentUserWithOrg() {
       }
 
       // Create organization and add user as OWNER in a transaction
-      const result = await prisma.$transaction(async (tx) => {
+      await prisma.$transaction(async (tx) => {
         // Create organization
         const org = await tx.organizations.create({
           data: {
@@ -140,8 +143,8 @@ export async function getCurrentUserWithOrg() {
         await tx.org_members.create({
           data: {
             id: randomUUID(),
-            user_id: user.id,
-            organization_id: org.id,
+            userId: user.id,
+            organizationId: org.id,
             role: 'OWNER',
           },
         });
@@ -151,7 +154,7 @@ export async function getCurrentUserWithOrg() {
 
       // Fetch the newly created organization and membership
       const orgMemberData = await prisma.org_members.findFirst({
-        where: { user_id: user.id },
+        where: { userId: user.id },
         include: {
           organizations: true,
           users: true,
@@ -166,27 +169,39 @@ export async function getCurrentUserWithOrg() {
           lastName: orgMemberData.users.lastName,
           role: orgMemberData.users.role || 'attorney',
           orgMemberships: [{
-            organizationId: orgMemberData.organization_id,
+            organizationId: orgMemberData.organizationId,
             role: orgMemberData.role || 'STAFF',
             organizations: {
               id: orgMemberData.organizations.id,
               name: orgMemberData.organizations.name,
+              stripeCustomerId: orgMemberData.organizations.stripeCustomerId,
             },
           }],
         };
         orgMember = userWithOrg.orgMemberships[0];
       }
     } catch (error: unknown) {
-      console.error("getCurrentUserWithOrg: Error creating personal organization:", error.message);
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      console.error("getCurrentUserWithOrg: Error creating personal organization:", errorMessage);
       // Continue without org if creation fails
     }
   }
 
   // Ensure the returned user has a role set (default to attorney)
-  const finalUser = userWithOrg || user;
-  if (finalUser && !finalUser.role) {
-    finalUser.role = 'attorney';
+  // Handle type compatibility - user might not have orgMemberships
+  if (userWithOrg) {
+    return { clerkId: userId, user: userWithOrg, orgMember };
   }
+  
+  // If no org, return user with empty orgMemberships array
+  const finalUser = {
+    id: user.id,
+    email: user.email,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    role: user.role || 'attorney',
+    orgMemberships: [],
+  };
   
   return { clerkId: userId, user: finalUser, orgMember };
 }
@@ -208,14 +223,14 @@ export async function requireOrgRole(required: OrgRole | OrgRole[]) {
   const { user, orgMember } = await getCurrentUserWithOrg();
 
   if (!user || !orgMember) {
-    const err = new Error("Unauthorized");
+    const err = new Error("Unauthorized") as Error & { status?: number };
     err.status = 401;
     throw err;
   }
 
-  const ok = hasOrgRole(orgMember, required);
+  const ok = hasOrgRole({ role: orgMember.role as OrgRole }, required);
   if (!ok) {
-    const err = new Error("Forbidden");
+    const err = new Error("Forbidden") as Error & { status?: number };
     err.status = 403;
     throw err;
   }
@@ -228,13 +243,13 @@ export async function requireAttorneyOrOwner() {
   const { user, orgMember } = await getCurrentUserWithOrg();
 
   if (!user || !orgMember) {
-    const err = new Error("Unauthorized");
+    const err = new Error("Unauthorized") as Error & { status?: number };
     err.status = 401;
     throw err;
   }
 
-  if (!hasAtLeastAttorney(orgMember)) {
-    const err = new Error("Forbidden");
+  if (!hasAtLeastAttorney({ role: orgMember.role as OrgRole })) {
+    const err = new Error("Forbidden") as Error & { status?: number };
     err.status = 403;
     throw err;
   }
@@ -298,7 +313,7 @@ export async function assertAttorneyCanAccessClient(clientId: string) {
 // Note: Clients don't have accounts - they access via invitation links
 // This function is kept for backwards compatibility but should not be used
 // Client access should be verified via invitation token instead
-export async function assertClientSelfAccess(clientId: string) {
+export async function assertClientSelfAccess(_clientId: string) {
   // Clients don't have accounts - this should not be called
   // Client access is handled via invitation tokens in /invite/[token] routes
   throw new Error("Client self-access requires invitation token, not user account")
@@ -309,7 +324,7 @@ export async function requireOrgScope() {
   const { user, orgMember } = await getCurrentUserWithOrg();
 
   if (!user || !orgMember) {
-    const err = new Error("Unauthorized");
+    const err = new Error("Unauthorized") as Error & { status?: number };
     err.status = 401;
     throw err;
   }

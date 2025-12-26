@@ -126,13 +126,19 @@ export default function CreateTestInvitePage() {
 
               <div className="space-y-4">
                 <div>
-                  <label className="label mb-1 block">Invitation Code</label>
+                  <label className="label mb-1 block" htmlFor="invitation-code-input" title="Invitation Code">
+                    Invitation Code
+                  </label>
                   <div className="flex gap-2">
                     <input
+                      id="invitation-code-input"
                       type="text"
                       readOnly
                       value={inviteData.token}
                       className="input flex-1 font-mono text-lg font-semibold text-gold-700"
+                      aria-label="Invitation Code"
+                      title="Invitation Code"
+                      placeholder="Invitation Code"
                     />
                     <Button
                       onClick={() => copyToClipboard(inviteData.token)}
@@ -145,13 +151,19 @@ export default function CreateTestInvitePage() {
                 </div>
 
                 <div>
-                  <label className="label mb-1 block">Direct Invite URL</label>
+                  <label className="label mb-1 block" htmlFor="invite-url-input" title="Direct Invite URL">
+                    Direct Invite URL
+                  </label>
                   <div className="flex gap-2">
                     <input
+                      id="invite-url-input"
                       type="text"
                       readOnly
                       value={inviteData.inviteUrl}
                       className="input flex-1 font-mono text-sm"
+                      aria-label="Direct Invite URL"
+                      title="Direct Invite URL"
+                      placeholder="Direct Invite URL"
                     />
                     <Button
                       onClick={() => copyToClipboard(inviteData.inviteUrl)}

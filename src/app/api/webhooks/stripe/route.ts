@@ -3,7 +3,7 @@ import Stripe from "stripe";
 import { prisma } from "@/lib/db";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
-  apiVersion: "2024-06-20",
+  apiVersion: "2025-12-15.clover",
 });
 
 export const runtime = "nodejs";
@@ -41,7 +41,7 @@ export async function POST(req: Request) {
 
     // Look up org by stripe_customer_id
     const org = await prisma.organizations.findFirst({
-      where: { stripe_customer_id: customerId },
+      where: { stripeCustomerId: customerId },
     });
 
     if (!org) {
@@ -61,9 +61,9 @@ export async function POST(req: Request) {
     await prisma.organizations.update({
       where: { id: org.id },
       data: {
-        billing_plan: plan,
-        stripe_subscription_id: subscription.id,
-        billing_status: status,
+        billingPlan: plan,
+        stripeSubscriptionId: subscription.id,
+        billingStatus: status,
       },
     });
   }

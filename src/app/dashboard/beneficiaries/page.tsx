@@ -34,8 +34,8 @@ export default async function BeneficiariesPage({
     switch (sortBy) {
       case "clientName":
         orderBy = [
-          { clients: { lastName: "desc" } },
-          { clients: { firstName: "desc" } },
+          { lastName: "desc"  },
+          { firstName: "desc" },
         ];
         break;
       case "beneficiaryName":

@@ -82,9 +82,7 @@ export async function GET() {
     results.registry = {
       created: true,
       id: registry.id,
-      insuredName: "decedentName" in registry 
-        ? (registry.decedentName as string)
-        : (registry.decedentName as string),
+      insuredName: registry.decedentName,
       status: registry.status,
     };
 

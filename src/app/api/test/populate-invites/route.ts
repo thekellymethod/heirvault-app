@@ -29,7 +29,7 @@ async function populateInvites(baseUrl: string) {
           lastName: clientData.lastName,
           email: clientData.email,
           createdAt: now,
-          updated_at: now,
+          updatedAt: now,
         },
       });
     }
@@ -61,9 +61,9 @@ async function populateInvites(baseUrl: string) {
         clientId: client.id,
         email: clientData.email,
         token: clientData.token,
-        expires_at: expiresAt,
+        expiresAt: expiresAt,
         createdAt: new Date(),
-        updated_at: new Date(),
+        updatedAt: new Date(),
       },
     });
 

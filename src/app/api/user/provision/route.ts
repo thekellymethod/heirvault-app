@@ -47,7 +47,7 @@ export async function POST() {
         updatedAt: new Date(),
       },
       create: {
-        id: randomUUID(),
+        id: crypto.randomUUID(),
         clerkId: userId,
         email,
         firstName,

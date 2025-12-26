@@ -6,8 +6,8 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
 type Insurer = {
-  id: string,
-  name: string,
+  id: string;
+  name: string;
   contactPhone: string | null;
   contactEmail: string | null;
   website: string | null;
@@ -28,27 +28,31 @@ export default function EditInsurerPage() {
   const [contactEmail, setContactEmail] = React.useState("");
   const [website, setWebsite] = React.useState("");
 
-  async function load() {
+  const load = React.useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const res = await fetch(`/api/insurers/${id}`);
-      const data = await res.json();
+      const data: { insurer?: Insurer; error?: string } = await res.json();
       if (!res.ok) throw new Error(data?.error || "Failed to load insurer");
-      const insurer: Insurer = data.insurer;
+      if (!data.insurer) throw new Error("Malformed response: missing insurer");
 
-      setName(insurer.name || "");
-      setContactPhone(insurer.contactPhone || "");
-      setContactEmail(insurer.contactEmail || "");
-      setWebsite(insurer.website || "");
-    } catch (e) {
+      const insurer = data.insurer;
+
+      setName(insurer.name ?? "");
+      setContactPhone(insurer.contactPhone ?? "");
+      setContactEmail(insurer.contactEmail ?? "");
+      setWebsite(insurer.website ?? "");
+    } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Unknown error");
     } finally {
       setLoading(false);
     }
-  }
+  }, [id]);
 
-  React.useEffect(() => { load(); }, [id]);
+  React.useEffect(() => {
+    void load();
+  }, [load]);
 
   async function save() {
     setSaving(true);
@@ -64,10 +68,10 @@ export default function EditInsurerPage() {
           website: website.trim() || null,
         }),
       });
-      const data = await res.json();
+      const data: { error?: string } = await res.json();
       if (!res.ok) throw new Error(data?.error || "Failed to update insurer");
       router.push("/dashboard/insurers");
-    } catch (e) {
+    } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Unknown error");
     } finally {
       setSaving(false);
@@ -79,10 +83,10 @@ export default function EditInsurerPage() {
     setError(null);
     try {
       const res = await fetch(`/api/insurers/${id}`, { method: "DELETE" });
-      const data = await res.json();
+      const data: { error?: string } = await res.json();
       if (!res.ok) throw new Error(data?.error || "Failed to delete insurer");
       router.push("/dashboard/insurers");
-    } catch (e) {
+    } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Unknown error");
     } finally {
       setDeleting(false);
@@ -94,7 +98,9 @@ export default function EditInsurerPage() {
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-slate-900">Edit insurer</h1>
-          <p className="mt-1 text-slate-600">Update directory fields used for policy creation.</p>
+          <p className="mt-1 text-slate-600">
+            Update directory fields used for policy creation.
+          </p>
         </div>
         <Link
           href="/dashboard/insurers"
@@ -117,9 +123,24 @@ export default function EditInsurerPage() {
           <>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="Name" value={name} onChange={setName} required />
-              <Field label="Website" value={website} onChange={setWebsite} placeholder="https://..." />
-              <Field label="Contact Email" value={contactEmail} onChange={setContactEmail} placeholder="claims@..." />
-              <Field label="Contact Phone" value={contactPhone} onChange={setContactPhone} placeholder="(555)..." />
+              <Field
+                label="Website"
+                value={website}
+                onChange={setWebsite}
+                placeholder="https://..."
+              />
+              <Field
+                label="Contact Email"
+                value={contactEmail}
+                onChange={setContactEmail}
+                placeholder="claims@..."
+              />
+              <Field
+                label="Contact Phone"
+                value={contactPhone}
+                onChange={setContactPhone}
+                placeholder="(555)..."
+              />
             </div>
 
             <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -133,7 +154,11 @@ export default function EditInsurerPage() {
               </Button>
 
               <div className="flex items-center gap-2">
-                <Button variant="outline" onClick={() => router.push("/dashboard/insurers")} disabled={saving}>
+                <Button
+                  variant="outline"
+                  onClick={() => router.push("/dashboard/insurers")}
+                  disabled={saving}
+                >
                   Cancel
                 </Button>
                 <Button disabled={!name.trim() || saving} onClick={save}>
@@ -143,7 +168,8 @@ export default function EditInsurerPage() {
             </div>
 
             <div className="mt-3 text-xs text-slate-500">
-              If delete fails, it’s because policies already reference this insurer (expected safety behavior).
+              If delete fails, it’s because policies already reference this insurer
+              (expected safety behavior).
             </div>
           </>
         )}
@@ -159,11 +185,11 @@ function Field({
   required,
   placeholder,
 }: {
-  label: string,
-  value: string,
+  label: string;
+  value: string;
   onChange: (v: string) => void;
   required?: boolean;
-  placeholder?: string,
+  placeholder?: string;
 }) {
   return (
     <label className="block">

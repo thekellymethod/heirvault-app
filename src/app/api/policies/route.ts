@@ -1,16 +1,36 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
-import { AuditAction } from '@/lib/db/enums'
-import { getCurrentUserWithOrg, assertAttorneyCanAccessClient, assertClientSelfAccess } from '@/lib/authz'
-import { audit } from '@/lib/audit'
-import { sendPolicyAddedEmail } from '@/lib/email'
-import { randomUUID } from 'crypto'
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
+import { AuditAction } from "@/lib/db/enums";
+import {
+  getCurrentUserWithOrg,
+  assertAttorneyCanAccessClient,
+  assertClientSelfAccess,
+} from "@/lib/authz";
+import { audit } from "@/lib/audit";
+import { sendPolicyAddedEmail } from "@/lib/email";
+import { randomUUID } from "crypto";
 
 export const runtime = "nodejs";
 
+type CreatePolicyBody = {
+  clientId: string;
+
+  insurerName?: string | null;
+  insurerPhone?: string | null;
+  insurerEmail?: string | null;
+  insurerWebsite?: string | null;
+
+  insurerId?: string | null; // canonical insurer ID
+  carrierNameRaw?: string | null; // raw carrier name from document/intake
+  carrierConfidence?: number | string | null; // 0..1
+
+  policyNumber?: string | null;
+  policyType?: string | null;
+};
+
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json()
+    const body = (await req.json()) as CreatePolicyBody;
 
     const {
       clientId,
@@ -18,223 +38,202 @@ export async function POST(req: NextRequest) {
       insurerPhone,
       insurerEmail,
       insurerWebsite,
-      insurerId, // Optional: if canonical insurer ID is known
-      carrierNameRaw, // Optional: raw carrier name from document/intake
-      carrierConfidence, // Optional: OCR/LLM confidence (0..1)
+      insurerId,
+      carrierNameRaw,
+      carrierConfidence,
       policyNumber,
       policyType,
-    } = body
+    } = body;
 
     if (!clientId) {
-      return NextResponse.json(
-        { error: 'Missing required field: clientId' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: "Missing required field: clientId" }, { status: 400 });
     }
 
-    // Check access - can be attorney or client
-    const { user } = await getCurrentUserWithOrg()
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const { user, orgMember } = await getCurrentUserWithOrg();
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    // All authenticated users are attorneys and have global access to all clients
-    // Clients don't have accounts - they access via invitation tokens
-    if (user.role === 'attorney' || !user.role) {
-      await assertAttorneyCanAccessClient(clientId)
+    // Your current business rule says "all authenticated users are attorneys"
+    if (user.role === "attorney" || !user.role) {
+      await assertAttorneyCanAccessClient(clientId);
     } else {
-      // This branch should rarely/never execute since clients don't have accounts
-      await assertClientSelfAccess(clientId)
+      await assertClientSelfAccess(clientId);
     }
 
-    // Determine insurer_id and carrier_name_raw
+    // Resolve insurerId vs carrierNameRaw
     let resolvedInsurerId: string | null = null;
     let resolvedCarrierNameRaw: string | null = null;
 
-    // If insurerId is provided, use it (canonical insurer already known)
     if (insurerId) {
       resolvedInsurerId = insurerId;
     } else if (insurerName) {
-      // Try to find or create insurer
       const existingInsurer = await prisma.insurers.findFirst({
-        where: { name: insurerName },
+        where: {
+          // If you want case-insensitive matching:
+          name: { equals: insurerName, mode: "insensitive" },
+        },
       });
 
       if (existingInsurer) {
         resolvedInsurerId = existingInsurer.id;
-        // Update existing insurer if new contact info provided
+
+        // Update insurer contact info if provided
         if (insurerPhone || insurerEmail || insurerWebsite) {
           await prisma.insurers.update({
             where: { id: existingInsurer.id },
             data: {
-              contact_phone: insurerPhone || existingInsurer.contactPhone,
-              contact_email: insurerEmail || existingInsurer.contactEmail,
-              website: insurerWebsite || existingInsurer.website,
-              updated_at: new Date(),
+              contactPhone: insurerPhone ?? existingInsurer.contactPhone,
+              contactEmail: insurerEmail ?? existingInsurer.contactEmail,
+              website: insurerWebsite ?? existingInsurer.website,
+              updatedAt: new Date(),
             },
           });
         }
       } else {
-        // Insurer not found - store raw name instead of creating
-        // (lazy insurers: don't auto-create during intake)
+        // Lazy-insurer rule: don't auto-create; store raw name on policy
         resolvedCarrierNameRaw = insurerName;
       }
     } else if (carrierNameRaw) {
-      // Raw carrier name provided directly
       resolvedCarrierNameRaw = carrierNameRaw;
     }
 
-    // Validate that at least one form of insurer identification is provided
-    // This prevents creating orphaned policies with no way to identify the insurance carrier
     if (!resolvedInsurerId && !resolvedCarrierNameRaw) {
       return NextResponse.json(
-        { error: 'Either insurerId, insurerName, or carrierNameRaw is required to identify the insurance carrier' },
+        {
+          error:
+            "Either insurerId, insurerName, or carrierNameRaw is required to identify the insurance carrier",
+        },
         { status: 400 }
       );
     }
 
-    // Create policy
-    const policyId = randomUUID();
     const now = new Date();
+
     const policy = await prisma.policies.create({
       data: {
-        id: policyId,
-        clientId: clientId,
-        insurer_id: resolvedInsurerId,
-        carrier_name_raw: resolvedCarrierNameRaw,
-        carrier_confidence: carrierConfidence ? Number(carrierConfidence) : null,
-        policy_number: policyNumber || null,
-        policy_type: policyType || null,
+        id: randomUUID(),
+        clientId,
+
+        // ✅ Prisma model field names (camelCase)
+        insurerId: resolvedInsurerId,                 // <-- was insurer_id
+        carrierNameRaw: resolvedCarrierNameRaw,       // <-- was carrier_name_raw
+        carrierConfidence:
+          carrierConfidence === null || carrierConfidence === undefined || carrierConfidence === ""
+            ? null
+            : Number(carrierConfidence),
+
+        policyNumber: policyNumber ?? null,           // <-- was policy_number
+        policyType: policyType ?? null,               // <-- was policy_type
+
         createdAt: now,
-        updated_at: now,
+        updatedAt: now,                               // <-- was updated_at
+      },
+      include: {
+        insurers: true,
       },
     });
 
-    const insurerDisplayName = resolvedInsurerId 
-      ? (await prisma.insurers.findFirst({ where: { id: resolvedInsurerId } }))?.name || 'Unknown'
-      : resolvedCarrierNameRaw || 'Unknown';
-    
+    const insurerDisplayName =
+      policy.insurers?.name ??
+      resolvedCarrierNameRaw ??
+      "Unknown";
+
     await audit(AuditAction.POLICY_CREATED, {
       clientId: policy.clientId,
       policyId: policy.id,
-      message: `Policy created for client ${policy.clientId} with insurer ${insurerDisplayName}${resolvedCarrierNameRaw ? ' (unresolved)' : ''}`,
-    })
+      message: `Policy created for client ${policy.clientId} with insurer ${insurerDisplayName}${
+        resolvedCarrierNameRaw ? " (unresolved)" : ""
+      }`,
+      userId: user.id,
+    });
 
-    // Send email notification to client (if email exists)
+    // Email notification to client (best-effort)
     try {
-      const client = await prisma.clients.findFirst({
-        where: { id: clientId },
-      });
-
-      if (client && client.email) {
-        const { orgMember } = await getCurrentUserWithOrg();
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+      const client = await prisma.clients.findFirst({ where: { id: clientId } });
+      if (client?.email) {
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
         const dashboardUrl = `${baseUrl}/dashboard/clients/${clientId}`;
         const firmName = orgMember?.organizations?.name || undefined;
 
-        const emailInsurerName = resolvedInsurerId
-          ? (await prisma.insurers.findFirst({ where: { id: resolvedInsurerId } }))?.name || 'Unknown'
-          : resolvedCarrierNameRaw || 'Unknown';
-
         await sendPolicyAddedEmail({
           to: client.email,
-          clientName: `${client.firstName} ${client.lastName}`,
-          insurerName: emailInsurerName,
-          policyNumber: policyNumber || undefined,
-          policyType: policyType || undefined,
+          clientName: `${client.firstName} ${client.lastName}`.trim(),
+          insurerName: insurerDisplayName,
+          policyNumber: policyNumber ?? undefined,
+          policyType: policyType ?? undefined,
           firmName,
           dashboardUrl,
         }).catch((emailError) => {
           console.error("Error sending policy added email:", emailError);
-          // Don't fail the request if email fails
         });
       }
     } catch (emailError) {
       console.error("Error sending policy added email:", emailError);
-      // Don't fail the request if email fails
     }
 
-    return NextResponse.json(policy, { status: 201 })
+    return NextResponse.json(policy, { status: 201 });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
       { error: message },
-      { status: message === 'Unauthorized' || message === 'Forbidden' ? 401 : 400 }
-    )
+      { status: message === "Unauthorized" || message === "Forbidden" ? 401 : 400 }
+    );
   }
 }
 
 export async function GET(req: NextRequest) {
   try {
-    const { searchParams } = new URL(req.url)
-    const clientId = searchParams.get('clientId')
+    const { searchParams } = new URL(req.url);
+    const clientId = searchParams.get("clientId");
 
     if (!clientId) {
-      return NextResponse.json(
-        { error: 'clientId required' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: "clientId required" }, { status: 400 });
     }
 
-    // Check access - can be attorney or client
-    const { user } = await getCurrentUserWithOrg()
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const { user } = await getCurrentUserWithOrg();
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    // All authenticated users are attorneys and have global access to all clients
-    // Clients don't have accounts - they access via invitation tokens
-    if (user.role === 'attorney' || !user.role) {
-      await assertAttorneyCanAccessClient(clientId)
+    if (user.role === "attorney" || !user.role) {
+      await assertAttorneyCanAccessClient(clientId);
     } else {
-      // This branch should rarely/never execute since clients don't have accounts
-      await assertClientSelfAccess(clientId)
+      await assertClientSelfAccess(clientId);
     }
 
-    // Get policies with insurers (left join to include policies without insurers)
     const policiesList = await prisma.policies.findMany({
-      where: { clientId:clientId },
-      include: {
-        insurers: true,
-      },
-      orderBy: { createdAt: 'desc' },
+      where: { clientId },
+      include: { insurers: true },
+      orderBy: { createdAt: "desc" },
     });
 
-    // Get policy beneficiaries
-    const policyIds = policiesList.map(p => p.id);
-    const policyBeneficiaryData = policyIds.length > 0
-      ? await prisma.policy_beneficiaries.findMany({
-          where: { policy_id: { in: policyIds } },
-          include: {
-            beneficiaries: true,
-          },
-        })
-      : [];
+    const policyIds = policiesList.map((p) => p.id);
 
-    // Combine policies with beneficiaries
-    const policiesWithRelations = policiesList.map(p => ({
+    const policyBeneficiaryData =
+      policyIds.length > 0
+        ? await prisma.policy_beneficiaries.findMany({
+            where: { policyId: { in: policyIds } }, // <-- was policy_id
+            include: { beneficiaries: true },
+          })
+        : [];
+
+    const policiesWithRelations = policiesList.map((p) => ({
       ...p,
       insurer: p.insurers,
       beneficiaries: policyBeneficiaryData
-        .filter(pb => pb.policy_id === p.id)
-        .map(pb => ({ beneficiary: pb.beneficiaries })),
+        .filter((pb) => pb.policyId === p.id) // <-- was policy_id
+        .map((pb) => ({ beneficiary: pb.beneficiaries })),
     }));
 
-    // Audit logging for policy list view
-    // Note: Using audit() function for consistency
     await audit(AuditAction.CLIENT_VIEWED, {
       clientId,
       message: `Policy list viewed for client ${clientId}`,
       userId: user.id,
-    })
+    });
 
-    return NextResponse.json(policiesWithRelations)
+    return NextResponse.json(policiesWithRelations);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
       { error: message },
-      { status: message === 'Unauthorized' || message === 'Forbidden' ? 401 : 400 }
-    )
+      { status: message === "Unauthorized" || message === "Forbidden" ? 401 : 400 }
+    );
   }
 }
-

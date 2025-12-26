@@ -111,6 +111,7 @@ export async function getOrCreateTestInvite(token: string) {
   if (!client) {
     client = await prisma.clients.create({
       data: {
+        id: crypto.randomUUID(),
         email: clientInfo.email,
         firstName: clientInfo.firstName,
         lastName: clientInfo.lastName,
@@ -124,6 +125,7 @@ export async function getOrCreateTestInvite(token: string) {
 
   const newInvite = await prisma.client_invites.create({
     data: {
+      id: crypto.randomUUID(),
       clientId: client.id,
       email: clientInfo.email,
       token: normalizedToken,

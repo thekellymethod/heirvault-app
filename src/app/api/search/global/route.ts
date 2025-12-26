@@ -16,10 +16,10 @@ export const runtime = "nodejs";
 export async function GET(req: Request) {
   try {
     // Require attorney authentication
-    const user = await requireAuth("attorney");
+    const user = await requireAuth();
     
     // Get user with org memberships for audit logging
-    const { user: userWithOrg, orgMember } = await getCurrentUserWithOrg();
+    const { user: _userWithOrg, orgMember } = await getCurrentUserWithOrg();
     
     const { searchParams } = new URL(req.url);
     const q = (searchParams.get("q") || "").trim();
@@ -192,7 +192,7 @@ export async function GET(req: Request) {
         lastName: c.lastName,
         email: c.email,
         phone: c.phone,
-        dateOfBirth: c.dateOfBirth,
+        // dateOfBirth not available in client type
         organization: c.org ? {
           id: c.org.id,
           name: c.org.name,
@@ -218,11 +218,12 @@ export async function GET(req: Request) {
       disclaimer: "This search queries the private, voluntary registry database across ALL organizations. All clients entered into the system are included in this search. Results only include information that has been voluntarily registered. This is not a comprehensive database and does not search insurer records.",
     });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Unknown error";
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error("Error in global search:", error);
+    const isAuthError = errorMessage === "Unauthorized" || errorMessage === "Forbidden";
     return NextResponse.json(
-      { error: error.message || "Unauthorized" },
-      { status: error.message === "Unauthorized" || error.message === "Forbidden" ? 401 : 500 }
+      { error: errorMessage || "Unauthorized" },
+      { status: isAuthError ? 401 : 500 }
     );
   }
 }

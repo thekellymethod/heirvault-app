@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
       await prisma.organizations.update({
         where: { id: org.id },
         data: {
-          stripe_customer_id: customerId,
+          stripeCustomerId: customerId,
         },
       });
     }
@@ -85,10 +85,10 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ url: session.url });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Unknown error";
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error("Error creating checkout session:", error);
     return NextResponse.json(
-      { error: error.message || "Failed to create checkout session" },
+      { error: errorMessage || "Failed to create checkout session" },
       { status: 500 }
     );
   }

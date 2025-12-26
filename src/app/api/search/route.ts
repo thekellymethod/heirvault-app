@@ -107,7 +107,7 @@ export async function POST(req: NextRequest) {
 
     for (const registry of authorizedRegistries) {
       // Check decedentName on the registry record first (no DB query needed)
-      const decedentName = (("decedentName" in registry ? (registry.decedentName as string) : (registry.decedentName as string)) || "").toLowerCase();
+      const decedentName = (registry.decedentName || "").toLowerCase();
       let matchedField: string | undefined;
       
       if (decedentName.includes(searchTerm)) {
@@ -143,9 +143,9 @@ export async function POST(req: NextRequest) {
       if (matchedField) {
         matchingRegistries.push({
           id: registry.id,
-          decedentName: "decedentName" in registry ? (registry.decedentName as string) : (registry.decedentName as string),
+          decedentName: registry.decedentName,
           status: registry.status,
-          createdAt: "createdAt" in registry ? (registry.createdAt as Date) : (registry.createdAt as Date),
+          createdAt: registry.createdAt,
           matchedField,
           redactedData: data
             ? {

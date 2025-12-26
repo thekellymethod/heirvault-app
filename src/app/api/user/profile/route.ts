@@ -113,10 +113,10 @@ export async function PUT(req: NextRequest) {
 
     return NextResponse.json(updated);
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Unknown error";
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error("Error updating user profile:", error);
     return NextResponse.json(
-      { error: error.message || "Failed to update profile" },
+      { error: errorMessage || "Failed to update profile" },
       { status: 500 }
     );
   }

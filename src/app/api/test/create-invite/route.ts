@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
         client_invites: {
           where: {
             expiresAt: { gt: new Date() },
-            used_at: null,
+            usedAt: null,
           },
           orderBy: { createdAt: "desc" },
           take: 1,
@@ -134,10 +134,10 @@ export async function POST(req: NextRequest) {
       ],
     });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Unknown error";
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error("Error creating test invite:", error);
     return NextResponse.json(
-      { error: error.message || "Failed to create test invite" },
+      { error: errorMessage || "Failed to create test invite" },
       { status: 500 }
     );
   }

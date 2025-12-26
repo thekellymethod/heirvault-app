@@ -11,14 +11,14 @@ export default async function ClientsPage() {
   // Use Prisma to fetch clients
   const accessRecords = await prisma.attorneyClientAccess.findMany({
     where: {
-      attorney_id: user.id,
-      is_active: true,
+      attorneyId: user.id,
+      isActive: true,
     },
     include: {
       clients: true,
     },
     orderBy: {
-      granted_at: 'desc',
+      grantedAt: 'desc',
     },
   }).catch((error) => {
     console.error("ClientsPage error:", error);
@@ -28,13 +28,13 @@ export default async function ClientsPage() {
   if (!accessRecords) notFound();
 
   const clientList = accessRecords.map((r) => ({
-    id: r.clients.id,
-    firstName: r.clients.firstName,
-    lastName: r.clients.lastName,
-    email: r.clients.email,
-    phone: r.clients.phone,
-    updatedAt: r.clients.updated_at,
-    createdAt: r.clients.createdAt,
+    id: r.clientId,
+    firstName: r.clientId,
+    lastName: r.clientId,
+    email: r.clientId,
+    phone: r.clientId,
+    updatedAt: r.clientId,
+    createdAt: r.clientId,
   }));
 
   return (

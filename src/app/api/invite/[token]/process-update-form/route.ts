@@ -1,5 +1,8 @@
+// src/app/api/invite/[token]/receipt-pdf/route.ts
+
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
+import { prisma } from "@/lib/prisma"; // change to "@/lib/db" if that's where prisma is exported
 import { decodePassportForm } from "@/lib/ocr-form-decoder";
 import { uploadDocument } from "@/lib/storage";
 import { renderToStream } from "@react-pdf/renderer";
@@ -12,6 +15,104 @@ import { randomUUID } from "crypto";
 
 export const runtime = "nodejs";
 
+/** Minimal shape we rely on from OCR output. */
+type DecodedPassportData = {
+  confidence?: number;
+
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  phone?: string | null;
+  dateOfBirth?: string | Date | null;
+
+  policyNumber?: string | null;
+  policyType?: string | null;
+  insurerName?: string | null;
+
+  [key: string]: unknown;
+};
+
+type InviteClientShape = {
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  phone?: string | null;
+  dateOfBirth?: Date | null;
+
+  addressLine1?: string | null;
+  city?: string | null;
+  state?: string | null;
+  postalCode?: string | null;
+
+  // optional; your invite lookup might already populate these
+  policies?: Array<{
+    id: string;
+    policyNumber: string | null;
+    policyType: string | null;
+    insurer: { name: string };
+  }>;
+  beneficiaries?: Array<{
+    id: string;
+    firstName: string;
+    lastName: string;
+    relationship: string | null;
+    percentage: number | null;
+  }>;
+};
+
+type InviteShape = {
+  clientId: string;
+  client: InviteClientShape;
+};
+
+function toInputJson(value: unknown): Prisma.InputJsonValue {
+  // Prisma JSON fields require InputJsonValue (not unknown / any).
+  // This strips functions/BigInt/undefined safely and yields valid JSON.
+  return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
+}
+
+function toDate(value: string | Date | null | undefined): Date | null {
+  if (!value) return null;
+  return value instanceof Date ? value : new Date(value);
+}
+
+function asInviteShape(invite: unknown): InviteShape | null {
+  if (!invite || typeof invite !== "object") return null;
+  if (!("clientId" in invite) || !("client" in invite)) return null;
+
+  const clientId = (invite as { clientId?: unknown }).clientId;
+  const client = (invite as { client?: unknown }).client;
+
+  if (typeof clientId !== "string") return null;
+  if (!client || typeof client !== "object") return null;
+
+  return { clientId, client: client as InviteClientShape };
+}
+
+async function streamToBuffer(stream: unknown): Promise<Buffer> {
+  // @react-pdf/renderer can return either a web ReadableStream or a NodeJS stream depending on env
+  const maybeWeb = stream as { getReader?: () => ReadableStreamDefaultReader<Uint8Array> };
+
+  if (typeof maybeWeb?.getReader === "function") {
+    const reader = maybeWeb.getReader();
+    const chunks: Uint8Array[] = [];
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      if (value) chunks.push(value);
+    }
+    return Buffer.concat(chunks);
+  }
+
+  const nodeStream = stream as NodeJS.ReadableStream;
+  return await new Promise<Buffer>((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    nodeStream.on("data", (c: Buffer) => chunks.push(Buffer.isBuffer(c) ? c : Buffer.from(c)));
+    nodeStream.on("end", () => resolve(Buffer.concat(chunks)));
+    nodeStream.on("error", reject);
+  });
+}
+
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ token: string }> }
@@ -19,38 +120,26 @@ export async function POST(
   try {
     const { token } = await params;
 
-    // Try to get or create test invite first
-    let invite: Awaited<ReturnType<typeof getOrCreateTestInvite>> | Awaited<ReturnType<typeof lookupClientInvite>> | null = await getOrCreateTestInvite(token);
+    // 1) Resolve invite (test invite first; fallback to real lookup)
+    const rawInvite =
+      (await getOrCreateTestInvite(token)) ?? (await lookupClientInvite(token));
 
-    // If not a test code, do normal lookup
+    const invite = asInviteShape(rawInvite);
     if (!invite) {
-      invite = await lookupClientInvite(token);
+      return NextResponse.json({ error: "Invalid invitation code" }, { status: 404 });
     }
 
-    if (!invite || typeof invite !== 'object' || !('clientId' in invite) || !('client' in invite)) {
-      return NextResponse.json(
-        { error: "Invalid invitation code" },
-        { status: 404 }
-      );
-    }
+    const clientId = invite.clientId;
+    const inviteClient = invite.client;
 
-    // Extract clientId:and client with type assertion after type guard
-    const typedInvite = invite as { clientId: string, client: { firstName?: string, lastName?: string, email?: string, phone?: string | null; dateOfBirth?: Date | null } };
-    const clientId = typedInvite.clientId;
-    const inviteClient = typedInvite.client;
-
-    // Get form data
+    // 2) Read form file
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
 
     if (!file) {
-      return NextResponse.json(
-        { error: "Scanned form file is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Scanned form file is required" }, { status: 400 });
     }
 
-    // Validate file type
     const validTypes = ["application/pdf", "image/jpeg", "image/png", "image/jpg"];
     if (!validTypes.includes(file.type)) {
       return NextResponse.json(
@@ -59,54 +148,52 @@ export async function POST(
       );
     }
 
-    // Convert file to buffer
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
+    // 3) Decode OCR
+    const buf = Buffer.from(await file.arrayBuffer());
+    let decodedData: DecodedPassportData;
 
-    // Decode the passport-style form
-    let decodedData;
     try {
-      decodedData = await decodePassportForm(file, buffer);
+      decodedData = (await decodePassportForm(file, buf)) as DecodedPassportData;
     } catch (ocrError: unknown) {
       const message = ocrError instanceof Error ? ocrError.message : "Unknown error";
       console.error("Error decoding form:", ocrError);
-      return NextResponse.json(
-        { error: `Failed to process form: ${message}` },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: `Failed to process form: ${message}` }, { status: 400 });
     }
 
-    // Archive the scanned form
-    let archivedDocument;
+    // 4) Archive uploaded file (best-effort)
+    let archivedDocument: { id: string } | null = null;
     try {
-      const arrayBuffer = await file.arrayBuffer();
       const { storagePath } = await uploadDocument({
-        fileBuffer: arrayBuffer,
+        fileBuffer: await file.arrayBuffer(),
         filename: file.name,
         contentType: file.type,
       });
-      const filePath = storagePath;
+
       archivedDocument = await prisma.documents.create({
         data: {
           id: randomUUID(),
-          clientId: clientId,
+          clientId,
           fileName: file.name,
           fileType: file.type,
           fileSize: file.size,
-          filePath: filePath,
+          filePath: storagePath,
           mimeType: file.type,
           uploadedVia: "update-form",
-          extractedData: decodedData as any,
-          ocrConfidence: decodedData.confidence ? Math.round(decodedData.confidence * 100) : null,
-          documentHash: "", // Will be calculated if needed
+          extractedData: toInputJson(decodedData),
+          ocrConfidence:
+            typeof decodedData.confidence === "number"
+              ? Math.round(decodedData.confidence * 100)
+              : null,
+          documentHash: "",
         },
+        select: { id: true },
       });
-    } catch (archiveError) {
+    } catch (archiveError: unknown) {
       console.error("Failed to archive form:", archiveError);
-      // Continue even if archiving fails
+      // Continue anyway
     }
 
-    // Update client information
+    // 5) Update client info
     const updatedClient = await prisma.clients.update({
       where: { id: clientId },
       data: {
@@ -114,44 +201,34 @@ export async function POST(
         lastName: decodedData.lastName || inviteClient.lastName || "",
         email: decodedData.email || inviteClient.email || "",
         phone: decodedData.phone || inviteClient.phone || null,
-        dateOfBirth: decodedData.dateOfBirth
-          ? new Date(decodedData.dateOfBirth)
-          : inviteClient.dateOfBirth || null,
+        dateOfBirth: toDate(decodedData.dateOfBirth) ?? inviteClient.dateOfBirth ?? null,
       },
     });
 
-    // Update or create policy if policy information provided
-    let updatedPolicy = null;
+    // 6) Create or update insurer/policy if present
+    let updatedPolicy: { id: string } | null = null;
+
     if (decodedData.policyNumber || decodedData.insurerName) {
-      // Find or create insurer
-      let insurer = null;
+      let insurer: { id: string } | null = null;
+
       if (decodedData.insurerName) {
         insurer = await prisma.insurers.findFirst({
-          where: {
-            name: {
-              equals: decodedData.insurerName,
-              mode: "insensitive",
-            },
-          },
+          where: { name: { equals: decodedData.insurerName, mode: "insensitive" } },
+          select: { id: true },
         });
 
         if (!insurer) {
           insurer = await prisma.insurers.create({
-            data: {
-              id: randomUUID(),
-              name: decodedData.insurerName,
-            },
+            data: { id: randomUUID(), name: decodedData.insurerName },
+            select: { id: true },
           });
         }
       }
 
-      // Update existing policy or create new one
       if (insurer) {
         const existingPolicy = await prisma.policies.findFirst({
-          where: {
-            clientId: clientId,
-            insurerId: insurer.id,
-          },
+          where: { clientId, insurerId: insurer.id },
+          select: { id: true, policyNumber: true, policyType: true },
         });
 
         if (existingPolicy) {
@@ -161,20 +238,21 @@ export async function POST(
               policyNumber: decodedData.policyNumber || existingPolicy.policyNumber || null,
               policyType: decodedData.policyType || existingPolicy.policyType || null,
             },
+            select: { id: true },
           });
         } else {
           updatedPolicy = await prisma.policies.create({
             data: {
               id: randomUUID(),
-              clientId: clientId,
+              clientId,
               insurerId: insurer.id,
               policyNumber: decodedData.policyNumber || null,
               policyType: decodedData.policyType || null,
             },
+            select: { id: true },
           });
         }
 
-        // Link document to policy
         if (archivedDocument && updatedPolicy) {
           await prisma.documents.update({
             where: { id: archivedDocument.id },
@@ -184,36 +262,29 @@ export async function POST(
       }
     }
 
-    // Get organization and attorney info
+    // 7) Get org + attorney info (best-effort)
     const access = await prisma.attorneyClientAccess.findFirst({
-      where: {
-        clientId: clientId,
-        isActive: true,
-      },
+      where: { clientId, isActive: true },
       include: {
         users: {
           include: {
-            orgMemberships: {
-              include: {
-                organizations: true,
-              },
-            },
+            orgMemberships: { include: { organizations: true } },
           },
         },
       },
     });
 
-    const organization = access?.users?.orgMemberships?.[0]?.organizations;
-    const attorney = access?.users;
+    const organization = access?.users?.orgMemberships?.[0]?.organizations ?? null;
+    const attorney = access?.users ?? null;
 
-    // Get updated policies for receipt
+    // 8) Fetch updated policies for receipt
     const updatedPolicies = await prisma.policies.findMany({
-      where: { clientId: clientId },
+      where: { clientId },
       include: { insurers: true },
     });
 
-    // Generate new receipt data
     const receiptId = `REC-${clientId}-${Date.now()}`;
+
     const receiptData = {
       receiptId,
       client: {
@@ -227,15 +298,13 @@ export async function POST(
         id: p.id,
         policyNumber: p.policyNumber,
         policyType: p.policyType,
-        insurer: p.insurers ? {
-          name: p.insurers.name,
-          contactPhone: p.insurers.contactPhone,
-          contactEmail: p.insurers.contactEmail,
-        } : {
-          name: "Unknown",
-          contactPhone: null,
-          contactEmail: null,
-        },
+        insurer: p.insurers
+          ? {
+              name: p.insurers.name,
+              contactPhone: p.insurers.contactPhone,
+              contactEmail: p.insurers.contactEmail,
+            }
+          : { name: "Unknown", contactPhone: null, contactEmail: null },
       })),
       organization: organization
         ? {
@@ -252,10 +321,10 @@ export async function POST(
       receiptGeneratedAt: new Date(),
     };
 
-    // Generate receipt PDF
+    // 9) Render PDF
     let receiptPdfBuffer: Buffer | null = null;
     try {
-      const pdfStream = await renderToStream(
+      const stream = await renderToStream(
         ClientReceiptPDF({
           receiptData: {
             receiptId,
@@ -264,7 +333,9 @@ export async function POST(
               lastName: receiptData.client.lastName,
               email: receiptData.client.email,
               phone: receiptData.client.phone,
-              dateOfBirth: receiptData.client.dateOfBirth ? new Date(receiptData.client.dateOfBirth) : null,
+              dateOfBirth: receiptData.client.dateOfBirth
+                ? new Date(receiptData.client.dateOfBirth)
+                : null,
             },
             policies: receiptData.policies,
             organization: receiptData.organization,
@@ -274,87 +345,57 @@ export async function POST(
         })
       );
 
-      const chunks: Uint8Array[] = [];
-      const maybeWeb = pdfStream as { getReader?: () => ReadableStreamDefaultReader<Uint8Array> };
-      
-      if (typeof maybeWeb?.getReader === "function") {
-        const reader = maybeWeb.getReader();
-        let done = false;
-        while (!done) {
-          const { value, done: streamDone } = await reader.read();
-          done = streamDone;
-          if (value) {
-            chunks.push(value);
-          }
-        }
-        receiptPdfBuffer = Buffer.concat(chunks);
-      } else {
-        const nodeStream = pdfStream as NodeJS.ReadableStream;
-        receiptPdfBuffer = await new Promise<Buffer>((resolve, reject) => {
-          const nodeChunks: Buffer[] = [];
-          nodeStream.on("data", (c: Buffer) => nodeChunks.push(Buffer.isBuffer(c) ? c : Buffer.from(c)));
-          nodeStream.on("end", () => resolve(Buffer.concat(nodeChunks)));
-          nodeStream.on("error", reject);
-        });
-      }
-    } catch (pdfError) {
+      receiptPdfBuffer = await streamToBuffer(stream);
+    } catch (pdfError: unknown) {
       console.error("Error generating receipt PDF:", pdfError);
     }
 
-    // Send emails asynchronously
-    const emailPromises: Promise<void>[] = [];
+    // 10) Fire-and-forget emails
+    const emailTasks: Array<Promise<unknown>> = [];
 
-    // Send receipt email to client
-    if (receiptPdfBuffer) {
-      emailPromises.push(
+    if (receiptPdfBuffer && receiptData.client.email) {
+      emailTasks.push(
         sendClientReceiptEmail({
           to: receiptData.client.email,
-          clientName: `${receiptData.client.firstName} ${receiptData.client.lastName}`,
+          clientName: `${receiptData.client.firstName} ${receiptData.client.lastName}`.trim(),
           receiptId,
           receiptPdf: receiptPdfBuffer,
           firmName: organization?.name,
-        }).then(() => undefined).catch((emailError) => {
-          console.error("Error sending client receipt email:", emailError);
-        })
+        }).catch((e) => console.error("Error sending client receipt email:", e))
       );
     }
 
-    // Send notification email to attorney
     if (attorney && organization) {
       const baseUrl = process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin;
       const updateUrl = `${baseUrl}/qr-update/${token}`;
-      const attorneyEmail = attorney.email || organization.phone;
-      
+
+      const attorneyEmail =
+        typeof attorney.email === "string" ? attorney.email : null;
+
       if (attorneyEmail && attorneyEmail.includes("@")) {
-        emailPromises.push(
+        emailTasks.push(
           sendAttorneyNotificationEmail({
             to: attorneyEmail,
             attorneyName: attorney.firstName || "Attorney",
-            clientName: `${receiptData.client.firstName} ${receiptData.client.lastName}`,
+            clientName: `${receiptData.client.firstName} ${receiptData.client.lastName}`.trim(),
             receiptId,
             policiesCount: receiptData.policies.length,
             updateUrl,
-          }).then(() => undefined).catch((emailError) => {
-            console.error("Error sending attorney notification email:", emailError);
-          })
+          }).catch((e) => console.error("Error sending attorney notification email:", e))
         );
       }
     }
 
-    // Don't wait for emails
-    Promise.all(emailPromises).catch((error) => {
-      console.error("Error sending emails:", error);
-    });
+    void Promise.all(emailTasks);
 
-    // Log audit event
-    const auditLogId = randomUUID();
+    // 11) Audit log
     await prisma.audit_logs.create({
       data: {
-        id: auditLogId,
+        id: randomUUID(),
         action: AuditAction.CLIENT_UPDATED,
         message: `Client information updated via scanned form: ${file.name}`,
-        clientId: clientId,
-        policyId: updatedPolicy?.id || null,
+        clientId,
+        policyId: updatedPolicy?.id ?? null,
         userId: null,
         orgId: null,
         createdAt: new Date(),
@@ -372,13 +413,10 @@ export async function POST(
     console.error("Error processing update form:", error);
     return NextResponse.json(
       { error: message },
-      { 
+      {
         status: 500,
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
       }
     );
   }
 }
-

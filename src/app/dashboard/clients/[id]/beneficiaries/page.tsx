@@ -53,7 +53,7 @@ export default function ClientBeneficiariesPage() {
 
   React.useEffect(() => {
     load();
-  }, [clientId]);
+  }, [clientId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function createBeneficiary() {
     setError(null);
@@ -153,14 +153,16 @@ export default function ClientBeneficiariesPage() {
                 />
               </div>
               <div>
-                <label className="label mb-1 block">
+                <label className="label mb-1 block" htmlFor="relationship-select">
                   Relationship <span className="text-red-500">*</span>
                 </label>
                 <select
+                  id="relationship-select"
                   value={relationship}
                   onChange={(e) => setRelationship(e.target.value)}
                   required
                   className="input"
+                  aria-label="Relationship"
                 >
                   <option value="">Select relationship</option>
                   <option value="Spouse">Spouse</option>
@@ -196,12 +198,16 @@ export default function ClientBeneficiariesPage() {
                 />
               </div>
               <div>
-                <label className="label mb-1 block">Date of Birth</label>
+                <label className="label mb-1 block" htmlFor="date-of-birth-input">
+                  Date of Birth
+                </label>
                 <input
+                  id="date-of-birth-input"
                   type="date"
                   value={dateOfBirth}
                   onChange={(e) => setDateOfBirth(e.target.value)}
                   className="input"
+                  aria-label="Date of Birth"
                 />
               </div>
             </div>

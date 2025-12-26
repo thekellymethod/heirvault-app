@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
     // Verify the invite token is valid
     let invite = await getOrCreateTestInvite(inviteToken);
     if (!invite) {
-      invite = await lookupClientInvite(inviteToken);
+      invite = await lookupClientInvite(inviteToken) as { id: string; clientId: string; email: string; token: string; expiresAt: Date; usedAt: Date | null; createdAt: Date; client: { id: string; firstName: string; lastName: string; email: string; phone: string | null; dateOfBirth: Date | null; }; };
     }
 
     if (!invite || invite.clientId !== clientId) {
