@@ -17,33 +17,49 @@ const VERIFICATION_STATUSES = [
 
 type VerificationStatus = (typeof VERIFICATION_STATUSES)[number];
 
+function isVerificationStatus(value: unknown): value is VerificationStatus {
+  return (
+    typeof value === "string" &&
+    (VERIFICATION_STATUSES as readonly string[]).includes(value)
+  );
+}
+
+/**
+ * Derive a UI status from what your DB actually has today.
+ * Adjust logic as your real verification flow matures.
+ */
+function deriveVerificationStatus(input: {
+  insurerId: string | null;
+  carrierConfidence: number | null;
+  carrierNameRaw: string | null;
+  documentCount: number;
+}): VerificationStatus {
+  // No documents -> incomplete data intake
+  if (input.documentCount <= 0) return "INCOMPLETE";
+
+  // OCR saw *something* but it didn't resolve to a known insurer
+  if (!input.insurerId) {
+    if ((input.carrierNameRaw ?? "").trim().length > 0) return "DISCREPANCY";
+    return "PENDING";
+  }
+
+  // Low confidence carrier match -> needs review
+  const conf = input.carrierConfidence;
+  if (conf !== null && conf < 0.6) return "DISCREPANCY";
+
+  return "VERIFIED";
+}
+
+/* -----------------------------
+   Redirect error guard
+------------------------------ */
+
 type RedirectError = { redirectTo: string };
 
 function isRedirectError(error: unknown): error is RedirectError {
   if (typeof error !== "object" || error === null) return false;
   const e = error as Record<string, unknown>;
   return typeof e.redirectTo === "string";
-}
-
-/**
- * UI-only derived status (since DB may not have a verificationStatus column)
- * Keep this deterministic and conservative.
- */
-function deriveVerificationStatus(input: {
-  insurerId: string | null;
-  carrierConfidence: number | null;
-  carrierNameRaw: string | null;
-}): VerificationStatus {
-  const raw = (input.carrierNameRaw ?? "").trim();
-  const conf = input.carrierConfidence ?? null;
-
-  if (!input.insurerId) {
-    if (raw.length > 0) return "DISCREPANCY";
-    return "PENDING";
-  }
-
-  if (conf !== null && conf < 0.6) return "DISCREPANCY";
-  return "VERIFIED";
 }
 
 /* -----------------------------
@@ -91,7 +107,8 @@ export default async function DashboardPage() {
     redirect("/attorney/apply");
   }
 
-  const policiesRows = await prisma.policies.findMany({
+  // Pull recent policies + related info using the relation names from YOUR schema
+  const policyRows = await prisma.policies.findMany({
     take: 10,
     orderBy: { updatedAt: "desc" },
     select: {
@@ -104,7 +121,6 @@ export default async function DashboardPage() {
       carrierConfidence: true,
       carrierNameRaw: true,
 
-      // Relations (use Prisma client field names)
       clients: {
         select: {
           id: true,
@@ -114,7 +130,6 @@ export default async function DashboardPage() {
         },
       },
 
-      // If your Prisma schema relation field is NOT "insurers", rename this to "insurer"
       insurers: {
         select: {
           id: true,
@@ -123,21 +138,21 @@ export default async function DashboardPage() {
       },
 
       _count: {
-        select: { documents: true },
+        select: {
+          documents: true,
+        },
       },
     },
   });
 
-  const policies: DashboardPolicyVM[] = policiesRows.map((p) => {
-    const insurer =
-      p.insurers && typeof p.insurers.id === "string" && typeof p.insurers.name === "string"
-        ? { id: p.insurers.id, name: p.insurers.name }
-        : null;
+  const policies: DashboardPolicyVM[] = policyRows.map((p) => {
+    const documentCount = p._count.documents;
 
     const verificationStatus = deriveVerificationStatus({
       insurerId: p.insurerId ?? null,
       carrierConfidence: p.carrierConfidence ?? null,
       carrierNameRaw: p.carrierNameRaw ?? null,
+      documentCount,
     });
 
     return {
@@ -153,20 +168,24 @@ export default async function DashboardPage() {
         lastName: p.clients.lastName ?? "",
         email: p.clients.email,
       },
-      insurer,
-      documentCount: p._count.documents,
+      insurer: p.insurers ? { id: p.insurers.id, name: p.insurers.name } : null,
+      documentCount,
     };
   });
 
+  // Stats: since verificationStatus is UI-only, derive counts in code.
   const [totalPolicies, totalClients] = await Promise.all([
     prisma.policies.count(),
     prisma.clients.count(),
   ]);
 
-  // Stats derived from the 10 rows we fetched (DB has no verificationStatus field)
   const counts = new Map<VerificationStatus, number>();
   for (const s of VERIFICATION_STATUSES) counts.set(s, 0);
-  for (const p of policies) counts.set(p.verificationStatus, (counts.get(p.verificationStatus) ?? 0) + 1);
+
+  for (const p of policies) {
+    const s = isVerificationStatus(p.verificationStatus) ? p.verificationStatus : "PENDING";
+    counts.set(s, (counts.get(s) ?? 0) + 1);
+  }
 
   const stats: DashboardStatsVM = {
     totalPolicies,
