@@ -33,12 +33,15 @@ type InsurerRow = {
   name: string | null;
 };
 
-export async function GET(
-  req: NextRequest,
-  { params }: { params: Promise<{ receiptId: string }> }
-) {
+export async function GET(req: NextRequest) {
   try {
-    const { receiptId } = await params;
+    // Get receiptId from query parameter
+    const { searchParams } = new URL(req.url);
+    const receiptId = searchParams.get("receiptId");
+    
+    if (!receiptId) {
+      return NextResponse.json({ error: "receiptId query parameter is required" }, { status: 400 });
+    }
 
     // 1) receipts
     const receipts = await prisma.$queryRawUnsafe<ReceiptRow[]>(
