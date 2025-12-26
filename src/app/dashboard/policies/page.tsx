@@ -4,6 +4,8 @@ import { requireAuth } from "@/lib/utils/clerk";
 import { EmptyListState, EmptySearchState } from "@/components/ui/empty-state";
 import { SortSelect } from "@/components/ui/sort-select";
 
+export const dynamic = "force-dynamic";
+
 export default async function PoliciesPage({
   searchParams,
 }: {

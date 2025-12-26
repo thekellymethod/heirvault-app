@@ -26,7 +26,17 @@ const UNAUTHORIZED_ERROR = "Unauthorized";
 export async function getCurrentUser(): Promise<DbUser | null> {
   try {
     // First check if user is authenticated via Clerk
-    const { userId } = await auth();
+    // During build/prerender, auth() may fail - catch and return null
+    let userId: string | null = null;
+    try {
+      const authResult = await auth();
+      userId = authResult.userId;
+    } catch (authError: unknown) {
+      // During build/prerender, auth() fails - return null silently
+      // This prevents "DATABASE ERROR DETECTED" spam during static generation
+      return null;
+    }
+
     if (!userId) {
       // Not authenticated - return null (don't try to create user)
       return null;

@@ -3,6 +3,8 @@ import { requireVerifiedAttorney } from "@/lib/auth/guards";
 import { redirect } from "next/navigation";
 import { AttorneyDashboardView } from "./_components/AttorneyDashboardView";
 
+export const dynamic = "force-dynamic";
+
 /* -----------------------------
    Verification status (UI-only)
 ------------------------------ */

@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/utils/clerk";
 
+export const dynamic = "force-dynamic";
+
 export default async function RoleRouterPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/attorney/sign-in");
