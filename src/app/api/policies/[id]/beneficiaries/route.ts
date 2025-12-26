@@ -144,7 +144,7 @@ export async function POST(
     if (!existingLink) {
       await prisma.policy_beneficiaries.create({
         data: {
-          id: randomUUID(),
+          id: crypto.randomUUID(),
           policyId: policyId,
           beneficiaryId: beneficiaryId,
           sharePercentage: null,
