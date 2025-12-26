@@ -53,7 +53,6 @@ export default function InviteClientPage() {
       return;
     }
 
-    // Validate file size (max 10MB)
     if (file.size > 10 * 1024 * 1024) {
       setError("File size must be less than 10MB");
       return;
@@ -61,10 +60,8 @@ export default function InviteClientPage() {
 
     setUploadedFile(file);
     setExtracting(true);
-    setError(null);
 
     try {
-      // Upload and extract data
       const formData = new FormData();
       formData.append("file", file);
 
@@ -95,7 +92,6 @@ export default function InviteClientPage() {
     }
   }
 
-  // Submit form
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -447,4 +443,3 @@ function Field({
     </label>
   );
 }
-
