@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Mail, RefreshCw, Copy, Check, Search, Plus, AlertCircle, FileText, Download } from "lucide-react";
+import { Mail, RefreshCw, Copy, Check, Search, Plus, AlertCircle, FileText } from "lucide-react";
 import { showSuccess, showError } from "@/lib/toast";
 
 interface Invite {
