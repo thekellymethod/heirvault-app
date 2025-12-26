@@ -1,10 +1,31 @@
-# Drizzle ORM Migration - Complete
+# Drizzle ORM Migration - Complete (ARCHIVED)
 
-## ✅ Migration Summary
+> **⚠️ ARCHIVED**: This document describes a migration that was completed but later reversed. The project currently uses **Prisma ORM**, not Drizzle. This file is kept for historical reference only.
+
+## Historical Context
+
+This document describes a completed migration from Prisma to Drizzle ORM. However, this migration was later reversed, and the project now uses Prisma ORM as the primary database client.
+
+## Current State
+
+- **ORM**: Prisma ORM
+- **Schema**: `prisma/schema.prisma`
+- **Client**: `src/lib/prisma.ts` exports `prisma` client
+- **Database Export**: `src/lib/db/index.ts` re-exports Prisma client
+
+## For Current Development
+
+See `README.md` for current database setup and usage instructions.
+
+---
+
+## Archived Migration Summary (Historical Reference Only)
+
+### ✅ Migration Summary
 
 Successfully migrated from Prisma to Drizzle ORM. All critical files have been migrated and Prisma has been completely removed.
 
-## Files Migrated
+### Files Migrated
 
 ### Core Database Files
 - ✅ `src/lib/db/schema.ts` - Complete Drizzle schema (all tables and enums)
@@ -41,88 +62,3 @@ Successfully migrated from Prisma to Drizzle ORM. All critical files have been m
 
 - ✅ `drizzle.config.ts` - Drizzle Kit configuration
 - ✅ `package.json` - Updated scripts (removed Prisma, added Drizzle)
-
-## Key Changes
-
-### Query Syntax
-
-**Before (Prisma):**
-```typescript
-const user = await prisma.user.findUnique({
-  where: { clerkId: userId }
-});
-```
-
-**After (Drizzle):**
-```typescript
-const [user] = await db.select()
-  .from(users)
-  .where(eq(users.clerkId, userId))
-  .limit(1);
-```
-
-### Inserts
-
-**Before:**
-```typescript
-const user = await prisma.user.create({
-  data: { email, firstName, lastName }
-});
-```
-
-**After:**
-```typescript
-const [user] = await db.insert(users)
-  .values({ email, firstName, lastName })
-  .returning();
-```
-
-### Updates
-
-**Before:**
-```typescript
-const user = await prisma.user.update({
-  where: { id },
-  data: { firstName, lastName }
-});
-```
-
-**After:**
-```typescript
-const [user] = await db.update(users)
-  .set({ firstName, lastName, updatedAt: new Date() })
-  .where(eq(users.id, id))
-  .returning();
-```
-
-## Remaining Files to Migrate (Optional)
-
-These files still use Prisma syntax but will work via the `prisma` alias export:
-- Other API routes in `src/app/api/` (will work but should be migrated for consistency)
-- Dashboard pages that query data directly
-- Invite-related routes
-
-## Testing Checklist
-
-- [ ] User authentication works
-- [ ] Client detail page loads
-- [ ] Policy creation works
-- [ ] Beneficiary creation works
-- [ ] Audit logging works
-- [ ] Organization queries work
-
-## Next Steps
-
-1. **Test the application** - Verify all migrated endpoints work
-2. **Migrate remaining files** - As needed, convert other API routes
-3. **Remove Prisma alias** - Once all files are migrated, remove the `prisma` export from `src/lib/db.ts`
-
-## Benefits Achieved
-
-✅ No code generation step required  
-✅ Better TypeScript inference  
-✅ More control with direct SQL when needed  
-✅ Smaller bundle size (removed 84 packages!)  
-✅ Faster builds (no Prisma generate step)  
-✅ More reliable (no schema sync issues)
-

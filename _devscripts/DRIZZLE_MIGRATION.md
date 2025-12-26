@@ -1,8 +1,27 @@
-# Drizzle ORM Migration
+# Drizzle ORM Migration (ARCHIVED)
 
-This project has been migrated from Prisma to Drizzle ORM.
+> **⚠️ ARCHIVED**: This document describes a migration that was attempted but later reversed. The project currently uses **Prisma ORM**, not Drizzle. This file is kept for historical reference only.
 
-## What Changed
+## Historical Context
+
+This project was briefly migrated from Prisma to Drizzle ORM, but the migration was later reversed. The project now uses Prisma ORM as the primary database client.
+
+## Current State
+
+- **ORM**: Prisma ORM
+- **Schema**: `prisma/schema.prisma`
+- **Client**: `src/lib/prisma.ts` exports `prisma` client
+- **Database Export**: `src/lib/db/index.ts` re-exports Prisma client
+
+## For Current Development
+
+See `README.md` for current database setup and usage instructions.
+
+---
+
+## Archived Migration Details (Historical Reference Only)
+
+### What Changed (During Migration)
 
 ### Dependencies
 - ✅ Removed: `@prisma/client`, `@prisma/adapter-pg`, `prisma`
@@ -18,66 +37,3 @@ This project has been migrated from Prisma to Drizzle ORM.
 ### Configuration
 - **Drizzle Config**: `drizzle.config.ts` - Configuration for Drizzle Kit
 - **Database Export**: `src/lib/db.ts` - Exports Drizzle client as `db` and `prisma` (for compatibility)
-
-## Usage
-
-### Database Queries
-
-```typescript
-import { db, users, eq } from '@/lib/db';
-
-// Find user
-const [user] = await db.select()
-  .from(users)
-  .where(eq(users.clerkId, userId))
-  .limit(1);
-
-// Create user
-const [newUser] = await db.insert(users)
-  .values({ clerkId, email, firstName, lastName, role: 'attorney' })
-  .returning();
-
-// Update user
-const [updated] = await db.update(users)
-  .set({ firstName, lastName, updatedAt: new Date() })
-  .where(eq(users.id, userId))
-  .returning();
-```
-
-### Available Query Helpers
-
-Exported from `@/lib/db`:
-- `eq`, `and`, `or`, `inArray` - Where conditions
-- `asc`, `desc` - Ordering
-- `sql` - Raw SQL when needed
-
-## Migration Commands
-
-```bash
-# Generate migrations
-npm run db:generate
-
-# Apply migrations
-npm run db:migrate
-
-# Push schema changes (dev only)
-npm run db:push
-
-# Open Drizzle Studio
-npm run db:studio
-```
-
-## Remaining Prisma References
-
-Some files may still reference Prisma. These need to be migrated:
-- Other API routes in `src/app/api/`
-- Any files importing from `@/lib/db` that use Prisma syntax
-
-## Benefits
-
-1. **No Code Generation**: Drizzle doesn't require code generation step
-2. **Better TypeScript**: Full type inference without generation
-3. **More Control**: Direct SQL when needed, type-safe queries otherwise
-4. **Smaller Bundle**: No generated client code
-5. **Faster**: No client generation step in build process
-

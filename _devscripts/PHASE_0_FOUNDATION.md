@@ -21,8 +21,8 @@
 - Middleware: `src/middleware.ts` - Global route protection
 
 ### 3. Database Client ✓
-- Location: `src/lib/db.ts` and `src/lib/db/index.ts`
-- Uses: Drizzle ORM with PostgreSQL
+- Location: `src/lib/prisma.ts` and `src/lib/db/index.ts`
+- Uses: Prisma ORM with PostgreSQL
 - Verified: Can run queries via test route
 
 ### 4. Role + Permission Layer ✓

@@ -24,9 +24,6 @@ Write-Host "Database name: $dbName" -ForegroundColor Cyan
 Write-Host "Running database migrations..." -ForegroundColor Green
 npm run db:migrate
 
-# Or if using Drizzle:
-# npm run db:push
-
 Write-Host "Test database setup complete!" -ForegroundColor Green
 Write-Host ""
 Write-Host "Next steps:" -ForegroundColor Yellow

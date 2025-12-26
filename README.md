@@ -30,7 +30,7 @@ A secure, private registry where attorneys can manage client life insurance poli
 ## 🛠️ Tech Stack
 
 - **Framework**: Next.js 16 (App Router)
-- **Database**: PostgreSQL with Drizzle ORM
+- **Database**: PostgreSQL with Prisma ORM
 - **Storage**: Supabase Storage (for document storage)
 - **Authentication**: Clerk (attorney-only)
 - **Styling**: Tailwind CSS 4
@@ -68,7 +68,7 @@ npm install
 
 3. **Set up Database**:
    - Create a PostgreSQL database
-   - Run Drizzle migrations:
+   - Run Prisma migrations:
    ```bash
    npm run db:migrate
    ```
@@ -195,9 +195,9 @@ src/
 │   └── attorney/                     # Attorney onboarding
 ├── lib/
 │   ├── db/
-│   │   ├── index.ts                  # Drizzle database client
-│   │   ├── schema.ts                 # Drizzle schema definitions
-│   │   └── enums.ts                  # Database enums
+│   │   ├── index.ts                  # Prisma database client exports
+│   │   ├── enums.ts                  # Database enums
+│   │   └── registry.ts               # Registry database functions
 │   ├── db.ts                         # Database client export
 │   ├── utils/
 │   │   └── clerk.ts                  # Clerk utilities & auth
@@ -246,7 +246,7 @@ src/
 - **Address Fields**: Separate address fields for clients, beneficiaries, and attorneys
 - **Composite Indexes**: Optimized for name/DOB and address searches
 
-See `src/lib/db/schema.ts` for the complete Drizzle schema.
+See `prisma/schema.prisma` for the complete Prisma schema.
 
 ## 🔐 Security & Data Protection
 
@@ -277,7 +277,7 @@ See `src/lib/db/schema.ts` for the complete Drizzle schema.
 - **Users**: CREATE, READ, UPDATE (DELETE via Clerk)
 - **Organizations**: CREATE, READ, UPDATE
 
-All operations use **Drizzle ORM with raw SQL fallback** for maximum reliability.
+All operations use **Prisma ORM** for type-safe database access.
 
 ## 🎫 Client Invitation System
 
@@ -370,14 +370,14 @@ See `DEPLOYMENT.md` for detailed deployment instructions.
 
 1. ✅ Set up PostgreSQL database
 2. ✅ Configure environment variables
-3. ✅ Run Drizzle migrations: `npm run db:migrate`
+3. ✅ Run Prisma migrations: `npm run db:migrate`
 4. ✅ Build the application: `npm run build`
 5. ✅ Deploy to your hosting platform (Vercel, Railway, etc.)
 
 ### Important Notes
 
 - **Database Migrations**: Use `npm run db:migrate` for production migrations
-- **Schema Management**: Schema is defined in `src/lib/db/schema.ts` using Drizzle ORM
+- **Schema Management**: Schema is defined in `prisma/schema.prisma` using Prisma ORM
 - **Development**: Use `npm run db:push` to sync schema changes during development
 
 ## 📚 Documentation
@@ -406,10 +406,10 @@ See `DEPLOYMENT.md` for detailed deployment instructions.
 - **Compliance API Routes**: Fixed error handling to properly return 401/403 status codes
 - **HttpError Integration**: All compliance routes use `HttpError` for consistent error handling
 
-### Database Migration
-- Migrated from Prisma ORM to Drizzle ORM for better type safety and performance
-- Schema is now defined in `src/lib/db/schema.ts`
-- All database queries use Drizzle ORM with raw SQL fallback
+### Database
+- Using Prisma ORM for type-safe database access
+- Schema is defined in `prisma/schema.prisma`
+- All database queries use Prisma Client
 - Added Supabase integration for document storage and registry tables
 
 ### Authentication Flow
@@ -423,7 +423,7 @@ See `DEPLOYMENT.md` for detailed deployment instructions.
 
 ```bash
 npm run dev          # Start development server
-npm run build        # Build for production (includes prisma generate)
+npm run build        # Build for production (includes Prisma Client generation)
 npm run start        # Start production server
 npm run lint         # Run ESLint
 ```
@@ -431,10 +431,12 @@ npm run lint         # Run ESLint
 ### Database Management
 
 ```bash
-npm run db:generate           # Generate Drizzle migrations
+npm run db:generate           # Generate Prisma Client
 npm run db:migrate            # Run database migrations
 npm run db:push               # Push schema changes (development)
-npm run db:studio             # Open Drizzle Studio (database GUI)
+npm run db:studio             # Open Prisma Studio (database GUI)
+npm run db:status             # Check migration status
+npm run db:deploy             # Deploy migrations (production)
 ```
 
 ## 🐛 Troubleshooting
@@ -442,18 +444,19 @@ npm run db:studio             # Open Drizzle Studio (database GUI)
 ### Common Issues
 
 1. **Database Connection Errors**: Verify `DATABASE_URL` in `.env.local`
-2. **Schema Mismatches**: Check `src/lib/db/schema.ts` matches database
+2. **Schema Mismatches**: Check `prisma/schema.prisma` matches database
 3. **Build Errors**: Clear `.next` folder and rebuild: `Remove-Item -Recurse -Force .next && npm run build`
 4. **Migration Errors**: Run `npm run db:push` to sync schema during development
 
 ### Error Handling
 
-The system uses **Drizzle ORM with raw SQL fallback** for maximum reliability. If you encounter database errors:
+The system uses **Prisma ORM** for type-safe database access. If you encounter database errors:
 
 1. Check database connection
 2. Verify schema matches database: `npm run db:push`
-3. Check error logs for specific issues
-4. Use Drizzle Studio to inspect database: `npm run db:studio`
+3. Regenerate Prisma Client: `npm run db:generate`
+4. Check error logs for specific issues
+5. Use Prisma Studio to inspect database: `npm run db:studio`
 
 ## 🎯 Roadmap
 
@@ -470,7 +473,7 @@ The system uses **Drizzle ORM with raw SQL fallback** for maximum reliability. I
 - [x] Confirmation codes
 - [x] Audit logging
 - [x] Database separation and conflict prevention
-- [x] Migration from Prisma to Drizzle ORM
+- [x] Prisma ORM integration for type-safe database access
 - [x] Fixed dashboard routing and authentication flow
 - [x] Public policy intake system (no account required)
 - [x] QR token-based update system

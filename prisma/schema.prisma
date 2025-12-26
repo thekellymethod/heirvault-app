@@ -34,7 +34,7 @@ model audit_logs {
   policyId      String?        @map("policy_id")
   action        AuditAction
   message       String
-  created_at    DateTime       @default(now())
+  createdAt     DateTime       @default(now()) @map("created_at")
   clients       clients?       @relation(fields: [clientId], references: [id])
   organizations organizations? @relation(fields: [orgId], references: [id])
   policies      policies?      @relation(fields: [policyId], references: [id])
@@ -44,33 +44,38 @@ model audit_logs {
   @@index([orgId])
   @@index([policyId])
   @@index([userId])
-  @@index([created_at])
+  @@index([createdAt])
   @@map("audit_logs")
 }
 
 model beneficiaries {
-  id                   String                 @id
-  clientId             String                 @map("client_id")
-  first_name           String
-  last_name            String
-  relationship         String?
-  email                String?
-  phone                String?
-  date_of_birth        DateTime?              @db.Date
-  created_at           DateTime               @default(now())
-  updatedAt            DateTime               @updatedAt @map("updated_at")
-  addressLine1         String?                @map("address_line1")
-  addressLine2         String?                @map("address_line2")
-  city                 String?
-  state                String?
-  postalCode           String?                @map("postal_code")
-  country              String?
-  clients              clients                @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  policy_beneficiaries policy_beneficiaries[]
+  id            String   @id
+  clientId      String   @map("client_id")
+
+  firstName     String   @map("first_name")
+  lastName      String   @map("last_name")
+
+  relationship  String?
+  email         String?
+  phone         String?
+  dateOfBirth   DateTime? @db.Date @map("date_of_birth")
+
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  addressLine1  String?  @map("address_line1")
+  addressLine2  String?  @map("address_line2")
+  city          String?
+  state         String?
+  postalCode    String?  @map("postal_code")
+  country       String?
+
+  clients       clients  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  policyBeneficiaries policy_beneficiaries[]
 
   @@index([addressLine1, city, state, postalCode])
   @@index([clientId])
-  @@index([first_name, last_name, date_of_birth])
+  @@index([firstName, lastName, dateOfBirth])
   @@map("beneficiaries")
 }
 
@@ -91,43 +96,51 @@ model client_invites {
 }
 
 model clients {
-  id                     String                   @id
-  email                  String                   @unique
-  first_name             String
-  last_name              String
-  phone                  String?
-  date_of_birth          DateTime?                @db.Date
-  created_at             DateTime                 @default(now())
-  updatedAt              DateTime                 @updatedAt @map("updated_at")
-  userId                 String?                  @unique @map("user_id")
-  orgId                  String?                  @map("org_id")
-  driversLicense         String?                  @map("drivers_license")
-  maidenName             String?                  @map("maiden_name")
-  passportNumber         String?                  @map("passport_number")
-  ssnLast4               String?                  @map("ssn_last_4")
-  clientFingerprint      String?                  @unique @map("client_fingerprint")
-  addressLine1           String?                  @map("address_line1")
-  addressLine2           String?                  @map("address_line2")
-  city                   String?
-  state                  String?
-  postalCode             String?                  @map("postal_code")
-  country                String?
-  access_grants          access_grants[]
-  attorney_client_access attorney_client_access[]
-  audit_logs             audit_logs[]
-  beneficiaries          beneficiaries[]
-  client_invites         client_invites[]
-  organizations          organizations?           @relation(fields: [orgId], references: [id])
-  users                  User?                    @relation("UserClient", fields: [userId], references: [id])
-  documents              documents[]
-  policies               policies[]
+  id                String   @id
+  email             String   @unique
+
+  firstName         String   @map("first_name")
+  lastName          String   @map("last_name")
+  phone             String?
+  dateOfBirth       DateTime? @db.Date @map("date_of_birth")
+
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  userId            String?  @unique @map("user_id")
+  orgId             String?  @map("org_id")
+
+  driversLicense    String?  @map("drivers_license")
+  maidenName        String?  @map("maiden_name")
+  passportNumber    String?  @map("passport_number")
+  ssnLast4          String?  @map("ssn_last_4")
+
+  clientFingerprint String?  @unique @map("client_fingerprint")
+
+  addressLine1      String?  @map("address_line1")
+  addressLine2      String?  @map("address_line2")
+  city              String?
+  state             String?
+  postalCode        String?  @map("postal_code")
+  country           String?
+
+  accessGrants      access_grants[]
+  attorneyClientAccess attorneyClientAccess[]
+  auditLogs         audit_logs[]
+  beneficiaries     beneficiaries[]
+  clientInvites     client_invites[]
+  organizations     organizations? @relation(fields: [orgId], references: [id])
+  users             User?          @relation("UserClient", fields: [userId], references: [id])
+  documents         documents[]
+  policies          policies[]
 
   @@index([addressLine1, city, state, postalCode])
   @@index([clientFingerprint])
   @@index([orgId])
-  @@index([first_name, last_name, date_of_birth])
+  @@index([firstName, lastName, dateOfBirth])
   @@map("clients")
 }
+
 
 model documents {
   id            String    @id
@@ -214,7 +227,7 @@ model organizations {
   stripeCustomerId       String?                  @map("stripe_customer_id")
   stripeSubscriptionId   String?                  @map("stripe_subscription_id")
   access_grants          access_grants[]
-  attorney_client_access attorney_client_access[]
+  attorneyClientAccess   attorneyClientAccess[]
   audit_logs             audit_logs[]
   clients                clients[]
   invites                invites[]
@@ -229,7 +242,7 @@ model policies {
   insurerId            String?                @map("insurer_id")
   policyNumber         String?                @map("policy_number")
   policyType           String?                @map("policy_type")
-  created_at           DateTime               @default(now())
+  createdAt            DateTime               @default(now())  @map("created_at")
   updatedAt            DateTime               @updatedAt @map("updated_at")
   carrierConfidence    Float?                 @map("carrier_confidence")
   carrierNameRaw       String?                @map("carrier_name_raw")
@@ -255,36 +268,43 @@ model policy_beneficiaries {
 }
 
 model User {
-  id                     String                   @id @default(uuid())
-  clerkId                String                   @unique @map("clerkId")
-  email                  String                   @unique
-  first_name             String?
-  last_name              String?
-  role                   UserRole                 @default(attorney)
-  roles                  String[]                 @default(["USER"])
-  created_at             DateTime                 @default(now())
-  updatedAt              DateTime                 @updatedAt @map("updated_at")
-  barNumber              String?                  @map("bar_number")
-  addressLine1           String?                  @map("address_line1")
-  addressLine2           String?                  @map("address_line2")
-  city                   String?
-  state                  String?
-  postalCode             String?                  @map("postal_code")
-  country                String?
-  phone                  String?
-  accessGrants           access_grants[]          @relation("AttorneyAccess")
-  apiTokens              ApiToken[]
-  attorney_client_access attorney_client_access[]
-  attorneyProfile        attorneyProfile?
-  auditLogs              audit_logs[]
-  clientInvites          client_invites[]         @relation("ClientInviteInviter")
-  clientRecord           clients?                 @relation("UserClient")
-  invites                invites[]                @relation("AttorneyInvites")
-  orgMemberships         org_members[]
+  id        String   @id @default(uuid())
+
+  clerkId   String   @unique @map("clerkId")
+  email     String   @unique
+
+  firstName String?  @map("first_name")
+  lastName  String?  @map("last_name")
+
+  role      UserRole @default(attorney)
+  roles     String[] @default(["USER"])
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  barNumber    String? @map("bar_number")
+  addressLine1 String? @map("address_line1")
+  addressLine2 String? @map("address_line2")
+  city         String?
+  state        String?
+  postalCode   String? @map("postal_code")
+  country      String?
+  phone        String?
+
+  accessGrants      access_grants[]  @relation("AttorneyAccess")
+  apiTokens         ApiToken[]
+  attorneyClientAccess attorneyClientAccess[]
+  attorneyProfile   attorneyProfile?
+  auditLogs         audit_logs[]
+  clientInvites     client_invites[] @relation("ClientInviteInviter")
+  clientRecord      clients?         @relation("UserClient")
+  invites           invites[]        @relation("AttorneyInvites")
+  orgMemberships    org_members[]
 
   @@index([addressLine1, city, state, postalCode])
-  @@index([first_name, last_name])
+  @@index([firstName, lastName])
   @@map("users")
+
 }
 
 model attorneyProfile {
@@ -325,20 +345,25 @@ model ApiToken {
   @@map("api_tokens")
 }
 
-model attorney_client_access {
-  id              String         @id
-  attorney_id     String
-  client_id       String
-  organization_id String?
-  granted_at      DateTime       @default(now())
-  revoked_at      DateTime?
-  is_active       Boolean        @default(true)
-  users           User           @relation(fields: [attorney_id], references: [id], onDelete: Cascade)
-  clients         clients        @relation(fields: [client_id], references: [id], onDelete: Cascade)
-  organizations   organizations? @relation(fields: [organization_id], references: [id], onDelete: Cascade)
+model attorneyClientAccess {
+  id             String   @id
 
-  @@unique([attorney_id, client_id])
+  attorneyId     String   @map("attorney_id")
+  clientId       String   @map("client_id")
+  organizationId String?  @map("organization_id")
+
+  grantedAt      DateTime @default(now()) @map("granted_at")
+  revokedAt      DateTime? @map("revoked_at")
+  isActive       Boolean  @default(true) @map("is_active")
+
+  users          User           @relation(fields: [attorneyId], references: [id], onDelete: Cascade)
+  clients        clients        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  organizations  organizations? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([attorneyId, clientId])
+  @@map("attorney_client_access")
 }
+
 
 enum AccessGrantStatus {
   ACTIVE

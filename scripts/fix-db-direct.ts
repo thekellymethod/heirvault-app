@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 /**
- * Direct database fix script - bypasses Drizzle/Prisma
+ * Direct database fix script - bypasses Prisma ORM
  * Run with: npx tsx scripts/fix-db-direct.ts
  */
 

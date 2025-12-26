@@ -88,7 +88,7 @@ describe("RLS Policy Verification", () => {
     });
 
     it("should enforce unique constraint on (registry_id, user_id)", async () => {
-      // Create first permission using raw SQL (table not in Drizzle schema)
+      // Create first permission using raw SQL (table not in Prisma schema)
       await prisma.$executeRawUnsafe(
         `INSERT INTO registry_permissions (registry_id, user_id, role) VALUES ($1, $2, $3)`,
         testRegistryId,
@@ -163,7 +163,7 @@ describe("RLS Policy Verification", () => {
 
   describe("user_has_registry_permission function", () => {
     it("should return true when user has permission", async () => {
-      // Grant permission using raw SQL (table not in Drizzle schema)
+      // Grant permission using raw SQL (table not in Prisma schema)
       await prisma.$executeRawUnsafe(
         `INSERT INTO registry_permissions (registry_id, user_id, role) VALUES ($1, $2, $3)`,
         testRegistryId,

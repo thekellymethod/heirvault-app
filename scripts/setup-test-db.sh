@@ -36,9 +36,6 @@ echo "Creating test database (if it doesn't exist)..."
 echo "Running database migrations..."
 npm run db:migrate
 
-# Or if using Drizzle:
-# npm run db:push
-
 echo "Test database setup complete!"
 echo ""
 echo "Next steps:"

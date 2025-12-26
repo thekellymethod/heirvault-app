@@ -286,7 +286,7 @@ LIMIT 20;
 
 4. **SQL Injection Protection**
    - Escapes single quotes in search terms
-   - Uses parameterized queries via Drizzle ORM
+   - Uses parameterized queries via Prisma ORM
 
 ### Access Request Flow
 
