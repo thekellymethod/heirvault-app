@@ -145,7 +145,7 @@ export default async function DashboardPage() {
     },
   });
 
-  const policies: DashboardPolicyVM[] = policyRows.map((p) => {
+  const policies: DashboardPolicyVM[] = policyRows.map((p: typeof policyRows[0]) => {
     const documentCount = p._count.documents;
 
     const verificationStatus = deriveVerificationStatus({

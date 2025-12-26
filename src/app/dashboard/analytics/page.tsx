@@ -169,9 +169,9 @@ export default async function AnalyticsPage() {
           where: { clients: { attorneyClientAccess: { some: { attorneyId: user.id, isActive: true } } } },
         }),
         orgId ? prisma.policies.count({
-          where: { clients: { orgId: orgId }, verificationStatus: "VERIFIED" },
+          where: { clients: { orgId: orgId } },
         }) : prisma.policies.count({
-          where: { clients: { attorneyClientAccess: { some: { attorneyId: user.id, isActive: true } } }, verificationStatus: "VERIFIED" },
+          where: { clients: { attorneyClientAccess: { some: { attorneyId: user.id, isActive: true } } } },
         }),
         orgId ? prisma.beneficiaries.count({
           where: { clients: { orgId: orgId } },

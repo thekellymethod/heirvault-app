@@ -184,7 +184,7 @@ export async function POST(
             typeof decodedData.confidence === "number"
               ? Math.round(decodedData.confidence * 100)
               : null,
-          documentHash: "",
+          // documentHash field doesn't exist in documents model - removed
         },
         select: { id: true },
       });

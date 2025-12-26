@@ -35,6 +35,13 @@ export default async function QRUpdatePage({ params }: Props) {
     redirect("/error?type=invalid_qr");
   }
 
+  // Type guard to ensure invite has clientId
+  if (typeof invite !== "object" || invite === null || !("clientId" in invite)) {
+    redirect("/error?type=invalid_qr");
+  }
+
+  const clientId = invite.clientId as string;
+
   // Get current client data with policies and beneficiaries
   const clientData = await prisma.$queryRawUnsafe<Array<{
     id: string,
@@ -56,7 +63,7 @@ export default async function QRUpdatePage({ params }: Props) {
     FROM clients
     WHERE id = $1
     LIMIT 1
-  `, invite.clientId);
+  `, clientId);
 
   if (!clientData || clientData.length === 0) {
     redirect("/error?type=not_found");
@@ -80,7 +87,7 @@ export default async function QRUpdatePage({ params }: Props) {
     INNER JOIN insurers i ON i.id = p.insurer_id
     WHERE p.client_id = $1
     ORDER BY p.createdAt DESC
-  `, invite.clientId);
+  `, clientId);
 
   // Get current beneficiaries
   const beneficiaries = await prisma.$queryRawUnsafe<Array<{
@@ -97,14 +104,14 @@ export default async function QRUpdatePage({ params }: Props) {
     FROM beneficiaries
     WHERE client_id = $1
     ORDER BY createdAt DESC
-  `, invite.clientId);
+  `, clientId);
 
   // Get version history count
   const versionCount = await prisma.$queryRawUnsafe<Array<{ count: number }>>(`
     SELECT COUNT(*)::int as count
     FROM client_versions
     WHERE client_id = $1
-  `, invite.clientId);
+  `, clientId);
 
   const versionNumber = (versionCount[0]?.count || 0) + 1;
 
@@ -145,7 +152,7 @@ export default async function QRUpdatePage({ params }: Props) {
 
         <QRUpdateForm
           token={token}
-          clientId={invite.clientId}
+          clientId={clientId}
           currentData={{
             client: {
               firstName: client.firstName,

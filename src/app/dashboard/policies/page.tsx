@@ -80,12 +80,12 @@ export default async function PoliciesPage({
     access.clients.policies.map(policy => ({
       policy: {
         id: policy.id,
-        policyNumber: policy.policy_number,
-        policyType: policy.policy_type,
-        carrierNameRaw: policy.carrier_name_raw,
-        verificationStatus: (policy as { verification_status?: string }).verification_status || 'PENDING',
+        policyNumber: policy.policyNumber,
+        policyType: policy.policyType,
+        carrierNameRaw: policy.carrierNameRaw,
+        verificationStatus: (policy as { verificationStatus?: string }).verificationStatus || 'PENDING',
         createdAt: policy.createdAt,
-        updatedAt: policy.updated_at,
+        updatedAt: policy.updatedAt,
       },
       client: {
         id: access.clients.id,

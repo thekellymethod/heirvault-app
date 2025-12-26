@@ -213,7 +213,7 @@ export async function acceptInvite(token: string, userId: string) {
     const existing = existingResult && existingResult.length > 0 ? {
       id: existingResult[0].id,
       attorneyId: existingResult[0].attorney_id,
-      clientId: existingResult[0].client_id,
+      clientId: existingResult[0].clientId,
       isActive: existingResult[0].is_active,
     } : null;
 

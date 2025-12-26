@@ -1,0 +1,150 @@
+import { prisma } from "./index";
+import type { RegistryRecord, RegistryVersion, AccessLog, RegistryStatus, RegistrySubmissionSource, AccessLogAction } from "./index";
+import { randomUUID } from "crypto";
+import { createHash } from "crypto";
+
+/**
+ * Typed Return Objects
+ * These ensure TypeScript enforces correctness throughout the codebase
+ */
+
+export type RegistryWithVersions = RegistryRecord & {
+  versions: RegistryVersion[];
+  latestVersion: RegistryVersion | null;
+  accessLogs: AccessLog[];
+};
+
+export type RegistryVersionWithDocuments = RegistryVersion & {
+  documents: Array<{
+    id: string,
+    fileName: string,
+    filePath: string,
+    documentHash: string,
+    createdAt: Date;
+  }>;
+};
+
+export type CreateRegistryInput = {
+  decedentName: string,
+  status?: RegistryStatus;
+  initialData: Record<string, unknown>; // JSON data for first version
+  submittedBy: RegistrySubmissionSource;
+};
+
+export type AppendVersionInput = {
+  registryId: string,
+  data: Record<string, unknown>; // JSON data for new version
+  submittedBy: RegistrySubmissionSource;
+};
+
+export type LogAccessInput = {
+  registryId: string,
+  userId?: string | null; // null for system actions
+  action: AccessLogAction;
+  metadata?: Record<string, unknown>; // Additional metadata for audit trail
+};
+
+/**
+ * Create a new registry record with initial version
+ * 
+ * Rule: Nothing ever updates in place. Every change creates a new version row.
+ * This function creates both the registry record and its first version atomically.
+ */
+export async function createRegistry(input: CreateRegistryInput): Promise<RegistryWithVersions> {
+  const registryId = randomUUID();
+  const versionId = randomUUID();
+  
+  // Generate hash for initial data
+  const dataJson = JSON.stringify(input.initialData);
+  const hash = createHash("sha256").update(dataJson).digest("hex");
+
+  // Registry tables are in Supabase, not Prisma
+  // Use the Supabase functions from db.ts instead
+  // This function should be refactored to use Supabase
+  throw new Error("Registry operations should use Supabase, not Prisma. Use functions from @/lib/db instead.");
+
+  // Fetch and return the complete registry with versions
+  return getRegistryById(registryId);
+}
+
+/**
+ * Append a new version to an existing registry
+ * 
+ * Rule: Nothing ever updates in place. Every change creates a new version row.
+ * This function creates a new version row, preserving the historical chain.
+ */
+export async function appendRegistryVersion(input: AppendVersionInput): Promise<RegistryVersion> {
+  // Registry tables are in Supabase, not Prisma
+  // Use the Supabase functions from db.ts instead
+  throw new Error("Registry operations should use Supabase, not Prisma. Use appendRegistryVersion from @/lib/db instead.");
+}
+
+/**
+ * Get registry by ID with all versions and access logs
+ * 
+ * Returns the complete registry record with:
+ * - All versions (ordered by creation time, newest first)
+ * - Latest version (most recent)
+ * - Access logs (ordered by timestamp, newest first)
+ */
+export async function getRegistryById(registryId: string): Promise<RegistryWithVersions> {
+  // Registry tables are in Supabase, not Prisma
+  // Use the Supabase functions from db.ts instead
+  throw new Error("Registry operations should use Supabase, not Prisma. Use getRegistryById from @/lib/db instead.");
+}
+
+/**
+ * Log access to a registry
+ * 
+ * Creates an audit trail entry for any action performed on a registry.
+ * This is called automatically by createRegistry and appendRegistryVersion,
+ * but can also be called explicitly for other actions (VIEWED, VERIFIED, etc.).
+ */
+/**
+ * Log access to a registry
+ * 
+ * Every route handler must call this function.
+ * This is where credibility lives - comprehensive audit trail.
+ * 
+ * Creates an audit trail entry for any action performed on a registry.
+ * Includes user, registry, action, and optional metadata.
+ */
+export async function logAccess(input: LogAccessInput): Promise<AccessLog> {
+  // Registry tables are in Supabase, not Prisma
+  // Use the Supabase functions from db.ts instead
+  throw new Error("Registry operations should use Supabase, not Prisma. Use logAccess from @/lib/db instead.");
+}
+
+/**
+ * Get all registries with latest version summaries
+ * 
+ * Returns registries with their latest version data for dashboard display.
+ * Only includes summary information, not full document details.
+ */
+export async function getAllRegistries(): Promise<Array<{
+  id: string,
+  decedentName: string,
+  status: string,
+  createdAt: Date;
+  latestVersion: {
+    id: string,
+    createdAt: Date;
+    submittedBy: string,
+  } | null;
+  versionCount: number;
+  lastUpdated: Date | null;
+}>> {
+  // Registry tables are in Supabase, not Prisma
+  // Use the Supabase functions from db.ts instead
+  throw new Error("Registry operations should use Supabase, not Prisma. Use listRegistries from @/lib/db instead.");
+}
+
+/**
+ * Get registry version by ID with associated documents
+ */
+export async function getRegistryVersionById(versionId: string): Promise<RegistryVersionWithDocuments> {
+  // Registry tables are in Supabase, not Prisma
+  // Use the Supabase functions from db.ts instead
+  throw new Error("Registry operations should use Supabase, not Prisma. Use getRegistryVersions from @/lib/db instead.");
+}
+

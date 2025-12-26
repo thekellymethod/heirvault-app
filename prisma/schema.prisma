@@ -86,7 +86,7 @@ model client_invites {
   email           String
   expiresAt       DateTime  @map("expires_at")
   usedAt          DateTime? @map("used_at")
-  created_at      DateTime  @default(now())
+  createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
   invitedByUserId String?   @map("invited_by_user_id")
   clients         clients   @relation(fields: [clientId], references: [id], onDelete: Cascade)
@@ -154,14 +154,14 @@ model documents {
   uploadedVia   String?   @map("uploaded_via")
   extractedData Json?     @map("extracted_data")
   ocrConfidence Float?    @map("ocr_confidence")
-  created_at    DateTime  @default(now())
+  createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
   clients       clients   @relation(fields: [clientId], references: [id], onDelete: Cascade)
   policies      policies? @relation(fields: [policyId], references: [id])
 
   @@index([clientId])
   @@index([policyId])
-  @@index([created_at])
+  @@index([createdAt])
   @@map("documents")
 }
 
@@ -171,7 +171,7 @@ model insurers {
   contactPhone String?    @map("contact_phone")
   contactEmail String?    @map("contact_email")
   website      String?
-  created_at   DateTime   @default(now())
+  createdAt    DateTime   @default(now()) @map("created_at")
   updatedAt    DateTime   @updatedAt @map("updated_at")
   policies     policies[]
 
@@ -187,7 +187,7 @@ model invites {
   status         InviteStatus   @default(pending)
   expiresAt      DateTime       @map("expires_at")
   acceptedAt     DateTime?      @map("accepted_at")
-  created_at     DateTime       @default(now())
+  createdAt      DateTime       @default(now()) @map("created_at")
   users          User           @relation("AttorneyInvites", fields: [attorneyId], references: [id], onDelete: Cascade)
   organizations  organizations? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
@@ -199,7 +199,7 @@ model org_members {
   userId         String        @map("user_id")
   organizationId String        @map("organization_id")
   role           OrgRole       @default(ATTORNEY)
-  created_at     DateTime      @default(now())
+  createdAt      DateTime      @default(now()) @map("created_at")
   updatedAt      DateTime      @updatedAt @map("updated_at")
   organizations  organizations @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   users          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -211,7 +211,7 @@ model org_members {
 model organizations {
   id                     String                   @id
   name                   String
-  created_at             DateTime                 @default(now())
+  createdAt              DateTime                 @default(now()) @map("created_at")
   updatedAt              DateTime                 @updatedAt @map("updated_at")
   slug                   String                   @unique
   addressLine1           String?                  @map("address_line1")
@@ -259,7 +259,7 @@ model policy_beneficiaries {
   id            String        @id
   policyId      String        @map("policy_id")
   beneficiaryId String        @map("beneficiary_id")
-  created_at    DateTime      @default(now())
+  createdAt     DateTime      @default(now()) @map("created_at")
   beneficiaries beneficiaries @relation(fields: [beneficiaryId], references: [id], onDelete: Cascade)
   policies      policies      @relation(fields: [policyId], references: [id], onDelete: Cascade)
 
@@ -313,7 +313,7 @@ model attorneyProfile {
   licenseStatus       LicenseStatus @default(PENDING)
   verifiedAt          DateTime?
   appliedAt           DateTime      @default(now())
-  created_at          DateTime      @default(now())
+  createdAt           DateTime      @default(now()) @map("created_at")
   updatedAt           DateTime      @updatedAt @map("updated_at")
   lawFirm             String?       @map("law_firm")
   licenseDocumentName String?       @map("license_document_name")

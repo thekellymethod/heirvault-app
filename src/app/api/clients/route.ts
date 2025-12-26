@@ -31,7 +31,7 @@ export async function GET() {
     },
   });
 
-  const clientList = accessRecords.map((r) => ({
+  const clientList = accessRecords.map((r: typeof accessRecords[0]) => ({
     id: r.clients.id,
     firstName: r.clients.firstName,
     lastName: r.clients.lastName,
@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Create client + grant attorney access in one transaction
-  const result = await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0]) => {
     // Create client
     const client = await tx.clients.create({
       data: {

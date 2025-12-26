@@ -10,13 +10,7 @@ export type {
   beneficiaries as Beneficiary,
   organizations as Organization,
   org_members as OrgMember,
-  submissions as Submission,
-  receipts as Receipt,
   documents as Document,
-  client_versions as ClientVersion,
-  registry_records as RegistryRecord,
-  registry_versions as RegistryVersion,
-  access_logs as AccessLog,
 } from "@prisma/client";
 
 // Export additional Prisma model types for convenience
@@ -28,7 +22,6 @@ export type {
   org_members,
   attorneyClientAccess,
   insurers,
-  registry_records,
 } from "@prisma/client";
 
 // Export Prisma enum types (for type annotations)
@@ -36,12 +29,38 @@ export type {
 // and can be used as types via typeof when needed
 export type {
   AccessGrantStatus,
-  SubmissionStatus,
-  RegistryStatus,
-  RegistrySubmissionSource,
-  AccessLogAction,
-  PolicyVerificationStatus,
 } from "@prisma/client";
+
+// Registry-related types (Supabase-only, not in Prisma schema)
+// These are defined separately since registry tables are in Supabase, not PostgreSQL
+export type RegistryRecord = {
+  id: string;
+  decedentName: string;
+  status: string;
+  createdAt: Date;
+};
+
+export type RegistryVersion = {
+  id: string;
+  registryId: string;
+  dataJson: Record<string, unknown>;
+  submittedBy: string;
+  hash: string;
+  createdAt: Date;
+};
+
+export type AccessLog = {
+  id: string;
+  registryId: string;
+  userId: string | null;
+  action: string;
+  metadata: Record<string, unknown> | null;
+  timestamp: Date;
+};
+
+export type RegistryStatus = "PENDING_VERIFICATION" | "VERIFIED" | "REJECTED";
+export type RegistrySubmissionSource = "INTAKE" | "TOKEN" | "ATTORNEY" | "SYSTEM";
+export type AccessLogAction = "CREATED" | "UPDATED" | "VIEWED" | "VERIFIED" | "REJECTED";
 
 // Re-export enum constants from enums file (values)
 // These provide enum values like AuditAction.CLIENT_CREATED

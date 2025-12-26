@@ -71,7 +71,7 @@ async function logTokenUsage(
     await prisma.audit_logs.create({
       data: {
         id: crypto.randomUUID(),
-        user_id: tokenRecord.createdById,
+        userId: tokenRecord.createdById,
         action: "API_TOKEN_USED",
         message: `API token used: tokenId=${tokenRecord.id}, path=${path}, scopes=${checkedScopes.join(",") || "none"}`,
         createdAt: new Date(),

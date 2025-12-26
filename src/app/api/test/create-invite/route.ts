@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
     const existingClient = await prisma.clients.findFirst({
       where: { email: TEST_EMAIL },
       include: {
-        client_invites: {
+        clientInvites: {
           where: {
             expiresAt: { gt: new Date() },
             usedAt: null,
@@ -47,8 +47,8 @@ export async function POST(req: NextRequest) {
     });
 
     // If client exists with active invite, return it
-    if (existingClient && existingClient.client_invites.length > 0) {
-      const existingInvite = existingClient.client_invites[0];
+    if (existingClient && existingClient.clientInvites.length > 0) {
+      const existingInvite = existingClient.clientInvites[0];
       const requestUrl = req.nextUrl;
       const baseUrl = 
         process.env.NEXT_PUBLIC_APP_URL || 

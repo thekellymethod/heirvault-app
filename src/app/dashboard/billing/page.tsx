@@ -8,7 +8,7 @@ export default async function BillingPage() {
   const { userId } = await auth();
 
   const user = await prisma.user.findUnique({
-    where: { clerkId: userId },
+    where: { clerkId: userId || undefined },
     include: {
       orgMemberships: {
         include: {
