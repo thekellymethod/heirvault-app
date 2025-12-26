@@ -18,53 +18,79 @@ const VERIFICATION_STATUSES = [
 type VerificationStatus = (typeof VERIFICATION_STATUSES)[number];
 
 function asVerificationStatus(value: unknown): VerificationStatus {
-  if (
-    typeof value === "string" &&
-    (VERIFICATION_STATUSES as readonly string[]).includes(value)
-  ) {
-    return value as VerificationStatus;
-  }
-  return "PENDING";
+  if (typeof value !== "string") return "PENDING";
+  return (VERIFICATION_STATUSES as readonly string[]).includes(value)
+    ? (value as VerificationStatus)
+    : "PENDING";
 }
 
 /* -----------------------------
-   Type-safe redirect error guard
+   Redirect error guard
 ------------------------------ */
 
-type RedirectError = {
-  redirectTo: string;
-};
+type RedirectError = { redirectTo: string };
 
 function isRedirectError(error: unknown): error is RedirectError {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "redirectTo" in error &&
-    typeof (error as { redirectTo: unknown }).redirectTo === "string"
-  );
+  if (typeof error !== "object" || error === null) return false;
+  const e = error as Record<string, unknown>;
+  return typeof e.redirectTo === "string";
 }
+
+/* -----------------------------
+   View-model types
+------------------------------ */
+
+type DashboardPolicyVM = {
+  id: string;
+  policyNumber: string | null;
+  policyType: string | null;
+  verificationStatus: VerificationStatus;
+  updatedAt: Date;
+  createdAt: Date;
+  client: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
+  insurer: {
+    id: string;
+    name: string;
+  } | null;
+  documentCount: number;
+};
+
+type DashboardStatsVM = {
+  totalPolicies: number;
+  pendingVerification: number;
+  verified: number;
+  discrepancy: number;
+  totalClients: number;
+};
 
 /* -----------------------------
    Dashboard Page
 ------------------------------ */
 
 export default async function DashboardPage() {
-  // Authentication / authorization gate
+  // Auth gate
   try {
     await requireVerifiedAttorney();
   } catch (error: unknown) {
-    if (isRedirectError(error)) {
-      redirect(error.redirectTo);
-    }
+    if (isRedirectError(error)) redirect(error.redirectTo);
     redirect("/attorney/apply");
   }
 
-  /* -----------------------------
-     Fetch policies (DB-safe only)
-  ------------------------------ */
-
-  const policiesData = await prisma.policies.findMany({
-    take: 1,
+  /**
+   * DB-SAFE RULE:
+   * Only select what you *know* exists in the physical database.
+   *
+   * If you still get P2022 after this, the mismatch is inside the `policies`
+   * table itself (or your connection points to an older DB). Then you must
+   * run migrations / introspection to reconcile.
+   */
+  const policiesRows = await prisma.policies.findMany({
+    take: 10,
     orderBy: { updatedAt: "desc" },
     select: {
       id: true,
@@ -72,98 +98,83 @@ export default async function DashboardPage() {
       insurerId: true,
       policyNumber: true,
       policyType: true,
+      verificationStatus: true,
+      createdAt: true,
       updatedAt: true,
+
+      // Relations (camelCase per Prisma Client types)
       clients: {
         select: {
           id: true,
+          email: true,
           firstName: true,
           lastName: true,
-          email: true,
         },
       },
+
       insurers: {
         select: {
           id: true,
           name: true,
         },
       },
+
+      // Document count via relation count
+      _count: {
+        select: {
+          documents: true,
+        },
+      },
     },
   });
 
-  /* -----------------------------
-     Document counts (one query)
-  ------------------------------ */
-
-  const policyIds = policiesData.map((p) => p.id);
-
-  const documentCounts =
-    policyIds.length > 0
-      ? await prisma.documents.groupBy({
-          by: ["policyId"],
-          where: { policyId: { in: policyIds } },
-          _count: { _all: true },
-        })
-      : [];
-
-  const documentCountByPolicyId = new Map<string, number>();
-  for (const row of documentCounts) {
-    if (row.policyId) {
-      documentCountByPolicyId.set(row.policyId, row._count._all);
-    }
-  }
-
-  /* -----------------------------
-     Shape data for the view
-  ------------------------------ */
-
-  const policies = policiesData.map((p) => {
-    const client = p.clients;
-    if (!client) {
-      throw new Error(`Client not found for policy ${p.id}`);
-    }
+  const policies: DashboardPolicyVM[] = policiesRows.map((p) => {
+    const insurer =
+      p.insurers && typeof p.insurers.id === "string" && typeof p.insurers.name === "string"
+        ? { id: p.insurers.id, name: p.insurers.name }
+        : null;
 
     return {
       id: p.id,
       policyNumber: p.policyNumber ?? null,
       policyType: p.policyType ?? null,
-      verificationStatus: asVerificationStatus("PENDING"),
+      verificationStatus: asVerificationStatus(p.verificationStatus),
       updatedAt: p.updatedAt,
-      createdAt: p.updatedAt, // safe placeholder until DB mapping is finalized
+      createdAt: p.createdAt,
       client: {
-        id: client.id,
-        firstName: client.firstName,
-        lastName: client.lastName,
-        email: client.email,
+        id: p.clients.id,
+        firstName: p.clients.firstName ?? "",
+        lastName: p.clients.lastName ?? "",
+        email: p.clients.email,
       },
-      insurer: {
-        id: p.insurers?.id ?? "",
-        name: p.insurers?.name ?? "",
-      },
-      documentCount: documentCountByPolicyId.get(p.id) ?? 0,
+      insurer,
+      documentCount: p._count.documents,
     };
   });
 
-  /* -----------------------------
-     Summary stats (DB-safe)
-  ------------------------------ */
-
-  const [totalPolicies, totalClients] = await Promise.all([
+  // Stats
+  const [totalPolicies, totalClients, verificationCounts] = await Promise.all([
     prisma.policies.count(),
     prisma.clients.count(),
+    prisma.policies.groupBy({
+      by: ["verificationStatus"],
+      _count: { _all: true },
+    }),
   ]);
 
-  const stats = {
+  const counts = new Map<string, number>();
+  for (const row of verificationCounts) {
+    const key = row.verificationStatus ?? "PENDING";
+    counts.set(key, row._count._all);
+  }
+
+  const stats: DashboardStatsVM = {
     totalPolicies,
-    pendingVerification: totalPolicies,
-    verified: 0,
-    discrepancy: 0,
+    pendingVerification: counts.get("PENDING") ?? 0,
+    verified: counts.get("VERIFIED") ?? 0,
+    discrepancy: counts.get("DISCREPANCY") ?? 0,
     totalClients,
   };
 
-  return (
-    <AttorneyDashboardView
-      policies={policies}
-      stats={stats}
-    />
-  );
+  return <AttorneyDashboardView policies={policies} stats={stats} />;
 }
