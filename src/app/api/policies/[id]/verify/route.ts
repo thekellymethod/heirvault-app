@@ -14,7 +14,7 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    const { userId } = await requireAuth();
+    const user = await requireAuth();
     const body = await req.json();
     const { verificationStatus, verificationNotes } = body;
 
@@ -46,7 +46,7 @@ export async function POST(
     `,
       id,
       verificationStatus,
-      userId,
+      user.id,
       verificationNotes || null
     );
 
