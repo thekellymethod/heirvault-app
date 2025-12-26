@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import type { OrgMember, User, OrgRole } from "@/lib/db";
+import type { OrgMember, User } from "@/lib/db";
+import type { OrgRole } from "@prisma/client";
 
 interface MemberWithUser extends OrgMember {
   user: User;

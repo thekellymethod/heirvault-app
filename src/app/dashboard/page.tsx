@@ -25,6 +25,24 @@ export default async function DashboardPage() {
     redirect("/attorney/apply");
   }
 
+  // Type guard for verification status
+  const verificationStatuses = new Set([
+    "PENDING",
+    "VERIFIED",
+    "DISCREPANCY",
+    "INCOMPLETE",
+    "REJECTED",
+  ] as const);
+
+  type VerificationStatus = typeof Array.from(verificationStatuses)[number];
+
+  function asVerificationStatus(v: unknown): VerificationStatus {
+    if (typeof v === "string" && verificationStatuses.has(v as VerificationStatus)) {
+      return v as VerificationStatus;
+    }
+    return "PENDING";
+  }
+
   // Get all policies with key metadata
   // Note: verification_status column may not exist yet, so we query without it and set a default
   let policies: Array<{
@@ -34,7 +52,7 @@ export default async function DashboardPage() {
     verification_status: string,
     updated_at: Date;
     createdAt: Date;
-    clientId:string,
+    client_id: string,
     client_firstName: string,
     client_lastName: string,
     client_email: string,
@@ -152,9 +170,9 @@ export default async function DashboardPage() {
     <AttorneyDashboardView
       policies={policies.map(p => ({
         id: p.id,
-        policyNumber: p.policy_number,
-        policyType: p.policy_type,
-        verificationStatus: p.verification_status,
+        policyNumber: p.policy_number ?? undefined,
+        policyType: p.policy_type ?? undefined,
+        verificationStatus: asVerificationStatus(p.verification_status),
         updatedAt: p.updated_at,
         createdAt: p.createdAt,
         client: {

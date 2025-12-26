@@ -21,7 +21,7 @@ export default async function InviteUpdatePage({ params }: Props) {
       // Try raw SQL first
       const rawResult = await prisma.$queryRaw<Array<{
         id: string,
-        clientId:string,
+        clientId: string,
         email: string,
         token: string,
         expires_at: Date;
@@ -34,7 +34,7 @@ export default async function InviteUpdatePage({ params }: Props) {
       }>>`
         SELECT 
           ci.id,
-          ci.client_id,
+          ci.client_id as "clientId",
           ci.email,
           ci.token,
           ci.expires_at,
@@ -54,14 +54,14 @@ export default async function InviteUpdatePage({ params }: Props) {
         const row = rawResult[0];
         invite = {
           id: row.id,
-          clientId: row.client_id,
+          clientId: row.clientId,
           email: row.email,
           token: row.token,
           expiresAt: row.expires_at,
           usedAt: row.used_at,
           createdAt: row.createdAt,
           client: {
-            id: row.client_id,
+            id: row.clientId,
             firstName: row.firstName,
             lastName: row.lastName,
             email: row.email,

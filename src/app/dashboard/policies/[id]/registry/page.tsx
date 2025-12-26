@@ -35,7 +35,7 @@ export default async function RegistryRecordPage({ params }: Props) {
     document_hash: string | null;
     createdAt: Date;
     updated_at: Date;
-    clientId:string,
+    client_id: string,
     insurer_id: string | null;
     carrier_name_raw: string | null;
     insurer_name: string | null;

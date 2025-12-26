@@ -46,18 +46,16 @@ describe("Permission Functions", () => {
 
   const mockRegistry = {
     id: "registry_abc123",
-    status: "ACTIVE",
-    insured_name: "John Doe",
-    carrier_guess: "Test Insurance",
-    createdAt: new Date().toISOString(),
+    status: "PENDING" as const,
+    decedentName: "John Doe",
+    createdAt: new Date(),
   };
 
   const mockUnauthorizedRegistry = {
     id: "registry_xyz789",
-    status: "ACTIVE",
-    insured_name: "Jane Smith",
-    carrier_guess: "Other Insurance",
-    createdAt: new Date().toISOString(),
+    status: "PENDING" as const,
+    decedentName: "Jane Smith",
+    createdAt: new Date(),
   };
 
   beforeEach(() => {

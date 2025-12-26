@@ -20,7 +20,7 @@ export default async function BillingPage() {
 
   if (!user) redirect("/dashboard");
 
-  const orgMember = user?.orgMemberships?.[0];
+  const orgMember = user.orgMemberships?.[0];
   
   // If no organization, show message to create one
   if (!orgMember) {
@@ -85,7 +85,7 @@ export default async function BillingPage() {
         </p>
       </section>
 
-      <BillingActions currentPlan={org.billingPlan} />
+      <BillingActions currentPlan={org.billingPlan ?? undefined} />
     </main>
   );
 }

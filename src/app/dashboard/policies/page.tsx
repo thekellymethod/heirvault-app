@@ -58,8 +58,8 @@ export default async function PoliciesPage({
   // Fetch policies joined with authorized clients (left join insurers to include unresolved)
   const accessRecords = await prisma.attorneyClientAccess.findMany({
     where: {
-      attorney_id: user.id,
-      is_active: true,
+      attorneyId: user.id,
+      isActive: true,
     },
     include: {
       clients: {

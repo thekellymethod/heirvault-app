@@ -1,5 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
-import { prisma, type OrgMember, type User, type OrgRole } from "@/lib/db";
+import { prisma, type OrgMember, type User } from "@/lib/db";
+import type { OrgRole } from "@prisma/client";
 import { redirect } from "next/navigation";
 import { TeamManagement } from "./TeamManagement";
 

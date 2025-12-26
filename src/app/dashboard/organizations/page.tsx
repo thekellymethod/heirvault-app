@@ -14,7 +14,7 @@ export default async function OrganizationsPage() {
 
   // Get all organizations the user is a member of
   const userMemberships = await prisma.org_members.findMany({
-    where: { user_id: currentUser.id },
+    where: { userId: currentUser.id },
     include: {
       organizations: true,
     },
@@ -25,7 +25,7 @@ export default async function OrganizationsPage() {
   const orgsWithCounts = await Promise.all(
     userMemberships.map(async (membership) => {
       const memberCount = await prisma.org_members.count({
-        where: { organization_id: membership.organization_id },
+        where: { organizationId: membership.organizationId },
       });
 
       return {
@@ -33,7 +33,7 @@ export default async function OrganizationsPage() {
         name: membership.organizations.name,
         slug: membership.organizations.slug,
         createdAt: membership.organizations.createdAt,
-        updatedAt: membership.organizations.updated_at,
+        updatedAt: membership.organizations.updatedAt,
         role: membership.role,
         memberCount,
         joinedAt: membership.createdAt,

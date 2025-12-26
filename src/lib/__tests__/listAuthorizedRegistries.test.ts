@@ -33,10 +33,9 @@ describe("listAuthorizedRegistries", () => {
       {
         registry_records: {
           id: "registry_1",
-          status: "ACTIVE",
-          insured_name: "John Doe",
-          carrier_guess: "Test Insurance",
-          createdAt: new Date().toISOString(),
+          status: "PENDING" as const,
+          decedentName: "John Doe",
+          createdAt: new Date(),
         },
       },
     ];
@@ -96,19 +95,17 @@ describe("listAuthorizedRegistries", () => {
       {
         registry_records: {
           id: "registry_1",
-          status: "ACTIVE",
-          insured_name: "John Doe",
-          carrier_guess: "Test Insurance",
-          createdAt: "2024-01-01T00:00:00Z",
+          status: "PENDING" as const,
+          decedentName: "John Doe",
+          createdAt: new Date("2024-01-01T00:00:00Z"),
         },
       },
       {
         registry_records: {
           id: "registry_2",
-          status: "PENDING",
-          insured_name: "Jane Smith",
-          carrier_guess: "Other Insurance",
-          createdAt: "2024-01-02T00:00:00Z",
+          status: "PENDING" as const,
+          decedentName: "Jane Smith",
+          createdAt: new Date("2024-01-02T00:00:00Z"),
         },
       },
     ];
@@ -123,8 +120,8 @@ describe("listAuthorizedRegistries", () => {
     expect(result.length).toBe(2);
     expect(result[0].id).toBe("registry_1");
     expect(result[1].id).toBe("registry_2");
-    expect(result[0].insured_name).toBe("John Doe");
-    expect(result[1].insured_name).toBe("Jane Smith");
+    expect(result[0].decedentName).toBe("John Doe");
+    expect(result[1].decedentName).toBe("Jane Smith");
   });
 });
 

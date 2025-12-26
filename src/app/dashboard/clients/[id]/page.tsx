@@ -27,7 +27,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
       phone: true,
       dateOfBirth: true,
       createdAt: true,
-      updated_at: true,
+      updatedAt: true,
       _count: {
         select: {
           policies: true,
@@ -49,7 +49,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
     phone: clientData.phone,
     dateOfBirth: clientData.dateOfBirth,
     createdAt: clientData.createdAt,
-    updatedAt: clientData.updated_at,
+    updatedAt: clientData.updatedAt,
     _count: {
       policies: clientData._count.policies,
       beneficiaries: clientData._count.beneficiaries,
