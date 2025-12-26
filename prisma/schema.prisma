@@ -7,17 +7,17 @@ datasource db {
 }
 
 model access_grants {
-  id                 String            @id
-  clientId:          String            @map("client_id")
-  orgId              String?           @map("org_id")
-  attorneyUserId     String?           @map("attorney_user_id")
-  status             AccessGrantStatus
-  grantedByUserId    String?           @map("granted_by_user_id")
-  grantedAt          DateTime          @default(now()) @map("granted_at")
-  revokedAt          DateTime?         @map("revoked_at")
-  users              User?             @relation("AttorneyAccess", fields: [attorneyUserId], references: [id], onDelete: Cascade)
-  clients            clients           @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  organizations      organizations?    @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  id              String            @id
+  clientId        String            @map("client_id")
+  orgId           String?           @map("org_id")
+  attorneyUserId  String?           @map("attorney_user_id")
+  status          AccessGrantStatus
+  grantedByUserId String?           @map("granted_by_user_id")
+  grantedAt       DateTime          @default(now()) @map("granted_at")
+  revokedAt       DateTime?         @map("revoked_at")
+  users           User?             @relation("AttorneyAccess", fields: [attorneyUserId], references: [id], onDelete: Cascade)
+  clients         clients           @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  organizations   organizations?    @relation(fields: [orgId], references: [id], onDelete: Cascade)
 
   @@unique([clientId, orgId])
   @@index([attorneyUserId])
@@ -27,16 +27,16 @@ model access_grants {
 }
 
 model attorneyClientAccess {
-  id              String         @id
-  attorneyId      String         @map("attorney_id")
-  clientId:       String         @map("client_id")
-  organizationId  String?        @map("organization_id")
-  grantedAt       DateTime       @default(now()) @map("granted_at")
-  revokedAt       DateTime?      @map("revoked_at")
-  isActive        Boolean        @default(true) @map("is_active")
-  users           User           @relation("AttorneyAccess", fields: [attorneyId], references: [id], onDelete: Cascade)
-  clients         clients        @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  organizations   organizations? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  id             String         @id
+  attorneyId     String         @map("attorney_id")
+  clientId       String         @map("client_id")
+  organizationId String?        @map("organization_id")
+  grantedAt      DateTime       @default(now()) @map("granted_at")
+  revokedAt      DateTime?      @map("revoked_at")
+  isActive       Boolean        @default(true) @map("is_active")
+  users          User           @relation("AttorneyAccess", fields: [attorneyId], references: [id], onDelete: Cascade)
+  clients        clients        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  organizations  organizations? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@unique([attorneyId, clientId])
   @@map("attorneyClientAccess")
@@ -46,7 +46,7 @@ model audit_logs {
   id            String         @id
   userId        String?        @map("user_id")
   orgId         String?        @map("org_id")
-  clientId:     String?        @map("client_id")
+  clientId      String?        @map("client_id")
   policyId      String?        @map("policy_id")
   action        AuditAction
   message       String
@@ -66,22 +66,22 @@ model audit_logs {
 
 model beneficiaries {
   id                   String                 @id
-  clientId:            String                  @map("client_id")
-  firstName            String                  @map("firstName")
-  lastName             String                  @map("lastName")
+  clientId             String                 @map("client_id")
+  firstName            String                 @map("firstName")
+  lastName             String                 @map("lastName")
   relationship         String?
   email                String?
   phone                String?
-  dateOfBirth          DateTime?               @db.Date @map("dateOfBirth")
-  createdAt            DateTime                @default(now()) @map("createdAt")
-  updatedAt            DateTime                @updatedAt @map("updated_at")
-  addressLine1         String?                 @map("address_line1")
-  addressLine2         String?                 @map("address_line2")
+  dateOfBirth          DateTime?              @map("dateOfBirth") @db.Date
+  createdAt            DateTime               @default(now()) @map("createdAt")
+  updatedAt            DateTime               @updatedAt @map("updated_at")
+  addressLine1         String?                @map("address_line1")
+  addressLine2         String?                @map("address_line2")
   city                 String?
   state                String?
-  postalCode           String?                 @map("postal_code")
+  postalCode           String?                @map("postal_code")
   country              String?
-  clients              clients                 @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clients              clients                @relation(fields: [clientId], references: [id], onDelete: Cascade)
   policy_beneficiaries policy_beneficiaries[]
 
   @@index([firstName, lastName, dateOfBirth])
@@ -91,58 +91,58 @@ model beneficiaries {
 }
 
 model client_invites {
-  id                 String            @id
-  clientId:          String            @map("client_id")
-  token              String            @unique
-  email              String
-  expiresAt          DateTime          @map("expires_at")
-  usedAt             DateTime?          @map("used_at")
-  createdAt          DateTime           @default(now()) @map("createdAt")
-  updatedAt          DateTime           @updatedAt @map("updated_at")
-  invitedByUserId    String?           @map("invited_by_user_id")
-  clients            clients            @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  users              User?             @relation("ClientInviteInviter", fields: [invitedByUserId], references: [id])
-  submissions        submissions[]
-  receipts           receipts[]
-  client_versions    client_versions[]
+  id              String            @id
+  clientId        String            @map("client_id")
+  token           String            @unique
+  email           String
+  expiresAt       DateTime          @map("expires_at")
+  usedAt          DateTime?         @map("used_at")
+  createdAt       DateTime          @default(now()) @map("createdAt")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+  invitedByUserId String?           @map("invited_by_user_id")
+  clients         clients           @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  users           User?             @relation("ClientInviteInviter", fields: [invitedByUserId], references: [id])
+  submissions     submissions[]
+  receipts        receipts[]
+  client_versions client_versions[]
 
   @@map("client_invites")
 }
 
 model clients {
-  id                     String                   @id
-  email                  String
-  firstName              String                     @map("firstName")
-  lastName               String                     @map("lastName")
-  phone                  String?
-  dateOfBirth            DateTime?                  @db.Date @map("dateOfBirth")
-  createdAt              DateTime                   @default(now()) @map("createdAt")
-  updatedAt              DateTime                   @updatedAt @map("updated_at")
-  userId                 String?                   @unique @map("user_id")
-  orgId                  String?                   @map("org_id")
-  driversLicense         String?                   @map("drivers_license")
-  maidenName             String?                   @map("maiden_name")
-  passportNumber         String?                   @map("passport_number")
-  ssnLast4               String?                   @map("ssn_last_4")
-  clientFingerprint      String?                   @unique @map("client_fingerprint")
-  addressLine1           String?                   @map("address_line1")
-  addressLine2           String?                   @map("address_line2")
-  city                   String?
-  state                  String?
-  postalCode              String?                   @map("postal_code")
-  country                String?
-  access_grants          access_grants[]
+  id                   String                 @id
+  email                String
+  firstName            String                 @map("firstName")
+  lastName             String                 @map("lastName")
+  phone                String?
+  dateOfBirth          DateTime?              @map("dateOfBirth") @db.Date
+  createdAt            DateTime               @default(now()) @map("createdAt")
+  updatedAt            DateTime               @updatedAt @map("updated_at")
+  userId               String?                @unique @map("user_id")
+  orgId                String?                @map("org_id")
+  driversLicense       String?                @map("drivers_license")
+  maidenName           String?                @map("maiden_name")
+  passportNumber       String?                @map("passport_number")
+  ssnLast4             String?                @map("ssn_last_4")
+  clientFingerprint    String?                @unique @map("client_fingerprint")
+  addressLine1         String?                @map("address_line1")
+  addressLine2         String?                @map("address_line2")
+  city                 String?
+  state                String?
+  postalCode           String?                @map("postal_code")
+  country              String?
+  access_grants        access_grants[]
   attorneyClientAccess attorneyClientAccess[]
-  audit_logs             audit_logs[]
-  beneficiaries          beneficiaries[]
-  client_invites         client_invites[]
-  organizations          organizations?            @relation(fields: [orgId], references: [id])
-  users                  User?                     @relation("UserClient", fields: [userId], references: [id])
-  documents              documents[]
-  policies               policies[]
-  submissions            submissions[]
-  receipts               receipts[]
-  client_versions        client_versions[]
+  audit_logs           audit_logs[]
+  beneficiaries        beneficiaries[]
+  client_invites       client_invites[]
+  organizations        organizations?         @relation(fields: [orgId], references: [id])
+  users                User?                  @relation("UserClient", fields: [userId], references: [id])
+  documents            documents[]
+  policies             policies[]
+  submissions          submissions[]
+  receipts             receipts[]
+  client_versions      client_versions[]
 
   @@unique([email])
   @@index([firstName, lastName, dateOfBirth])
@@ -153,30 +153,30 @@ model clients {
 }
 
 model documents {
-  id                  String           @id
-  clientId:           String           @map("client_id")
-  submissionId        String?          @map("submission_id")
-  policyId            String?          @map("policy_id")
-  registryVersionId   String?          @map("registry_version_id")
-  fileName            String           @map("file_name")
-  fileType            String           @map("file_type")
-  fileSize            Int              @map("file_size")
-  filePath            String           @map("file_path")
-  mimeType            String           @map("mime_type")
-  uploadedVia         String?          @map("uploaded_via")
-  extractedData       Json?            @map("extracted_data")
-  ocrConfidence       Int?             @map("ocr_confidence")
-  documentHash        String           @map("document_hash")
-  verifiedAt          DateTime?        @map("verified_at")
-  verifiedByUserId    String?          @map("verified_by_user_id")
-  verificationNotes   String?          @map("verification_notes")
-  createdAt           DateTime         @default(now()) @map("createdAt")
-  updatedAt           DateTime         @updatedAt @map("updated_at")
-  clients             clients          @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  policies            policies?        @relation(fields: [policyId], references: [id])
-  submissions         submissions?     @relation(fields: [submissionId], references: [id], onDelete: SetNull)
-  registry_versions   registry_versions? @relation(fields: [registryVersionId], references: [id], onDelete: SetNull)
-  users               User?            @relation("DocumentVerifier", fields: [verifiedByUserId], references: [id])
+  id                String             @id
+  clientId          String             @map("client_id")
+  submissionId      String?            @map("submission_id")
+  policyId          String?            @map("policy_id")
+  registryVersionId String?            @map("registry_version_id")
+  fileName          String             @map("file_name")
+  fileType          String             @map("file_type")
+  fileSize          Int                @map("file_size")
+  filePath          String             @map("file_path")
+  mimeType          String             @map("mime_type")
+  uploadedVia       String?            @map("uploaded_via")
+  extractedData     Json?              @map("extracted_data")
+  ocrConfidence     Int?               @map("ocr_confidence")
+  documentHash      String             @map("document_hash")
+  verifiedAt        DateTime?          @map("verified_at")
+  verifiedByUserId  String?            @map("verified_by_user_id")
+  verificationNotes String?            @map("verification_notes")
+  createdAt         DateTime           @default(now()) @map("createdAt")
+  updatedAt         DateTime           @updatedAt @map("updated_at")
+  clients           clients            @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  policies          policies?          @relation(fields: [policyId], references: [id])
+  submissions       submissions?       @relation(fields: [submissionId], references: [id], onDelete: SetNull)
+  registry_versions registry_versions? @relation(fields: [registryVersionId], references: [id], onDelete: SetNull)
+  users             User?              @relation("DocumentVerifier", fields: [verifiedByUserId], references: [id])
 
   @@index([clientId])
   @@index([createdAt])
@@ -188,143 +188,143 @@ model documents {
 }
 
 model insurers {
-  id            String     @id
-  name          String
-  contactPhone  String?    @map("contact_phone")
-  contactEmail  String?    @map("contact_email")
-  website       String?
-  createdAt     DateTime   @default(now()) @map("createdAt")
-  updatedAt     DateTime   @updatedAt @map("updated_at")
-  policies      policies[]
+  id           String     @id
+  name         String
+  contactPhone String?    @map("contact_phone")
+  contactEmail String?    @map("contact_email")
+  website      String?
+  createdAt    DateTime   @default(now()) @map("createdAt")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+  policies     policies[]
 
   @@map("insurers")
 }
 
 model invites {
-  id              String         @id
-  token           String         @unique
-  attorneyId    String          @map("attorney_id")
+  id             String         @id
+  token          String         @unique
+  attorneyId     String         @map("attorney_id")
   organizationId String?        @map("organization_id")
-  clientEmail   String          @map("client_email")
-  status        InviteStatus    @default(pending)
-  expiresAt     DateTime        @map("expires_at")
-  acceptedAt    DateTime?       @map("accepted_at")
-  createdAt     DateTime        @default(now()) @map("createdAt")
-  users         User            @relation("AttorneyInvites", fields: [attorneyId], references: [id], onDelete: Cascade)
-  organizations organizations? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  clientEmail    String         @map("client_email")
+  status         InviteStatus   @default(pending)
+  expiresAt      DateTime       @map("expires_at")
+  acceptedAt     DateTime?      @map("accepted_at")
+  createdAt      DateTime       @default(now()) @map("createdAt")
+  users          User           @relation("AttorneyInvites", fields: [attorneyId], references: [id], onDelete: Cascade)
+  organizations  organizations? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@map("invites")
 }
 
 model org_members {
-  id              String        @id
-  userId          String        @map("user_id")
-  organizationId  String        @map("organization_id")
-  role            OrgRole       @default(ATTORNEY)
-  createdAt       DateTime      @default(now()) @map("createdAt")
-  updatedAt       DateTime      @updatedAt @map("updated_at")
-  organizations   organizations @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  users           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id             String        @id
+  userId         String        @map("user_id")
+  organizationId String        @map("organization_id")
+  role           OrgRole       @default(ATTORNEY)
+  createdAt      DateTime      @default(now()) @map("createdAt")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+  organizations  organizations @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  users          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, organizationId])
   @@map("org_members")
 }
 
 model organizations {
-  id                     String                   @id
-  name                   String
-  createdAt              DateTime                 @default(now()) @map("createdAt")
-  updatedAt              DateTime                 @updatedAt @map("updated_at")
-  slug                   String                   @unique
-  addressLine1           String?                  @map("address_line1")
-  addressLine2           String?                  @map("address_line2")
-  city                   String?
-  state                  String?
-  postalCode             String?                  @map("postal_code")
-  country                String?
-  phone                  String?
-  logoUrl                String?                   @map("logo_url")
-  billingPlan            BillingPlan             @default(FREE) @map("billing_plan")
-  billingStatus          String?                 @map("billing_status")
-  stripeCustomerId       String?                 @map("stripe_customer_id")
-  stripeSubscriptionId   String?                 @map("stripe_subscription_id")
-  access_grants          access_grants[]
+  id                   String                 @id
+  name                 String
+  createdAt            DateTime               @default(now()) @map("createdAt")
+  updatedAt            DateTime               @updatedAt @map("updated_at")
+  slug                 String                 @unique
+  addressLine1         String?                @map("address_line1")
+  addressLine2         String?                @map("address_line2")
+  city                 String?
+  state                String?
+  postalCode           String?                @map("postal_code")
+  country              String?
+  phone                String?
+  logoUrl              String?                @map("logo_url")
+  billingPlan          BillingPlan            @default(FREE) @map("billing_plan")
+  billingStatus        String?                @map("billing_status")
+  stripeCustomerId     String?                @map("stripe_customer_id")
+  stripeSubscriptionId String?                @map("stripe_subscription_id")
+  access_grants        access_grants[]
   attorneyClientAccess attorneyClientAccess[]
-  audit_logs             audit_logs[]
-  clients                clients[]
-  invites                invites[]
-  org_members            org_members[]
+  audit_logs           audit_logs[]
+  clients              clients[]
+  invites              invites[]
+  org_members          org_members[]
 
   @@map("organizations")
 }
 
 model policies {
-  id                  String                 @id
-  clientId:           String                 @map("client_id")
-  insurerId          String?                @map("insurer_id")
-  carrierNameRaw      String?                @map("carrier_name_raw")
-  carrierConfidence   Float?                 @map("carrier_confidence")
-  policyNumber        String?                @map("policy_number")
-  policyType          String?                @map("policy_type")
-  verificationStatus  PolicyVerificationStatus @default(PENDING) @map("verification_status")
-  verifiedAt          DateTime?             @map("verified_at")
-  verifiedByUserId    String?               @map("verified_by_user_id")
-  verificationNotes   String?               @map("verification_notes")
-  documentHash        String?               @map("document_hash")
-  createdAt           DateTime              @default(now()) @map("createdAt")
-  updatedAt           DateTime              @updatedAt @map("updated_at")
-  audit_logs          audit_logs[]
-  documents           documents[]
-  clients             clients                @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  insurers            insurers?              @relation(fields: [insurerId], references: [id], onDelete: SetNull)
-  users               User?                  @relation("PolicyVerifier", fields: [verifiedByUserId], references: [id])
+  id                   String                   @id
+  clientId             String                   @map("client_id")
+  insurerId            String?                  @map("insurer_id")
+  carrierNameRaw       String?                  @map("carrier_name_raw")
+  carrierConfidence    Float?                   @map("carrier_confidence")
+  policyNumber         String?                  @map("policy_number")
+  policyType           String?                  @map("policy_type")
+  verificationStatus   PolicyVerificationStatus @default(PENDING) @map("verification_status")
+  verifiedAt           DateTime?                @map("verified_at")
+  verifiedByUserId     String?                  @map("verified_by_user_id")
+  verificationNotes    String?                  @map("verification_notes")
+  documentHash         String?                  @map("document_hash")
+  createdAt            DateTime                 @default(now()) @map("createdAt")
+  updatedAt            DateTime                 @updatedAt @map("updated_at")
+  audit_logs           audit_logs[]
+  documents            documents[]
+  clients              clients                  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  insurers             insurers?                @relation(fields: [insurerId], references: [id], onDelete: SetNull)
+  users                User?                    @relation("PolicyVerifier", fields: [verifiedByUserId], references: [id])
   policy_beneficiaries policy_beneficiaries[]
 
   @@map("policies")
 }
 
 model policy_beneficiaries {
-  id             String        @id
-  policyId       String        @map("policy_id")
-  beneficiaryId  String        @map("beneficiary_id")
-  createdAt      DateTime      @default(now()) @map("createdAt")
-  beneficiaries  beneficiaries @relation(fields: [beneficiaryId], references: [id], onDelete: Cascade)
-  policies       policies      @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  id            String        @id
+  policyId      String        @map("policy_id")
+  beneficiaryId String        @map("beneficiary_id")
+  createdAt     DateTime      @default(now()) @map("createdAt")
+  beneficiaries beneficiaries @relation(fields: [beneficiaryId], references: [id], onDelete: Cascade)
+  policies      policies      @relation(fields: [policyId], references: [id], onDelete: Cascade)
 
   @@unique([policyId, beneficiaryId])
   @@map("policy_beneficiaries")
 }
 
 model User {
-  id            String   @id @default(uuid())
-  clerkId       String   @unique @map("clerkId")
-  email         String   @unique
-  firstName     String?  @map("firstName")
-  lastName      String?  @map("lastName")
-  role          UserRole @default(attorney)
-  roles         String[] @default(["USER"])
-  createdAt     DateTime @default(now()) @map("createdAt")
-  updatedAt     DateTime @updatedAt @map("updated_at")
-  barNumber     String?  @map("bar_number")
-  addressLine1  String?  @map("address_line1")
-  addressLine2  String?  @map("address_line2")
-  city          String?
-  state         String?
-  postalCode    String?  @map("postal_code")
-  country       String?
-  phone         String?
+  id           String   @id @default(uuid())
+  clerkId      String   @unique @map("clerkId")
+  email        String   @unique
+  firstName    String?  @map("firstName")
+  lastName     String?  @map("lastName")
+  role         UserRole @default(attorney)
+  roles        String[] @default(["USER"])
+  createdAt    DateTime @default(now()) @map("createdAt")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  barNumber    String?  @map("bar_number")
+  addressLine1 String?  @map("address_line1")
+  addressLine2 String?  @map("address_line2")
+  city         String?
+  state        String?
+  postalCode   String?  @map("postal_code")
+  country      String?
+  phone        String?
 
   orgMemberships       org_members[]
   attorneyClientAccess attorneyClientAccess[] @relation("AttorneyAccess")
-  invites              invites[]                @relation("AttorneyInvites")
-  clientInvites        client_invites[]         @relation("ClientInviteInviter")
-  accessGrants         access_grants[]          @relation("AttorneyAccess")
-  clientRecord         clients?                 @relation("UserClient")
+  invites              invites[]              @relation("AttorneyInvites")
+  clientInvites        client_invites[]       @relation("ClientInviteInviter")
+  accessGrants         access_grants[]        @relation("AttorneyAccess")
+  clientRecord         clients?               @relation("UserClient")
   auditLogs            audit_logs[]
   attorneyProfile      attorneyProfile?
   apiTokens            ApiToken[]
-  verifiedDocuments    documents[]              @relation("DocumentVerifier")
-  verifiedPolicies     policies[]               @relation("PolicyVerifier")
+  verifiedDocuments    documents[]            @relation("DocumentVerifier")
+  verifiedPolicies     policies[]             @relation("PolicyVerifier")
   accessLogs           access_logs[]
 
   @@index([firstName, lastName])
@@ -476,17 +476,17 @@ enum PolicyVerificationStatus {
 }
 
 model submissions {
-  id             String            @id
-  clientId:      String            @map("client_id")
-  inviteId       String?           @map("invite_id")
-  status         SubmissionStatus  @default(PENDING)
-  submissionType String            @map("submission_type")
-  submittedData  Json?             @map("submitted_data")
-  errorMessage   String?           @map("error_message")
-  processedAt    DateTime?         @map("processed_at")
-  createdAt      DateTime          @default(now()) @map("createdAt")
-  updatedAt      DateTime          @updatedAt @map("updated_at")
-  clients        clients           @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  id             String           @id
+  clientId       String           @map("client_id")
+  inviteId       String?          @map("invite_id")
+  status         SubmissionStatus @default(PENDING)
+  submissionType String           @map("submission_type")
+  submittedData  Json?            @map("submitted_data")
+  errorMessage   String?          @map("error_message")
+  processedAt    DateTime?        @map("processed_at")
+  createdAt      DateTime         @default(now()) @map("createdAt")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+  clients        clients          @relation(fields: [clientId], references: [id], onDelete: Cascade)
   client_invites client_invites?  @relation(fields: [inviteId], references: [id], onDelete: SetNull)
   documents      documents[]
   receipts       receipts[]
@@ -499,18 +499,18 @@ model submissions {
 }
 
 model receipts {
-  id             String            @id
-  submissionId   String?           @map("submission_id")
-  clientId:      String            @map("client_id")
-  inviteId       String?           @map("invite_id")
-  receiptNumber  String            @unique @map("receipt_number")
-  pdfPath        String?           @map("pdf_path")
-  emailSent      Boolean           @default(false) @map("email_sent")
-  emailSentAt    DateTime?         @map("email_sent_at")
-  createdAt      DateTime          @default(now()) @map("createdAt")
-  clients        clients           @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  client_invites client_invites?   @relation(fields: [inviteId], references: [id], onDelete: SetNull)
-  submissions    submissions?      @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  id             String          @id
+  submissionId   String?         @map("submission_id")
+  clientId       String          @map("client_id")
+  inviteId       String?         @map("invite_id")
+  receiptNumber  String          @unique @map("receipt_number")
+  pdfPath        String?         @map("pdf_path")
+  emailSent      Boolean         @default(false) @map("email_sent")
+  emailSentAt    DateTime?       @map("email_sent_at")
+  createdAt      DateTime        @default(now()) @map("createdAt")
+  clients        clients         @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  client_invites client_invites? @relation(fields: [inviteId], references: [id], onDelete: SetNull)
+  submissions    submissions?    @relation(fields: [submissionId], references: [id], onDelete: Cascade)
 
   @@index([submissionId])
   @@index([clientId])
@@ -521,21 +521,21 @@ model receipts {
 }
 
 model client_versions {
-  id                  String            @id
-  clientId:           String            @map("client_id")
-  inviteId            String?           @map("invite_id")
-  versionNumber       Int               @map("version_number")
-  previousVersionId   String?           @map("previous_version_id")
-  clientData          Json              @map("client_data")
-  policiesData        Json?             @map("policies_data")
-  beneficiariesData   Json?             @map("beneficiaries_data")
-  changes             Json?
-  submittedBy         String?           @map("submitted_by")
-  submissionMethod    String?           @map("submission_method")
-  notes               String?
-  createdAt           DateTime          @default(now()) @map("createdAt")
-  clients             clients           @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  client_invites      client_invites?   @relation(fields: [inviteId], references: [id], onDelete: SetNull)
+  id                String          @id
+  clientId          String          @map("client_id")
+  inviteId          String?         @map("invite_id")
+  versionNumber     Int             @map("version_number")
+  previousVersionId String?         @map("previous_version_id")
+  clientData        Json            @map("client_data")
+  policiesData      Json?           @map("policies_data")
+  beneficiariesData Json?           @map("beneficiaries_data")
+  changes           Json?
+  submittedBy       String?         @map("submitted_by")
+  submissionMethod  String?         @map("submission_method")
+  notes             String?
+  createdAt         DateTime        @default(now()) @map("createdAt")
+  clients           clients         @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  client_invites    client_invites? @relation(fields: [inviteId], references: [id], onDelete: SetNull)
 
   @@index([clientId])
   @@index([inviteId])
@@ -546,12 +546,12 @@ model client_versions {
 }
 
 model registry_records {
-  id            String            @id
-  decedentName  String            @map("decedentName")
-  status        RegistryStatus    @default(PENDING_VERIFICATION)
-  createdAt     DateTime          @default(now()) @map("createdAt")
+  id                String              @id
+  decedentName      String              @map("decedentName")
+  status            RegistryStatus      @default(PENDING_VERIFICATION)
+  createdAt         DateTime            @default(now()) @map("createdAt")
   registry_versions registry_versions[]
-  access_logs   access_logs[]
+  access_logs       access_logs[]
 
   @@index([decedentName])
   @@index([status])
@@ -560,14 +560,14 @@ model registry_records {
 }
 
 model registry_versions {
-  id            String                @id
-  registryId    String                @map("registry_id")
-  dataJson      Json                  @map("data_json")
-  submittedBy   RegistrySubmissionSource @map("submitted_by")
-  hash          String
-  createdAt     DateTime              @default(now()) @map("createdAt")
-  registry_records registry_records   @relation(fields: [registryId], references: [id], onDelete: Cascade)
-  documents     documents[]
+  id               String                   @id
+  registryId       String                   @map("registry_id")
+  dataJson         Json                     @map("data_json")
+  submittedBy      RegistrySubmissionSource @map("submitted_by")
+  hash             String
+  createdAt        DateTime                 @default(now()) @map("createdAt")
+  registry_records registry_records         @relation(fields: [registryId], references: [id], onDelete: Cascade)
+  documents        documents[]
 
   @@index([registryId])
   @@index([hash])
@@ -577,14 +577,14 @@ model registry_versions {
 }
 
 model access_logs {
-  id         String          @id
-  registryId String          @map("registry_id")
-  userId     String?         @map("user_id")
-  action     AccessLogAction
-  metadata   Json?
-  timestamp  DateTime        @default(now())
+  id               String           @id
+  registryId       String           @map("registry_id")
+  userId           String?          @map("user_id")
+  action           AccessLogAction
+  metadata         Json?
+  timestamp        DateTime         @default(now())
   registry_records registry_records @relation(fields: [registryId], references: [id], onDelete: Cascade)
-  users      User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+  users            User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([registryId])
   @@index([userId])
