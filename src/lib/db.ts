@@ -1,262 +1,189 @@
-import { supabaseServer } from "@/lib/supabase";
-import { isRecord } from "@/lib/typeguards";
-import type { RegistryRecord } from "./db/index";
-
-// Re-export everything from db/index (Prisma client and types)
-// This allows existing code to import { prisma, db, ... } from "@/lib/db"
-// Note: RegistryRecord type is exported from ./db/index (from Prisma types)
-export * from "./db/index";
-
-export type RegistryVersion = {
-  id: string,
-  registry_id: string,
-  submitted_by: string,
-  data_json: Record<string, unknown>;
-  hash: string,
-  createdAt: string,
-};
-
-export type DocumentRow = {
-  id: string,
-  registry_version_id: string,
-  storage_path: string,
-  content_type: string,
-  size_bytes: number;
-  sha256: string,
-  createdAt: string,
-};
-
-export type AccessLogRow = {
-  id: string,
-  user_id: string | null;
-  registry_id: string | null;
-  action: string,
-  metadata: Record<string, unknown> | null;
-  createdAt: string,
-};
-
-export async function createRegistryRecord(input: {
-  decedentName: string,
-}): Promise<RegistryRecord> {
-  const sb = supabaseServer();
-  const { data, error } = await sb
-    .from("registry_records")
-    .insert({
-      decedentName: input.decedentName.trim(),
-    })
-    .select("*")
-    .single();
-
-  if (error) throw error;
-  // Supabase returns snake_case, but we need to map to camelCase for TypeScript type
-  const record = data as { decedentName: string, status: string, createdAt: string, id: string };
-  return {
-    id: record.id,
-    decedentName: record.decedentName,
-    status: record.status,
-    createdAt: new Date(record.createdAt),
-  } as RegistryRecord;
-}
-
-export async function appendRegistryVersion(input: {
-  registry_id: string,
-  submitted_by: "INTAKE" | "TOKEN" | "ATTORNEY" | "SYSTEM";
-  data_json: Record<string, unknown>;
-  hash: string,
-}): Promise<RegistryVersion> {
-  const sb = supabaseServer();
-  const { data, error } = await sb
-    .from("registry_versions")
-    .insert({
-      registry_id: input.registry_id,
-      submitted_by: input.submitted_by,
-      data_json: input.data_json,
-      hash: input.hash,
-    })
-    .select("*")
-    .single();
-
-  if (error) throw error;
-  return data as RegistryVersion;
-}
-
-export async function addDocumentRow(input: {
-  registry_version_id: string,
-  storage_path: string,
-  content_type: string,
-  size_bytes: number;
-  sha256: string,
-}): Promise<DocumentRow> {
-  const sb = supabaseServer();
-  const { data, error } = await sb
-    .from("documents")
-    .insert({
-      registry_version_id: input.registry_version_id,
-      storage_path: input.storage_path,
-      content_type: input.content_type,
-      size_bytes: input.size_bytes,
-      sha256: input.sha256,
-    })
-    .select("*")
-    .single();
-
-  if (error) throw error;
-  return data as DocumentRow;
-}
-
-export async function getRegistryById(id: string): Promise<RegistryRecord | null> {
-  const sb = supabaseServer();
-  const { data, error } = await sb.from("registry_records").select("*").eq("id", id).maybeSingle();
-  if (error) throw error;
-  if (!data) return null;
-  // Map snake_case to camelCase for TypeScript type
-  const record = data as { decedentName: string, status: string, createdAt: string, id: string };
-  return {
-    id: record.id,
-    decedentName: record.decedentName,
-    status: record.status,
-    createdAt: new Date(record.createdAt),
-  } as RegistryRecord;
-}
-
-export async function getRegistryVersions(registryId: string): Promise<RegistryVersion[]> {
-  const sb = supabaseServer();
-  const { data, error } = await sb
-    .from("registry_versions")
-    .select("*")
-    .eq("registry_id", registryId)
-    .order("createdAt", { ascending: false });
-
-  if (error) throw error;
-  return (data ?? []) as RegistryVersion[];
-}
-
-export async function getDocumentsForRegistry(registryId: string): Promise<DocumentRow[]> {
-  const sb = supabaseServer();
-  const { data, error } = await sb
-    .from("documents")
-    .select("*, registry_versions!inner(registry_id)")
-    .eq("registry_versions.registry_id", registryId)
-    .order("createdAt", { ascending: false });
-
-  if (error) throw error;
-  // Supabase returns join shape; keep only DocumentRow fields
-  return (data ?? []).map((d: unknown) => {
-    if (!isRecord(d)) throw new Error("Invalid document row");
-    return {
-      id: String(d.id ?? ""),
-      registry_version_id: String(d.registry_version_id ?? ""),
-      storage_path: String(d.storage_path ?? ""),
-      content_type: String(d.content_type ?? ""),
-      size_bytes: Number(d.size_bytes ?? 0),
-      sha256: String(d.sha256 ?? ""),
-      createdAt: String(d.createdAt ?? ""),
-    };
-  }) as DocumentRow[];
-}
-
-export async function listRegistries(limit = 50): Promise<RegistryRecord[]> {
-  const sb = supabaseServer();
-  const { data, error } = await sb
-    .from("registry_records")
-    .select("*")
-    .order("createdAt", { ascending: false })
-    .limit(limit);
-
-  if (error) throw error;
-  // Map snake_case to camelCase for TypeScript type
-  return (data ?? []).map((record: { decedentName: string, status: string, createdAt: string, id: string }) => ({
-    id: record.id,
-    decedentName: record.decedentName,
-    status: record.status,
-    createdAt: new Date(record.createdAt),
-  })) as RegistryRecord[];
-}
-
-export async function logAccess(input: {
-  user_id: string | null;
-  registry_id?: string | null;
-  action: string,
-  metadata?: Record<string, unknown>;
-}): Promise<void> {
-  const sb = supabaseServer();
-  const { error } = await sb.from("access_logs").insert({
-    user_id: input.user_id,
-    registry_id: input.registry_id ?? null,
-    action: input.action,
-    metadata: input.metadata ?? null,
-  });
-  if (error) throw error;
-}
-
-export async function constrainedSearch(input: {
-  query: string,
-  limit?: number;
-}): Promise<RegistryRecord[]> {
-  const sb = supabaseServer();
-  const q = input.query.trim();
-  const limit = input.limit ?? 25;
-
-  // Constrained search: decedentName only (v1)
-  const { data, error } = await sb
-    .from("registry_records")
-    .select("*")
-    .ilike("decedentName", `%${q}%`)
-    .order("createdAt", { ascending: false })
-    .limit(limit);
-
-  if (error) throw error;
-  // Map snake_case to camelCase for TypeScript type
-  return (data ?? []).map((record: { decedentName: string, status: string, createdAt: string, id: string }) => ({
-    id: record.id,
-    decedentName: record.decedentName,
-    status: record.status,
-    createdAt: new Date(record.createdAt),
-  })) as RegistryRecord[];
-}
-
-// New type representing a registry permission record
-export type RegistryPermission = {
-  registry_id: string,
-  user_id: string,
-  role: string,
-  createdAt: string,
-};
+// src/lib/db.ts
+import { PrismaClient } from "@prisma/client";
 
 /**
- * List registries a user is authorized to access.
- *
- * Attorneys should only see registries they have been granted access to via
- * the registry_permissions table. This joins the permission table with
- * registry_records and returns the records in reverse chronological order.
- *
- * @param userId - Clerk user ID of the attorney
- * @param limit - Maximum number of registries to return (default: 50)
- * @returns Array of registry records the user is permitted to view
+ * Prisma singleton for Next.js (prevents exhausting DB connections in dev hot-reload)
  */
-export async function listAuthorizedRegistries(userId: string, limit = 50): Promise<RegistryRecord[]> {
-  const sb = supabaseServer();
-  // Query permissions table and join with registry_records
-  const { data, error } = await sb
-    .from("registry_permissions")
-    .select("registry_records(*)")
-    .eq("user_id", userId)
-    .order("registry_records.createdAt", { ascending: false })
-    .limit(limit);
+declare global {
+  var __prisma: PrismaClient | undefined;
+}
 
-  if (error) throw error;
-  // Supabase returns objects with a registry_records property
-  return (data ?? []).map((row: unknown) => {
-    if (!isRecord(row) || !isRecord(row.registry_records)) {
-      throw new Error("Invalid registry record row");
-    }
-    const record = row.registry_records as { decedentName: string, status: string, createdAt: string, id: string };
-    // Map snake_case to camelCase for TypeScript type
-    return {
-      id: record.id,
-      decedentName: record.decedentName,
-      status: record.status,
-      createdAt: new Date(record.createdAt),
-    } as RegistryRecord;
+export const prisma: PrismaClient =
+  globalThis.__prisma ??
+  new PrismaClient({
+    log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
+  });
+
+if (process.env.NODE_ENV !== "production") {
+  globalThis.__prisma = prisma;
+}
+
+/**
+ * Re-export Prisma model types so existing imports can do:
+ * import type { User, clients, policies } from "@/lib/db"
+ */
+export type {
+  User,
+  attorneyProfile,
+  ApiToken,
+  attorneyClientAccess,
+  access_grants,
+  audit_logs,
+  beneficiaries,
+  client_invites,
+  clients,
+  documents,
+  insurers,
+  invites,
+  org_members,
+  organizations,
+  policies,
+  policy_beneficiaries,
+  AccessGrantStatus,
+  AuditAction,
+  BillingPlan,
+  InviteStatus,
+  OrgRole,
+  UserRole,
+  LicenseStatus,
+} from "@prisma/client";
+
+/**
+ * Minimal, safe JSON type for app-level metadata fields.
+ * (Avoids `{}` which ESLint correctly hates.)
+ */
+export type JsonObject = Record<string, unknown>;
+
+/**
+ * Lightweight DB health check used by /api/health or debug endpoints.
+ */
+export async function dbHealthCheck(): Promise<{
+  ok: boolean;
+  database: "connected" | "error";
+  error?: string;
+}> {
+  try {
+    // Works on Postgres, returns 1 row.
+    await prisma.$queryRaw`SELECT 1`;
+    return { ok: true, database: "connected" };
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return { ok: false, database: "error", error: msg };
+  }
+}
+
+/**
+ * Return the attorney's authorized clients (based on attorney_client_access table).
+ * - If you pass orgId, it scopes to that org membership.
+ */
+export async function listAuthorizedClients(input: {
+  attorneyUserId: string;
+  orgId?: string | null;
+  limit?: number;
+}) {
+  const limit = input.limit ?? 50;
+
+  const rows = await prisma.attorneyClientAccess.findMany({
+    where: {
+      attorneyId: input.attorneyUserId,
+      isActive: true,
+      ...(input.orgId ? { organizationId: input.orgId } : {}),
+    },
+    orderBy: { grantedAt: "desc" },
+    take: limit,
+    include: {
+      clients: true,
+      organizations: true,
+    },
+  });
+
+  // Return just the client records, plus a little access context if you want it.
+  return rows.map((r) => ({
+    client: r.clients,
+    access: {
+      id: r.id,
+      grantedAt: r.grantedAt,
+      revokedAt: r.revokedAt,
+      isActive: r.isActive,
+      organizationId: r.organizationId,
+    },
+    organization: r.organizations ?? null,
+  }));
+}
+
+/**
+ * Get a client, but only if the attorney has active access.
+ */
+export async function getAuthorizedClientById(input: {
+  attorneyUserId: string;
+  clientId: string;
+  orgId?: string | null;
+}) {
+  const access = await prisma.attorneyClientAccess.findFirst({
+    where: {
+      attorneyId: input.attorneyUserId,
+      clientId: input.clientId,
+      isActive: true,
+      ...(input.orgId ? { organizationId: input.orgId } : {}),
+    },
+    include: {
+      clients: true,
+    },
+  });
+
+  return access?.clients ?? null;
+}
+
+/**
+ * Create a client safely (won't crash on duplicate email).
+ * - If the email already exists, returns the existing client.
+ *
+ * IMPORTANT: Your schema enforces clients.email unique.
+ */
+export async function createOrGetClientByEmail(input: {
+  email: string;
+  firstName: string;
+  lastName: string;
+  orgId?: string | null;
+  phone?: string | null;
+}) {
+  const email = input.email.trim().toLowerCase();
+
+  const existing = await prisma.clients.findUnique({ where: { email } });
+  if (existing) return existing;
+
+  return prisma.clients.create({
+    data: {
+      id: crypto.randomUUID(),
+      email,
+      firstName: input.firstName.trim(),
+      lastName: input.lastName.trim(),
+      phone: input.phone ?? null,
+      orgId: input.orgId ?? null,
+    },
+  });
+}
+
+/**
+ * Audit log helper (schema: audit_logs.message is required, action is enum).
+ */
+export async function writeAuditLog(input: {
+  action: "CLIENT_CREATED" | "CLIENT_UPDATED" | "POLICY_CREATED" | "POLICY_UPDATED" | "DOCUMENT_UPLOADED" | "DOCUMENT_PROCESSED" | "CLIENT_VIEWED" | "INVITE_CREATED" | "INVITE_ACCEPTED" | "ATTORNEY_VERIFIED" | "API_TOKEN_CREATED" | "API_TOKEN_REVOKED" | "API_TOKEN_ROTATED" | "API_TOKEN_USED" | "CLIENT_SUMMARY_PDF_DOWNLOADED" | "POLICY_SEARCH_PERFORMED" | "GLOBAL_POLICY_SEARCH_PERFORMED" | "BENEFICIARY_CREATED" | "BENEFICIARY_UPDATED";
+  message: string;
+  userId?: string | null;
+  orgId?: string | null;
+  clientId?: string | null;
+  policyId?: string | null;
+}) {
+  await prisma.audit_logs.create({
+    data: {
+      id: crypto.randomUUID(),
+      action: input.action,
+      message: input.message,
+      userId: input.userId ?? null,
+      orgId: input.orgId ?? null,
+      clientId: input.clientId ?? null,
+      policyId: input.policyId ?? null,
+    },
   });
 }
