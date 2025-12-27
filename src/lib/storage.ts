@@ -1,37 +1,40 @@
-import { supabaseServer } from "@/lib/supabase";
-import { sha256Buffer } from "@/lib/hash";
+// src/lib/storage.ts
+import crypto from "crypto";
+import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
-const MAX_BYTES = 15 * 1024 * 1024;
-const ALLOWED = new Set(["application/pdf", "image/jpeg", "image/png"]);
+const s3 = new S3Client({
+  region: process.env.S3_REGION!,
+  endpoint: process.env.S3_ENDPOINT!,
+  credentials: {
+    accessKeyId: process.env.S3_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.S3_SECRET_ACCESS_KEY!,
+  },
+  forcePathStyle: true,
+});
 
-function safeFilename(name: string) {
-  return name.replace(/[^\w.\-]+/g, "_").slice(0, 120);
+export async function putObject(params: {
+  key: string;
+  body: Buffer;
+  contentType: string;
+}) {
+  const sha256 = crypto.createHash("sha256").update(params.body).digest("hex");
+
+  await s3.send(new PutObjectCommand({
+    Bucket: process.env.S3_BUCKET!,
+    Key: params.key,
+    Body: params.body,
+    ContentType: params.contentType,
+    // Private by default; bucket policy should enforce
+  }));
+
+  return { sha256 };
 }
 
-export async function uploadDocument(input: {
-  fileBuffer: ArrayBuffer;
-  filename: string,
-  contentType: string,
-}): Promise<{ storagePath: string, sizeBytes: number; sha256: string }> {
-  if (!ALLOWED.has(input.contentType)) throw new Error("Unsupported file type.");
-  const buf = Buffer.from(input.fileBuffer);
-  if (buf.byteLength > MAX_BYTES) throw new Error("File too large (max 15MB).");
-
-  const sha256 = await sha256Buffer(buf);
-  const now = new Date();
-  const yyyy = String(now.getUTCFullYear());
-  const mm = String(now.getUTCMonth() + 1).padStart(2, "0");
-
-  const bucket = process.env.HEIRVAULT_STORAGE_BUCKET || "heirvault-docs";
-  const path = `documents/${yyyy}/${mm}/${sha256}-${safeFilename(input.filename)}`;
-
-  const sb = supabaseServer();
-  const { error } = await sb.storage.from(bucket).upload(path, buf, {
-    contentType: input.contentType,
-    upsert: false,
+export async function getSignedObjectUrl(key: string, expiresSeconds = 60) {
+  const cmd = new GetObjectCommand({
+    Bucket: process.env.S3_BUCKET!,
+    Key: key,
   });
-
-  if (error) throw error;
-
-  return { storagePath: path, sizeBytes: buf.byteLength, sha256 };
+  return getSignedUrl(s3, cmd, { expiresIn: expiresSeconds });
 }

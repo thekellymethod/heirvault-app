@@ -8,11 +8,26 @@ declare global {
   var __prisma: PrismaClient | undefined;
 }
 
-export const prisma: PrismaClient =
-  globalThis.__prisma ??
-  new PrismaClient({
+function createPrismaClient(): PrismaClient {
+  // Prisma Accelerate uses PRISMA_ACCELERATE_URL if present
+  const options: { accelerateUrl?: string } = {};
+
+  if (process.env.PRISMA_ACCELERATE_URL) {
+    options.accelerateUrl = process.env.PRISMA_ACCELERATE_URL;
+  } else if (!process.env.DATABASE_URL) {
+    throw new Error(
+      "Missing database connection. Set DATABASE_URL or PRISMA_ACCELERATE_URL."
+    );
+  }
+
+  return new PrismaClient({
+    ...options,
     log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
   });
+}
+
+export const prisma: PrismaClient =
+  globalThis.__prisma ?? createPrismaClient();
 
 if (process.env.NODE_ENV !== "production") {
   globalThis.__prisma = prisma;

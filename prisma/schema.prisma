@@ -49,49 +49,70 @@ model audit_logs {
 }
 
 model beneficiaries {
-  id            String   @id
-  clientId      String   @map("client_id")
+  id              String                @id @default(uuid())
+  clientId        String                @map("client_id")
 
-  firstName     String   @map("first_name")
-  lastName      String   @map("last_name")
+  firstName       String                @map("first_name")
+  lastName        String                @map("last_name")
 
-  relationship  String?
-  email         String?
-  phone         String?
-  dateOfBirth   DateTime? @db.Date @map("date_of_birth")
+  relationship    String?
+  email           String?
+  phone           String?
+  dateOfBirth     DateTime?             @db.Date @map("date_of_birth")
+  verificationStatus BeneficiaryVerificationStatus @default(PENDING) @map("verification_status")
 
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  createdAt       DateTime              @default(now()) @map("created_at")
+  updatedAt       DateTime              @updatedAt @map("updated_at")
 
-  addressLine1  String?  @map("address_line1")
-  addressLine2  String?  @map("address_line2")
-  city          String?
-  state         String?
-  postalCode    String?  @map("postal_code")
-  country       String?
+  addressLine1    String?               @map("address_line1")
+  addressLine2    String?               @map("address_line2")
+  city            String?
+  state           String?
+  postalCode      String?               @map("postal_code")
+  country         String?
 
-  clients       clients  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clients         clients               @relation(fields: [clientId], references: [id], onDelete: Cascade)
   policyBeneficiaries policy_beneficiaries[]
+  
+  // Versioning:
+  isActive          Boolean               @default(true) @map("is_active")
+  supersededById    String?               @map("superseded_by_id")
+  supersededAt      DateTime?             @map("superseded_at")
+  versionGroupId    String?               @map("version_group_id")
+  versionNumber     Int                   @default(1) @map("version_number")
 
   @@index([addressLine1, city, state, postalCode])
   @@index([clientId])
   @@index([firstName, lastName, dateOfBirth])
+  @@index([verificationStatus])
   @@map("beneficiaries")
 }
 
 model client_invites {
-  id              String    @id
-  clientId        String    @map("client_id")
-  token           String    @unique
-  email           String
-  expiresAt       DateTime  @map("expires_at")
-  usedAt          DateTime? @map("used_at")
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
-  invitedByUserId String?   @map("invited_by_user_id")
-  clients         clients   @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  users           User?     @relation("ClientInviteInviter", fields: [invitedByUserId], references: [id])
+  id                  String              @id @default(uuid())
+  clientId            String              @map("client_id")
+  token               String              @unique // Plaintext token (for initial lookup only)
+  tokenHash           String              @unique @map("token_hash") // Hashed token (stored)
+  email               String
+  status              ClientInviteStatus  @default(ACTIVE)
+  expiresAt           DateTime            @map("expires_at")
+  usedAt              DateTime?           @map("used_at")
+  submissionCount     Int                 @default(0) @map("submission_count")
+  maxSubmissions      Int                 @default(1) @map("max_submissions")
+  invitePdfArtifactId String?             @map("invite_pdf_artifact_id")
+  receiptPdfArtifactId String?           @map("receipt_pdf_artifact_id")
+  createdAt           DateTime            @default(now()) @map("created_at")
+  updatedAt           DateTime            @updatedAt @map("updated_at")
+  invitedByUserId     String?             @map("invited_by_user_id")
+  clients             clients             @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  users               User?               @relation("ClientInviteInviter", fields: [invitedByUserId], references: [id])
+  inviteArtifact      artifacts?          @relation("InvitePdf", fields: [invitePdfArtifactId], references: [id])
+  receiptArtifact     artifacts?          @relation("ReceiptPdf", fields: [receiptPdfArtifactId], references: [id])
+  receipts            receipts[]         @relation("ReceiptInvites")
 
+  @@index([tokenHash])
+  @@index([status])
+  @@index([expiresAt])
   @@map("client_invites")
 }
 
@@ -133,6 +154,9 @@ model clients {
   users             User?          @relation("UserClient", fields: [userId], references: [id])
   documents         documents[]
   policies          policies[]
+  artifacts         artifacts[]
+  expectedPolicies  expected_policies[] @relation("ExpectedPolicies")
+  receipts          receipts[] @relation("Receipts")
 
   @@index([addressLine1, city, state, postalCode])
   @@index([clientFingerprint])
@@ -143,25 +167,49 @@ model clients {
 
 
 model documents {
-  id            String    @id
-  clientId      String    @map("client_id")
-  policyId      String?   @map("policy_id")
-  fileName      String    @map("file_name")
-  fileType      String    @map("file_type")
-  fileSize      Int       @map("file_size")
-  filePath      String    @map("file_path")
-  mimeType      String    @map("mime_type")
-  uploadedVia   String?   @map("uploaded_via")
-  extractedData Json?     @map("extracted_data")
-  ocrConfidence Float?    @map("ocr_confidence")
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @updatedAt @map("updated_at")
-  clients       clients   @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  policies      policies? @relation(fields: [policyId], references: [id])
+  id                  String                @id @default(uuid())
+  clientId            String                @map("client_id")
+  policyId            String?               @map("policy_id")
+  fileName            String                @map("file_name")
+  fileType            String                @map("file_type")
+  fileSize            Int                   @map("file_size")
+  filePath            String                @map("file_path")
+  mimeType            String                @map("mime_type")
+  uploadedVia         String?               @map("uploaded_via")
+  extractedData       Json?                 @map("extracted_data")
+  ocrConfidence       Float?                @map("ocr_confidence")
+  documentHash        String                @map("document_hash")
+  sensitivityLevel    DocumentSensitivity   @default(S1_PUBLIC) @map("sensitivity_level")
+  containsGovId       Boolean               @default(false) @map("contains_gov_id")
+  containsTaxData     Boolean               @default(false) @map("contains_tax_data")
+  containsCaseData    Boolean               @default(false) @map("contains_case_data")
+  confidenceScore     Float?                @map("confidence_score")
+  classificationStatus DocumentClassificationStatus @default(PENDING_OCR) @map("classification_status")
+  createdAt           DateTime              @default(now()) @map("created_at")
+  updatedAt           DateTime              @updatedAt @map("updated_at")
+  clients             clients               @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  policies            policies?             @relation(fields: [policyId], references: [id])
+  documentExtractions document_extractions[]
+  accessEvents        document_access_events[]
+  accessEventsV2      DocumentAccessEvent[] @relation("DocumentAccessEvents")
+  
+  // Versioning:
+  versionGroupId      String?               @map("version_group_id")
+  versionNumber       Int                   @default(1) @map("version_number")
+  supersededById      String?               @map("superseded_by_id")
+  supersededAt        DateTime?             @map("superseded_at")
+  
+  // Link docs to change requests (optional)
+  changeRequestId     String?                @map("change_request_id")
+  
+  changeRequest       change_requests?       @relation(fields: [changeRequestId], references: [id])
 
   @@index([clientId])
   @@index([policyId])
   @@index([createdAt])
+  @@index([documentHash])
+  @@index([sensitivityLevel])
+  @@index([classificationStatus])
   @@map("documents")
 }
 
@@ -300,6 +348,8 @@ model User {
   clientRecord      clients?         @relation("UserClient")
   invites           invites[]        @relation("AttorneyInvites")
   orgMemberships    org_members[]
+  documentAccessEvents document_access_events[]
+  expectedPolicies  expected_policies[] @relation("PolicyCreator")
 
   @@index([addressLine1, city, state, postalCode])
   @@index([firstName, lastName])
@@ -379,12 +429,22 @@ enum AuditAction {
   BENEFICIARY_UPDATED
   INVITE_CREATED
   INVITE_ACCEPTED
+  INVITE_REVOKED
+  INVITE_PDF_GENERATED
+  RECEIPT_PDF_GENERATED
   CLIENT_VIEWED
   CLIENT_SUMMARY_PDF_DOWNLOADED
   POLICY_SEARCH_PERFORMED
   GLOBAL_POLICY_SEARCH_PERFORMED
   DOCUMENT_UPLOADED
   DOCUMENT_PROCESSED
+  DOCUMENT_CLASSIFIED
+  DOCUMENT_APPROVED
+  DOCUMENT_REJECTED
+  DOCUMENT_ACCESSED
+  INTAKE_SUBMITTED
+  OCR_COMPLETED
+  EXTRACTION_COMPLETED
   ATTORNEY_VERIFIED
   API_TOKEN_CREATED
   API_TOKEN_REVOKED
@@ -421,4 +481,201 @@ enum LicenseStatus {
   ACTIVE
   SUSPENDED
   REVOKED
+}
+
+enum ClientInviteStatus {
+  ACTIVE
+  USED
+  EXPIRED
+  REVOKED
+  COMPLETED
+}
+
+enum DocumentSensitivity {
+  S1_PUBLIC
+  S2_INTERNAL
+  S3_CONFIDENTIAL
+  S4_HIGHLY_SENSITIVE
+  S5_LEGAL_CASE
+}
+
+enum DocumentClassificationStatus {
+  PENDING_OCR
+  AUTO_ACCEPTED
+  NEEDS_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum BeneficiaryVerificationStatus {
+  PENDING
+  VERIFIED
+  DISCREPANCY
+  REJECTED
+}
+
+enum ArtifactType {
+  INVITE_PDF
+  RECEIPT_PDF
+}
+
+enum ChangeRequestStatus {
+  OPEN
+  SUBMITTED
+  NEEDS_REVIEW
+  APPROVED
+  REJECTED
+  CLOSED
+}
+
+enum ChangeRequestType {
+  POLICY_UPDATE
+  BENEFICIARY_UPDATE
+  ID_UPDATE
+  TAX_UPDATE
+  ADDRESS_UPDATE
+  OTHER
+}
+
+enum UploaderType {
+  POLICYHOLDER
+  ATTORNEY
+  ADMIN
+  SYSTEM
+}
+
+model document_extractions {
+  id            String    @id @default(uuid())
+  documentId    String    @map("document_id")
+  entityType    String    @map("entity_type") // e.g., "policy_number", "beneficiary_name"
+  entityValue   String    @map("entity_value") // Redacted/safe value only
+  confidence    Float?
+  extractedAt   DateTime  @default(now()) @map("extracted_at")
+  documents     documents @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId])
+  @@index([entityType])
+  @@map("document_extractions")
+}
+
+model artifacts {
+  id          String        @id @default(uuid())
+  type        ArtifactType
+  clientId    String?       @map("client_id")
+  inviteId    String?       @map("invite_id")
+  fileName    String        @map("file_name")
+  filePath    String        @map("file_path")
+  fileSize    Int           @map("file_size")
+  mimeType    String        @map("mime_type")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  clients     clients?      @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  invitePdfs  client_invites[] @relation("InvitePdf")
+  receiptPdfs  client_invites[] @relation("ReceiptPdf")
+  receipts     receipts[]    @relation("ReceiptArtifacts")
+  changeReceipts change_requests[] @relation("ChangeReceiptArtifacts")
+
+  @@index([type])
+  @@index([clientId])
+  @@index([inviteId])
+  @@map("artifacts")
+}
+
+model document_access_events {
+  id            String    @id @default(uuid())
+  documentId    String    @map("document_id")
+  userId        String?   @map("user_id")
+  accessType    String    @map("access_type") // "PREVIEW", "DOWNLOAD", "FULL_ACCESS"
+  reason        String?   // Required for S4/S5 documents
+  ipAddress     String?   @map("ip_address")
+  userAgent     String?   @map("user_agent")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  documents     documents @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  users         User?     @relation(fields: [userId], references: [id])
+
+  @@index([documentId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("document_access_events")
+}
+
+// New access event model for compliance logging
+model DocumentAccessEvent {
+  id         String   @id @default(cuid())
+  documentId String   @map("document_id")
+  actorType  UploaderType @map("actor_type")
+  actorId    String?  @map("actor_id")
+  action     String   // VIEW_PREVIEW | VIEW_ORIGINAL | DOWNLOAD
+  reason     String?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  documents  documents @relation("DocumentAccessEvents", fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId, createdAt])
+  @@map("document_access_events_v2")
+}
+
+// Expected policy fields for matching (attorney-entered)
+model expected_policies {
+  id              String   @id @default(cuid())
+  clientId         String   @map("client_id")
+  createdByUserId  String   @map("created_by_user_id")
+
+  carrierName      String?  @map("carrier_name")
+  carrierAlias     String?  @map("carrier_alias")  // optional: what attorney types in
+  policyNumber     String?  @map("policy_number")
+  policyType       String?  @map("policy_type")  // life, auto, etc (optional)
+
+  // expected beneficiaries count (optional quick gate)
+  expectedBeneficiaryCount Int?  @map("expected_beneficiary_count")
+
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  clients           clients  @relation("ExpectedPolicies", fields: [clientId], references: [id], onDelete: Cascade)
+  createdBy         User     @relation("PolicyCreator", fields: [createdByUserId], references: [id], onDelete: Cascade)
+
+  @@index([clientId, createdAt])
+  @@map("expected_policies")
+}
+
+model receipts {
+  id            String   @id @default(cuid())
+  clientId      String   @map("client_id")
+  inviteId      String?  @map("invite_id")
+  receiptNumber String   @unique @map("receipt_number")
+  artifactId    String   @map("artifact_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  clients       clients  @relation("Receipts", fields: [clientId], references: [id], onDelete: Cascade)
+  invites       client_invites? @relation("ReceiptInvites", fields: [inviteId], references: [id], onDelete: Cascade)
+  artifacts     artifacts @relation("ReceiptArtifacts", fields: [artifactId], references: [id], onDelete: Cascade)
+
+  @@index([clientId, createdAt])
+  @@map("receipts")
+}
+
+model change_requests {
+  id              String   @id @default(cuid())
+  clientId        String   @map("client_id")
+  createdByInviteId String? @map("created_by_invite_id") // optional: ties back to original intake invite if you want
+  tokenHash       String   @unique @map("token_hash")
+  status          ChangeRequestStatus @default(OPEN)
+  requestType     ChangeRequestType @map("request_type")
+  note            String?
+  expiresAt       DateTime @map("expires_at")
+  maxSubmissions  Int      @default(2) @map("max_submissions")
+  submissionCount Int      @default(0) @map("submission_count")
+
+  receiptArtifactId String? @map("receipt_artifact_id")
+  receiptArtifact   artifacts? @relation("ChangeReceiptArtifacts", fields: [receiptArtifactId], references: [id])
+
+  createdAt       DateTime @default(now()) @map("created_at")
+  submittedAt     DateTime? @map("submitted_at")
+
+  clients         clients   @relation("ChangeRequests", fields: [clientId], references: [id], onDelete: Cascade)
+  documents       documents[]
+
+  @@index([clientId, createdAt])
+  @@index([status, createdAt])
+  @@map("change_requests")
 }
