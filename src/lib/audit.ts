@@ -9,7 +9,7 @@ type UploaderType = "POLICYHOLDER" | "ATTORNEY" | "ADMIN" | "SYSTEM";
 type AuditParams = {
   actorType: UploaderType;
   actorId?: string | null;
-  clientId: string;
+  clientId?: string | null; // Allow null for org-level events (billing)
   inviteId?: string | null;
   action: string;
   metadata?: Record<string, unknown>;
@@ -22,7 +22,7 @@ export async function auditLog(p: AuditParams) {
     data: {
       id: crypto.randomUUID(),
       userId: p.actorId ?? null,
-      clientId: p.clientId,
+      clientId: p.clientId ?? null, // Allow null for org-level events
       action: p.action as AuditAction,
       message: `${p.action}: ${JSON.stringify(p.metadata ?? {})}`,
       // Note: You may need to add inviteId to your audit_logs table if it doesn't exist

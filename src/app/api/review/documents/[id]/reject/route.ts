@@ -1,58 +1,62 @@
 // src/app/api/review/documents/[documentId]/reject/route.ts
-import { NextResponse, NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireVerifiedAttorney } from "@/lib/auth/guards";
+import { requireAuthPrincipal, requireRole, requireClientAccess, HttpError } from "@/lib/permissions/guard";
 import { auditLog } from "@/lib/audit";
-import { DocumentClassificationStatus, DocumentSensitivity } from "@prisma/client";
-import crypto from "crypto";
-
-function docReasonSafe(reason: unknown) {
-  // Keep it simple; avoid leaking sensitive content into logs if someone pastes PII
-  if (typeof reason === "string") return { note: reason.slice(0, 300) };
-  return {};
-}
+import { DocumentClassificationStatus, DocumentSensitivity, UploaderType, UserRole } from "@prisma/client";
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
-  const user = await requireVerifiedAttorney();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const principal = await requireAuthPrincipal();
+  requireRole(principal, [UserRole.ADMIN, UserRole.attorney]);
 
   const { reason } = await req.json().catch(() => ({}));
+  if (!reason || typeof reason !== "string" || reason.trim().length < 5) {
+    return NextResponse.json({ error: "Rejection reason required" }, { status: 400 });
+  }
+
   const { id: documentId } = await ctx.params;
 
-  const doc = await prisma.documents.update({
+  const doc = await prisma.documents.findUnique({ 
     where: { id: documentId },
-    data: {
-      classificationStatus: DocumentClassificationStatus.REJECTED,
-      // Note: Add reviewedByUserId, reviewedAt, and confidenceReason fields if they exist
-      extractedData: { ...docReasonSafe(reason), rejectedReason: reason ?? "Rejected" },
+    select: { id: true, clientId: true, fileType: true, sensitivityLevel: true, uploadedVia: true, createdAt: true },
+  });
+  if (!doc) throw new HttpError(404, "Not found");
+
+  await requireClientAccess({ 
+    principal, 
+    clientId: doc.clientId, 
+    requireSensitive: doc.sensitivityLevel !== DocumentSensitivity.S2_INTERNAL && doc.sensitivityLevel !== DocumentSensitivity.S1_PUBLIC,
+  });
+
+  // Find invite if this was uploaded via invite
+  const invite = doc.uploadedVia === "CLIENT_INVITE_UPLOAD"
+    ? await prisma.client_invites.findFirst({
+        where: {
+          clientId: doc.clientId,
+          createdAt: { lte: doc.createdAt },
+        },
+        orderBy: { createdAt: "desc" },
+      })
+    : null;
+
+  const updated = await prisma.documents.update({
+    where: { id: doc.id },
+    data: { classificationStatus: DocumentClassificationStatus.REJECTED },
+  });
+
+  await auditLog({
+    actorType: principal.role === UserRole.ADMIN ? UploaderType.ADMIN : UploaderType.ATTORNEY,
+    actorId: principal.dbUserId,
+    clientId: doc.clientId,
+    inviteId: invite?.id ?? null,
+    action: "DOC_REJECTED",
+    metadata: {
+      documentId: doc.id,
+      docType: doc.fileType,
+      sensitivity: doc.sensitivityLevel,
+      reason: reason.slice(0, 300),
     },
   });
 
-  // Log access for S4/S5 documents
-  if (doc.sensitivityLevel === DocumentSensitivity.S4_HIGHLY_SENSITIVE || 
-      doc.sensitivityLevel === DocumentSensitivity.S5_LEGAL_CASE) {
-    await prisma.document_access_events.create({
-      data: {
-        id: crypto.randomUUID(),
-        documentId: doc.id,
-        userId: user.id,
-        accessType: "FULL_ACCESS",
-        reason: reason ?? "Document rejection review",
-        ipAddress: null,
-        userAgent: null,
-      },
-    });
-  }
-
-  await auditLog({
-    actorType: user.roles.includes("ADMIN") ? "ADMIN" : "ATTORNEY",
-    actorId: user.id,
-    clientId: doc.clientId,
-    inviteId: null,
-    action: "DOC_REJECTED",
-    metadata: { documentId, reason: reason ?? null },
-  });
-
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, status: updated.classificationStatus });
 }
-

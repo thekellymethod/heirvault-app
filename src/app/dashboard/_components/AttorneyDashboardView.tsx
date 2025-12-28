@@ -118,12 +118,7 @@ export function AttorneyDashboardView({ policies, stats }: AttorneyDashboardView
               Search
             </Button>
           </Link>
-          <Link href="/dashboard/clients/new">
-            <Button className="btn-primary flex items-center gap-2">
-              <User className="h-4 w-4" />
-              New Client
-            </Button>
-          </Link>
+          <CreateClientButton />
         </div>
       </div>
 

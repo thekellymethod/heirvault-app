@@ -1,81 +1,61 @@
 // src/app/api/review/documents/[documentId]/approve/route.ts
-import { NextResponse, NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireVerifiedAttorney } from "@/lib/auth/guards";
+import { requireAuthPrincipal, requireRole, requireClientAccess, HttpError } from "@/lib/permissions/guard";
 import { auditLog } from "@/lib/audit";
-import { tryCompleteInvite } from "@/lib/inviteCompletion";
 import { supersedePriorVersions } from "@/lib/versioning";
-import { DocumentClassificationStatus, DocumentSensitivity } from "@prisma/client";
-import crypto from "crypto";
+import { tryCompleteInvite } from "@/lib/inviteCompletion";
+import { DocumentClassificationStatus, DocumentSensitivity, UploaderType, UserRole } from "@prisma/client";
 
 export async function POST(_: Request, ctx: { params: Promise<{ id: string }> }) {
-  const user = await requireVerifiedAttorney();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const principal = await requireAuthPrincipal();
+  requireRole(principal, [UserRole.ADMIN, UserRole.attorney]);
 
   const { id: documentId } = await ctx.params;
 
-  // Get document first to check inviteId
-  const docBefore = await prisma.documents.findUnique({
+  const doc = await prisma.documents.findUnique({ 
     where: { id: documentId },
-    select: { clientId: true, filePath: true, uploadedVia: true, createdAt: true },
+    select: { id: true, clientId: true, fileType: true, sensitivityLevel: true, uploadedVia: true, createdAt: true },
+  });
+  if (!doc) throw new HttpError(404, "Not found");
+
+  await requireClientAccess({ 
+    principal, 
+    clientId: doc.clientId, 
+    requireSensitive: doc.sensitivityLevel !== DocumentSensitivity.S2_INTERNAL && doc.sensitivityLevel !== DocumentSensitivity.S1_PUBLIC,
   });
 
-  if (!docBefore) {
-    return NextResponse.json({ error: "Document not found" }, { status: 404 });
-  }
-
-  // Find invite if this was uploaded via invite
-  const invite = docBefore.uploadedVia === "CLIENT_INVITE_UPLOAD"
+  // Find invite if this was uploaded via invite (documents don't have inviteId directly)
+  const invite = doc.uploadedVia === "CLIENT_INVITE_UPLOAD"
     ? await prisma.client_invites.findFirst({
         where: {
-          clientId: docBefore.clientId,
-          createdAt: { lte: docBefore.createdAt },
+          clientId: doc.clientId,
+          createdAt: { lte: doc.createdAt },
         },
         orderBy: { createdAt: "desc" },
       })
     : null;
 
-  const doc = await prisma.documents.update({
-    where: { id: documentId },
-    data: {
-      classificationStatus: DocumentClassificationStatus.APPROVED,
-      // Note: Add reviewedByUserId and reviewedAt fields if they exist in your schema
-    },
+  const updated = await prisma.documents.update({
+    where: { id: doc.id },
+    data: { classificationStatus: DocumentClassificationStatus.APPROVED },
   });
 
-  // Log access for S4/S5 documents
-  if (doc.sensitivityLevel === DocumentSensitivity.S4_HIGHLY_SENSITIVE || 
-      doc.sensitivityLevel === DocumentSensitivity.S5_LEGAL_CASE) {
-    await prisma.document_access_events.create({
-      data: {
-        id: crypto.randomUUID(),
-        documentId: doc.id,
-        userId: user.id,
-        accessType: "FULL_ACCESS",
-        reason: "Document approval review",
-        ipAddress: null, // Add from request headers if needed
-        userAgent: null,
-      },
-    });
-  }
-
   await auditLog({
-    actorType: user.roles.includes("ADMIN") ? "ADMIN" : "ATTORNEY",
-    actorId: user.id,
+    actorType: principal.role === UserRole.ADMIN ? UploaderType.ADMIN : UploaderType.ATTORNEY,
+    actorId: principal.dbUserId,
     clientId: doc.clientId,
     inviteId: invite?.id ?? null,
     action: "DOC_APPROVED",
-    metadata: { documentId },
+    metadata: { documentId: doc.id, docType: doc.fileType, sensitivity: doc.sensitivityLevel },
   });
 
-  // Try to complete invite if all documents are accepted
-  if (invite) {
-    await tryCompleteInvite(invite.id);
-  }
-
-  // Supersede prior versions if document was approved
+  // Only supersede older versions after acceptance
   await supersedePriorVersions(doc.id);
 
-  return NextResponse.json({ ok: true });
+  // Invite completion (if this doc is tied to an invite flow)
+  if (invite) await tryCompleteInvite(invite.id);
+
+  return NextResponse.json({ ok: true, status: updated.classificationStatus });
 }
 

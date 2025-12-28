@@ -115,7 +115,15 @@ export function ReceiptsAuditTrailView({
 
   const handleExportReport = async () => {
     try {
+      const { fetchJson } = await import("@/lib/http/fetchJson");
+      // Note: This endpoint returns a blob, so we need to handle it differently
       const res = await fetch(`/api/clients/${clientId}/receipts-audit/export`);
+      
+      if (res.status === 402) {
+        window.location.href = "/dashboard/billing?blocked=1";
+        return;
+      }
+      
       if (res.ok) {
         const blob = await res.blob();
         const url = window.URL.createObjectURL(blob);
@@ -127,7 +135,8 @@ export function ReceiptsAuditTrailView({
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
       } else {
-        alert("Failed to export report");
+        const errorData = await res.json().catch(() => ({}));
+        alert(errorData.error || "Failed to export report");
       }
     } catch (error) {
       console.error("Error exporting report:", error);

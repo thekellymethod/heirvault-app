@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { requireAuth } from "@/lib/utils/clerk";
 import { Button } from "@/components/ui/button";
 import { EmptyListState } from "@/components/ui/empty-state";
+import { CreateClientButton } from "@/components/CreateClientButton";
 
 export default async function ClientsPage() {
   const user = await requireAuth();
@@ -47,9 +48,7 @@ export default async function ClientsPage() {
           </p>
         </div>
 
-        <Link href="/dashboard/clients/new">
-          <Button size="lg">New Client</Button>
-        </Link>
+        <CreateClientButton />
       </div>
 
       <div className="rounded-xl border border-slateui-200 bg-white overflow-x-auto">

@@ -31,7 +31,9 @@ export default function NewClientPage() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/clients", {
+      // Use unified fetchJson which handles 402 automatically
+      const { fetchJson } = await import("@/lib/http/fetchJson");
+      const data = await fetchJson("/api/clients", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -40,12 +42,6 @@ export default function NewClientPage() {
           dateOfBirth: form.dateOfBirth || null,
         }),
       });
-
-      const data = await res.json().catch(() => ({}));
-
-      if (!res.ok) {
-        throw new Error(data?.error || "Failed to create client");
-      }
 
       const clientId = data?.client?.id as string | undefined;
       if (!clientId) throw new Error("Client created but no id returned");

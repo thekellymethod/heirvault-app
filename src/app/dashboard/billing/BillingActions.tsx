@@ -1,98 +1,97 @@
+// src/app/dashboard/billing/BillingActions.tsx
 "use client";
 
 import { useState } from "react";
 
-type Plan = "FREE" | "SOLO" | "SMALL_FIRM" | "ENTERPRISE";
-
-export function BillingActions({ currentPlan: _currentPlan }: { currentPlan: Plan }) {
-  const [loadingPlan, setLoadingPlan] = useState<Plan | null>(null);
+export function BillingActions({ 
+  subscriptionStatus, 
+  currentPeriodEnd 
+}: { 
+  subscriptionStatus: string | null;
+  currentPeriodEnd: Date | null;
+}) {
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function goToCheckout(plan: "SOLO" | "SMALL_FIRM") {
+  const isActive = subscriptionStatus === "ACTIVE" || subscriptionStatus === "TRIALING";
+
+  async function handleCheckout() {
     setError(null);
-    setLoadingPlan(plan);
+    setLoading(true);
 
     try {
       const res = await fetch("/api/billing/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan }),
       });
 
       if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || "Failed to start checkout.");
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json?.error || "Failed to start checkout");
       }
 
       const data = await res.json();
-      window.location.href = data.url;
+      if (data.url) {
+        window.location.href = data.url;
+      }
     } catch (e: unknown) {
       const errorMessage = e instanceof Error ? e.message : "Unknown error";
-      setError(errorMessage || "Something went wrong.");
-      setLoadingPlan(null);
+      setError(errorMessage);
+      setLoading(false);
     }
   }
 
   return (
     <section className="space-y-4">
       {error && (
-        <p className="text-xs text-red-400 bg-red-950/40 border border-red-800 rounded px-2 py-1">
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
           {error}
-        </p>
+        </div>
       )}
 
-      <div className="grid gap-4 md:grid-cols-3 text-xs">
-        <div className="rounded-xl border border-slate-800 bg-slate-950/50 p-4">
-          <div className="text-[11px] uppercase text-slate-400">Solo</div>
-          <div className="mt-1 text-lg font-semibold">$19 / mo</div>
-          <p className="mt-2 text-slate-400">
-            1 attorney seat. Up to 100 active client registries.
-          </p>
-          <button
-            onClick={() => goToCheckout("SOLO")}
-            disabled={loadingPlan !== null}
-            className="mt-3 w-full rounded-full border border-emerald-500 px-3 py-1.5 text-[11px] font-semibold text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-60"
-          >
-            {loadingPlan === "SOLO" ? "Redirecting..." : "Choose Solo"}
-          </button>
-        </div>
-
-        <div className="rounded-xl border border-emerald-500 bg-slate-950/70 p-4 shadow-lg shadow-emerald-500/20">
-          <div className="text-[11px] uppercase text-emerald-300">
-            Small Firm
+      {isActive ? (
+        <div className="rounded-xl border border-green-200 bg-green-50 p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-sm font-semibold text-green-900">Active Subscription</div>
+              {currentPeriodEnd && (
+                <div className="mt-1 text-xs text-green-700">
+                  Renews: {new Date(currentPeriodEnd).toLocaleDateString()}
+                </div>
+              )}
+            </div>
+            <button
+              onClick={handleCheckout}
+              disabled={loading}
+              className="px-4 py-2 rounded-lg border border-green-300 bg-white text-sm font-medium text-green-900 hover:bg-green-50 disabled:opacity-60"
+            >
+              {loading ? "Loading..." : "Manage Subscription"}
+            </button>
           </div>
-          <div className="mt-1 text-lg font-semibold">$69 / mo</div>
-          <p className="mt-2 text-slate-200">
-            Up to 5 attorney seats. Up to 500 active client registries.
-          </p>
-          <button
-            onClick={() => goToCheckout("SMALL_FIRM")}
-            disabled={loadingPlan !== null}
-            className="mt-3 w-full rounded-full bg-emerald-500 px-3 py-1.5 text-[11px] font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-60"
-          >
-            {loadingPlan === "SMALL_FIRM"
-              ? "Redirecting..."
-              : "Choose Small Firm"}
-          </button>
         </div>
-
-        <div className="rounded-xl border border-slate-800 bg-slate-950/50 p-4">
-          <div className="text-[11px] uppercase text-slate-400">
-            Enterprise
+      ) : (
+        <div className="rounded-xl border border-slate-200 bg-white p-6">
+          <div className="text-center space-y-4">
+            <div>
+              <div className="text-lg font-semibold text-slate-900">HeirVault Firm</div>
+              <div className="mt-1 text-2xl font-bold text-slate-900">$199<span className="text-sm font-normal text-slate-600">/month</span></div>
+              <p className="mt-2 text-sm text-slate-600">
+                One subscription per firm. Unlimited attorneys and clients.
+              </p>
+            </div>
+            <button
+              onClick={handleCheckout}
+              disabled={loading}
+              className="w-full px-6 py-3 rounded-lg bg-slate-900 text-white font-semibold hover:bg-slate-800 disabled:opacity-60"
+            >
+              {loading ? "Redirecting..." : "Subscribe"}
+            </button>
+            <p className="text-xs text-slate-500">
+              Secure checkout powered by Stripe. Cancel anytime.
+            </p>
           </div>
-          <div className="mt-1 text-lg font-semibold">Let&apos;s talk</div>
-          <p className="mt-2 text-slate-400">
-            Larger firms, custom limits, SSO, and dedicated support.
-          </p>
-          <button
-            disabled
-            className="mt-3 w-full rounded-full border border-slate-700 px-3 py-1.5 text-[11px] text-slate-400"
-          >
-            Contact sales (coming soon)
-          </button>
         </div>
-      </div>
+      )}
     </section>
   );
 }
-

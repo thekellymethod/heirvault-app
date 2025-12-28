@@ -9,6 +9,8 @@ import { putObject } from "@/lib/storage";
 import { sendEmail } from "@/lib/email";
 import { ArtifactType, ClientInviteStatus, DocumentClassificationStatus } from "@prisma/client";
 import { bandFromScore } from "@/lib/confidence";
+import { intakeRules, requiredDocTypesForInvite } from "@/lib/rules/requiredDocs";
+import { rateLimit, clientIp } from "@/lib/security/rateLimit";
 import crypto from "crypto";
 
 function labelDocType(dt: string) {
@@ -28,6 +30,11 @@ function labelDocType(dt: string) {
 }
 
 export async function POST(req: Request) {
+  // Rate limiting
+  const ip = clientIp(req);
+  const rl = rateLimit(`submit:${ip}`, { limit: 10, windowMs: 60_000 });
+  if (!rl.ok) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+
   const { token } = await req.json().catch(() => ({}));
   if (!token || typeof token !== "string") return NextResponse.json({ error: "Invalid token" }, { status: 400 });
 
@@ -40,6 +47,56 @@ export async function POST(req: Request) {
   if (!invite || invite.status !== ClientInviteStatus.ACTIVE) return NextResponse.json({ error: "Invite invalid" }, { status: 403 });
   if (invite.expiresAt.getTime() < Date.now()) return NextResponse.json({ error: "Invite expired" }, { status: 403 });
   if (invite.submissionCount >= invite.maxSubmissions) return NextResponse.json({ error: "Invite used" }, { status: 403 });
+
+  // Get documents for this invite
+  const documents = await prisma.documents.findMany({
+    where: {
+      clientId: invite.clientId,
+      uploadedVia: "CLIENT_INVITE_UPLOAD",
+      createdAt: { gte: invite.createdAt },
+    },
+  });
+
+  // Get expected policy to determine required docs
+  const expectedPolicy = await prisma.policies.findFirst({
+    where: { clientId: invite.clientId },
+    orderBy: { createdAt: "desc" },
+  });
+
+  // Determine intake rules
+  const rules = intakeRules({
+    requireGovId: true,
+    requireTax: false, // Can be set based on invite metadata if needed
+    beneficiariesExpected: expectedPolicy?.expectedBeneficiaryCount ?? null,
+  });
+
+  const required = requiredDocTypesForInvite(rules);
+  const hasAny = (types: string[]) => documents.some(d => types.includes(d.fileType));
+  const missing: string[] = [];
+
+  for (const dt of required) {
+    if (dt === "TAX_W9" || dt === "TAX_1040" || dt === "TAX_OTHER") {
+      if (!hasAny(["TAX_W9", "TAX_1040", "TAX_OTHER"])) {
+        missing.push("Tax Document");
+      }
+      continue;
+    }
+    if (dt === "DRIVERS_LICENSE" || dt === "PASSPORT") {
+      // ID: at least one ID doc
+      if (!hasAny(["DRIVERS_LICENSE", "PASSPORT"])) missing.push("Government ID");
+      continue;
+    }
+    if (!documents.some(d => d.fileType === dt)) {
+      missing.push(dt);
+    }
+  }
+
+  if (missing.length) {
+    return NextResponse.json(
+      { error: `Missing required document(s): ${missing.join(", ")}` },
+      { status: 400 }
+    );
+  }
 
   // Count submissions
   await prisma.client_invites.update({
@@ -56,22 +113,12 @@ export async function POST(req: Request) {
     metadata: {},
   });
 
-  // Pull docs for this invite (documents uploaded via this invite)
-  const docs = await prisma.documents.findMany({
-    where: { 
-      clientId: invite.clientId,
-      uploadedVia: "CLIENT_INVITE_UPLOAD",
-      createdAt: { gte: invite.createdAt },
-    },
-    orderBy: { createdAt: "asc" },
-  });
-
   // NOTE: The OCR/scoring worker is separate; at submit time we generate a receipt
   // based on current statuses. Later review/auto-accept happens asynchronously.
   const receiptNumber = makeReceiptNumber();
   const clientName = `${invite.clients.firstName ?? ""} ${invite.clients.lastName ?? ""}`.trim() || "Policyholder";
 
-  const items = docs.map(d => {
+  const items = documents.map(d => {
     // Policyholder-safe status
     let statusLabel = "Received";
     if (d.classificationStatus === DocumentClassificationStatus.APPROVED || d.classificationStatus === DocumentClassificationStatus.AUTO_ACCEPTED) {

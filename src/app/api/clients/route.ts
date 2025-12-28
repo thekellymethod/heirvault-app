@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAuthApi } from "@/lib/utils/clerk";
 import { logAuditEvent } from "@/lib/audit";
+import { requireAuthPrincipal, requireRole } from "@/lib/permissions/guard";
+import { getOrgContext } from "@/lib/org/getOrgContext";
+import { requireRegistryActive } from "@/lib/billing/requireRegistryActive";
+import { UserRole } from "@prisma/client";
 import { randomUUID } from "crypto";
 
 export const runtime = "nodejs";
@@ -46,11 +50,28 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await requireAuthApi();
-  if (auth.response) return auth.response;
-  const { user } = auth;
+  // Unified registry gate
+  try {
+    const principal = await requireAuthPrincipal();
+    requireRole(principal, [UserRole.ADMIN, UserRole.ATTORNEY]);
+    
+    const { org, orgId } = await getOrgContext(principal);
+    requireRegistryActive(org);
 
-  const body = await req.json().catch(() => ({}));
+    // Get user's organization for client creation
+    const membership = await prisma.org_members.findFirst({
+      where: { userId: principal.dbUserId },
+      include: { organizations: true },
+    });
+
+    if (!membership) {
+      return NextResponse.json(
+        { error: "No organization found" },
+        { status: 400 }
+      );
+    }
+
+    const body = await req.json().catch(() => ({}));
 
   const firstName = String(body?.firstName ?? "").trim();
   const lastName = String(body?.lastName ?? "").trim();
@@ -65,45 +86,54 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Create client + grant attorney access in one transaction
-  const result = await prisma.$transaction(async (tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0]) => {
-    // Create client
-    const client = await tx.clients.create({
-      data: {
-        id: randomUUID(),
-        email,
-        firstName: firstName,
-        lastName: lastName,
-        phone: phone || null,
-        dateOfBirth: dateOfBirth || null,
-      },
+    // Create client + grant attorney access in one transaction
+    const result = await prisma.$transaction(async (tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0]) => {
+      // Create client
+      const client = await tx.clients.create({
+        data: {
+          id: randomUUID(),
+          email,
+          firstName: firstName,
+          lastName: lastName,
+          phone: phone || null,
+          dateOfBirth: dateOfBirth || null,
+          orgId: orgId, // Set organization ID
+        },
+      });
+
+      // Grant attorney access
+      await tx.attorneyClientAccess.create({
+        data: {
+          id: randomUUID(),
+          attorneyId: principal.dbUserId,
+          clientId: client.id,
+          isActive: true,
+        },
+      });
+
+      return {
+        id: client.id,
+        firstName: client.firstName,
+        lastName: client.lastName,
+        email: client.email,
+      };
     });
 
-    // Grant attorney access
-    await tx.attorneyClientAccess.create({
-      data: {
-        id: randomUUID(),
-        attorneyId: user.id,
-        clientId: client.id,
-        isActive: true,
-      },
+    await logAuditEvent({
+      action: "CLIENT_CREATED",
+      resourceType: "client",
+      resourceId: result.id,
+      details: { firstName, lastName, email },
+      userId: principal.dbUserId,
+      orgId: orgId,
     });
 
-    return {
-      id: client.id,
-      firstName: client.firstName,
-      lastName: client.lastName,
-      email: client.email,
-    };
-  });
-
-  await logAuditEvent({
-    action: "CLIENT_CREATED",
-    resourceType: "client",
-    resourceId: result.id,
-    details: { firstName, lastName, email },
-    userId: user.id,
-  });
-
-  return NextResponse.json({ client: result }, { status: 201 });
+    return NextResponse.json({ client: result }, { status: 201 });
+  } catch (e: any) {
+    const status = e?.status || 402;
+    return NextResponse.json(
+      { error: e?.message || "Billing required" },
+      { status }
+    );
+  }
 }

@@ -4,6 +4,8 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Mail, Copy, Check, ExternalLink } from "lucide-react";
 import { showSuccess, showError } from "@/lib/toast";
+import { useRegistryGate } from "@/hooks/useRegistryGate";
+import { fetchJson } from "@/lib/http/fetchJson";
 
 interface Props {
   clientId: string,
@@ -12,6 +14,7 @@ interface Props {
 }
 
 export function InviteClientButton({ clientId, defaultEmail, clientName }: Props) {
+  const { ready, active, gate } = useRegistryGate();
   const [email, setEmail] = useState(defaultEmail || "");
   const [loading, setLoading] = useState(false);
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
@@ -22,6 +25,9 @@ export function InviteClientButton({ clientId, defaultEmail, clientName }: Props
   const [showForm, setShowForm] = useState(false);
 
   async function handleInvite() {
+    // Soft gate check
+    if (!gate()) return;
+
     setError(null);
     setSuccess(false);
     setInviteUrl(null);
@@ -34,24 +40,25 @@ export function InviteClientButton({ clientId, defaultEmail, clientName }: Props
 
     setLoading(true);
     try {
-      const res = await fetch(`/api/clients/${clientId}/invite`, {
+      // Use unified fetchJson which handles 402 automatically
+      const data = await fetchJson(`/api/attorney/clients/${clientId}/invite/send`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
       });
 
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Failed to create invite.");
+      // Note: The invite/send endpoint returns different structure
+      // Adjust based on your actual API response
+      if (data.inviteUrl) {
+        setInviteUrl(data.inviteUrl);
+        const code = data.inviteUrl.split("/invite/")[1];
+        setInviteCode(code);
+        setSuccess(true);
+        showSuccess(`Invitation sent successfully to ${email}`);
+      } else {
+        // Fallback for different API structure
+        showSuccess(`Invitation sent successfully to ${email}`);
       }
-
-      const data = await res.json();
-      setInviteUrl(data.inviteUrl);
-      // Extract code from URL (last part after /invite/)
-      const code = data.inviteUrl.split("/invite/")[1];
-      setInviteCode(code);
-      setSuccess(true);
-      showSuccess(`Invitation sent successfully to ${email}`);
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Unknown error";
       setError(message);
@@ -171,8 +178,21 @@ export function InviteClientButton({ clientId, defaultEmail, clientName }: Props
   }
 
   if (!showForm) {
+    const handleClick = () => {
+      if (!isActive) {
+        window.location.href = "/dashboard/billing";
+        return;
+      }
+      setShowForm(true);
+    };
+
     return (
-      <Button onClick={() => setShowForm(true)} className="btn-primary">
+      <Button
+        onClick={handleClick}
+        className="btn-primary"
+        disabled={billingLoading}
+        title={!isActive ? "Activate billing to send secure upload invites" : ""}
+      >
         <Mail className="h-4 w-4 mr-2" />
         Send Client Invitation
       </Button>

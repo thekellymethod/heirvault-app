@@ -10,6 +10,8 @@ import {
   DocumentSensitivity,
   UploaderType,
 } from "@prisma/client";
+import { rateLimit, clientIp } from "@/lib/security/rateLimit";
+import { validateUpload } from "@/lib/security/uploads";
 import crypto from "crypto";
 
 export const runtime = "nodejs";
@@ -41,6 +43,11 @@ function classify(docType: DocType) {
 }
 
 export async function POST(req: Request) {
+  // Rate limiting
+  const ip = clientIp(req);
+  const rl = rateLimit(`upload:${ip}`, { limit: 30, windowMs: 60_000 });
+  if (!rl.ok) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+
   const form = await req.formData();
   const token = form.get("token");
   const docTypeRaw = form.get("docType");
@@ -49,6 +56,13 @@ export async function POST(req: Request) {
   if (typeof token !== "string") return NextResponse.json({ error: "Invalid token" }, { status: 400 });
   if (typeof docTypeRaw !== "string") return NextResponse.json({ error: "Invalid docType" }, { status: 400 });
   if (!(file instanceof File)) return NextResponse.json({ error: "Missing file" }, { status: 400 });
+
+  // File validation
+  try {
+    validateUpload(file, { maxBytes: 15 * 1024 * 1024 }); // 15MB
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message || "Invalid file" }, { status: 400 });
+  }
 
   const tokenHash = hashToken(token);
   const cr = await prisma.change_requests.findUnique({

@@ -38,3 +38,18 @@ export async function getSignedObjectUrl(key: string, expiresSeconds = 60) {
   });
   return getSignedUrl(s3, cmd, { expiresIn: expiresSeconds });
 }
+
+export async function signGetUrl(params: {
+  key: string;
+  expiresInSeconds: number;
+  contentDisposition?: "inline" | "attachment";
+  fileName?: string;
+}) {
+  const cmd = new GetObjectCommand({
+    Bucket: process.env.S3_BUCKET!,
+    Key: params.key,
+    ResponseContentDisposition: `${params.contentDisposition ?? "inline"}${params.fileName ? `; filename="${params.fileName}"` : ""}`,
+  });
+
+  return getSignedUrl(s3, cmd, { expiresIn: params.expiresInSeconds });
+}

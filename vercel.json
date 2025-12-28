@@ -1,0 +1,9 @@
+{
+  "crons": [
+    {
+      "path": "/api/jobs/process-docs",
+      "schedule": "*/2 * * * *"
+    }
+  ]
+}
+

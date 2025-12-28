@@ -11,6 +11,12 @@ function friendlyStatus(cs: DocumentClassificationStatus) {
   return "Received";
 }
 
+function friendlyPipeline(d: any) {
+  const processingState = d.processingState ?? "QUEUED";
+  if (processingState === "QUEUED" || processingState === "PROCESSING") return "Processing";
+  return friendlyStatus(d.classificationStatus);
+}
+
 function labelDocType(dt: string) {
   switch (dt) {
     case "DRIVERS_LICENSE": return "Driver's License";
@@ -53,7 +59,10 @@ export async function POST(req: Request) {
 
   const docStatuses = docs.map(d => ({
     type: labelDocType(d.fileType),
-    status: friendlyStatus(d.classificationStatus),
+    status: friendlyPipeline(d),
+    message: d.classificationStatus === DocumentClassificationStatus.REJECTED 
+      ? (d.policyholderMessage ?? "Please re-upload a clearer document.") 
+      : undefined,
   }));
 
   // Get receipts for this invite

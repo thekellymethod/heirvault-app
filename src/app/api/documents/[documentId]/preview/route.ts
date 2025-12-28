@@ -1,14 +1,14 @@
 // src/app/api/documents/[documentId]/preview/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireVerifiedAttorney } from "@/lib/auth/guards";
+import { requireAuthPrincipal, requireRole, requireClientAccess, HttpError } from "@/lib/permissions/guard";
 import { getSignedObjectUrl } from "@/lib/storage";
 import { logDocumentAccess } from "@/lib/accessLog";
-import { DocumentSensitivity, UploaderType } from "@prisma/client";
+import { DocumentSensitivity, UploaderType, UserRole } from "@prisma/client";
 
 export async function GET(_: Request, ctx: { params: Promise<{ documentId: string }> }) {
-  const user = await requireVerifiedAttorney();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const principal = await requireAuthPrincipal();
+  requireRole(principal, [UserRole.ADMIN, UserRole.attorney]);
 
   const { documentId } = await ctx.params;
 
@@ -16,9 +16,9 @@ export async function GET(_: Request, ctx: { params: Promise<{ documentId: strin
     where: { id: documentId },
     include: { clients: true },
   });
-  if (!doc) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!doc) throw new HttpError(404, "Not found");
 
-  // TODO: enforce attorney/admin role + ownership over client
+  await requireClientAccess({ principal, clientId: doc.clientId });
 
   let previewKey = doc.filePath;
 
@@ -37,8 +37,8 @@ export async function GET(_: Request, ctx: { params: Promise<{ documentId: strin
 
   await logDocumentAccess({
     documentId: doc.id,
-    actorType: user.roles.includes("ADMIN") ? UploaderType.ADMIN : UploaderType.ATTORNEY,
-    actorId: user.id,
+    actorType: principal.role === UserRole.ADMIN ? UploaderType.ADMIN : UploaderType.ATTORNEY,
+    actorId: principal.dbUserId,
     action: "VIEW_PREVIEW",
   });
 

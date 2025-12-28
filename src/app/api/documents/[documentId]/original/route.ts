@@ -1,14 +1,14 @@
 // src/app/api/documents/[documentId]/original/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireVerifiedAttorney } from "@/lib/auth/guards";
+import { requireAuthPrincipal, requireRole, requireClientAccess, HttpError } from "@/lib/permissions/guard";
 import { getSignedObjectUrl } from "@/lib/storage";
 import { logDocumentAccess } from "@/lib/accessLog";
-import { DocumentSensitivity, UploaderType } from "@prisma/client";
+import { DocumentSensitivity, UploaderType, UserRole } from "@prisma/client";
 
 export async function POST(req: Request, ctx: { params: Promise<{ documentId: string }> }) {
-  const user = await requireVerifiedAttorney();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const principal = await requireAuthPrincipal();
+  requireRole(principal, [UserRole.ADMIN, UserRole.attorney]);
 
   const { reason } = await req.json().catch(() => ({}));
   if (!reason || typeof reason !== "string" || reason.length < 5) {
@@ -20,7 +20,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ documentId: st
   const doc = await prisma.documents.findUnique({
     where: { id: documentId },
   });
-  if (!doc) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!doc) throw new HttpError(404, "Not found");
 
   // Only sensitive docs require this endpoint
   if (
@@ -30,14 +30,18 @@ export async function POST(req: Request, ctx: { params: Promise<{ documentId: st
     return NextResponse.json({ error: "Use preview endpoint" }, { status: 400 });
   }
 
-  // TODO: enforce admin OR attorney role
+  await requireClientAccess({
+    principal,
+    clientId: doc.clientId,
+    requireSensitive: true,
+  });
 
   const signedUrl = await getSignedObjectUrl(doc.filePath, 30);
 
   await logDocumentAccess({
     documentId: doc.id,
-    actorType: user.roles.includes("ADMIN") ? UploaderType.ADMIN : UploaderType.ATTORNEY,
-    actorId: user.id,
+    actorType: principal.role === UserRole.ADMIN ? UploaderType.ADMIN : UploaderType.ATTORNEY,
+    actorId: principal.dbUserId,
     action: "VIEW_ORIGINAL",
     reason: reason.slice(0, 300),
   });

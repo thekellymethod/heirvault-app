@@ -157,6 +157,7 @@ model clients {
   artifacts         artifacts[]
   expectedPolicies  expected_policies[] @relation("ExpectedPolicies")
   receipts          receipts[] @relation("Receipts")
+  changeRequests   change_requests[] @relation("ChangeRequests")
 
   @@index([addressLine1, city, state, postalCode])
   @@index([clientFingerprint])
@@ -274,12 +275,15 @@ model organizations {
   billingStatus          String?                  @map("billing_status")
   stripeCustomerId       String?                  @map("stripe_customer_id")
   stripeSubscriptionId   String?                  @map("stripe_subscription_id")
+  stripePriceId          String?                  @map("stripe_price_id")
+  currentPeriodEnd       DateTime?                @map("current_period_end")
   access_grants          access_grants[]
   attorneyClientAccess   attorneyClientAccess[]
   audit_logs             audit_logs[]
   clients                clients[]
   invites                invites[]
   org_members            org_members[]
+  artifacts              artifacts[]
 
   @@map("organizations")
 }
@@ -406,6 +410,10 @@ model attorneyClientAccess {
   revokedAt      DateTime? @map("revoked_at")
   isActive       Boolean  @default(true) @map("is_active")
 
+  // Optional: finer-grained permissions
+  canViewSensitive Boolean @default(false) @map("can_view_sensitive")
+  canDownload      Boolean @default(false) @map("can_download")
+
   users          User           @relation(fields: [attorneyId], references: [id], onDelete: Cascade)
   clients        clients        @relation(fields: [clientId], references: [id], onDelete: Cascade)
   organizations  organizations? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -450,6 +458,7 @@ enum AuditAction {
   API_TOKEN_REVOKED
   API_TOKEN_ROTATED
   API_TOKEN_USED
+  BILLING_INVOICE_OPENED
 }
 
 enum BillingPlan {
@@ -474,6 +483,7 @@ enum OrgRole {
 
 enum UserRole {
   attorney
+  ADMIN
 }
 
 enum LicenseStatus {
@@ -517,6 +527,7 @@ enum BeneficiaryVerificationStatus {
 enum ArtifactType {
   INVITE_PDF
   RECEIPT_PDF
+  BILLING_INVOICE_PDF
 }
 
 enum ChangeRequestStatus {
@@ -562,13 +573,18 @@ model artifacts {
   id          String        @id @default(uuid())
   type        ArtifactType
   clientId    String?       @map("client_id")
+  orgId       String?       @map("org_id")
   inviteId    String?       @map("invite_id")
   fileName    String        @map("file_name")
   filePath    String        @map("file_path")
+  storageKey  String?       @map("storage_key") // S3 key (preferred over filePath)
+  sha256      String?       @map("sha256")
+  metadata    Json?         // Store invoice metadata, receipt numbers, etc.
   fileSize    Int           @map("file_size")
   mimeType    String        @map("mime_type")
   createdAt   DateTime      @default(now()) @map("created_at")
   clients     clients?      @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  organizations organizations? @relation(fields: [orgId], references: [id], onDelete: Cascade)
   invitePdfs  client_invites[] @relation("InvitePdf")
   receiptPdfs  client_invites[] @relation("ReceiptPdf")
   receipts     receipts[]    @relation("ReceiptArtifacts")
@@ -576,7 +592,9 @@ model artifacts {
 
   @@index([type])
   @@index([clientId])
+  @@index([orgId])
   @@index([inviteId])
+  @@index([type, createdAt])
   @@map("artifacts")
 }
 

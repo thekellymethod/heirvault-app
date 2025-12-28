@@ -7,7 +7,9 @@ import { makeReceiptNumber } from "@/lib/security";
 import { makeChangeReceiptPdf } from "@/lib/pdf/changeReceipt";
 import { putObject } from "@/lib/storage";
 import { sendEmail } from "@/lib/email";
-import { ArtifactType, ChangeRequestStatus, UploaderType, DocumentClassificationStatus } from "@prisma/client";
+import { ArtifactType, ChangeRequestStatus, UploaderType, DocumentClassificationStatus, ChangeRequestType } from "@prisma/client";
+import { requiredDocTypesForChangeRequest } from "@/lib/rules/requiredDocs";
+import { rateLimit, clientIp } from "@/lib/security/rateLimit";
 import crypto from "crypto";
 
 function labelDocType(dt: string) {
@@ -35,6 +37,11 @@ function friendlyStatus(cs: DocumentClassificationStatus) {
 }
 
 export async function POST(req: Request) {
+  // Rate limiting
+  const ip = clientIp(req);
+  const rl = rateLimit(`submit:${ip}`, { limit: 10, windowMs: 60_000 });
+  if (!rl.ok) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+
   const { token } = await req.json().catch(() => ({}));
   if (!token || typeof token !== "string") return NextResponse.json({ error: "Invalid token" }, { status: 400 });
 
@@ -47,6 +54,35 @@ export async function POST(req: Request) {
   if (!cr) return NextResponse.json({ error: "Invalid" }, { status: 403 });
   if (cr.expiresAt.getTime() < Date.now()) return NextResponse.json({ error: "Expired" }, { status: 403 });
   if (cr.submissionCount >= cr.maxSubmissions) return NextResponse.json({ error: "Used" }, { status: 403 });
+
+  // Required docs validation
+  const required = requiredDocTypesForChangeRequest(cr.requestType);
+  const hasAny = (types: string[]) => cr.documents.some(d => types.includes(d.fileType));
+  const missing: string[] = [];
+
+  for (const dt of required) {
+    if (dt === "TAX_W9" || dt === "TAX_1040" || dt === "TAX_OTHER") {
+      if (!hasAny(["TAX_W9", "TAX_1040", "TAX_OTHER"])) {
+        missing.push("Tax Document");
+      }
+      continue;
+    }
+    if (dt === "DRIVERS_LICENSE" || dt === "PASSPORT") {
+      // ID update: at least one ID doc
+      if (!hasAny(["DRIVERS_LICENSE", "PASSPORT"])) missing.push("Government ID");
+      continue;
+    }
+    if (!cr.documents.some(d => d.fileType === dt)) {
+      missing.push(dt);
+    }
+  }
+
+  if (missing.length) {
+    return NextResponse.json(
+      { error: `Missing required document(s): ${missing.join(", ")}` },
+      { status: 400 }
+    );
+  }
 
   await prisma.change_requests.update({
     where: { id: cr.id },

@@ -4,142 +4,190 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
-const DOC_TYPES = [
-  { value: "DRIVERS_LICENSE", label: "Driver's License" },
-  { value: "POLICY", label: "Insurance Policy" },
-  { value: "BENEFICIARY_DOC", label: "Beneficiary Document (if applicable)" },
-  { value: "TAX_OTHER", label: "Tax Document (if requested)" },
-];
+type Mode = "INVITE" | "CHANGE";
+
+async function postJson(url: string, body: any) {
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body ?? {}),
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json?.error || "Request failed");
+  return json;
+}
 
 export default function UploadPage() {
   const sp = useSearchParams();
-  const tokenFromUrl = sp.get("token") || "";
-  const changeTokenFromUrl = sp.get("changeToken") || "";
-  const isChangeRequest = !!changeTokenFromUrl;
-  const [token, setToken] = useState(isChangeRequest ? changeTokenFromUrl : tokenFromUrl);
+  const inviteToken = sp.get("token");
+  const changeToken = sp.get("changeToken");
+
+  const mode: Mode | null = inviteToken ? "INVITE" : changeToken ? "CHANGE" : null;
+  const token = inviteToken ?? changeToken ?? "";
+
   const [valid, setValid] = useState<boolean | null>(null);
-  const [name, setName] = useState("");
-  const [requestType, setRequestType] = useState<string>("");
-  const [docType, setDocType] = useState("DRIVERS_LICENSE");
-  const [file, setFile] = useState<File | null>(null);
-  const [msg, setMsg] = useState<string>("");
+  const [displayName, setDisplayName] = useState<string>("Policyholder");
+  const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!token) return;
     (async () => {
-      setMsg("");
-      const endpoint = isChangeRequest ? "/api/public/change-request/validate" : "/api/public/invite/validate";
-      const res = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token }),
-      });
-      const data = await res.json();
-      setValid(!!data.valid);
-      if (data.valid) {
-        setName(data.displayName || "");
-        if (data.requestType) setRequestType(data.requestType);
+      if (!mode) {
+        setValid(false);
+        setErr("Missing secure link token.");
+        return;
       }
-      if (!data.valid) setMsg(isChangeRequest ? "Change request is invalid or expired." : "Invite is invalid or expired.");
+      try {
+        setErr(null);
+        const url = mode === "INVITE" ? "/api/public/invite/validate" : "/api/public/change-request/validate";
+        const r = await postJson(url, { token });
+        setValid(!!r.valid);
+        if (r.displayName) setDisplayName(r.displayName);
+      } catch (e: any) {
+        setValid(false);
+        setErr(e?.message ?? "Invalid link.");
+      }
     })();
-  }, [token, isChangeRequest]);
+  }, [mode, token]);
 
-  const canUpload = useMemo(() => valid && token && file, [valid, token, file]);
-
-  async function uploadOne() {
-    setMsg("");
-    if (!canUpload || !file) return;
-    const fd = new FormData();
-    fd.set("token", token);
-    fd.set("docType", docType);
-    fd.set("file", file);
-
-    const endpoint = isChangeRequest ? "/api/public/change-request/upload" : "/api/public/upload";
-    const res = await fetch(endpoint, { method: "POST", body: fd });
-    if (!res.ok) {
-      const t = await res.json().catch(() => ({}));
-      setMsg(t.error || "Upload failed.");
-      return;
-    }
-    setFile(null);
-    setMsg("Document received.");
-  }
-
-  async function submitIntake() {
-    setMsg("");
-    const endpoint = isChangeRequest ? "/api/public/change-request/submit" : "/api/public/intake/submit";
-    const res = await fetch(endpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token }),
-    });
-    if (!res.ok) {
-      const t = await res.json().catch(() => ({}));
-      setMsg(t.error || "Submission failed.");
-      return;
-    }
-    setMsg(isChangeRequest 
-      ? "Change request received. A receipt has been sent to your email."
-      : "Submission received. A receipt has been sent to your email.");
-  }
+  if (valid === null) return <div className="p-6">Loading…</div>;
+  if (!valid) return <div className="p-6 text-red-600">{err ?? "Invalid link."}</div>;
 
   return (
-    <div style={{ maxWidth: 720, margin: "40px auto", padding: 16, fontFamily: "system-ui" }}>
-      <h1>Secure Document Upload</h1>
-
-      <div style={{ marginTop: 12 }}>
-        <label>{isChangeRequest ? "Change Request Token" : "Invite Link Code"}</label>
-        <input
-          value={token}
-          onChange={(e) => setToken(e.target.value)}
-          style={{ width: "100%", padding: 10, marginTop: 6 }}
-          placeholder={isChangeRequest ? "Paste your change request token" : "Paste your invite token"}
-        />
+    <div className="p-6 space-y-4 max-w-2xl mx-auto">
+      <div className="rounded-2xl border p-5">
+        <div className="text-xl font-semibold">Secure Upload</div>
+        <div className="text-sm text-slate-600">{displayName}</div>
       </div>
 
-      {valid && (
-        <div style={{ marginTop: 12, padding: 12, border: "1px solid #ddd" }}>
-          <div><b>Policyholder:</b> {name}</div>
-          {requestType && (
-            <div style={{ marginTop: 6, fontSize: 13 }}>
-              <b>Request Type:</b> {requestType.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, c => c.toUpperCase())}
-            </div>
-          )}
-          <div style={{ marginTop: 6, fontSize: 13 }}>
-            {isChangeRequest 
-              ? "Upload updated documents for your change request. Your receipt will be emailed after submission."
-              : "Upload the requested documents. Your receipt will be emailed after submission."}
-          </div>
-        </div>
-      )}
-
-      {valid && (
-        <>
-          <div style={{ marginTop: 16 }}>
-            <label>Document Type</label>
-            <select value={docType} onChange={(e) => setDocType(e.target.value)} style={{ width: "100%", padding: 10, marginTop: 6 }}>
-              {DOC_TYPES.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
-            </select>
-          </div>
-
-          <div style={{ marginTop: 12 }}>
-            <label>Select File</label>
-            <input type="file" onChange={(e) => setFile(e.target.files?.[0] || null)} style={{ width: "100%", padding: 10, marginTop: 6 }} />
-          </div>
-
-          <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
-            <button onClick={uploadOne} disabled={!canUpload} style={{ padding: 10 }}>
-              Upload Document
-            </button>
-            <button onClick={submitIntake} disabled={!valid} style={{ padding: 10 }}>
-              {isChangeRequest ? "Submit Change Request (Email Receipt)" : "Submit Intake (Email Receipt)"}
-            </button>
-          </div>
-        </>
-      )}
-
-      {msg && <p style={{ marginTop: 16 }}>{msg}</p>}
+      {/* Replace below with your UploadWizard component. This is the wiring skeleton. */}
+      <UploadWizard mode={mode} token={token} />
+      <StatusPanel mode={mode} token={token} />
     </div>
   );
 }
 
+function UploadWizard({ mode, token }: { mode: Mode; token: string }) {
+  const [docType, setDocType] = useState("POLICY");
+  const [file, setFile] = useState<File | null>(null);
+  const [msg, setMsg] = useState<string>("");
+
+  const uploadUrl = mode === "INVITE" ? "/api/public/upload" : "/api/public/change-request/upload";
+  const submitUrl = mode === "INVITE" ? "/api/public/intake/submit" : "/api/public/change-request/submit";
+
+  const upload = async () => {
+    if (!file) return;
+    setMsg("");
+    const fd = new FormData();
+    fd.append("token", token);
+    fd.append("docType", docType);
+    fd.append("file", file);
+
+    const res = await fetch(uploadUrl, { method: "POST", body: fd });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) setMsg(json?.error ?? "Upload failed");
+    else {
+      setMsg("Received.");
+      setFile(null);
+    }
+  };
+
+  const submit = async () => {
+    setMsg("");
+    try {
+      const res = await fetch(submitUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) setMsg(json?.error ?? "Submit failed");
+      else setMsg("Receipt sent.");
+    } catch (e: any) {
+      setMsg(e?.message ?? "Submit failed");
+    }
+  };
+
+  return (
+    <div className="rounded-2xl border p-5 space-y-3">
+      <div className="font-semibold">Upload Documents</div>
+
+      <div className="flex gap-2">
+        <select className="border rounded-lg px-3 py-2 flex-1" value={docType} onChange={(e) => setDocType(e.target.value)}>
+          <option value="DRIVERS_LICENSE">Driver's License</option>
+          <option value="POLICY">Insurance Policy</option>
+          <option value="BENEFICIARY_DOC">Beneficiary Document</option>
+          <option value="TAX_W9">Tax Form</option>
+          <option value="TAX_1040">Tax Return</option>
+          <option value="TAX_OTHER">Tax Document</option>
+          <option value="OTHER">Other</option>
+        </select>
+
+        <input
+          className="border rounded-lg px-3 py-2"
+          type="file"
+          accept="application/pdf,image/*"
+          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+        />
+      </div>
+
+      <div className="flex gap-2">
+        <button className="px-4 py-2 rounded-lg border" onClick={upload} disabled={!file}>
+          Upload
+        </button>
+        <button className="px-4 py-2 rounded-lg border" onClick={submit}>
+          Submit & Receive Receipt
+        </button>
+      </div>
+
+      {msg && <div className="text-sm text-slate-700">{msg}</div>}
+      <div className="text-xs text-slate-500">
+        For security, document previews and downloads are not available on this page.
+      </div>
+    </div>
+  );
+}
+
+function StatusPanel({ mode, token }: { mode: Mode; token: string }) {
+  const [status, setStatus] = useState<any>(null);
+
+  useEffect(() => {
+    const tick = async () => {
+      try {
+        const url = mode === "INVITE" ? "/api/public/intake/status" : "/api/public/change-request/status";
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token }),
+        });
+        const json = await res.json().catch(() => ({}));
+        setStatus(json?.ok ? json : null);
+      } catch (e) {
+        // Silent fail
+      }
+    };
+    tick();
+    const id = window.setInterval(tick, 4000);
+    return () => window.clearInterval(id);
+  }, [mode, token]);
+
+  return (
+    <div className="rounded-2xl border p-5 space-y-2">
+      <div className="font-semibold">Status</div>
+      {!status && <div className="text-sm text-slate-500">Checking…</div>}
+      {status && (
+        <>
+          <div className="text-sm text-slate-700">
+            Receipts: {status.receipts?.length ? status.receipts.join(", ") : status.receipt?.length ? status.receipt.join(", ") : "—"}
+          </div>
+          <div className="space-y-1">
+            {(status.documents ?? []).map((d: any, idx: number) => (
+              <div key={idx} className="text-sm">
+                {d.type} — <span className="text-slate-600">{d.status}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}

@@ -5,6 +5,8 @@ import { hashToken } from "@/lib/invites";
 import { putObject } from "@/lib/storage";
 import { auditLog } from "@/lib/audit";
 import { ClientInviteStatus, DocumentClassificationStatus, DocumentSensitivity } from "@prisma/client";
+import { rateLimit, clientIp } from "@/lib/security/rateLimit";
+import { validateUpload } from "@/lib/security/uploads";
 import crypto from "crypto";
 
 // Document type mapping - adjust based on your actual enum

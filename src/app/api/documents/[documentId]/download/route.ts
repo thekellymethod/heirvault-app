@@ -1,14 +1,14 @@
 // src/app/api/documents/[documentId]/download/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireVerifiedAttorney } from "@/lib/auth/guards";
+import { requireAuthPrincipal, requireRole, requireClientAccess, HttpError } from "@/lib/permissions/guard";
 import { getSignedObjectUrl } from "@/lib/storage";
 import { logDocumentAccess } from "@/lib/accessLog";
-import { UploaderType } from "@prisma/client";
+import { DocumentSensitivity, UploaderType, UserRole } from "@prisma/client";
 
 export async function POST(req: Request, ctx: { params: Promise<{ documentId: string }> }) {
-  const user = await requireVerifiedAttorney();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const principal = await requireAuthPrincipal();
+  requireRole(principal, [UserRole.ADMIN, UserRole.attorney]);
 
   const { reason } = await req.json().catch(() => ({}));
   if (!reason || typeof reason !== "string" || reason.length < 5) {
@@ -18,14 +18,21 @@ export async function POST(req: Request, ctx: { params: Promise<{ documentId: st
   const { documentId } = await ctx.params;
 
   const doc = await prisma.documents.findUnique({ where: { id: documentId } });
-  if (!doc) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!doc) throw new HttpError(404, "Not found");
+
+  await requireClientAccess({
+    principal,
+    clientId: doc.clientId,
+    requireDownload: true,
+    requireSensitive: doc.sensitivityLevel === DocumentSensitivity.S4_HIGHLY_SENSITIVE || doc.sensitivityLevel === DocumentSensitivity.S5_LEGAL_CASE,
+  });
 
   const signedUrl = await getSignedObjectUrl(doc.filePath, 30);
 
   await logDocumentAccess({
     documentId: doc.id,
-    actorType: user.roles.includes("ADMIN") ? UploaderType.ADMIN : UploaderType.ATTORNEY,
-    actorId: user.id,
+    actorType: principal.role === UserRole.ADMIN ? UploaderType.ADMIN : UploaderType.ATTORNEY,
+    actorId: principal.dbUserId,
     action: "DOWNLOAD",
     reason: reason.slice(0, 300),
   });

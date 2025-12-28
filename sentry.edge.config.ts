@@ -5,6 +5,8 @@
 
 import * as Sentry from "@sentry/nextjs";
 
+Sentry.logger.info('User triggered test log', { log_source: 'sentry_test' })
+
 Sentry.init({
   dsn: "https://3784d858f24a29b36b748863a4a15092@o4510487378591744.ingest.us.sentry.io/4510487378788352",
 

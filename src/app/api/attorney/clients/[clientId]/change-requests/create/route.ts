@@ -1,7 +1,10 @@
 // src/app/api/attorney/clients/[clientId]/change-requests/create/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireVerifiedAttorney } from "@/lib/auth/guards";
+import { requireAuthPrincipal, requireRole } from "@/lib/permissions/guard";
+import { getOrgContext } from "@/lib/org/getOrgContext";
+import { requireRegistryActive } from "@/lib/billing/requireRegistryActive";
+import { UserRole } from "@prisma/client";
 import { generateInviteToken, hashToken } from "@/lib/invites";
 import { nowPlusHours } from "@/lib/security";
 import { auditLog } from "@/lib/audit";
@@ -22,8 +25,12 @@ function labelRequestType(t: ChangeRequestType) {
 }
 
 export async function POST(req: Request, ctx: { params: Promise<{ clientId: string }> }) {
-  const user = await requireVerifiedAttorney();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const principal = await requireAuthPrincipal();
+  requireRole(principal, [UserRole.ADMIN, UserRole.ATTORNEY]);
+  
+  // Unified registry gate
+  const { org } = await getOrgContext(principal);
+  requireRegistryActive(org);
 
   const { clientId } = await ctx.params;
   const { requestType, note } = await req.json().catch(() => ({}));
@@ -52,7 +59,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ clientId: stri
 
   await auditLog({
     actorType: UploaderType.ATTORNEY,
-    actorId: user.id,
+    actorId: principal.clerkUserId,
     clientId,
     inviteId: null,
     action: "CHANGE_REQUEST_CREATED",
@@ -64,7 +71,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ clientId: stri
   // Reuse Invite PDF generator but use request type language
   const pdfBuf = await makeInvitePdf({
     clientName: `${client.firstName ?? ""} ${client.lastName ?? ""}`.trim() || "Policyholder",
-    attorneyName: `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() || "Attorney",
+    attorneyName: "Attorney", // Simplified for now
     inviteCode: "CHANGE-REQ",
     uploadUrl,
     requiresTax: cr.requestType === ChangeRequestType.TAX_UPDATE,

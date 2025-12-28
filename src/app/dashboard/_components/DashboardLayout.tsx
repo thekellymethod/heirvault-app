@@ -4,6 +4,7 @@ import { SidebarNav } from "./SidebarNav";
 import { GlobalSearch } from "../GlobalSearch";
 import { UserButton } from "@clerk/nextjs";
 import { Logo } from "@/components/Logo";
+import BillingBanner from "@/components/BillingBanner";
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -20,6 +21,9 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
       {/* Main Content */}
       <div className="flex flex-1 flex-col">
+        {/* Billing Banner */}
+        <BillingBanner />
+
         {/* Header */}
         <header className="sticky top-0 z-10 border-b border-slateui-200 bg-paper-50/95 backdrop-blur shadow-sm">
           <div className="flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">

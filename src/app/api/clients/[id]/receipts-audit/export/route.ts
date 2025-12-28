@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { assertAttorneyCanAccessClient } from "@/lib/authz";
+import { requireAuthPrincipal, requireRole } from "@/lib/permissions/guard";
+import { getOrgContext } from "@/lib/org/getOrgContext";
+import { requireRegistryActive } from "@/lib/billing/requireRegistryActive";
+import { requireClientAccess } from "@/lib/permissions/guard";
+import { UserRole } from "@prisma/client";
 import { renderToStream } from "@react-pdf/renderer";
 import { AuditTrailReportPDF } from "@/pdfs/AuditTrailReportPDF";
 
@@ -13,10 +17,17 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const principal = await requireAuthPrincipal();
+    requireRole(principal, [UserRole.ADMIN, UserRole.ATTORNEY]);
+    
+    // Unified registry gate for exports
+    const { org } = await getOrgContext(principal);
+    requireRegistryActive(org);
+    
     const { id: clientId } = await params;
     
     // Verify attorney has access to this client
-    await assertAttorneyCanAccessClient(clientId);
+    await requireClientAccess({ principal, clientId });
 
     // Get client info
     const clientData = await prisma.$queryRawUnsafe<Array<{

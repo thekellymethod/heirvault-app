@@ -1,88 +1,63 @@
+// src/app/api/billing/checkout/route.ts
 import { NextResponse } from "next/server";
-import Stripe from "stripe";
-import { auth } from "@clerk/nextjs/server";
-import { prisma } from "@/lib/prisma";
+import { stripe } from "@/lib/stripe";
+import { prisma } from "@/lib/db";
+import { withRouteGuard } from "@/lib/permissions/route";
+import { requireAuthPrincipal } from "@/lib/permissions/guard";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
-  apiVersion: "2025-11-17.clover" as Stripe.LatestApiVersion,
-});
+export async function POST() {
+  return withRouteGuard(async () => {
+    const principal = await requireAuthPrincipal();
 
-export async function POST(req: Request) {
-  const { userId } = await auth();
-  if (!userId) {
-    return new NextResponse("Unauthorized", { status: 401 });
-  }
-
-  const body = await req.json();
-  const { plan } = body as { plan: "SOLO" | "SMALL_FIRM" };
-
-  if (!plan) {
-    return new NextResponse("Plan required", { status: 400 });
-  }
-
-  const priceId =
-    plan === "SOLO"
-      ? process.env.STRIPE_PRICE_SOLO
-      : process.env.STRIPE_PRICE_SMALL_FIRM;
-
-  if (!priceId) {
-    return new NextResponse("Price configuration missing", { status: 500 });
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { clerkId: userId },
-    include: {
-      orgMemberships: {
-        include: {
-          organizations: true,
-        },
-      },
-    },
-  });
-
-  const orgMember = user?.orgMemberships?.[0];
-  if (!user || !orgMember) {
-    return new NextResponse("No organization found", { status: 400 });
-  }
-
-  const org = orgMember.organizations;
-
-  // Ensure Stripe customer
-  let customerId = org.stripeCustomerId;
-
-  if (!customerId) {
-    const customer = await stripe.customers.create({
-      name: org.name,
-      metadata: {
-        organizationId: org.id,
-      },
+    // Resolve org membership
+    const membership = await prisma.org_members.findFirst({
+      where: { userId: principal.dbUserId },
+      include: { organizations: true },
     });
 
-    customerId = customer.id;
+    if (!membership) {
+      throw new Error("No organization found");
+    }
 
-    await prisma.organizations.update({
-      where: { id: org.id },
-      data: {
-        stripeCustomerId: customerId,
-      },
+    const org = membership.organizations;
+
+    // If already active, send them to portal instead
+    if (org.billingStatus === "ACTIVE" && org.stripeCustomerId) {
+      const portal = await stripe.billingPortal.sessions.create({
+        customer: org.stripeCustomerId,
+        return_url: `${process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/dashboard/billing`,
+      });
+      return { ok: true, url: portal.url, mode: "portal" };
+    }
+
+    // Create or reuse Stripe customer
+    let customerId = org.stripeCustomerId;
+    if (!customerId) {
+      const customer = await stripe.customers.create({
+        metadata: { orgId: org.id },
+      });
+      customerId = customer.id;
+      await prisma.organizations.update({
+        where: { id: org.id },
+        data: { stripeCustomerId: customerId },
+      });
+    }
+
+    const priceId = process.env.STRIPE_PRICE_FIRM;
+    if (!priceId) {
+      throw new Error("STRIPE_PRICE_FIRM not configured");
+    }
+
+    const session = await stripe.checkout.sessions.create({
+      mode: "subscription",
+      customer: customerId,
+      line_items: [{ price: priceId, quantity: 1 }],
+      success_url: `${process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/dashboard/billing?success=1`,
+      cancel_url: `${process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/dashboard/billing?canceled=1`,
+      metadata: { orgId: org.id, priceId },
+      allow_promotion_codes: true,
     });
-  }
 
-  const baseUrl =
-    process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-
-  const session = await stripe.checkout.sessions.create({
-    mode: "subscription",
-    customer: customerId,
-    line_items: [{ price: priceId, quantity: 1 }],
-    success_url: `${baseUrl}/dashboard/billing?status=success`,
-    cancel_url: `${baseUrl}/dashboard/billing?status=cancelled`,
-    metadata: {
-      organizationId: org.id,
-      plan,
-    },
+    return { ok: true, url: session.url, mode: "checkout" };
   });
-
-  return NextResponse.json({ url: session.url }, { status: 201 });
 }
-

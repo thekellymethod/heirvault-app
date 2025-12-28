@@ -1,0 +1,22 @@
+// Example: How to protect a route with subscription requirement
+// src/app/api/example-protected-route/route.ts
+
+import { withRouteGuard } from "@/lib/permissions/route";
+import { requireOrgSubscription } from "@/lib/billing/requireSubscription";
+
+export async function GET() {
+  return withRouteGuard(async () => {
+    // This will redirect to /dashboard/billing if subscription is not active
+    const { principal, org } = await requireOrgSubscription();
+
+    // Now you can use the org and principal
+    // org.billingStatus is guaranteed to be ACTIVE or TRIALING
+
+    return {
+      ok: true,
+      message: "This route requires an active subscription",
+      orgId: org.id,
+    };
+  });
+}
+

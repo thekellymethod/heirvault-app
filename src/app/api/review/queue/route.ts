@@ -1,51 +1,81 @@
 // src/app/api/review/queue/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireVerifiedAttorney } from "@/lib/auth/guards";
-import { DocumentClassificationStatus } from "@prisma/client";
+import { requireAuthPrincipal, requireRole } from "@/lib/permissions/guard";
+import { ChangeRequestStatus, DocumentClassificationStatus, UserRole } from "@prisma/client";
 
 export async function GET() {
-  const user = await requireVerifiedAttorney();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  // TODO: enforce admin OR attorney scope
-  // For now, get documents that need review for this attorney's clients
-  const accessRecords = await prisma.attorneyClientAccess.findMany({
-    where: {
-      attorneyId: user.id,
-      isActive: true,
-    },
-    select: {
-      clientId: true,
-    },
-  });
-
-  const clientIds = accessRecords.map(r => r.clientId);
+  const principal = await requireAuthPrincipal();
+  requireRole(principal, [UserRole.ADMIN, UserRole.attorney]);
 
   // If admin, show all; otherwise filter by client access
-  const whereClause = user.roles.includes("ADMIN")
+  const docsWhere = principal.role === UserRole.ADMIN
     ? { classificationStatus: DocumentClassificationStatus.NEEDS_REVIEW }
     : {
-        clientId: { in: clientIds },
         classificationStatus: DocumentClassificationStatus.NEEDS_REVIEW,
+        clients: { 
+          attorneyClientAccess: { 
+            some: { 
+              attorneyId: principal.dbUserId,
+              isActive: true,
+            } 
+          } 
+        },
       };
 
   const docs = await prisma.documents.findMany({
-    where: whereClause,
+    where: docsWhere,
     orderBy: { createdAt: "desc" },
-    take: 200,
     include: { clients: true },
+    take: 200,
+  });
+
+  const changeRequestsWhere = principal.role === UserRole.ADMIN
+    ? { status: { in: [ChangeRequestStatus.SUBMITTED, ChangeRequestStatus.NEEDS_REVIEW] } }
+    : {
+        status: { in: [ChangeRequestStatus.SUBMITTED, ChangeRequestStatus.NEEDS_REVIEW] },
+        clients: { 
+          attorneyClientAccess: { 
+            some: { 
+              attorneyId: principal.dbUserId,
+              isActive: true,
+            } 
+          } 
+        },
+      };
+
+  const changeRequests = await prisma.change_requests.findMany({
+    where: changeRequestsWhere,
+    orderBy: { createdAt: "desc" },
+    include: { clients: true },
+    take: 200,
   });
 
   return NextResponse.json({
     ok: true,
-    items: docs.map(d => ({
-      documentId: d.id, // internal: this endpoint is not for policyholders
+    documents: docs.map((d) => ({
+      kind: "DOCUMENT",
+      documentId: d.id,
+      clientId: d.clientId,
       clientName: `${d.clients.firstName ?? ""} ${d.clients.lastName ?? ""}`.trim(),
       docType: d.fileType,
       sensitivity: d.sensitivityLevel,
-      confidence: d.confidenceScore ?? null,
+      status: d.classificationStatus,
       createdAt: d.createdAt,
+      changeRequestId: d.changeRequestId ?? null,
+      inviteId: null, // documents don't have inviteId directly, would need to look up
+      confidenceScore: d.confidenceScore ?? null,
+      hasRedactedPreview: false, // TODO: add redactedPreviewKey field if needed
+    })),
+    changeRequests: changeRequests.map((cr) => ({
+      kind: "CHANGE_REQUEST",
+      changeRequestId: cr.id,
+      clientId: cr.clientId,
+      clientName: `${cr.clients.firstName ?? ""} ${cr.clients.lastName ?? ""}`.trim(),
+      requestType: cr.requestType,
+      status: cr.status,
+      createdAt: cr.createdAt,
+      submittedAt: cr.submittedAt ?? null,
     })),
   });
 }
