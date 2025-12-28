@@ -45,7 +45,7 @@ function BillingClientInner() {
 
   return (
     <div className="max-w-2xl p-6 space-y-6">
-      <h1 className="text-2xl font-semibold">Firm Registry Subscription</h1>
+      <h1 className="text-2xl font-semibold text-slate-900">Firm Registry Subscription</h1>
 
       {blocked && (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
@@ -56,12 +56,12 @@ function BillingClientInner() {
       )}
 
       <div className="rounded-2xl border p-5 space-y-2">
-        <div className="text-sm text-slate-600">Status</div>
-        <div className="text-lg font-medium">
+        <div className="text-sm text-slate-800">Status</div>
+        <div className="text-lg font-medium text-slate-900">
           {active ? "Registry Active" : "Registry Inactive"}
         </div>
         {org.currentPeriodEnd && (
-          <div className="text-xs text-slate-500">
+          <div className="text-xs text-slate-700">
             Current period ends {new Date(org.currentPeriodEnd).toLocaleDateString()}
           </div>
         )}
@@ -69,8 +69,8 @@ function BillingClientInner() {
 
       {!active && (
         <div className="rounded-2xl border p-5 space-y-3">
-          <div className="font-medium">$199 / firm / month</div>
-          <p className="text-sm text-slate-700">
+          <div className="font-medium text-slate-900">$199 / firm / month</div>
+          <p className="text-sm text-slate-900">
             HeirVault is a secure records registry. An active subscription enables
             your firm to issue verified upload credentials, retain immutable intake
             artifacts, and rely on audit-ready records for compliance and dispute
@@ -83,10 +83,10 @@ function BillingClientInner() {
                 publishable-key="pk_live_51SJHsUICdoRswaDqab95zqlZGVQuCyG4DFHgIXBW8CnWM7zWGxM4cn1qj7ZMPGtcEqxhmNFJ4NaS4bGQdnjZWI9200Fijnyn5b"
               />
             </div>
-            <div className="text-xs text-slate-500 border-t pt-3">
-              <p className="font-medium mb-1">Test Payment:</p>
-              <p>Use test card: <code className="bg-slate-100 px-1 rounded">4242 4242 4242 4242</code></p>
-              <p>Any future expiry date, any CVC, any ZIP</p>
+            <div className="text-xs text-slate-700 border-t pt-3">
+              <p className="font-medium mb-1 text-slate-900">Test Payment:</p>
+              <p className="text-slate-800">Use test card: <code className="bg-slate-100 px-1 rounded text-slate-900">4242 4242 4242 4242</code></p>
+              <p className="text-slate-800">Any future expiry date, any CVC, any ZIP</p>
             </div>
           </div>
         </div>
@@ -94,13 +94,13 @@ function BillingClientInner() {
 
       {active && (
         <div className="rounded-2xl border p-5 space-y-3">
-          <p className="text-sm text-slate-700">
+          <p className="text-sm text-slate-900">
             Your firm&apos;s registry is active. You may manage billing or cancel at any
             time. Existing records remain accessible in read-only mode if canceled.
           </p>
           <button
             disabled={loading}
-            className="px-4 py-2 rounded-xl border hover:bg-slate-50 disabled:opacity-60"
+            className="px-4 py-2 rounded-xl border hover:bg-slate-50 disabled:opacity-60 text-slate-900"
             onClick={upgrade}
           >
             {loading ? "Redirecting..." : "Manage Billing"}
