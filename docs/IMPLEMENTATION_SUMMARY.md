@@ -200,8 +200,9 @@ Two debug endpoints created:
 ## 🔧 Next Steps
 
 1. **Create Supabase Staging Project**
+   - See detailed guide: `docs/SUPABASE_SETUP.md`
    - Create new project: `heirvault-staging`
-   - Copy connection strings
+   - Copy connection strings (pooled and direct)
 
 2. **Configure Vercel Preview Environment**
    - Set all Preview variables to staging database
@@ -223,6 +224,7 @@ Two debug endpoints created:
    - Visit `/api/debug/env-health` to verify configuration
    - Visit `/api/debug/whoami` to check user mapping
    - Test billing flow with test cards
+   - See detailed test guide: `docs/TEST_SETUP.md`
 
 6. **Verify Production**
    - Visit `/api/debug/env-health` on production
