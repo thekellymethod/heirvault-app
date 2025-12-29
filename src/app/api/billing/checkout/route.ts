@@ -3,10 +3,15 @@ import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import { prisma } from "@/lib/db";
 import { withRouteGuard } from "@/lib/permissions/route";
-import { requireAuthPrincipal } from "@/lib/permissions/guard";
+import { requireAuthPrincipal, HttpError } from "@/lib/permissions/guard";
+import { BILLING_ENABLED } from "@/lib/flags";
 
 export async function POST() {
   return withRouteGuard(async () => {
+    if (!BILLING_ENABLED) {
+      throw new HttpError(404, "Not available");
+    }
+    
     const principal = await requireAuthPrincipal();
 
     // Resolve org membership

@@ -4,6 +4,9 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  url = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+  accelerateUrl = env("PRISMA_ACCELERATE_URL")
 }
 
 model access_grants {
