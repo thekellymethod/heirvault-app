@@ -15,8 +15,8 @@ https://heirvault.app/api/debug/env-health
 ✅ **Must be true:**
 - `database.urlConfigured: true`
 - `database.directUrlConfigured: true`
-- `database.accelerateUrlConfigured: true`
-- `database.accelerateUrlValid: true`
+- `database.accelerateUrlConfigured: true` ← **Check this after adding Accelerate URL**
+- `database.accelerateUrlValid: true` ← **Check this after adding Accelerate URL**
 - `database.urlsMatch: true`
 - `clerk.configured: true`
 - `security.hasPublicClerkSecret: false` ⚠️ **CRITICAL**

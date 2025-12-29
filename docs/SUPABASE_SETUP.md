@@ -75,6 +75,8 @@ For each project (Production and Staging), you need **two connection strings**:
 
 ## Step 3: Set Up Prisma Accelerate (Optional but Recommended)
 
+**⚠️ IMPORTANT:** Do NOT replace `DATABASE_URL` with the Accelerate URL! Keep them separate.
+
 ### For Production
 
 1. Go to [Prisma Accelerate Dashboard](https://accelerate.prisma.io/)
@@ -82,6 +84,11 @@ For each project (Production and Staging), you need **two connection strings**:
 3. Link it to your **Production** Supabase database
 4. Copy the Accelerate URL (starts with `prisma://`)
 5. This is your **`PRISMA_ACCELERATE_URL`** for Production
+
+**Keep these separate:**
+- `DATABASE_URL` = Your Supabase pooled connection (don't change this!)
+- `DIRECT_URL` = Your Supabase direct connection (don't change this!)
+- `PRISMA_ACCELERATE_URL` = Your Accelerate URL (add this as a new variable)
 
 ### For Staging
 
@@ -91,6 +98,8 @@ For each project (Production and Staging), you need **two connection strings**:
 4. This is your **`PRISMA_ACCELERATE_URL`** for Preview/Staging
 
 **Note:** You can use the same Accelerate project for both, but separate projects provide better isolation.
+
+**See detailed guide:** `docs/PRISMA_ACCELERATE_SETUP.md`
 
 ---
 
