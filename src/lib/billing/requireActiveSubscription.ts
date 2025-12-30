@@ -1,8 +1,19 @@
 // src/lib/billing/requireActiveSubscription.ts
 import { prisma } from "@/lib/db";
 import { HttpError } from "@/lib/permissions/guard";
+import { isAdminUser } from "@/lib/auth/admin-bypass";
 
+/**
+ * Require active subscription for an organization
+ * Admin users bypass this requirement
+ */
 export async function requireActiveSubscription(orgId: string) {
+  // Admin bypass - admins can perform all operations regardless of billing status
+  const isAdmin = await isAdminUser();
+  if (isAdmin) {
+    return; // Admin override - allow operation
+  }
+
   const org = await prisma.organizations.findUnique({
     where: { id: orgId },
     select: {

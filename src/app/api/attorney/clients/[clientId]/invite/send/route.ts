@@ -25,7 +25,7 @@ export async function POST(_: Request, ctx: { params: Promise<{ clientId: string
     
     // Unified registry gate
     const { org } = await getOrgContext(principal);
-    requireRegistryActive(org);
+    await requireRegistryActive(org);
     
     const { clientId } = await ctx.params;
     await requireClientAccess({ principal, clientId });

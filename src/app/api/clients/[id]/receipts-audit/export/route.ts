@@ -22,7 +22,7 @@ export async function GET(
     
     // Unified registry gate for exports
     const { org } = await getOrgContext(principal);
-    requireRegistryActive(org);
+    await requireRegistryActive(org);
     
     const { id: clientId } = await params;
     

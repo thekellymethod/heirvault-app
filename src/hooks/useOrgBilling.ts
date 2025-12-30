@@ -2,10 +2,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useAdminStatus } from "./useAdminStatus";
 
 export function useOrgBilling() {
   const [org, setOrg] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const { isAdmin, loading: adminLoading } = useAdminStatus();
 
   useEffect(() => {
     let cancelled = false;
@@ -23,6 +25,9 @@ export function useOrgBilling() {
     return () => { cancelled = true; };
   }, []);
 
-  return { org, loading, isActive: !!org?.active };
+  // Admin override: admins always have active billing
+  const isActive = isAdmin || !!org?.active;
+
+  return { org, loading: loading || adminLoading, isActive };
 }
 

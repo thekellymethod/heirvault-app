@@ -30,7 +30,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ clientId: stri
   
   // Unified registry gate
   const { org } = await getOrgContext(principal);
-  requireRegistryActive(org);
+  await requireRegistryActive(org);
 
   const { clientId } = await ctx.params;
   const { requestType, note } = await req.json().catch(() => ({}));

@@ -3,11 +3,15 @@
 
 import Link from "next/link";
 import { useOrgBilling } from "@/hooks/useOrgBilling";
+import { useAdminStatus } from "@/hooks/useAdminStatus";
 
 export default function BillingBanner() {
   const { loading, isActive } = useOrgBilling();
+  const { loading: adminLoading, isAdmin } = useAdminStatus();
 
-  if (loading) return null;
+  if (loading || adminLoading) return null;
+  // Admin override: admins bypass billing requirements
+  if (isAdmin) return null;
   if (isActive) return null;
 
   return (

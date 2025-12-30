@@ -3,6 +3,7 @@ import { requireAdmin } from "@/lib/auth/guards";
 import ConsoleClient from "./ConsoleClient";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import AdminBanner from "@/components/AdminBanner";
 
 export const runtime = "nodejs";
 
@@ -12,6 +13,8 @@ export default async function AdminConsolePage() {
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
+      {/* Admin Banner - Always at the very top */}
+      <AdminBanner />
       <div className="mx-auto max-w-5xl px-6 py-10">
         <div className="mb-6">
           <Link

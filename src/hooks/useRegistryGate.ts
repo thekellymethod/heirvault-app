@@ -2,10 +2,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useAdminStatus } from "./useAdminStatus";
 
 export function useRegistryGate() {
   const [ready, setReady] = useState(false);
   const [active, setActive] = useState(false);
+  const { isAdmin, loading: adminLoading } = useAdminStatus();
 
   useEffect(() => {
     let cancelled = false;
@@ -25,6 +27,11 @@ export function useRegistryGate() {
   }, []);
 
   const gate = () => {
+    // Admin bypass - admins can always proceed
+    if (isAdmin) {
+      return true;
+    }
+    
     if (!active) {
       window.location.href = "/dashboard/billing?blocked=1";
       return false;
@@ -32,6 +39,10 @@ export function useRegistryGate() {
     return true;
   };
 
-  return { ready, active, gate };
+  // Admin override: treat as active if admin
+  const effectiveActive = isAdmin || active;
+  const effectiveReady = ready && !adminLoading;
+
+  return { ready: effectiveReady, active: effectiveActive, gate };
 }
 

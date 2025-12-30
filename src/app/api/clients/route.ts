@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
     requireRole(principal, [UserRole.ADMIN, UserRole.ATTORNEY]);
     
     const { org, orgId } = await getOrgContext(principal);
-    requireRegistryActive(org);
+    await requireRegistryActive(org);
 
     // Get user's organization for client creation
     const membership = await prisma.org_members.findFirst({

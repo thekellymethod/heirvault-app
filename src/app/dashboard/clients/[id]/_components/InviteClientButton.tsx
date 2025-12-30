@@ -179,10 +179,8 @@ export function InviteClientButton({ clientId, defaultEmail, clientName }: Props
 
   if (!showForm) {
     const handleClick = () => {
-      if (!isActive) {
-        window.location.href = "/dashboard/billing";
-        return;
-      }
+      // Use gate() which handles admin bypass
+      if (!gate()) return;
       setShowForm(true);
     };
 
@@ -190,8 +188,8 @@ export function InviteClientButton({ clientId, defaultEmail, clientName }: Props
       <Button
         onClick={handleClick}
         className="btn-primary"
-        disabled={billingLoading}
-        title={!isActive ? "Activate billing to send secure upload invites" : ""}
+        disabled={!ready}
+        title={!active ? "Activate billing to send secure upload invites" : ""}
       >
         <Mail className="h-4 w-4 mr-2" />
         Send Client Invitation

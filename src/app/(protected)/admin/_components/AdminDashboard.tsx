@@ -19,6 +19,7 @@ import {
   Key,
 } from "lucide-react";
 import { ManualUpload } from "./ManualUpload";
+import AdminBanner from "@/components/AdminBanner";
 
 interface AdminDashboardProps {
   admin: AppUser;
@@ -195,10 +196,13 @@ export function AdminDashboard({ admin: _admin }: AdminDashboardProps) {
   const pendingCount = accessRequests.filter((r) => r.status === "PENDING").length;
 
   return (
-    <div className="min-h-screen bg-paper-50 py-6">
-      <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="mb-8">
+    <div className="min-h-screen bg-paper-50">
+      {/* Admin Banner - Always at the very top */}
+      <AdminBanner />
+      <div className="py-6">
+        <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
+          {/* Header */}
+          <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="font-display text-3xl font-bold text-ink-900 mb-2">
@@ -724,6 +728,7 @@ export function AdminDashboard({ admin: _admin }: AdminDashboardProps) {
         {activeTab === "manual-upload" && (
           <ManualUpload />
         )}
+        </div>
       </div>
     </div>
   );

@@ -5,6 +5,7 @@ import { GlobalSearch } from "../GlobalSearch";
 import { UserButton } from "@clerk/nextjs";
 import { Logo } from "@/components/Logo";
 import BillingBanner from "@/components/BillingBanner";
+import AdminBanner from "@/components/AdminBanner";
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -21,6 +22,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
       {/* Main Content */}
       <div className="flex flex-1 flex-col">
+        {/* Admin Banner - Always at the very top */}
+        <AdminBanner />
         {/* Billing Banner */}
         <BillingBanner />
 
