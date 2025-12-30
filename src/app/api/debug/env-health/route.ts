@@ -11,7 +11,6 @@ export async function GET() {
   try {
     // Database fingerprint (last 8 chars of connection string host)
     const dbUrl = process.env.DATABASE_URL || "";
-    const directUrl = process.env.DIRECT_URL || "";
     const accelerateUrl = process.env.PRISMA_ACCELERATE_URL || "";
 
     // Extract host from connection strings (safely, without exposing full credentials)
@@ -55,13 +54,9 @@ export async function GET() {
       environment: process.env.NODE_ENV,
       database: {
         urlConfigured: !!dbUrl,
-        directUrlConfigured: !!directUrl,
         accelerateUrlConfigured: accelerateConfigured,
         accelerateUrlValid: accelerateValid,
         dbFingerprint: getDbFingerprint(dbUrl),
-        directFingerprint: getDbFingerprint(directUrl),
-        // Check if URLs point to same host (should be true)
-        urlsMatch: getDbFingerprint(dbUrl) === getDbFingerprint(directUrl),
       },
       clerk: {
         configured: clerkConfigured,

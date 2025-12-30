@@ -20,6 +20,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
+    # ✅ Make DATABASE_URL available to *all* steps including npm ci + postinstall
+    env:
+      DATABASE_URL: ${{ secrets.DIRECT_DATABASE_URL }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -27,27 +31,18 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: "npm"
 
       - name: Install dependencies
         run: npm ci
 
-      # Optional but helpful: ensures Prisma engine/client is present and schema parsing works
       - name: Prisma generate
         run: npx prisma generate
-        env:
-          # Force Prisma to use direct DB inside CI for all CLI ops
-          DATABASE_URL: ${{ secrets.DIRECT_DATABASE_URL }}
 
       - name: Prisma migrate deploy
         run: npx prisma migrate deploy
-        env:
-          # CRITICAL: use the *direct* Supabase host/port 5432 (IPv6-capable)
-          DATABASE_URL: ${{ secrets.DIRECT_DATABASE_URL }}
 
       - name: Prisma migrate status (debug)
         if: always()
         run: npx prisma migrate status
-        env:
-          DATABASE_URL: ${{ secrets.DIRECT_DATABASE_URL }}
