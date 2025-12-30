@@ -22,7 +22,10 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:all": "npm run test && npm run test:e2e",
-    "vercel-build": "prisma migrate deploy && prisma generate && next build"
+    "vercel-build": "prisma migrate deploy && prisma generate && next build",
+    "migrate:status": "dotenv -e .env.migrate -- prisma migrate status",
+    "migrate:deploy": "dotenv -e .env.migrate -- prisma migrate deploy",
+    "migrate:dev": "dotenv -e .env.migrate --prisma migrate dev"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.958.0",
@@ -74,6 +77,7 @@
     "@vitejs/plugin-react": "^5.1.2",
     "@vitest/ui": "^4.0.16",
     "autoprefixer": "^10.4.23",
+    "dotenv-cli": "^11.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.0.7",
     "prisma": "^7.2.0",
