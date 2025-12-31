@@ -6,7 +6,7 @@ export async function withRouteGuard<T>(fn: () => Promise<T>) {
   try {
     const result = await fn();
     return NextResponse.json(result);
-  } catch (err: any) {
+  } catch (err) {
     if (err instanceof HttpError) {
       return NextResponse.json({ error: err.message }, { status: err.status });
     }

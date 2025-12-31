@@ -46,7 +46,11 @@ export async function GET(_: Request, ctx: { params: Promise<{ clientId: string 
 
   // Proposed beneficiaries - if you add ProposedBeneficiary model later, include it here
   // For now, we'll return empty array
-  const proposedBeneficiaries: any[] = [];
+  const proposedBeneficiaries: Array<{
+    id: string;
+    fullName: string;
+    status: string;
+  }> = [];
 
   return {
     ok: true,
@@ -102,18 +106,18 @@ export async function GET(_: Request, ctx: { params: Promise<{ clientId: string 
       changeRequestId: d.changeRequestId ?? null,
       inviteId: d.uploadedVia?.includes("INVITE") ? "linked" : null, // Simplified
       confidenceScore: d.confidenceScore ?? null, // attorney/admin only
-      processingState: (d as any).processingState ?? "QUEUED",
-      processingAttempts: (d as any).processingAttempts ?? 0,
-      lastProcessingError: (d as any).lastProcessingError ?? null,
-      hasRedactedPreview: !!(d as any).redactedPreviewKey,
+      processingState: (d as { processingState?: string }).processingState ?? "QUEUED",
+      processingAttempts: (d as { processingAttempts?: number }).processingAttempts ?? 0,
+      lastProcessingError: (d as { lastProcessingError?: string | null }).lastProcessingError ?? null,
+      hasRedactedPreview: !!(d as { redactedPreviewKey?: string | null }).redactedPreviewKey,
     })),
     receipts: client.artifacts.map((a) => ({
       id: a.id,
       artifactId: a.id, // For opening the artifact
       createdAt: a.createdAt,
-      receiptNumber: (a.metadata as any)?.receiptNumber ?? null,
-      kind: (a.metadata as any)?.kind ?? null, // INTAKE or CHANGE_REQUEST
-      changeRequestId: (a.metadata as any)?.changeRequestId ?? null,
+      receiptNumber: ((a.metadata as Record<string, unknown> | null)?.receiptNumber as string | undefined) ?? null,
+      kind: ((a.metadata as Record<string, unknown> | null)?.kind as string | undefined) ?? null, // INTAKE or CHANGE_REQUEST
+      changeRequestId: ((a.metadata as Record<string, unknown> | null)?.changeRequestId as string | undefined) ?? null,
       inviteId: a.inviteId ?? null,
     })),
     beneficiaries: client.beneficiaries.map((b) => ({
