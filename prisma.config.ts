@@ -39,9 +39,15 @@ if (databaseUrl.includes("pgpnbtmgloextjpmxxgvsupabase.co")) {
 }
 
 // Ensure we're using pooled connection (port 6543) for migrations, not direct (5432)
-// If using direct connection format, suggest switching to pooled
-if (databaseUrl.includes(":5432") && databaseUrl.includes("db.") && databaseUrl.includes(".supabase.co")) {
-  console.warn("⚠️  Using direct connection (port 5432). For migrations, consider using pooled connection (port 6543)");
+// Automatically convert port 5432 to 6543 for Supabase connections
+if (databaseUrl.includes(":5432") && databaseUrl.includes(".supabase.co")) {
+  databaseUrl = databaseUrl.replace(":5432", ":6543");
+  // Ensure pgbouncer parameter is present for pooled connections
+  if (!databaseUrl.includes("pgbouncer=true")) {
+    const separator = databaseUrl.includes("?") ? "&" : "?";
+    databaseUrl = `${databaseUrl}${separator}pgbouncer=true&connection_limit=1`;
+  }
+  console.warn("⚠️  Converted direct connection (port 5432) to pooled connection (port 6543)");
 }
 
 // Validate the URL format
