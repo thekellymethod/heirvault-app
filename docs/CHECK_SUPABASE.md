@@ -18,23 +18,9 @@ Step-by-step guide to verify your Supabase project and get correct connection st
 
 ## Step 2: Get Correct Connection Strings
 
-### Get DIRECT_URL (for migrations)
+### Get DATABASE_URL (pooled connection - use for everything)
 
-1. In Supabase Dashboard → Your Project
-2. Click **Settings** (gear icon in left sidebar)
-3. Click **Database** in settings menu
-4. Scroll to **"Connection string"** section
-5. Click **"Direct connection"** tab (NOT "Connection pooling")
-6. Copy the connection string - it should look like:
-   ```
-   postgresql://postgres.[PROJECT-REF]:[PASSWORD]@db.[PROJECT-REF].supabase.co:5432/postgres?sslmode=require
-   ```
-7. **Verify it includes:**
-   - Port: `5432`
-   - `?sslmode=require` at the end
-   - Host: `db.[PROJECT-REF].supabase.co`
-
-### Get DATABASE_URL (pooled, for runtime)
+**Note:** We only use the pooled connection (port 6543) for both runtime and migrations. Do not use direct connections (port 5432).
 
 1. Same page: Settings → Database
 2. **"Connection string"** section
@@ -53,19 +39,6 @@ Step-by-step guide to verify your Supabase project and get correct connection st
 
 ## Step 3: Compare with Your Current Values
 
-### Check Your Current DIRECT_URL
-
-Your current value:
-```
-DIRECT_URL="postgresql://postgres:99xZvLSJ_NNmXT4@db.pgpnbtmgloextjpmxxgv.supabase.co:5432/postgres?sslmode=require"
-```
-
-**Compare with Supabase dashboard:**
-- ✅ Port `5432` - correct
-- ✅ `?sslmode=require` - correct
-- ✅ Host format looks correct
-- ⚠️ **Check if password matches** - verify in Supabase dashboard
-
 ### Check Your Current DATABASE_URL
 
 Your current value:
@@ -82,15 +55,16 @@ DATABASE_URL="postgresql://postgres.pgpnbtmgloextjpmxxgv:99xZvLSJ_NNmXT4@aws-1-u
 
 ## Step 4: Update Your .env.local
 
-After getting the correct strings from Supabase:
+After getting the correct string from Supabase:
 
 1. Open `.env.local` file
-2. Replace `DIRECT_URL` with the exact string from Supabase (Direct connection tab)
+2. **Remove any `DIRECT_URL` line** (we don't use direct connections)
 3. Replace `DATABASE_URL` with the exact string from Supabase (Connection pooling → Transaction tab)
 4. **Make sure:**
+   - No quotes around the URL
    - No extra spaces
-   - Quotes are correct
-   - Connection strings are complete
+   - Port is **6543** (not 5432)
+   - Includes `?pgbouncer=true&connection_limit=1&sslmode=require`
 
 ---
 
@@ -140,11 +114,11 @@ npx prisma migrate status
 ## Quick Checklist
 
 - [ ] Project status is "Active" (not paused)
-- [ ] Copied DIRECT_URL from "Direct connection" tab
 - [ ] Copied DATABASE_URL from "Connection pooling → Transaction" tab
-- [ ] DIRECT_URL includes `?sslmode=require`
-- [ ] DATABASE_URL includes `?pgbouncer=true&connection_limit=1`
-- [ ] Updated `.env.local` with correct strings
+- [ ] DATABASE_URL uses port **6543** (not 5432)
+- [ ] DATABASE_URL includes `?pgbouncer=true&connection_limit=1&sslmode=require`
+- [ ] No `DIRECT_URL` in `.env.local` (removed)
+- [ ] Updated `.env.local` with correct string (no quotes)
 - [ ] Tested with `npx prisma migrate status`
 
 ---

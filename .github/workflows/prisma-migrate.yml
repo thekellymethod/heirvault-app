@@ -1,4 +1,4 @@
-name: Prisma Migrate (Direct DB)
+name: Prisma Migrate
 
 on:
   workflow_dispatch: {}
@@ -21,7 +21,7 @@ jobs:
     timeout-minutes: 30
 
     env:
-      DATABASE_URL: ${{ secrets.DATABASE_URL_DIRECT }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
       DOTENV_CONFIG_QUIET: "true"
 
     steps:

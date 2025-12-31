@@ -28,16 +28,16 @@ datasource db {
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `DATABASE_URL` | Supabase Production connection string (pooled) | `postgresql://postgres:[PASSWORD]@[HOST]:5432/postgres?pgbouncer=true&connection_limit=1` |
-| `DIRECT_URL` | Supabase Production direct connection (for migrations) | `postgresql://postgres:[PASSWORD]@[HOST]:5432/postgres?sslmode=require` |
+| `DATABASE_URL` | Supabase Production connection string (pooled) | `postgresql://postgres:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1&sslmode=require` |
 | `PRISMA_ACCELERATE_URL` | Prisma Accelerate URL for Production | `prisma://accelerate.prisma-data.net/?api_key=...` |
+
+**Note:** We only use pooled connections (port 6543). Do not use direct connections (port 5432).
 
 ### Preview/Staging Environment Variables
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `DATABASE_URL` | Supabase Staging connection string (pooled) | `postgresql://postgres:[PASSWORD]@[HOST]:5432/postgres?pgbouncer=true&connection_limit=1` |
-| `DIRECT_URL` | Supabase Staging direct connection (for migrations) | `postgresql://postgres:[PASSWORD]@[HOST]:5432/postgres?sslmode=require` |
+| `DATABASE_URL` | Supabase Staging connection string (pooled) | `postgresql://postgres:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1&sslmode=require` |
 | `PRISMA_ACCELERATE_URL` | Prisma Accelerate URL for Staging (can use same or separate) | `prisma://accelerate.prisma-data.net/?api_key=...` |
 
 **Important Notes:**
