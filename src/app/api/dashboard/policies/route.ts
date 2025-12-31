@@ -6,7 +6,7 @@ import { requireAuth } from "@/lib/utils/clerk";
  * Get all policies for attorney dashboard
  * Returns key metadata without unnecessary document detail
  */
-export async function GET(req: NextRequest) {
+export async function GET(_req: NextRequest) {
   try {
     await requireAuth();
 

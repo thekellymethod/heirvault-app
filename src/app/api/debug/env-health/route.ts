@@ -1,6 +1,6 @@
 // src/app/api/debug/env-health/route.ts
 import { NextResponse } from "next/server";
-import crypto from "crypto";
+// import crypto from "crypto";
 
 /**
  * Debug endpoint to check environment configuration

@@ -109,7 +109,7 @@ export async function GET(
     );
 
     // Generate hashes for audit logs
-    const auditLogsWithHashes = auditLogs.map((log, index) => {
+    const auditLogsWithHashes = auditLogs.map((log, _index) => {
       const hash = generateAuditHash({
         id: log.id,
         action: log.action,

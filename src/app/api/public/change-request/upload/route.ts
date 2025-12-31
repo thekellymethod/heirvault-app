@@ -5,7 +5,7 @@ import { hashToken } from "@/lib/invites";
 import { putObject } from "@/lib/storage";
 import { auditLog } from "@/lib/audit";
 import {
-  ChangeRequestStatus,
+  // ChangeRequestStatus,
   DocumentClassificationStatus,
   DocumentSensitivity,
   UploaderType,
@@ -98,7 +98,7 @@ export async function POST(req: Request) {
     contentType: file.type || "application/octet-stream",
   });
 
-  const doc = await prisma.documents.create({
+  const _doc = await prisma.documents.create({
     data: {
       id: crypto.randomUUID(),
       clientId: cr.clientId,

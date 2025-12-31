@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/utils/clerk";
+// import { requireAuth } from "@/lib/utils/clerk";
 import { extractPolicyData } from "@/lib/ocr";
 
 export async function POST(req: NextRequest) {

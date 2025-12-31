@@ -5,8 +5,8 @@ import { hashToken } from "@/lib/invites";
 import { putObject } from "@/lib/storage";
 import { auditLog } from "@/lib/audit";
 import { ClientInviteStatus, DocumentClassificationStatus, DocumentSensitivity } from "@prisma/client";
-import { rateLimit, clientIp } from "@/lib/security/rateLimit";
-import { validateUpload } from "@/lib/security/uploads";
+// import { rateLimit, clientIp } from "@/lib/security/rateLimit";
+// import { validateUpload } from "@/lib/security/uploads";
 import crypto from "crypto";
 
 // Document type mapping - adjust based on your actual enum
@@ -70,7 +70,7 @@ export async function POST(req: Request) {
     contentType: file.type || "application/octet-stream",
   });
 
-  const doc = await prisma.documents.create({
+  const _doc = await prisma.documents.create({
     data: {
       id: crypto.randomUUID(),
       clientId: invite.clientId,

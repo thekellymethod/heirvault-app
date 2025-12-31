@@ -78,7 +78,7 @@ export async function POST(req: NextRequest, { params }: Params) {
         inviteUrl,
       })
     } catch (emailError: unknown) {
-      const emailErrorMessage = emailError instanceof Error ? emailError.message : "Unknown error";
+      const _emailErrorMessage = emailError instanceof Error ? emailError.message : "Unknown error";
       console.error('Failed to send invite email:', emailError)
       // Continue even if email fails - we still return the URL
     }

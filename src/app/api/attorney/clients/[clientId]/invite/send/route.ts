@@ -1,5 +1,5 @@
 // src/app/api/attorney/clients/[clientId]/invite/send/route.ts
-import { NextResponse } from "next/server";
+// import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { withRouteGuard } from "@/lib/permissions/route";
 import { requireAuthPrincipal, requireRole, requireClientAccess } from "@/lib/permissions/guard";
@@ -83,7 +83,7 @@ export async function POST(_: Request, ctx: { params: Promise<{ clientId: string
     // Store invite PDF as artifact
     const receiptNumber = makeReceiptNumber();
     const artifactKey = `private/artifacts/${client.id}/invite-${invite.id}-${receiptNumber}.pdf`;
-    const { sha256 } = await putObject({ key: artifactKey, body: pdfBuf, contentType: "application/pdf" });
+    const { sha256: _sha256 } = await putObject({ key: artifactKey, body: pdfBuf, contentType: "application/pdf" });
 
     const artifact = await prisma.artifacts.create({
       data: {

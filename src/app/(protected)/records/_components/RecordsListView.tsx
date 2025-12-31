@@ -28,7 +28,7 @@ interface RecordsListViewProps {
 
 type StatusFilter = "ALL" | "PENDING_VERIFICATION" | "VERIFIED" | "DISPUTED" | "ARCHIVED" | "ACTIVE";
 
-export function RecordsListView({ registries, user }: RecordsListViewProps) {
+export function RecordsListView({ registries, user: _user }: RecordsListViewProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
 

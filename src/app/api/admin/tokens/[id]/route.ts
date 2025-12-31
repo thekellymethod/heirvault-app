@@ -9,7 +9,7 @@ export const runtime = "nodejs";
  * Get token metadata (no hash)
  */
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const actor = await requireAdmin();
+  const _actor = await requireAdmin();
   const { id } = await params;
 
   const token = await prisma.apiToken.findUnique({

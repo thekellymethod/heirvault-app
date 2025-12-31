@@ -22,7 +22,7 @@ export async function GET() {
 
         if (membership) {
           const o = membership.organizations;
-          const active = o.billingStatus === "ACTIVE" || o.billingStatus === "TRIALING";
+          const _active = o.billingStatus === "ACTIVE" || o.billingStatus === "TRIALING";
           
           return NextResponse.json({
             ok: true,

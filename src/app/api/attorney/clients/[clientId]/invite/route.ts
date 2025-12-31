@@ -70,7 +70,7 @@ export async function POST(_: Request, ctx: { params: Promise<{ clientId: string
   });
 
   const artifactKey = `private/artifacts/${clientId}/${invite.id}-invite.pdf`;
-  const { sha256 } = await putObject({ key: artifactKey, body: pdfBuf, contentType: "application/pdf" });
+  const { sha256: _sha256 } = await putObject({ key: artifactKey, body: pdfBuf, contentType: "application/pdf" });
 
   const artifact = await prisma.artifacts.create({
     data: {

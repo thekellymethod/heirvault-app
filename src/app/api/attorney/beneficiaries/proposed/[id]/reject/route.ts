@@ -1,16 +1,16 @@
 // src/app/api/attorney/beneficiaries/proposed/[id]/reject/route.ts
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+// import { prisma } from "@/lib/db";
 import { requireVerifiedAttorney } from "@/lib/auth/guards";
-import { auditLog } from "@/lib/audit";
-import { UploaderType } from "@prisma/client";
+// import { auditLog } from "@/lib/audit";
+// import { UploaderType } from "@prisma/client";
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const user = await requireVerifiedAttorney();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { reason } = await req.json().catch(() => ({}));
-  const { id } = await ctx.params;
+  const { reason: _reason } = await req.json().catch(() => ({}));
+  const { id: _id } = await ctx.params;
 
   // Future: When ProposedBeneficiary model is added to schema, uncomment and implement:
   /*

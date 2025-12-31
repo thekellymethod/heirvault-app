@@ -13,7 +13,7 @@ export async function POST() {
     const principal = await requireAuthPrincipal();
     requireRole(principal, [UserRole.ADMIN, UserRole.ATTORNEY]);
 
-    const { org, orgId } = await getOrgContext(principal);
+    const { org, orgId: _orgId } = await getOrgContext(principal);
 
     // Create or reuse Stripe customer
     let customerId = org.stripeCustomerId;

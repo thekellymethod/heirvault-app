@@ -7,7 +7,7 @@ import { makeReceiptNumber } from "@/lib/security";
 import { makeChangeReceiptPdf } from "@/lib/pdf/changeReceipt";
 import { putObject } from "@/lib/storage";
 import { sendEmail } from "@/lib/email";
-import { ArtifactType, ChangeRequestStatus, UploaderType, DocumentClassificationStatus, ChangeRequestType } from "@prisma/client";
+import { ArtifactType, ChangeRequestStatus, UploaderType, DocumentClassificationStatus } from "@prisma/client";
 import { requiredDocTypesForChangeRequest } from "@/lib/rules/requiredDocs";
 import { rateLimit, clientIp } from "@/lib/security/rateLimit";
 import crypto from "crypto";
@@ -120,7 +120,7 @@ export async function POST(req: Request) {
   });
 
   const artifactKey = `private/artifacts/${cr.clientId}/change-${cr.id}-receipt-${receiptNumber}.pdf`;
-  const { sha256 } = await putObject({ key: artifactKey, body: pdfBuf, contentType: "application/pdf" });
+  const { sha256: _sha256 } = await putObject({ key: artifactKey, body: pdfBuf, contentType: "application/pdf" });
 
   const artifact = await prisma.artifacts.create({
     data: {

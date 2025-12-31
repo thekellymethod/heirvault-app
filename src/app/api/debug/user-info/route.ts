@@ -3,7 +3,7 @@ import { auth, currentUser } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/utils/clerk";
 
-export async function GET(req: NextRequest) {
+export async function GET(_req: NextRequest) {
   // Only allow in development
   if (process.env.NODE_ENV === 'production') {
     return NextResponse.json({ error: "Not available in production" }, { status: 403 });

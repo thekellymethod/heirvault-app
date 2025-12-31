@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth, clerkClient, currentUser } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/db";
 
-export async function POST(req: NextRequest) {
+export async function POST(_req: NextRequest) {
   try {
     const { userId } = await auth();
     if (!userId) {
@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
           },
         });
       } catch (error: unknown) {
-        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        const _errorMessage = error instanceof Error ? error.message : "Unknown error";
         console.error("Create user error:", error);
         // Handle unique constraint violation on email
         const errorAny = error as { code?: string, meta?: { target?: string[]; target_name?: string }; message?: string };

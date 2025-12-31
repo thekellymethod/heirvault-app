@@ -10,7 +10,7 @@ export const runtime = "nodejs";
 export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const authResult = await requireAuthApi();
   if (authResult.response) return authResult.response;
-  const { user } = authResult;
+  const { user: _user } = authResult;
 
   try {
     const { id: clientId } = await ctx.params;
@@ -64,7 +64,7 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
 export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const authResult = await requireAuthApi();
   if (authResult.response) return authResult.response;
-  const { user } = authResult;
+  const { user: _user } = authResult;
 
   try {
     const { id: clientId } = await ctx.params;

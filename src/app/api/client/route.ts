@@ -56,7 +56,7 @@ export async function POST(req: Request) {
   try {
     body = await req.json();
   } catch (e: unknown) {
-    const message = e instanceof Error ? e.message : "Unknown error";
+    const _message = e instanceof Error ? e.message : "Unknown error";
     console.error("JSON parse error:", e);
     return jsonError("Invalid request body", 400);
   }
@@ -210,7 +210,7 @@ export async function POST(req: Request) {
   }
 }
 
-export async function GET(req: NextRequest) {
+export async function GET(_req: NextRequest) {
   try {
     const { requireAuth } = await import("@/lib/utils/clerk");
     const user = await requireAuth();

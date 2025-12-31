@@ -27,7 +27,7 @@ export async function POST(
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Unknown error";
+    const _message = error instanceof Error ? error.message : "Unknown error";
     console.error("Error verifying confirmation:", error);
     return NextResponse.json(
       { error: "Internal server error" },

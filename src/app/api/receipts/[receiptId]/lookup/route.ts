@@ -127,7 +127,7 @@ export async function GET(
       clientName: `${invite.client.firstName} ${invite.client.lastName}`,
     });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Unknown error";
+    const _message = error instanceof Error ? error.message : "Unknown error";
     console.error("Error looking up receipt:", error);
     return NextResponse.json(
       { error: "Internal server error" },

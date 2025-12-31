@@ -8,13 +8,13 @@
 
 import { NextRequest, NextResponse } from "next/server";
 
-export async function POST(req: NextRequest) {
+export async function POST(_req: NextRequest) {
   // Future: Consolidate document operations from src/app/api/documents/extract-policy/route.ts
   // This endpoint is a placeholder for unified document API
   return NextResponse.json({ error: "Not implemented" }, { status: 501 });
 }
 
-export async function GET(req: NextRequest) {
+export async function GET(_req: NextRequest) {
   // Future: Implement document listing/retrieval endpoint
   // This endpoint is a placeholder for document management API
   return NextResponse.json({ error: "Not implemented" }, { status: 501 });
