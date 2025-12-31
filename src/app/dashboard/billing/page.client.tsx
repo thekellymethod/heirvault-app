@@ -17,22 +17,27 @@ async function postJson(url: string) {
   return r.json();
 }
 
+type Org = {
+  subscriptionStatus?: string;
+  currentPeriodEnd?: string | null;
+};
+
 function BillingClientInner() {
   const searchParams = useSearchParams();
   const blocked = searchParams?.get("blocked") === "1";
-  const [org, setOrg] = useState<any>(null);
+  const [org, setOrg] = useState<Org | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    getJson("/api/org/me").then(setOrg).catch(() => setOrg(null));
+    getJson("/api/org/me").then((data) => setOrg(data as Org)).catch(() => setOrg(null));
   }, []);
 
   const upgrade = async () => {
     setLoading(true);
     try {
-      const r = await postJson("/api/billing/checkout");
+      const r = await postJson("/api/billing/checkout") as { url?: string };
       if (r?.url) window.location.href = r.url;
-    } catch (e: any) {
+    } catch (e) {
       console.error("Checkout failed:", e);
     } finally {
       setLoading(false);

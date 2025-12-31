@@ -30,7 +30,7 @@ export async function GET() {
               id: o.id,
               name: o.name,
               subscriptionStatus: o.billingStatus,
-              currentPeriodEnd: (o as any).currentPeriodEnd,
+              currentPeriodEnd: (o as { currentPeriodEnd?: Date | null }).currentPeriodEnd,
               active: true, // Admin override: always active
               isAdmin: true,
             },
@@ -74,7 +74,7 @@ export async function GET() {
         id: o.id,
         name: o.name,
         subscriptionStatus: o.billingStatus,
-        currentPeriodEnd: (o as any).currentPeriodEnd,
+        currentPeriodEnd: (o as { currentPeriodEnd?: Date | null }).currentPeriodEnd,
         active,
         isAdmin: false,
       },

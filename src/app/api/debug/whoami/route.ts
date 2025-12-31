@@ -51,10 +51,11 @@ export async function GET() {
       roles: dbUser?.roles || [],
       isAdmin,
     });
-  } catch (error: any) {
+  } catch (error) {
+    const err = error as Error;
     return NextResponse.json(
       {
-        error: error.message,
+        error: err.message,
         stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
       },
       { status: 500 }

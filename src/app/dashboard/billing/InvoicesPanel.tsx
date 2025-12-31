@@ -1,7 +1,16 @@
 // src/app/dashboard/billing/InvoicesPanel.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
+
+type Invoice = {
+  id: string;
+  invoiceNumber?: string | null;
+  invoiceId?: string;
+  createdAt: string;
+  amountPaid?: number | null;
+  currency?: string | null;
+};
 
 async function getJson(url: string) {
   const res = await fetch(url);
@@ -11,29 +20,31 @@ async function getJson(url: string) {
 }
 
 export default function InvoicesPanel() {
-  const [items, setItems] = useState<any[]>([]);
+  const [items, setItems] = useState<Invoice[]>([]);
   const [err, setErr] = useState<string | null>(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setErr(null);
     try {
       const r = await getJson("/api/billing/invoices");
       setItems(r.invoices ?? []);
-    } catch (e: any) {
-      setErr(e?.message ?? "Failed to load invoices");
+    } catch (e) {
+      const error = e as Error;
+      setErr(error?.message ?? "Failed to load invoices");
     }
-  };
+  }, []);
 
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
 
   const open = async (artifactId: string) => {
     try {
       const r = await getJson(`/api/billing/invoices/${artifactId}/open`);
       if (r?.url) window.open(r.url, "_blank", "noopener,noreferrer");
-    } catch (e: any) {
-      alert(e?.message ?? "Failed to open invoice");
+    } catch (e) {
+      const error = e as Error;
+      alert(error?.message ?? "Failed to open invoice");
     }
   };
 

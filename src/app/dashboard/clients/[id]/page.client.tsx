@@ -1,11 +1,49 @@
 // src/app/dashboard/clients/[id]/page.client.tsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import AccessControlPanel from "./components/AccessControlPanel";
 import ReceiptsPanel from "./components/ReceiptsPanel";
 
-type Overview = any;
+type Document = {
+  id: string;
+  docType: string;
+  status: string;
+  sensitivity: string;
+  versionNumber: number;
+  supersededAt: string | null;
+  processingState?: string;
+  processingAttempts?: number;
+  lastProcessingError?: string | null;
+};
+
+type ProposedBeneficiary = {
+  id: string;
+  fullName: string;
+  status: string;
+};
+
+type Receipt = {
+  id: string;
+  receiptNumber: string | null;
+  createdAt: string;
+  kind: string | null;
+  artifactId: string;
+};
+
+type Overview = {
+  ok: boolean;
+  principal?: {
+    isAdmin: boolean;
+  };
+  client?: {
+    name: string;
+    email: string | null;
+  };
+  documents?: Document[];
+  proposedBeneficiaries?: ProposedBeneficiary[];
+  receipts?: Receipt[];
+};
 
 async function apiGet(url: string) {
   const res = await fetch(url, { method: "GET" });
@@ -13,7 +51,7 @@ async function apiGet(url: string) {
   return res.json();
 }
 
-async function apiPost(url: string, body: any) {
+async function apiPost(url: string, body: Record<string, unknown>) {
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -57,8 +95,9 @@ export default function ClientPageClient({ params }: { params: Promise<{ id: str
     try {
       const o = await apiGet(`/api/attorney/clients/${clientId}/overview`);
       setData(o);
-    } catch (e: any) {
-      setErr(e?.message ?? "Failed to load");
+    } catch (e) {
+      const error = e as Error;
+      setErr(error?.message ?? "Failed to load");
     }
   };
 
@@ -75,8 +114,9 @@ export default function ClientPageClient({ params }: { params: Promise<{ id: str
     try {
       const r = await apiGet(`/api/artifacts/${artifactId}/open`);
       if (r?.url) window.open(r.url, "_blank", "noopener,noreferrer");
-    } catch (e: any) {
-      alert(e?.message ?? "Failed to open receipt");
+    } catch (e) {
+      const error = e as Error;
+      alert(error?.message ?? "Failed to open receipt");
     }
   };
 
@@ -88,8 +128,9 @@ export default function ClientPageClient({ params }: { params: Promise<{ id: str
         // Preview blocked, need to request original with reason
         onOriginalWithReason(documentId);
       }
-    } catch (e: any) {
-      alert(e?.message ?? "Preview failed");
+    } catch (e) {
+      const error = e as Error;
+      alert(error?.message ?? "Preview failed");
     }
   };
 
@@ -99,8 +140,9 @@ export default function ClientPageClient({ params }: { params: Promise<{ id: str
     try {
       const r = await apiPost(`/api/documents/${documentId}/original`, { reason });
       if (r?.url) window.open(r.url, "_blank", "noopener,noreferrer");
-    } catch (e: any) {
-      alert(e?.message ?? "Access failed");
+    } catch (e) {
+      const error = e as Error;
+      alert(error?.message ?? "Access failed");
     }
   };
 
@@ -110,8 +152,9 @@ export default function ClientPageClient({ params }: { params: Promise<{ id: str
     try {
       const r = await apiPost(`/api/documents/${documentId}/download`, { reason });
       if (r?.url) window.open(r.url, "_blank", "noopener,noreferrer");
-    } catch (e: any) {
-      alert(e?.message ?? "Download failed");
+    } catch (e) {
+      const error = e as Error;
+      alert(error?.message ?? "Download failed");
     }
   };
 
@@ -120,8 +163,9 @@ export default function ClientPageClient({ params }: { params: Promise<{ id: str
     try {
       await apiPost(`/api/attorney/beneficiaries/proposed/${id}/confirm`, {});
       await reload();
-    } catch (e: any) {
-      alert(e?.message ?? "Confirm failed");
+    } catch (e) {
+      const error = e as Error;
+      alert(error?.message ?? "Confirm failed");
     } finally {
       setBusy(false);
     }
@@ -133,8 +177,9 @@ export default function ClientPageClient({ params }: { params: Promise<{ id: str
     try {
       await apiPost(`/api/attorney/beneficiaries/proposed/${id}/reject`, { reason });
       await reload();
-    } catch (e: any) {
-      alert(e?.message ?? "Reject failed");
+    } catch (e) {
+      const error = e as Error;
+      alert(error?.message ?? "Reject failed");
     } finally {
       setBusy(false);
     }
@@ -162,7 +207,7 @@ export default function ClientPageClient({ params }: { params: Promise<{ id: str
         <div className="rounded-2xl border p-5">
           <div className="font-semibold mb-3">Documents</div>
           <div className="space-y-2">
-            {docs.map((d: any) => (
+            {docs.map((d) => (
               <div key={d.id} className="flex items-center justify-between rounded-xl border px-3 py-2">
                 <div className="min-w-0">
                   <div className="font-medium truncate">{DocTypeLabel(d.docType)}</div>
@@ -213,7 +258,7 @@ export default function ClientPageClient({ params }: { params: Promise<{ id: str
         <div className="rounded-2xl border p-5">
           <div className="font-semibold mb-3">Proposed Beneficiaries (Needs Confirmation)</div>
           <div className="space-y-2">
-            {proposed.map((pb: any) => (
+            {proposed.map((pb) => (
               <div key={pb.id} className="flex items-center justify-between rounded-xl border px-3 py-2">
                 <div className="min-w-0">
                   <div className="font-medium truncate">{pb.fullName}</div>
@@ -237,7 +282,7 @@ export default function ClientPageClient({ params }: { params: Promise<{ id: str
       {/* Receipts Panel */}
       {receipts.length > 0 && (
         <ReceiptsPanel
-          receipts={receipts.map((r: any) => ({
+          receipts={receipts.map((r) => ({
             id: r.id,
             receiptNumber: r.receiptNumber,
             createdAt: r.createdAt,

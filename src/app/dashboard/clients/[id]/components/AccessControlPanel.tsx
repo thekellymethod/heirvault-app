@@ -9,7 +9,7 @@ async function getJson(url: string) {
   if (!res.ok) throw new Error(json?.error || "Request failed");
   return json;
 }
-async function postJson(url: string, body: any) {
+async function postJson(url: string, body: Record<string, unknown>) {
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -20,9 +20,25 @@ async function postJson(url: string, body: any) {
   return json;
 }
 
+type Attorney = {
+  id: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  email: string;
+};
+
+type Grant = {
+  id: string;
+  userId: string;
+  userName?: string | null;
+  userEmail?: string | null;
+  canViewSensitive: boolean;
+  canDownload: boolean;
+};
+
 export default function AccessControlPanel({ clientId }: { clientId: string }) {
-  const [attorneys, setAttorneys] = useState<any[]>([]);
-  const [grants, setGrants] = useState<any[]>([]);
+  const [attorneys, setAttorneys] = useState<Attorney[]>([]);
+  const [grants, setGrants] = useState<Grant[]>([]);
   const [selectedUser, setSelectedUser] = useState<string>("");
   const [canViewSensitive, setCanViewSensitive] = useState(true);
   const [canDownload, setCanDownload] = useState(true);
@@ -32,13 +48,14 @@ export default function AccessControlPanel({ clientId }: { clientId: string }) {
     setMsg("");
     try {
       const [u, g] = await Promise.all([
-        getJson("/api/admin/users/attorneys"),
-        getJson(`/api/admin/clients/${clientId}/access`),
+        getJson("/api/admin/users/attorneys") as Promise<{ users?: Attorney[] }>,
+        getJson(`/api/admin/clients/${clientId}/access`) as Promise<{ grants?: Grant[] }>,
       ]);
       setAttorneys(u.users ?? []);
       setGrants(g.grants ?? []);
-    } catch (e: any) {
-      setMsg(e?.message ?? "Failed to load");
+    } catch (e) {
+      const error = e as Error;
+      setMsg(error?.message ?? "Failed to load");
     }
   };
 
@@ -58,8 +75,9 @@ export default function AccessControlPanel({ clientId }: { clientId: string }) {
       });
       setMsg("Saved.");
       await load();
-    } catch (e: any) {
-      setMsg(e?.message ?? "Failed to grant access");
+    } catch (e) {
+      const error = e as Error;
+      setMsg(error?.message ?? "Failed to grant access");
     }
   };
 
@@ -69,8 +87,9 @@ export default function AccessControlPanel({ clientId }: { clientId: string }) {
       await postJson(`/api/admin/clients/${clientId}/access/revoke`, { userId });
       setMsg("Revoked.");
       await load();
-    } catch (e: any) {
-      setMsg(e?.message ?? "Failed to revoke access");
+    } catch (e) {
+      const error = e as Error;
+      setMsg(error?.message ?? "Failed to revoke access");
     }
   };
 

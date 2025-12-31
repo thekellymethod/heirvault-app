@@ -316,7 +316,8 @@ export async function processPendingDocuments(params: { limit?: number } = {}) {
       }
 
       results.push({ id: doc.id, status: nextStatus });
-    } catch (err: any) {
+    } catch (err) {
+      const error = err as Error;
       await prisma.documents.update({
         where: { id: doc.id },
         data: { classificationStatus: DocumentClassificationStatus.NEEDS_REVIEW },

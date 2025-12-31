@@ -35,10 +35,10 @@ export async function GET() {
       invoices: invoices.map((a) => ({
         id: a.id,
         createdAt: a.createdAt,
-        invoiceId: (a.metadata as any)?.invoiceId ?? null,
-        invoiceNumber: (a.metadata as any)?.invoiceNumber ?? null,
-        amountPaid: (a.metadata as any)?.amountPaid ?? null,
-        currency: (a.metadata as any)?.currency ?? null,
+        invoiceId: ((a.metadata as Record<string, unknown> | null)?.invoiceId as string | undefined) ?? null,
+        invoiceNumber: ((a.metadata as Record<string, unknown> | null)?.invoiceNumber as string | undefined) ?? null,
+        amountPaid: ((a.metadata as Record<string, unknown> | null)?.amountPaid as number | undefined) ?? null,
+        currency: ((a.metadata as Record<string, unknown> | null)?.currency as string | undefined) ?? null,
       })),
     };
   });

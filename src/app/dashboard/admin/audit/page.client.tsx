@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 
-async function postJson(url: string, body: any) {
+async function postJson(url: string, body: Record<string, unknown>) {
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -14,12 +14,32 @@ async function postJson(url: string, body: any) {
   return json;
 }
 
+type AuditLog = {
+  id: string;
+  action: string;
+  createdAt: string;
+  clientId: string;
+  actorType: string;
+  actorId?: string | null;
+  metadata?: Record<string, unknown> | null;
+};
+
+type AccessEvent = {
+  id: string;
+  action: string;
+  createdAt: string;
+  documentId: string;
+  actorType: string;
+  actorId?: string | null;
+  reason?: string | null;
+};
+
 export default function AuditClient() {
   const [clientId, setClientId] = useState("");
   const [action, setAction] = useState("");
-  const [logs, setLogs] = useState<any[]>([]);
+  const [logs, setLogs] = useState<AuditLog[]>([]);
   const [documentId, setDocumentId] = useState("");
-  const [events, setEvents] = useState<any[]>([]);
+  const [events, setEvents] = useState<AccessEvent[]>([]);
   const [err, setErr] = useState<string | null>(null);
 
   const searchLogs = async () => {
@@ -29,10 +49,11 @@ export default function AuditClient() {
         clientId: clientId || undefined,
         action: action || undefined,
         limit: 200,
-      });
+      }) as { logs?: AuditLog[] };
       setLogs(r.logs ?? []);
-    } catch (e: any) {
-      setErr(e?.message ?? "Failed");
+    } catch (e) {
+      const error = e as Error;
+      setErr(error?.message ?? "Failed");
     }
   };
 
@@ -42,10 +63,11 @@ export default function AuditClient() {
       const r = await postJson("/api/admin/audit/access-events", {
         documentId: documentId || undefined,
         limit: 200,
-      });
+      }) as { events?: AccessEvent[] };
       setEvents(r.events ?? []);
-    } catch (e: any) {
-      setErr(e?.message ?? "Failed");
+    } catch (e) {
+      const error = e as Error;
+      setErr(error?.message ?? "Failed");
     }
   };
 

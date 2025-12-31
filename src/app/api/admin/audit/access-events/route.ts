@@ -12,7 +12,9 @@ export async function POST(req: Request) {
     const { documentId, limit } = await req.json().catch(() => ({}));
     const take = Math.min(Math.max(Number(limit ?? 100), 1), 500);
 
-    const where: any = {};
+    const where: {
+      documentId?: string;
+    } = {};
     if (documentId && typeof documentId === "string") where.documentId = documentId;
 
     const events = await prisma.document_access_events.findMany({

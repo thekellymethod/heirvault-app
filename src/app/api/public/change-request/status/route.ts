@@ -11,7 +11,7 @@ function friendlyStatus(cs: DocumentClassificationStatus) {
   return "Received";
 }
 
-function friendlyPipeline(d: any) {
+function friendlyPipeline(d: { processingState?: string; classificationStatus: DocumentClassificationStatus }) {
   const processingState = d.processingState ?? "QUEUED";
   if (processingState === "QUEUED" || processingState === "PROCESSING") return "Processing";
   return friendlyStatus(d.classificationStatus);
@@ -60,7 +60,7 @@ export async function POST(req: Request) {
       : undefined,
   }));
 
-  const receiptNumber = (cr.receiptArtifact?.metadata as any)?.receiptNumber ?? null;
+  const receiptNumber = ((cr.receiptArtifact?.metadata as Record<string, unknown> | null)?.receiptNumber as string | undefined) ?? null;
 
   return NextResponse.json({
     ok: true,

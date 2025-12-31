@@ -4,8 +4,13 @@
 import { useEffect, useState } from "react";
 import { useAdminStatus } from "./useAdminStatus";
 
+type Org = {
+  active?: boolean;
+  [key: string]: unknown;
+};
+
 export function useOrgBilling() {
-  const [org, setOrg] = useState<any>(null);
+  const [org, setOrg] = useState<Org | null>(null);
   const [loading, setLoading] = useState(true);
   const { isAdmin, loading: adminLoading } = useAdminStatus();
 

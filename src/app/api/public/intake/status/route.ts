@@ -11,7 +11,7 @@ function friendlyStatus(cs: DocumentClassificationStatus) {
   return "Received";
 }
 
-function friendlyPipeline(d: any) {
+function friendlyPipeline(d: { processingState?: string; classificationStatus: DocumentClassificationStatus }) {
   const processingState = d.processingState ?? "QUEUED";
   if (processingState === "QUEUED" || processingState === "PROCESSING") return "Processing";
   return friendlyStatus(d.classificationStatus);

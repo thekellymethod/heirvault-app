@@ -13,7 +13,10 @@ export async function POST(req: Request) {
 
     const take = Math.min(Math.max(Number(limit ?? 100), 1), 500);
 
-    const where: any = {};
+    const where: {
+      clientId?: string;
+      action?: string;
+    } = {};
     if (clientId && typeof clientId === "string") where.clientId = clientId;
     if (action && typeof action === "string") where.action = action;
 

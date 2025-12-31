@@ -213,8 +213,9 @@ export async function processDocument(documentId: string) {
       },
     });
 
-  } catch (e: any) {
-    const errorMsg = String(e?.message ?? e).slice(0, 500);
+  } catch (e) {
+    const error = e as Error | { message?: string };
+    const errorMsg = String(error?.message ?? error).slice(0, 500);
     console.error(`Processing failed for document ${documentId}:`, errorMsg);
     
     await prisma.documents.update({

@@ -43,7 +43,7 @@ export async function GET(_: Request, ctx: { params: Promise<{ artifactId: strin
     await auditLog({
       actorType: principal.role === UserRole.ADMIN ? UploaderType.ADMIN : UploaderType.ATTORNEY,
       actorId: principal.clerkUserId,
-      clientId: null as any,
+      clientId: null,
       inviteId: null,
       action: "BILLING_INVOICE_OPENED",
       metadata: { artifactId: artifact.id, orgId: artifact.orgId },

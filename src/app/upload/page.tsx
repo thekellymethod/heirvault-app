@@ -1,12 +1,12 @@
 // src/app/upload/page.tsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 type Mode = "INVITE" | "CHANGE";
 
-async function postJson(url: string, body: any) {
+async function postJson(url: string, body: Record<string, unknown>) {
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -42,9 +42,10 @@ export default function UploadPage() {
         const r = await postJson(url, { token });
         setValid(!!r.valid);
         if (r.displayName) setDisplayName(r.displayName);
-      } catch (e: any) {
+      } catch (e) {
+        const error = e as Error;
         setValid(false);
-        setErr(e?.message ?? "Invalid link.");
+        setErr(error?.message ?? "Invalid link.");
       }
     })();
   }, [mode, token]);
@@ -102,8 +103,9 @@ function UploadWizard({ mode, token }: { mode: Mode; token: string }) {
       const json = await res.json().catch(() => ({}));
       if (!res.ok) setMsg(json?.error ?? "Submit failed");
       else setMsg("Receipt sent.");
-    } catch (e: any) {
-      setMsg(e?.message ?? "Submit failed");
+    } catch (e) {
+      const error = e as Error;
+      setMsg(error?.message ?? "Submit failed");
     }
   };
 
@@ -147,8 +149,18 @@ function UploadWizard({ mode, token }: { mode: Mode; token: string }) {
   );
 }
 
+type StatusData = {
+  ok: boolean;
+  receipts?: string[];
+  receipt?: string[];
+  documents?: Array<{
+    type: string;
+    status: string;
+  }>;
+};
+
 function StatusPanel({ mode, token }: { mode: Mode; token: string }) {
-  const [status, setStatus] = useState<any>(null);
+  const [status, setStatus] = useState<StatusData | null>(null);
 
   useEffect(() => {
     const tick = async () => {
@@ -159,8 +171,8 @@ function StatusPanel({ mode, token }: { mode: Mode; token: string }) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ token }),
         });
-        const json = await res.json().catch(() => ({}));
-        setStatus(json?.ok ? json : null);
+        const json = await res.json().catch(() => ({})) as StatusData | { ok?: boolean };
+        setStatus(json?.ok ? (json as StatusData) : null);
       } catch (e) {
         // Silent fail
       }
@@ -180,7 +192,7 @@ function StatusPanel({ mode, token }: { mode: Mode; token: string }) {
             Receipts: {status.receipts?.length ? status.receipts.join(", ") : status.receipt?.length ? status.receipt.join(", ") : "—"}
           </div>
           <div className="space-y-1">
-            {(status.documents ?? []).map((d: any, idx: number) => (
+            {(status.documents ?? []).map((d, idx) => (
               <div key={idx} className="text-sm">
                 {d.type} — <span className="text-slate-600">{d.status}</span>
               </div>

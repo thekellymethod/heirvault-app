@@ -129,8 +129,9 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({ client: result }, { status: 201 });
-  } catch (e: any) {
-    const status = e?.status || 402;
+  } catch (e) {
+    const error = e as { status?: number };
+    const status = error?.status || 402;
     return NextResponse.json(
       { error: e?.message || "Billing required" },
       { status }

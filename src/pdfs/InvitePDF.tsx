@@ -149,7 +149,7 @@ export function InvitePDF({
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>What to Upload</Text>
           <Text style={styles.listItem}>
-            • Driver's License or Passport (government-issued ID)
+            • Driver&apos;s License or Passport (government-issued ID)
           </Text>
           <Text style={styles.listItem}>
             • Life Insurance Policy Documents

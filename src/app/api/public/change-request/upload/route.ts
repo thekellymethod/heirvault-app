@@ -60,8 +60,9 @@ export async function POST(req: Request) {
   // File validation
   try {
     validateUpload(file, { maxBytes: 15 * 1024 * 1024 }); // 15MB
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message || "Invalid file" }, { status: 400 });
+  } catch (e) {
+    const error = e as Error;
+    return NextResponse.json({ error: error.message || "Invalid file" }, { status: 400 });
   }
 
   const tokenHash = hashToken(token);

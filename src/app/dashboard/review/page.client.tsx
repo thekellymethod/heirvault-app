@@ -9,7 +9,7 @@ async function getJson(url: string) {
   if (!res.ok) throw new Error(json?.error || "Request failed");
   return json;
 }
-async function postJson(url: string, body: any) {
+async function postJson(url: string, body: Record<string, unknown>) {
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -37,18 +37,42 @@ function dtLabel(dt: string) {
   return m[dt] ?? "Document";
 }
 
+type Document = {
+  documentId: string;
+  clientName: string;
+  docType: string;
+  sensitivity: string;
+  confidenceScore?: number | null;
+  createdAt: string;
+};
+
+type ChangeRequest = {
+  changeRequestId: string;
+  clientId: string;
+  clientName: string;
+  requestType: string;
+  status: string;
+  createdAt: string;
+};
+
+type ReviewData = {
+  documents?: Document[];
+  changeRequests?: ChangeRequest[];
+};
+
 export default function ReviewQueueClient() {
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<ReviewData | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const load = async () => {
     setErr(null);
     try {
-      const r = await getJson("/api/review/queue");
+      const r = await getJson("/api/review/queue") as ReviewData;
       setData(r);
-    } catch (e: any) {
-      setErr(e?.message ?? "Failed to load");
+    } catch (e) {
+      const error = e as Error;
+      setErr(error?.message ?? "Failed to load");
     }
   };
 
@@ -61,8 +85,9 @@ export default function ReviewQueueClient() {
     try {
       await postJson(`/api/review/documents/${documentId}/approve`, {});
       await load();
-    } catch (e: any) {
-      alert(e?.message ?? "Failed to approve");
+    } catch (e) {
+      const error = e as Error;
+      alert(error?.message ?? "Failed to approve");
     } finally {
       setBusyId(null);
     }
@@ -75,8 +100,9 @@ export default function ReviewQueueClient() {
     try {
       await postJson(`/api/review/documents/${documentId}/reject`, { reason });
       await load();
-    } catch (e: any) {
-      alert(e?.message ?? "Failed to reject");
+    } catch (e) {
+      const error = e as Error;
+      alert(error?.message ?? "Failed to reject");
     } finally {
       setBusyId(null);
     }
@@ -84,10 +110,11 @@ export default function ReviewQueueClient() {
 
   const previewDoc = async (documentId: string) => {
     try {
-      const r = await getJson(`/api/documents/${documentId}/preview`);
+      const r = await getJson(`/api/documents/${documentId}/preview`) as { url?: string };
       if (r?.url) window.open(r.url, "_blank", "noopener,noreferrer");
-    } catch (e: any) {
-      alert(e?.message ?? "Failed to preview");
+    } catch (e) {
+      const error = e as Error;
+      alert(error?.message ?? "Failed to preview");
     }
   };
 
@@ -104,7 +131,7 @@ export default function ReviewQueueClient() {
       <div className="rounded-2xl border p-5">
         <div className="font-semibold mb-3">Documents Needing Review</div>
         <div className="space-y-2">
-          {docs.map((d: any) => (
+          {docs.map((d) => (
             <div key={d.documentId} className="flex items-center justify-between rounded-xl border px-3 py-2">
               <div className="min-w-0 flex-1">
                 <div className="font-medium truncate">
@@ -142,7 +169,7 @@ export default function ReviewQueueClient() {
       <div className="rounded-2xl border p-5">
         <div className="font-semibold mb-3">Change Requests</div>
         <div className="space-y-2">
-          {crs.map((c: any) => (
+          {crs.map((c) => (
             <div key={c.changeRequestId} className="flex items-center justify-between rounded-xl border px-3 py-2">
               <div className="min-w-0 flex-1">
                 <div className="font-medium truncate">{c.clientName} — {c.requestType}</div>

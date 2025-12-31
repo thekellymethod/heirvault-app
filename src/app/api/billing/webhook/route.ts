@@ -25,9 +25,10 @@ export async function POST(req: Request) {
 
   try {
     event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
-  } catch (err: any) {
-    console.error("Webhook signature verification failed:", err.message);
-    return NextResponse.json({ error: `Webhook Error: ${err.message}` }, { status: 400 });
+  } catch (err) {
+    const error = err as Error;
+    console.error("Webhook signature verification failed:", error.message);
+    return NextResponse.json({ error: `Webhook Error: ${error.message}` }, { status: 400 });
   }
 
   // Idempotency: check if we've processed this event
@@ -51,9 +52,10 @@ export async function POST(req: Request) {
       event.id,
       event.type
     );
-  } catch (err: any) {
+  } catch (err) {
     // If table doesn't exist yet, log and continue (migration will create it)
-    console.warn("stripe_events table may not exist yet:", err.message);
+    const error = err as Error;
+    console.warn("stripe_events table may not exist yet:", error.message);
     // Continue processing - idempotency is best-effort until migration runs
   }
 
@@ -170,7 +172,7 @@ export async function POST(req: Request) {
             currentPeriodEnd: subscription.current_period_end
               ? new Date(subscription.current_period_end * 1000)
               : null,
-          } as any,
+          },
         });
         break;
       }
@@ -197,7 +199,7 @@ export async function POST(req: Request) {
             billingStatus: "CANCELED",
             stripeSubscriptionId: null,
             currentPeriodEnd: null,
-          } as any,
+          },
         });
         break;
       }
@@ -246,7 +248,7 @@ export async function POST(req: Request) {
           where: { id: org.id },
           data: {
             billingStatus: "PAST_DUE",
-          } as any,
+          },
         });
         break;
       }
@@ -294,13 +296,13 @@ export async function POST(req: Request) {
         if (!org) break;
 
         // Get the PDF link - Stripe provides invoice_pdf when available
-        let pdfUrl = (inv as any).invoice_pdf as string | null;
+        let pdfUrl = (inv as Stripe.Invoice & { invoice_pdf?: string | null }).invoice_pdf ?? null;
 
         // If not present on event payload, retrieve invoice to get it
         if (!pdfUrl) {
           try {
             const full = await stripe.invoices.retrieve(inv.id);
-            pdfUrl = (full as any).invoice_pdf ?? null;
+            pdfUrl = (full as Stripe.Invoice & { invoice_pdf?: string | null }).invoice_pdf ?? null;
           } catch (e) {
             console.error("Failed to retrieve invoice PDF URL:", e);
             break;
@@ -344,13 +346,13 @@ export async function POST(req: Request) {
                 metadata: {
                   invoiceId: inv.id,
                   invoiceNumber: inv.number ?? null,
-                  hostedInvoiceUrl: (inv as any).hosted_invoice_url ?? null,
+                  hostedInvoiceUrl: (inv as Stripe.Invoice & { hosted_invoice_url?: string | null }).hosted_invoice_url ?? null,
                   amountPaid: inv.amount_paid ?? null,
                   currency: inv.currency ?? null,
                   status: inv.status ?? null,
                   created: inv.created ? new Date(inv.created * 1000).toISOString() : null,
                 },
-              } as any,
+              },
             });
           }
         } catch (e: any) {
@@ -365,7 +367,7 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ received: true });
-  } catch (err: any) {
+  } catch (err) {
     console.error("Webhook handler error:", err);
     return NextResponse.json({ error: "Webhook handler failed" }, { status: 500 });
   }

@@ -1,7 +1,15 @@
 // src/app/dashboard/clients/[id]/components/ReceiptsPanel.tsx
 "use client";
 
-export default function ReceiptsPanel({ receipts, onOpen }: { receipts: any[]; onOpen: (id: string) => void }) {
+type Receipt = {
+  id: string;
+  receiptNumber?: string | null;
+  createdAt: string;
+  kind?: string | null;
+  artifactId?: string;
+};
+
+export default function ReceiptsPanel({ receipts, onOpen }: { receipts: Receipt[]; onOpen: (id: string) => void }) {
   return (
     <div className="rounded-2xl border p-5">
       <div className="font-semibold mb-3">Receipts</div>

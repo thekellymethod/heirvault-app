@@ -20,7 +20,7 @@ export async function GET(_: Request, ctx: { params: Promise<{ documentId: strin
 
   await requireClientAccess({ principal, clientId: doc.clientId });
 
-  let previewKey = doc.filePath;
+  const previewKey = doc.filePath;
 
   // For S4/S5, we DO NOT expose original here
   if (doc.sensitivityLevel === DocumentSensitivity.S4_HIGHLY_SENSITIVE ||
