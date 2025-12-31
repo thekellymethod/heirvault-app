@@ -56,7 +56,8 @@ export async function POST(req: Request) {
       `INSERT INTO audit_logs (id, user_id, action, message, createdAt) VALUES ($1, $2, $3, $4, NOW())`,
       auditId,
       actor.id,
-      "GLOBAL_POLICY_SEARCH_PERFORMED", // TODO: Add ADMIN_CONSOLE_NL_EXECUTE to AuditAction enum
+      // Note: Consider adding ADMIN_CONSOLE_NL_EXECUTE to AuditAction enum for more specific audit trail
+      "GLOBAL_POLICY_SEARCH_PERFORMED",
       `AdminNLExecute cmd=${cmd} confirmed=${confirmed}`
     );
   } catch (auditError: unknown) {

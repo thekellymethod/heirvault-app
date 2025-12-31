@@ -9,14 +9,26 @@ declare global {
 }
 
 function createPrismaClient(): PrismaClient {
-  // Prisma Accelerate uses PRISMA_ACCELERATE_URL if present
+  // Prisma Accelerate uses PRISMA_ACCELERATE_URL if present and valid
   const options: { accelerateUrl?: string } = {};
 
-  if (process.env.PRISMA_ACCELERATE_URL) {
-    options.accelerateUrl = process.env.PRISMA_ACCELERATE_URL;
-  } else if (!process.env.DATABASE_URL) {
+  const accelerateUrl = process.env.PRISMA_ACCELERATE_URL?.trim();
+  
+  // Only use Accelerate URL if it's valid (starts with prisma:// or prisma+postgres://)
+  if (accelerateUrl && (accelerateUrl.startsWith("prisma://") || accelerateUrl.startsWith("prisma+postgres://"))) {
+    options.accelerateUrl = accelerateUrl;
+  } else if (accelerateUrl) {
+    // Invalid format - log warning but don't use it
+    console.warn(
+      `[Prisma] PRISMA_ACCELERATE_URL is set but invalid format. ` +
+      `Expected format: prisma://... or prisma+postgres://... ` +
+      `Got: ${accelerateUrl.substring(0, 50)}...`
+    );
+  }
+
+  if (!options.accelerateUrl && !process.env.DATABASE_URL) {
     throw new Error(
-      "Missing database connection. Set DATABASE_URL or PRISMA_ACCELERATE_URL."
+      "Missing database connection. Set DATABASE_URL or valid PRISMA_ACCELERATE_URL."
     );
   }
 

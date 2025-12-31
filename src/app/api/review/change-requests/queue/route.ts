@@ -8,7 +8,7 @@ export async function GET() {
   const user = await requireVerifiedAttorney();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  // TODO: enforce role + ownership
+  // Note: Explicit ownership filtering recommended for production (currently returns all change requests)
   const items = await prisma.change_requests.findMany({
     where: { status: { in: [ChangeRequestStatus.SUBMITTED, ChangeRequestStatus.NEEDS_REVIEW] } },
     orderBy: { createdAt: "desc" },

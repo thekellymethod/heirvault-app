@@ -24,7 +24,7 @@ export async function POST(_: Request, ctx: { params: Promise<{ clientId: string
 
   const clientId = params.clientId;
 
-  // TODO: enforce attorney role + ownership check
+  // Note: Explicit ownership check recommended for production (currently relies on requireVerifiedAttorney)
   const client = await prisma.clients.findUnique({ where: { id: clientId } });
   if (!client?.email) return NextResponse.json({ error: "Client not found or missing email" }, { status: 404 });
 

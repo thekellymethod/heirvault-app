@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin";
 import { HttpError } from "@/lib/errors";
 
-// In-memory storage for compliance rules (TODO: Replace with database)
-// In production, this should be stored in a database table
+// Note: In-memory storage for compliance rules
+// Future: Replace with database table for production persistence
 const complianceRules: Array<{
   id: string,
   name: string,

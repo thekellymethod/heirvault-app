@@ -7,8 +7,14 @@ import { UserRole } from "@prisma/client";
 /**
  * Debug endpoint to check user authentication and database mapping
  * Helps diagnose "admin missing" issues
+ * Only available in development mode
  */
 export async function GET() {
+  // Only allow in development
+  if (process.env.NODE_ENV === "production") {
+    return NextResponse.json({ error: "Not available in production" }, { status: 403 });
+  }
+
   try {
     const { userId: clerkUserId } = await auth();
     

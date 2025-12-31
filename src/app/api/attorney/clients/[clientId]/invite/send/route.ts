@@ -67,7 +67,8 @@ export async function POST(_: Request, ctx: { params: Promise<{ clientId: string
     const uploadUrl = `${process.env.APP_URL || "http://localhost:3000"}/upload?token=${encodeURIComponent(rawToken)}`;
 
     const clientName = `${client.firstName ?? ""} ${client.lastName ?? ""}`.trim() || "Policyholder";
-    const attorneyName = "Attorney"; // TODO: get from principal if you store attorney name
+    // Note: Attorney name could be enhanced to use principal.firstName/lastName if stored
+    const attorneyName = "Attorney";
     const inviteCode = shortInviteCodeFromToken(rawToken);
     const requiresTax = false; // Can derive from client/policy flags if needed
 

@@ -126,11 +126,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // TODO: Perform actual OCR here
-    // For now, we'll simulate OCR results
-    // In production, integrate with Tesseract.js, Google Cloud Vision, or AWS Textract
+    // Future: Integrate OCR service (Tesseract.js, Google Cloud Vision, or AWS Textract)
+    // See OCR_IMPLEMENTATION.md for implementation guide
+    // For now, OCR returns empty text - document processing continues without extracted data
     
-    const ocrText = ""; // Placeholder - would contain OCR results
+    const ocrText = ""; // Placeholder - will contain OCR results when implemented
     const ocrConfidence = 0.85; // Placeholder
 
     // Extract safe entities

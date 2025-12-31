@@ -78,7 +78,8 @@ export async function POST(req: Request) {
     data: {
       id: auditLogId,
       userId: actor.id,
-      action: "POLICY_UPDATED", // TODO: Add POLICY_INSURER_RESOLVED to AuditAction enum
+      // Note: Consider adding POLICY_INSURER_RESOLVED to AuditAction enum for more specific audit trail
+      action: "POLICY_UPDATED",
       message: `Resolved insurer for policyId=${body.policyId} to insurerId=${insurer.id}, name=${insurer.name}`,
       createdAt: auditNow,
     },

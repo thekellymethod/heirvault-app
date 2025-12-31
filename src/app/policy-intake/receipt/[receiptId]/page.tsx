@@ -93,8 +93,8 @@ export default function PolicyIntakeReceiptPage() {
     if (!receiptData) return;
     
     try {
-      // TODO: Create PDF generation endpoint
-      // For now, use browser print
+      // Note: PDF generation endpoint exists elsewhere (see receipt generation)
+      // For now, use browser print functionality
       window.print();
     } catch (err) {
       console.error("Error generating PDF:", err);

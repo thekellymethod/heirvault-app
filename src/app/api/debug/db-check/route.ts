@@ -3,7 +3,16 @@ import { prisma } from "@/lib/db";
 
 export const runtime = "nodejs";
 
+/**
+ * Debug endpoint to check database schema
+ * Only available in development mode
+ */
 export async function GET() {
+  // Only allow in development
+  if (process.env.NODE_ENV === "production") {
+    return NextResponse.json({ error: "Not available in production" }, { status: 403 });
+  }
+
   try {
     // Check if users table exists
     const tableExists = await prisma.$queryRawUnsafe<Array<{ exists: boolean }>>(`

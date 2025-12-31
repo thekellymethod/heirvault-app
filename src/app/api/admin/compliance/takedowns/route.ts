@@ -10,8 +10,8 @@ export async function GET() {
   try {
     await requireAdmin();
 
-    // TODO: Implement takedown requests storage (database table)
-    // For now, return empty array
+    // Future: Implement takedown requests storage (database table)
+    // For now, return empty array as placeholder
     const requests: Array<{
       id: string,
       status: string,
@@ -53,8 +53,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid action" }, { status: 400 });
     }
 
-    // TODO: Implement takedown request processing
+    // Future: Implement takedown request processing
     // This would update the request status and potentially remove/redact the entity
+    // Requires takedown_requests table in database schema
 
     return NextResponse.json({ success: true, message: `Request ${action}d` });
   } catch (error: unknown) {

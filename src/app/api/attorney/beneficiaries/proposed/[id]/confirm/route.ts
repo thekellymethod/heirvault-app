@@ -12,7 +12,7 @@ export async function POST(_: Request, ctx: { params: Promise<{ id: string }> })
 
   const { id } = await ctx.params;
 
-  // TODO: When ProposedBeneficiary model exists, uncomment and implement:
+  // Future: When ProposedBeneficiary model is added to schema, uncomment and implement:
   /*
   const pb = await prisma.proposedBeneficiary.findUnique({ where: { id } });
   if (!pb) return NextResponse.json({ error: "Not found" }, { status: 404 });

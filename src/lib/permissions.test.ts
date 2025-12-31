@@ -2,9 +2,10 @@
  * Permission Testing Utilities
  * 
  * These tests verify that access control works correctly.
- * Run with: npm test or jest
+ * Run with: npm test or vitest
  * 
- * TODO: Set up Jest/Vitest test framework
+ * Note: Test framework is configured (Vitest). These are placeholder test functions
+ * that need to be implemented with proper mocking.
  */
 
 

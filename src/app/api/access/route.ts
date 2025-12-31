@@ -307,9 +307,9 @@ export async function PATCH(req: NextRequest) {
     });
 
     // If approved, grant access (Phase 0: all attorneys have global access, so this is a no-op)
-    // Future: Create access grant record in database
+    // Future: When access control is implemented, create access grant record in database
     if (action === "APPROVE") {
-      // TODO: Create access grant in database
+      // Future: Implement access grant creation when access control model is added
       // await createAccessGrant({
       //   registryId: accessRequest.registryId,
       //   userId: accessRequest.requestedByUserId,

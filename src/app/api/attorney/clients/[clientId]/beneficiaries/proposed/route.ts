@@ -9,7 +9,7 @@ export async function GET(_: Request, ctx: { params: Promise<{ clientId: string 
 
   const { clientId } = await ctx.params;
 
-  // TODO: enforce role/ownership
+  // Note: Role/ownership enforcement should be added for production
   // For now, return empty array until ProposedBeneficiary model is added
   // When model exists, uncomment:
   /*

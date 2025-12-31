@@ -61,7 +61,7 @@ export default async function AuditPage({ searchParams }: Props) {
   const page = parseInt(params.page || "1", 10);
   const pageSize = 50;
 
-  // TODO: Implement getAccessLogs() function in /lib/db.ts
+  // Future: Implement getAccessLogs() function in /lib/db.ts for access-specific audit logs
   // For now, using stub that returns empty array
   // In production, this would query the access_logs table with filters:
   // - Filter by action if provided

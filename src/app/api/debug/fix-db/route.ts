@@ -3,11 +3,23 @@ import { prisma } from "@/lib/db";
 
 export const runtime = "nodejs";
 
+/**
+ * Debug endpoint to fix database schema issues
+ * Only available in development mode
+ */
 export async function GET() {
+  // Only allow in development
+  if (process.env.NODE_ENV === "production") {
+    return NextResponse.json({ error: "Not available in production" }, { status: 403 });
+  }
   return await fixDatabase();
 }
 
 export async function POST() {
+  // Only allow in development
+  if (process.env.NODE_ENV === "production") {
+    return NextResponse.json({ error: "Not available in production" }, { status: 403 });
+  }
   return await fixDatabase();
 }
 

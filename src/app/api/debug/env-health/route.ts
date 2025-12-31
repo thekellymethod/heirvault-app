@@ -6,8 +6,14 @@ import crypto from "crypto";
  * Debug endpoint to check environment configuration
  * Safely prints which database it's connected to, Accelerate status, etc.
  * Helps verify environment variables are set correctly
+ * Only available in development mode
  */
 export async function GET() {
+  // Only allow in development
+  if (process.env.NODE_ENV === "production") {
+    return NextResponse.json({ error: "Not available in production" }, { status: 403 });
+  }
+
   try {
     // Database fingerprint (last 8 chars of connection string host)
     const dbUrl = process.env.DATABASE_URL || "";

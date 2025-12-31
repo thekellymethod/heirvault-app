@@ -22,6 +22,7 @@ jobs:
 
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      DOTENV_CONFIG_QUIET: "true"
 
     steps:
       - name: Checkout

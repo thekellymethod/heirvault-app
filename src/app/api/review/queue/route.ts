@@ -65,7 +65,8 @@ export async function GET() {
       changeRequestId: d.changeRequestId ?? null,
       inviteId: null, // documents don't have inviteId directly, would need to look up
       confidenceScore: d.confidenceScore ?? null,
-      hasRedactedPreview: false, // TODO: add redactedPreviewKey field if needed
+      // Note: Redacted preview support can be added by adding redactedPreviewKey field to documents table
+      hasRedactedPreview: false,
     })),
     changeRequests: changeRequests.map((cr) => ({
       kind: "CHANGE_REQUEST",

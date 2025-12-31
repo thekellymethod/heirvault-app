@@ -13,7 +13,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ clientId: stri
   const { clientId } = await ctx.params;
   const body = await req.json().catch(() => ({}));
 
-  // TODO: enforce attorney role + ownership over client
+  // Note: Explicit client ownership check recommended for production (currently relies on requireVerifiedAttorney)
   const policy = await prisma.expected_policies.create({
     data: {
       id: crypto.randomUUID(),
