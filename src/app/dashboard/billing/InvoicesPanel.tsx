@@ -1,7 +1,7 @@
 // src/app/dashboard/billing/InvoicesPanel.tsx
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 
 type Invoice = {
   id: string;
@@ -23,20 +23,26 @@ export default function InvoicesPanel() {
   const [items, setItems] = useState<Invoice[]>([]);
   const [err, setErr] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setErr(null);
-    try {
-      const r = await getJson("/api/billing/invoices");
-      setItems(r.invoices ?? []);
-    } catch (e) {
-      const error = e as Error;
-      setErr(error?.message ?? "Failed to load invoices");
-    }
-  }, []);
-
   useEffect(() => {
-    load();
-  }, [load]);
+    let cancelled = false;
+    (async () => {
+      setErr(null);
+      try {
+        const r = await getJson("/api/billing/invoices");
+        if (!cancelled) {
+          setItems(r.invoices ?? []);
+        }
+      } catch (e) {
+        const error = e as Error;
+        if (!cancelled) {
+          setErr(error?.message ?? "Failed to load invoices");
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const open = async (artifactId: string) => {
     try {

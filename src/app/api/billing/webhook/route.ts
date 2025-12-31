@@ -355,8 +355,9 @@ export async function POST(req: Request) {
               },
             });
           }
-        } catch (e: any) {
-          console.error(`Failed to archive invoice ${inv.id}:`, e.message);
+        } catch (e) {
+          const error = e as Error;
+          console.error(`Failed to archive invoice ${inv.id}:`, error.message);
           // Don't fail the webhook - invoice archival is best-effort
         }
         break;

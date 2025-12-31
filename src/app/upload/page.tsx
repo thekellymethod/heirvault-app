@@ -115,7 +115,7 @@ function UploadWizard({ mode, token }: { mode: Mode; token: string }) {
 
       <div className="flex gap-2">
         <select className="border rounded-lg px-3 py-2 flex-1" value={docType} onChange={(e) => setDocType(e.target.value)}>
-          <option value="DRIVERS_LICENSE">Driver's License</option>
+          <option value="DRIVERS_LICENSE">Driver&apos;s License</option>
           <option value="POLICY">Insurance Policy</option>
           <option value="BENEFICIARY_DOC">Beneficiary Document</option>
           <option value="TAX_W9">Tax Form</option>
