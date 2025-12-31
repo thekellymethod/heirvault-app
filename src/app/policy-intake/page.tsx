@@ -340,24 +340,27 @@ export default function PolicyIntakePage() {
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="label">First Name <span className="text-red-500">*</span></label>
+                <label htmlFor="firstName" className="label">First Name <span className="text-red-500">*</span></label>
                 <Input
+                  id="firstName"
                   value={formData.firstName}
                   onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
                   required
                 />
               </div>
               <div>
-                <label className="label">Last Name <span className="text-red-500">*</span></label>
+                <label htmlFor="lastName" className="label">Last Name <span className="text-red-500">*</span></label>
                 <Input
+                  id="lastName"
                   value={formData.lastName}
                   onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
                   required
                 />
               </div>
               <div>
-                <label className="label">Email <span className="text-red-500">*</span></label>
+                <label htmlFor="email" className="label">Email <span className="text-red-500">*</span></label>
                 <Input
+                  id="email"
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -365,16 +368,18 @@ export default function PolicyIntakePage() {
                 />
               </div>
               <div>
-                <label className="label">Phone</label>
+                <label htmlFor="phone" className="label">Phone</label>
                 <Input
+                  id="phone"
                   type="tel"
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 />
               </div>
               <div>
-                <label className="label">Date of Birth</label>
+                <label htmlFor="dateOfBirth" className="label">Date of Birth</label>
                 <Input
+                  id="dateOfBirth"
                   type="date"
                   value={formData.dateOfBirth}
                   onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
@@ -391,39 +396,44 @@ export default function PolicyIntakePage() {
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="label">Policy Number</label>
+                <label htmlFor="policyNumber" className="label">Policy Number</label>
                 <Input
+                  id="policyNumber"
                   value={formData.policyNumber}
                   onChange={(e) => setFormData({ ...formData, policyNumber: e.target.value })}
                 />
               </div>
               <div>
-                <label className="label">Policy Type</label>
+                <label htmlFor="policyType" className="label">Policy Type</label>
                 <Input
+                  id="policyType"
                   value={formData.policyType}
                   onChange={(e) => setFormData({ ...formData, policyType: e.target.value })}
                   placeholder="e.g., Term Life, Whole Life"
                 />
               </div>
               <div>
-                <label className="label">Insurer Name <span className="text-red-500">*</span></label>
+                <label htmlFor="insurerName" className="label">Insurer Name <span className="text-red-500">*</span></label>
                 <Input
+                  id="insurerName"
                   value={formData.insurerName}
                   onChange={(e) => setFormData({ ...formData, insurerName: e.target.value })}
                   required
                 />
               </div>
               <div>
-                <label className="label">Insurer Phone</label>
+                <label htmlFor="insurerPhone" className="label">Insurer Phone</label>
                 <Input
+                  id="insurerPhone"
                   type="tel"
                   value={formData.insurerPhone}
                   onChange={(e) => setFormData({ ...formData, insurerPhone: e.target.value })}
                 />
               </div>
               <div>
-                <label className="label">Insurer Email</label>
+                <label htmlFor="insurerEmail" className="label">Insurer Email</label>
                 <Input
+                  id="insurerEmail"
                   type="email"
                   value={formData.insurerEmail}
                   onChange={(e) => setFormData({ ...formData, insurerEmail: e.target.value })}
