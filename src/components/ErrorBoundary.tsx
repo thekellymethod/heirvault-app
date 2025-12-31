@@ -3,7 +3,7 @@
 import { Component, ReactNode } from "react";
 import Link from "next/link";
 import { Logo } from "./Logo";
-import { Shield, AlertTriangle } from "lucide-react";
+import { /* Shield, */ AlertTriangle } from "lucide-react";
 
 interface Props {
   children: ReactNode;

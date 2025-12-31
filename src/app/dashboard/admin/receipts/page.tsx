@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Search, Archive, FileText, Calendar, User, Mail, Phone } from "lucide-react";
 
@@ -28,7 +28,7 @@ export default function AdminReceiptsPage() {
   const [offset, setOffset] = useState(0);
   const limit = 50;
 
-  const searchReceipts = async () => {
+  const searchReceipts = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams({
@@ -49,11 +49,11 @@ export default function AdminReceiptsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [searchQuery, showArchived, offset]);
 
   useEffect(() => {
     searchReceipts();
-  }, [showArchived, offset]);
+  }, [searchReceipts]);
 
   const handleArchive = async (receiptId: string, token: string) => {
     if (!confirm("Are you sure you want to archive this receipt?")) return;

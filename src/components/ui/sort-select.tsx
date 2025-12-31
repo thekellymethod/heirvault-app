@@ -10,7 +10,7 @@ interface SortSelectProps {
 }
 
 export function SortSelect({ name, defaultValue, options, className }: SortSelectProps) {
-  const router = useRouter();
+  const _router = useRouter();
   const searchParams = useSearchParams();
 
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {

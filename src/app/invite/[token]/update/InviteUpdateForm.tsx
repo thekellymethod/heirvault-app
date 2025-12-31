@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { FileText, QrCode, CheckCircle } from "lucide-react";
+import { FileText, /* QrCode, */ CheckCircle } from "lucide-react";
 
 interface Props {
   token: string,

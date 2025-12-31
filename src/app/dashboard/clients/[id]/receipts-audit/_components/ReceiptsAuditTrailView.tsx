@@ -1,19 +1,19 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
   FileText,
   Download,
   Shield,
-  Clock,
+  // Clock,
   User,
   Hash,
   FileCheck,
   Calendar,
   AlertCircle,
   CheckCircle,
-  Printer,
+  // Printer,
   Filter,
   Search,
   X,
@@ -66,11 +66,7 @@ export function ReceiptsAuditTrailView({
   const [filterAction, setFilterAction] = useState<string>("all");
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -88,7 +84,11 @@ export function ReceiptsAuditTrailView({
     } finally {
       setLoading(false);
     }
-  };
+  }, [clientId]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const handleDownloadReceipt = async (receiptNumber: string) => {
     try {
@@ -115,7 +115,7 @@ export function ReceiptsAuditTrailView({
 
   const handleExportReport = async () => {
     try {
-      const { fetchJson } = await import("@/lib/http/fetchJson");
+      const { fetchJson: _fetchJson } = await import("@/lib/http/fetchJson");
       // Note: This endpoint returns a blob, so we need to handle it differently
       const res = await fetch(`/api/clients/${clientId}/receipts-audit/export`);
       
@@ -464,8 +464,8 @@ function AuditTrailTab({
 }
 
 function ReportsTab({
-  clientId,
-  clientName,
+  clientId: _clientId,
+  clientName: _clientName,
   onExport,
 }: {
   clientId: string,

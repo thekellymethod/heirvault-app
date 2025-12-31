@@ -151,7 +151,7 @@ export async function processPendingDocuments(params: { limit?: number } = {}) {
         !!expectedCarrierNorm && !!extractedCarrierNorm && (expectedCarrierNorm.includes(extractedCarrierNorm) || extractedCarrierNorm.includes(expectedCarrierNorm));
 
       // Confidence scoring (internal)
-      const { score, reasons } = scoreDocument({
+      const { score, reasons: _reasons } = scoreDocument({
         nameMatch: isNameMatch,
         dobMatch: isDobMatch,
         policyNumberMatch: isPolicyNumberMatch,
@@ -317,7 +317,7 @@ export async function processPendingDocuments(params: { limit?: number } = {}) {
 
       results.push({ id: doc.id, status: nextStatus });
     } catch (err) {
-      const error = err as Error;
+      const _error = err as Error;
       await prisma.documents.update({
         where: { id: doc.id },
         data: { classificationStatus: DocumentClassificationStatus.NEEDS_REVIEW },

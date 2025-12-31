@@ -11,7 +11,7 @@ export default async function ReceiptsAuditTrailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const user = await requireAuth();
+  const _user = await requireAuth();
   const { id: clientId } = await params;
 
   // Verify attorney has access to this client

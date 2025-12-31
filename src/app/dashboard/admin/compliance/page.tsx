@@ -8,7 +8,7 @@ export default async function CompliancePage() {
   try {
     // Require admin access - redirect if not admin
     await requireAdmin();
-  } catch (error) {
+  } catch (_error) {
     // Redirect to dashboard if not admin
     redirect("/dashboard");
   }

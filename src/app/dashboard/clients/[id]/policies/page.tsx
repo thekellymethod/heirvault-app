@@ -36,7 +36,7 @@ export default function ClientPoliciesPage() {
 
   // Check for insurerId and insurerName from query params (from insurers page)
   const insurerIdFromQuery = searchParams.get("insurerId");
-  const insurerNameFromQuery = searchParams.get("insurerName");
+  const _insurerNameFromQuery = searchParams.get("insurerName");
   const shouldOpenCreate = !!insurerIdFromQuery;
 
   const [createOpen, setCreateOpen] = React.useState(shouldOpenCreate);
@@ -62,7 +62,10 @@ export default function ClientPoliciesPage() {
     }
   }
 
-  React.useEffect(() => { load(); }, [clientId]);
+  React.useEffect(() => { 
+    load(); 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clientId]);
 
   async function loadInsurers() {
     setLoadingInsurers(true);

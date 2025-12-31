@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
@@ -62,7 +62,7 @@ export default function ReceiptPage() {
           // Clean up sessionStorage
           sessionStorage.removeItem(`receipt_${receiptId}`);
           return;
-        } catch (e) {
+        } catch (_e) {
           // Invalid stored data, continue to fetch
         }
       }
@@ -77,9 +77,9 @@ export default function ReceiptPage() {
       setError("Receipt ID is required");
       setLoading(false);
     }
-  }, [receiptId, token]);
+  }, [receiptId, token, fetchReceipt, fetchReceiptById]);
 
-  const fetchReceipt = async () => {
+  const fetchReceipt = useCallback(async () => {
     try {
       const res = await fetch(`/api/invite/${token}/receipt`);
       const data = await res.json();
@@ -95,9 +95,9 @@ export default function ReceiptPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token, receiptId]);
 
-  const fetchReceiptById = async () => {
+  const fetchReceiptById = useCallback(async () => {
     try {
       // Extract token from receipt ID if possible
       const match = receiptId?.match(/^REC-([^-]+)-/);
@@ -125,7 +125,7 @@ export default function ReceiptPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [receiptId]);
 
   const handleDownloadPDF = async () => {
     if (!receiptData || !token) return;

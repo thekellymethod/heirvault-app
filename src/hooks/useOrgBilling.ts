@@ -21,7 +21,7 @@ export function useOrgBilling() {
         const r = await fetch("/api/org/me");
         const j = await r.json().catch(() => ({}));
         if (!cancelled) setOrg(j?.org ?? null);
-      } catch (e) {
+      } catch (_e) {
         if (!cancelled) setOrg(null);
       } finally {
         if (!cancelled) setLoading(false);

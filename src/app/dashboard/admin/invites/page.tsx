@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Search, Archive, Key, Calendar, User, Mail, Phone, AlertCircle } from "lucide-react";
 
 type Invite = {
@@ -26,7 +26,7 @@ export default function AdminInvitesPage() {
   const [offset, setOffset] = useState(0);
   const limit = 50;
 
-  const searchInvites = async () => {
+  const searchInvites = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams({
@@ -47,11 +47,11 @@ export default function AdminInvitesPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [searchQuery, showArchived, offset]);
 
   useEffect(() => {
     searchInvites();
-  }, [showArchived, offset]);
+  }, [searchInvites]);
 
   const handleArchive = async (token: string) => {
     if (!confirm("Are you sure you want to archive this invitation code?")) return;

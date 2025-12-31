@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import {
   Receipt,
   Download,
   Printer,
-  CheckCircle,
+  // CheckCircle,
   AlertCircle,
   Loader2,
   QrCode,
@@ -40,30 +40,7 @@ export default function PolicyIntakeReceiptPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    // Try to get receipt data from sessionStorage first (if just submitted)
-    const stored = sessionStorage.getItem(`receipt_${receiptId}`);
-    if (stored) {
-      try {
-        const data = JSON.parse(stored);
-        setReceiptData({
-          receiptId: receiptId || data.receiptId,
-          ...data,
-        });
-        setLoading(false);
-        // Clean up sessionStorage
-        sessionStorage.removeItem(`receipt_${receiptId}`);
-        return;
-      } catch (e) {
-        // Invalid stored data, continue to fetch
-      }
-    }
-
-    // Fetch receipt data from API
-    fetchReceipt();
-  }, [receiptId]);
-
-  const fetchReceipt = async () => {
+  const fetchReceipt = useCallback(async () => {
     try {
       const res = await fetch(`/api/policy-intake/receipt/${receiptId}`);
       const data = await res.json();
@@ -87,7 +64,30 @@ export default function PolicyIntakeReceiptPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [receiptId]);
+
+  useEffect(() => {
+    // Try to get receipt data from sessionStorage first (if just submitted)
+    const stored = sessionStorage.getItem(`receipt_${receiptId}`);
+    if (stored) {
+      try {
+        const data = JSON.parse(stored);
+        setReceiptData({
+          receiptId: receiptId || data.receiptId,
+          ...data,
+        });
+        setLoading(false);
+        // Clean up sessionStorage
+        sessionStorage.removeItem(`receipt_${receiptId}`);
+        return;
+      } catch (_e) {
+        // Invalid stored data, continue to fetch
+      }
+    }
+
+    // Fetch receipt data from API
+    fetchReceipt();
+  }, [receiptId, fetchReceipt]);
 
   const handleDownloadPDF = async () => {
     if (!receiptData) return;

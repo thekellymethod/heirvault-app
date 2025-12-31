@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Logo } from "@/components/Logo";
 import { QRScanner } from "@/components/QRScanner";
-import { QrCode, AlertCircle, CheckCircle, Loader2, Camera } from "lucide-react";
+import { QrCode, AlertCircle, CheckCircle, Loader2, /* Camera */ } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function ScanQRPage() {

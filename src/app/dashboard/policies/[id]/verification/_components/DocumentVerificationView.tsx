@@ -12,7 +12,7 @@ import {
   Hash,
   Eye,
   Flag,
-  Save,
+  // Save,
   Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -79,7 +79,7 @@ export function DocumentVerificationView({
   policy,
   documents,
   submissions,
-  currentUserId,
+  currentUserId: _currentUserId,
   isAdmin = false,
 }: DocumentVerificationViewProps) {
   const [loading, setLoading] = useState(false);

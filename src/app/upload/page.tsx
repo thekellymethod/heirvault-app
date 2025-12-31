@@ -173,7 +173,7 @@ function StatusPanel({ mode, token }: { mode: Mode; token: string }) {
         });
         const json = await res.json().catch(() => ({})) as StatusData | { ok?: boolean };
         setStatus(json?.ok ? (json as StatusData) : null);
-      } catch (e) {
+      } catch (_e) {
         // Silent fail
       }
     };

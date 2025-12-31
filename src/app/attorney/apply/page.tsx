@@ -6,7 +6,7 @@ import { useUser } from "@clerk/nextjs";
 
 export default function AttorneyApplyPage() {
   const router = useRouter();
-  const { user, isLoaded } = useUser();
+  const { user, isLoaded: _isLoaded } = useUser();
   const [firstName, setFirstName] = React.useState("");
   const [lastName, setLastName] = React.useState("");
   const [email, setEmail] = React.useState("");

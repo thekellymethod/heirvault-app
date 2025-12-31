@@ -17,7 +17,7 @@ export function useRegistryGate() {
         const json = await res.json().catch(() => ({}));
         const isActive = !!json?.org?.active;
         if (!cancelled) setActive(isActive);
-      } catch (e) {
+      } catch (_e) {
         if (!cancelled) setActive(false);
       } finally {
         if (!cancelled) setReady(true);

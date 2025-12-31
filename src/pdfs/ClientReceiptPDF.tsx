@@ -4,7 +4,7 @@ import {
   Text,
   View,
   StyleSheet,
-  Image,
+  // Image,
 } from "@react-pdf/renderer";
 
 const styles = StyleSheet.create({

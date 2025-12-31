@@ -31,7 +31,7 @@ export async function getCurrentUser(): Promise<DbUser | null> {
     try {
       const authResult = await auth();
       userId = authResult.userId;
-    } catch (authError: unknown) {
+    } catch (_authError: unknown) {
       // During build/prerender, auth() fails - return null silently
       // This prevents "DATABASE ERROR DETECTED" spam during static generation
       return null;

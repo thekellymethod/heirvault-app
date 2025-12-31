@@ -13,7 +13,7 @@ export default function PolicyBeneficiariesPage() {
   // If you had: const { id } = useParams(); this is equivalent:
   const policyId = params?.id;
 
-  const [loading, setLoading] = React.useState(false);
+  const [_loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
   // ...your other useState calls

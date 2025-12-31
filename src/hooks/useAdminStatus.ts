@@ -14,7 +14,7 @@ export function useAdminStatus() {
         const r = await fetch("/api/debug/whoami");
         const j = await r.json().catch(() => ({}));
         if (!cancelled) setIsAdmin(!!j?.isAdmin);
-      } catch (e) {
+      } catch (_e) {
         if (!cancelled) setIsAdmin(false);
       } finally {
         if (!cancelled) setLoading(false);

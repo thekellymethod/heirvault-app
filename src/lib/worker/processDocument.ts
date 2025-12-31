@@ -21,7 +21,7 @@ export async function processDocument(documentId: string) {
   // If already processed and we have derived keys, we can skip re-processing
   // unless you want to force re-run (which will overwrite stable keys)
   const extractedKey = `private/derived/${doc.clientId}/${doc.id}/extracted.json`;
-  const previewKey = `private/derived/${doc.clientId}/${doc.id}/preview-redacted.pdf`;
+  const _previewKey = `private/derived/${doc.clientId}/${doc.id}/preview-redacted.pdf`;
 
   try {
     // Import and use the existing processing logic directly
@@ -30,10 +30,10 @@ export async function processDocument(documentId: string) {
     const { blocksToText, parseEntitiesFromText } = await import("@/lib/textractParse");
     const { scoreDocument } = await import("@/lib/confidence");
     const { auditLog } = await import("@/lib/audit");
-    const { tryCompleteInvite } = await import("@/lib/inviteCompletion");
+    const { tryCompleteInvite: _tryCompleteInvite } = await import("@/lib/inviteCompletion");
     const { normalizeCarrier, normalizePolicyNumber, nameSimilarity, dobMatch } = await import("@/lib/match");
     const { S3Client, GetObjectCommand } = await import("@aws-sdk/client-s3");
-    const { Readable } = await import("stream");
+    // const { Readable } = await import("stream");
     
     // Read document bytes from S3
     const s3 = new S3Client({

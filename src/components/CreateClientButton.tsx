@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { User } from "lucide-react";
 
 export function CreateClientButton() {
-  const { ready, active, gate } = useRegistryGate();
+  const { ready, active, gate: _gate } = useRegistryGate();
 
   if (!ready) {
     return (
