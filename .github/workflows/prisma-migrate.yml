@@ -22,7 +22,7 @@ jobs:
 
     # ✅ Make DATABASE_URL available to *all* steps including npm ci + postinstall
     env:
-     _ DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
     steps:
       - name: Checkout
