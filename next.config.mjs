@@ -18,12 +18,12 @@ const nextConfig = {
     ignoreBuildErrors: false,
   },
   async headers() {
-    // Build CSP directive - allow unsafe-eval only in development or for specific libraries
-    // Note: unsafe-eval is needed for some libraries like tesseract.js (OCR)
-    const isDevelopment = process.env.NODE_ENV === "development";
-    const scriptSrc = isDevelopment
-      ? "'self' 'unsafe-eval' 'unsafe-inline'"
-      : "'self' 'unsafe-eval'"; // Allow unsafe-eval for tesseract.js and similar libraries
+    // Build CSP directive
+    // Note: 
+    // - 'unsafe-eval' is needed for some libraries like tesseract.js (OCR)
+    // - 'unsafe-inline' is required for Next.js inline scripts (__NEXT_DATA__, hydration)
+    //   Next.js requires inline scripts unless using middleware with nonces or experimental SRI
+    const scriptSrc = "'self' 'unsafe-eval' 'unsafe-inline'";
 
     const csp = [
       `default-src 'self'`,
