@@ -18,10 +18,37 @@ const nextConfig = {
     ignoreBuildErrors: false,
   },
   async headers() {
+    // Build CSP directive - allow unsafe-eval only in development or for specific libraries
+    // Note: unsafe-eval is needed for some libraries like tesseract.js (OCR)
+    const isDevelopment = process.env.NODE_ENV === "development";
+    const scriptSrc = isDevelopment
+      ? "'self' 'unsafe-eval' 'unsafe-inline'"
+      : "'self' 'unsafe-eval'"; // Allow unsafe-eval for tesseract.js and similar libraries
+
+    const csp = [
+      `default-src 'self'`,
+      `script-src ${scriptSrc}`,
+      `style-src 'self' 'unsafe-inline'`,
+      `img-src 'self' data: blob: https:`,
+      `font-src 'self' data:`,
+      `connect-src 'self' https://*.clerk.accounts.dev https://*.clerk.com https://*.supabase.co https://api.openai.com https://*.sentry.io`,
+      `worker-src 'self' blob:`,
+      `child-src 'self' blob:`,
+      `object-src 'none'`,
+      `base-uri 'self'`,
+      `form-action 'self'`,
+      `frame-ancestors 'self'`,
+      `upgrade-insecure-requests`,
+    ].join("; ");
+
     return [
       {
         source: "/(.*)",
         headers: [
+          {
+            key: "Content-Security-Policy",
+            value: csp,
+          },
           { key: "X-Frame-Options", value: "SAMEORIGIN" },
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },

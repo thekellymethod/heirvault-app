@@ -53,4 +53,9 @@ jobs:
 
       - name: Prisma migrate status
         if: always()
-        run: npx prisma migrate status
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "Skipping migrate status: DATABASE_URL is not set"
+            exit 0
+          fi
+          npx prisma migrate status
