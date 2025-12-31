@@ -41,16 +41,20 @@ export default function IntakePage() {
       <h1>Policy Intake</h1>
 
       <form onSubmit={onSubmit} className={styles.form}>
-        <input name="insured_name" placeholder="Insured Name (required)" required />
-        <input name="carrier_guess" placeholder="Carrier (optional)" />
-        <input name="policyholder_name" placeholder="Policyholder Name (optional)" />
-        <input name="beneficiary_name" placeholder="Beneficiary Name (optional)" />
-        <input name="policy_number_optional" placeholder="Policy Number (optional)" />
-        <textarea name="notes_optional" placeholder="Notes (optional)" rows={4} />
-        <label>
-          Document (PDF, JPEG, or PNG)
-          <input name="document" type="file" accept="application/pdf,image/jpeg,image/png" />
-        </label>
+        <label htmlFor="insured_name">Insured Name (required)</label>
+        <input id="insured_name" name="insured_name" placeholder="Insured Name (required)" required />
+        <label htmlFor="carrier_guess">Carrier (optional)</label>
+        <input id="carrier_guess" name="carrier_guess" placeholder="Carrier (optional)" />
+        <label htmlFor="policyholder_name">Policyholder Name (optional)</label>
+        <input id="policyholder_name" name="policyholder_name" placeholder="Policyholder Name (optional)" />
+        <label htmlFor="beneficiary_name">Beneficiary Name (optional)</label>
+        <input id="beneficiary_name" name="beneficiary_name" placeholder="Beneficiary Name (optional)" />
+        <label htmlFor="policy_number_optional">Policy Number (optional)</label>
+        <input id="policy_number_optional" name="policy_number_optional" placeholder="Policy Number (optional)" />
+        <label htmlFor="notes_optional">Notes (optional)</label>
+        <textarea id="notes_optional" name="notes_optional" placeholder="Notes (optional)" rows={4} />
+        <label htmlFor="document">Document (PDF, JPEG, or PNG)</label>
+        <input id="document" name="document" type="file" accept="application/pdf,image/jpeg,image/png" />
         <button disabled={loading} type="submit">
           {loading ? "Submitting..." : "Submit"}
         </button>

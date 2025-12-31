@@ -37,10 +37,14 @@ export default function UpdateForm(props: { token: string, defaultInsured: strin
         <input id="insured_name" name="insured_name" defaultValue={props.defaultInsured} aria-label="Insured Name" title="Insured Name" />
         <label htmlFor="carrier_guess">Carrier</label>
         <input id="carrier_guess" name="carrier_guess" defaultValue={props.defaultCarrier} aria-label="Carrier" title="Carrier" />
-        <input name="policyholder_name" placeholder="Policyholder Name (optional)" />
-        <input name="beneficiary_name" placeholder="Beneficiary Name (optional)" />
-        <input name="policy_number_optional" placeholder="Policy Number (optional)" />
-        <textarea name="notes_optional" placeholder="Notes (optional)" rows={4} />
+        <label htmlFor="policyholder_name">Policyholder Name (optional)</label>
+        <input id="policyholder_name" name="policyholder_name" placeholder="Policyholder Name (optional)" />
+        <label htmlFor="beneficiary_name">Beneficiary Name (optional)</label>
+        <input id="beneficiary_name" name="beneficiary_name" placeholder="Beneficiary Name (optional)" />
+        <label htmlFor="policy_number_optional">Policy Number (optional)</label>
+        <input id="policy_number_optional" name="policy_number_optional" placeholder="Policy Number (optional)" />
+        <label htmlFor="notes_optional">Notes (optional)</label>
+        <textarea id="notes_optional" name="notes_optional" placeholder="Notes (optional)" rows={4} />
         <label htmlFor="document">Document (PDF, JPEG, or PNG)</label>
         <input id="document" name="document" type="file" accept="application/pdf,image/jpeg,image/png" aria-label="Document upload" title="Document upload" />
         <button disabled={loading} type="submit">
