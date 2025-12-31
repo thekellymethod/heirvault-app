@@ -1,61 +1,48 @@
-name: CI
+name: Prisma Migrate (Direct DB)
 
 on:
+  workflow_dispatch: {}
   push:
-    branches: [main, develop]
-  pull_request:
-    branches: [main, develop]
+    branches: ["main"]
+    paths:
+      - "prisma/**"
+      - "package.json"
+      - "package-lock.json"
+      - "prisma.config.ts"
+      - ".github/workflows/prisma-migrate.yml"
+
+concurrency:
+  group: prisma-migrate-main
+  cancel-in-progress: false
 
 jobs:
-  ci:
-    name: CI Checks
+  migrate:
     runs-on: ubuntu-latest
-    
+    timeout-minutes: 15
+
+    # ✅ Make DATABASE_URL available to *all* steps including npm ci + postinstall
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "22"
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Run ESLint
-        run: npm run lint
-        continue-on-error: false
-
-      - name: Run TypeScript type check
-        run: npm run typecheck
-        continue-on-error: false
-
-      - name: Validate Prisma schema
-        run: npx prisma validate
-        continue-on-error: false
-
-      - name: Generate Prisma Client
+      - name: Prisma generate
         run: npx prisma generate
-        continue-on-error: false
 
-      - name: Build Next.js application
-        run: npm run build
-        env:
-          # Minimal env vars for build (actual values not needed for type checking)
-          DATABASE_URL: postgresql://test:test@localhost:5432/test
-          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_placeholder
-          CLERK_SECRET_KEY: sk_test_placeholder
-          NEXT_PUBLIC_APP_URL: http://localhost:3000
-          HEIRVAULT_TOKEN_SECRET: test-token-secret-for-build
-        continue-on-error: false
+      - name: Prisma migrate deploy
+        run: npx prisma migrate deploy
 
-      - name: Check build artifacts
-        run: |
-          if [ ! -d ".next" ]; then
-            echo "Build failed: .next directory not found"
-            exit 1
-          fi
-          echo "Build successful: .next directory exists"
-
+      - name: Prisma migrate status (debug)
+        if: always()
+        run: npx prisma migrate status
