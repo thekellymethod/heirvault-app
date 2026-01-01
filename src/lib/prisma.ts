@@ -46,7 +46,29 @@ function makePrisma() {
   }
 
   // Use adapter with direct connection (fallback or primary)
-  const pool = new Pool({ connectionString: url });
+  // Ensure SSL is enabled for Supabase connections
+  let connectionString = url;
+  try {
+    const urlObj = new URL(url);
+    if (!urlObj.searchParams.has("sslmode")) {
+      urlObj.searchParams.set("sslmode", "require");
+      connectionString = urlObj.toString();
+    }
+  } catch {
+    // If URL parsing fails, append sslmode to connection string
+    if (!url.includes("sslmode=")) {
+      const separator = url.includes("?") ? "&" : "?";
+      connectionString = `${url}${separator}sslmode=require`;
+    }
+  }
+  
+  const pool = new Pool({ 
+    connectionString,
+    // Explicitly enable SSL for Supabase
+    ssl: process.env.NODE_ENV === "production" || url.includes("supabase") 
+      ? { rejectUnauthorized: false } // Supabase uses self-signed certs
+      : undefined,
+  });
   const adapter = new PrismaPg(pool);
 
   return new PrismaClient({
