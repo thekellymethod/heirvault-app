@@ -178,7 +178,7 @@ export default function PolicyIntakePage() {
 
           <div className="card p-8 text-center">
             <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-green-100">
-              <CheckCircle className="h-10 w-10 text-green-600" />
+              <CheckCircle className="h-10 w-10 text-green-600" aria-hidden="true" />
             </div>
             
             <h1 className="font-display text-2xl font-bold text-ink-900 mb-3">
@@ -247,9 +247,9 @@ export default function PolicyIntakePage() {
         </div>
 
         {error && (
-          <div className="card p-4 mb-6 bg-red-50 border-red-200">
+          <div className="card p-4 mb-6 bg-red-50 border-red-200" role="alert">
             <div className="flex items-center gap-2 text-red-700">
-              <AlertCircle className="h-5 w-5" />
+              <AlertCircle className="h-5 w-5" aria-hidden="true" />
               <span>{error}</span>
             </div>
           </div>
@@ -257,9 +257,9 @@ export default function PolicyIntakePage() {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Document Upload Section */}
-          <div className="card p-6">
+          <section className="card p-6">
             <h2 className="font-display text-lg font-semibold text-ink-900 mb-4 flex items-center gap-2">
-              <Upload className="h-5 w-5 text-gold-500" />
+              <Upload className="h-5 w-5 text-gold-500" aria-hidden="true" />
               Upload Policy Document (Optional)
             </h2>
             <p className="text-sm text-slateui-600 mb-4">
@@ -274,6 +274,7 @@ export default function PolicyIntakePage() {
                 onChange={handleFileUpload}
                 className="hidden"
                 disabled={extracting || loading}
+                aria-label="Upload policy document"
               />
               <label
                 htmlFor="file-upload"
@@ -281,7 +282,7 @@ export default function PolicyIntakePage() {
               >
                 {uploadedFile ? (
                   <>
-                    <FileText className="h-12 w-12 text-gold-500" />
+                    <FileText className="h-12 w-12 text-gold-500" aria-hidden="true" />
                     <div>
                       <p className="font-medium text-ink-900">{uploadedFile.name}</p>
                       <p className="text-sm text-slateui-600">
@@ -290,13 +291,13 @@ export default function PolicyIntakePage() {
                     </div>
                     {extracting && (
                       <div className="flex items-center gap-2 text-slateui-600">
-                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
                         <span className="text-sm">Extracting data...</span>
                       </div>
                     )}
                     {extractedData && !extracting && (
                       <p className="text-sm text-green-600 flex items-center gap-1">
-                        <CheckCircle className="h-4 w-4" />
+                        <CheckCircle className="h-4 w-4" aria-hidden="true" />
                         Data extracted successfully
                       </p>
                     )}
@@ -311,13 +312,13 @@ export default function PolicyIntakePage() {
                       }}
                       className="mt-2"
                     >
-                      <X className="h-4 w-4 mr-1" />
+                      <X className="h-4 w-4 mr-1" aria-hidden="true" />
                       Remove
                     </Button>
                   </>
                 ) : (
                   <>
-                    <Upload className="h-12 w-12 text-slateui-400" />
+                    <Upload className="h-12 w-12 text-slateui-400" aria-hidden="true" />
                     <div>
                       <p className="font-medium text-ink-900">
                         Click to upload or drag and drop
@@ -330,12 +331,12 @@ export default function PolicyIntakePage() {
                 )}
               </label>
             </div>
-          </div>
+          </section>
 
           {/* Client Information */}
-          <div className="card p-6">
+          <section className="card p-6">
             <h2 className="font-display text-lg font-semibold text-ink-900 mb-4 flex items-center gap-2">
-              <User className="h-5 w-5 text-gold-500" />
+              <User className="h-5 w-5 text-gold-500" aria-hidden="true" />
               Client Information
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -386,12 +387,12 @@ export default function PolicyIntakePage() {
                 />
               </div>
             </div>
-          </div>
+          </section>
 
           {/* Policy Information */}
-          <div className="card p-6">
+          <section className="card p-6">
             <h2 className="font-display text-lg font-semibold text-ink-900 mb-4 flex items-center gap-2">
-              <FileText className="h-5 w-5 text-gold-500" />
+              <FileText className="h-5 w-5 text-gold-500" aria-hidden="true" />
               Policy Information
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -440,7 +441,7 @@ export default function PolicyIntakePage() {
                 />
               </div>
             </div>
-          </div>
+          </section>
 
           {/* Submit Button */}
           <div className="card p-6 bg-gold-50 border-gold-200">
@@ -455,12 +456,12 @@ export default function PolicyIntakePage() {
             >
               {loading ? (
                 <>
-                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                  <Loader2 className="h-5 w-5 mr-2 animate-spin" aria-hidden="true" />
                   Submitting...
                 </>
               ) : (
                 <>
-                  <CheckCircle className="h-5 w-5 mr-2" />
+                  <CheckCircle className="h-5 w-5 mr-2" aria-hidden="true" />
                   Submit Policy
                 </>
               )}
@@ -471,4 +472,3 @@ export default function PolicyIntakePage() {
     </main>
   );
 }
-

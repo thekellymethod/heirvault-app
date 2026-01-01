@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Inter, Playfair_Display } from "next/font/google";
 import { Toaster } from "react-hot-toast";
+import { generateMetadata as genMeta, generateStructuredData } from "@/lib/seo";
 import "./globals.css";
 
 const inter = Inter({
@@ -16,11 +17,13 @@ const playfair = Playfair_Display({
   display: "swap",
 });
 
-export const metadata: Metadata = {
+export const metadata: Metadata = genMeta({
   title: "HeirVault - Life Insurance Relationship Registry",
   description:
-    "A secure registry where clients record who insures them and who their beneficiaries are—without exposing policy amounts.",
-};
+    "A secure registry where clients record who insures them and who their beneficiaries are—without exposing policy amounts. Find unclaimed life insurance policies easily with our professional workflow.",
+  path: "/",
+  image: "/vault-hv.png",
+});
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -33,6 +36,21 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const organizationSchema = generateStructuredData({
+    type: "Organization",
+    title: "HeirVault",
+    description: "A secure registry for life insurance policy information and beneficiary designations",
+    url: process.env.NEXT_PUBLIC_APP_URL || "https://heirvault.app",
+    image: "/logo-hv.png",
+  });
+
+  const websiteSchema = generateStructuredData({
+    type: "WebSite",
+    title: "HeirVault",
+    description: "Find unclaimed life insurance policies easily with our secure registry",
+    url: process.env.NEXT_PUBLIC_APP_URL || "https://heirvault.app",
+  });
+
   return (
     <ClerkProvider 
       signInUrl="/sign-in" 
@@ -41,6 +59,16 @@ export default function RootLayout({
       afterSignUpUrl="/dashboard"
     >
       <html lang="en" className={`${inter.variable} ${playfair.variable}`}>
+        <head>
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
+          />
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }}
+          />
+        </head>
         <body className="bg-paper-50 font-sans text-slateui-800 antialiased">
           {children}
 

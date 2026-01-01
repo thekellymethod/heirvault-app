@@ -1,6 +1,15 @@
 import Link from "next/link";
 import { Logo } from "@/components/Logo";
 import { ArrowLeft } from "lucide-react";
+import { generateMetadata as genMeta } from "@/lib/seo";
+
+export const metadata = genMeta({
+  title: "Privacy Policy",
+  description:
+    "HeirVault Privacy Policy - Learn how we collect, use, and protect your life insurance policy information. Enterprise-grade security and compliance.",
+  path: "/legal/privacy",
+  type: "article",
+});
 
 export default function PrivacyPolicyPage() {
   return (
@@ -9,8 +18,8 @@ export default function PrivacyPolicyPage() {
       <header className="sticky top-0 z-50 border-b border-slateui-200 bg-paper-50/85 backdrop-blur">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 py-3 sm:py-4">
           <div className="flex items-center justify-between gap-6">
-            <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition">
-              <ArrowLeft className="h-5 w-5 text-slateui-600" />
+            <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition" aria-label="Return to homepage">
+              <ArrowLeft className="h-5 w-5 text-slateui-600" aria-hidden="true" />
               <Logo size="sm" showTagline={false} className="flex-row" />
             </Link>
           </div>
@@ -18,11 +27,10 @@ export default function PrivacyPolicyPage() {
       </header>
 
       {/* Content */}
-      <div className="mx-auto max-w-4xl px-4 sm:px-6 py-8 sm:py-12">
+      <article className="mx-auto max-w-4xl px-4 sm:px-6 py-8 sm:py-12">
         <div className="card p-6 sm:p-8 md:p-10">
-          <h1 className="font-display text-3xl md:text-4xl font-bold text-ink-900 mb-2">HeirVault</h1>
-          <h2 className="font-display text-2xl md:text-3xl font-semibold text-ink-900 mb-2">Privacy Policy</h2>
-          <p className="text-sm text-slateui-600 mb-8">Last updated: 12/23/2025</p>
+          <h1 className="font-display text-3xl md:text-4xl font-bold text-ink-900 mb-2">HeirVault Privacy Policy</h1>
+          <p className="text-sm text-slateui-600 mb-8">Last updated: December 23, 2025</p>
 
           <div className="prose prose-slate max-w-none space-y-8">
             <section>

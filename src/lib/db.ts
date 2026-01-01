@@ -1,39 +1,41 @@
 // src/lib/db.ts
+import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
+import { Pool } from "pg";
 
 /**
  * Prisma singleton for Next.js (prevents exhausting DB connections in dev hot-reload)
+ * Uses Prisma 7 adapter pattern for runtime connections
  */
 declare global {
   var __prisma: PrismaClient | undefined;
 }
 
 function createPrismaClient(): PrismaClient {
-  // Prisma Accelerate uses PRISMA_ACCELERATE_URL if present and valid
-  const options: { accelerateUrl?: string } = {};
-
+  // Check for Prisma Accelerate URL first
   const accelerateUrl = process.env.PRISMA_ACCELERATE_URL?.trim();
   
-  // Only use Accelerate URL if it's valid (starts with prisma:// or prisma+postgres://)
   if (accelerateUrl && (accelerateUrl.startsWith("prisma://") || accelerateUrl.startsWith("prisma+postgres://"))) {
-    options.accelerateUrl = accelerateUrl;
-  } else if (accelerateUrl) {
-    // Invalid format - log warning but don't use it
-    console.warn(
-      `[Prisma] PRISMA_ACCELERATE_URL is set but invalid format. ` +
-      `Expected format: prisma://... or prisma+postgres://... ` +
-      `Got: ${accelerateUrl.substring(0, 50)}...`
-    );
+    // Use Accelerate if available
+    return new PrismaClient({
+      accelerateUrl,
+      log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
+    });
   }
 
-  if (!options.accelerateUrl && !process.env.DATABASE_URL) {
+  // Otherwise use adapter with direct connection
+  const url = process.env.DATABASE_URL;
+  if (!url) {
     throw new Error(
       "Missing database connection. Set DATABASE_URL or valid PRISMA_ACCELERATE_URL."
     );
   }
 
+  const pool = new Pool({ connectionString: url });
+  const adapter = new PrismaPg(pool);
+
   return new PrismaClient({
-    ...options,
+    adapter,
     log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
   });
 }

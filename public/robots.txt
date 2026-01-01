@@ -1,0 +1,52 @@
+# robots.txt for Heir Vault
+# Blocks admin and secure pages from search engine crawlers
+
+User-agent: *
+Allow: /
+Allow: /intake
+Allow: /policy-intake
+Allow: /update
+Allow: /qr-update
+Allow: /invite
+Allow: /sign-in
+Allow: /sign-up
+Allow: /legal/
+
+# Block admin routes
+Disallow: /admin
+Disallow: /dashboard/admin
+Disallow: /api/admin
+
+# Block protected/secure routes
+Disallow: /dashboard
+Disallow: /records
+Disallow: /search
+Disallow: /audit
+Disallow: /upload
+
+# Block API routes (except public ones)
+Disallow: /api/
+
+# Block attorney application routes (sensitive)
+Disallow: /attorney/apply
+Disallow: /attorney/onboard
+
+# Block client portal routes (protected)
+Disallow: /client-portal
+
+# Block test/debug routes
+Disallow: /test
+Disallow: /test-auth
+
+# Allow static assets
+Allow: /*.png
+Allow: /*.jpg
+Allow: /*.jpeg
+Allow: /*.gif
+Allow: /*.svg
+Allow: /*.ico
+Allow: /*.css
+Allow: /*.js
+
+# Sitemap
+Sitemap: https://heirvault.app/sitemap.xml

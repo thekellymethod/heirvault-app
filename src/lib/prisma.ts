@@ -1,41 +1,38 @@
+import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
+import { Pool } from "pg";
 
 declare global {
-  var prisma: PrismaClient | undefined;
+  // eslint-disable-next-line no-var
+  var __prisma: PrismaClient | undefined;
 }
 
-// In Prisma 7+, PrismaClient automatically reads from DATABASE_URL environment variable
-// Must pass at least an empty object {} or options to the constructor
-function createPrismaClient(): PrismaClient {
-  const options: { accelerateUrl?: string; log?: string[] } = {};
+function makePrisma() {
+  const url = process.env.DATABASE_URL;
+  if (!url) throw new Error("DATABASE_URL is missing at runtime.");
 
+  // Check for Prisma Accelerate URL first
   const accelerateUrl = process.env.PRISMA_ACCELERATE_URL?.trim();
   
-  // Only use Accelerate URL if it's valid (starts with prisma:// or prisma+postgres://)
   if (accelerateUrl && (accelerateUrl.startsWith("prisma://") || accelerateUrl.startsWith("prisma+postgres://"))) {
-    options.accelerateUrl = accelerateUrl;
-  } else if (accelerateUrl) {
-    // Invalid format - log warning but don't use it
-    console.warn(
-      `[Prisma] PRISMA_ACCELERATE_URL is set but invalid format. ` +
-      `Expected format: prisma://... or prisma+postgres://... ` +
-      `Got: ${accelerateUrl.substring(0, 50)}...`
-    );
+    // Use Accelerate if available
+    return new PrismaClient({
+      accelerateUrl,
+      log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
+    });
   }
 
-  if (!options.accelerateUrl && !process.env.DATABASE_URL) {
-    throw new Error(
-      "Missing database connection. Set DATABASE_URL or valid PRISMA_ACCELERATE_URL."
-    );
-  }
+  // Otherwise use adapter with direct connection
+  const pool = new Pool({ connectionString: url });
+  const adapter = new PrismaPg(pool);
 
-  // Always include log option to ensure non-empty options object
-  options.log = process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"];
-
-  return new PrismaClient(options);
+  return new PrismaClient({
+    adapter,
+    log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
+  });
 }
 
-export const prisma =
-  global.prisma ?? createPrismaClient();
+// Avoid creating new clients on hot reload in dev
+export const prisma = global.__prisma ?? makePrisma();
 
-if (process.env.NODE_ENV !== "production") global.prisma = prisma;
+if (process.env.NODE_ENV !== "production") global.__prisma = prisma;

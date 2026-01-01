@@ -14,7 +14,7 @@ export default function LandingPage() {
           <div className="flex items-center justify-between gap-6">
             <Logo size="lg" showTagline={false} className="flex-row" />
 
-            <nav className="hidden md:flex items-center gap-7">
+            <nav className="hidden md:flex items-center gap-7" aria-label="Main navigation">
               <Link
                 href="#home"
                 className="text-sm font-medium text-slateui-800 hover:text-ink-900 transition"
@@ -94,7 +94,7 @@ export default function LandingPage() {
         <div className="absolute inset-0">
           <Image
             src="/world-hv.png"
-            alt="World map background"
+            alt="World map background showing global coverage of HeirVault life insurance registry service"
             fill
             priority
             className="object-cover opacity-60"
@@ -163,15 +163,15 @@ export default function LandingPage() {
 
               <div className="mt-10 flex items-center justify-center md:justify-start gap-6 text-sm text-paper-100/70">
                 <div className="flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-gold-500" />
+                  <span className="h-2 w-2 rounded-full bg-gold-500" aria-hidden="true" />
                   <span>Nationwide coverage</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-gold-500" />
+                  <span className="h-2 w-2 rounded-full bg-gold-500" aria-hidden="true" />
                   <span>Secure registry model</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-gold-500" />
+                  <span className="h-2 w-2 rounded-full bg-gold-500" aria-hidden="true" />
                   <span>Professional workflow</span>
                 </div>
               </div>
@@ -183,7 +183,7 @@ export default function LandingPage() {
                   <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl bg-ink-950/40">
                     <Image
                       src="/vault-hv.png"
-                      alt="HeirVault secure vault"
+                      alt="HeirVault secure digital vault icon representing encrypted life insurance policy storage"
                       fill
                       className="object-contain p-6 drop-shadow-2xl"
                       sizes="(max-width: 768px) 100vw, 50vw"
@@ -232,7 +232,14 @@ export default function LandingPage() {
           <div className="mt-12 grid gap-6 md:grid-cols-3">
             <div className="card p-8 text-center transition hover:-translate-y-1 hover:shadow-lift">
               <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-paper-100 border border-slateui-200">
-                <Image src="/search-hv.png" alt="Search icon" width={44} height={44} style={{ width: 'auto', height: 'auto' }} className="object-contain" />
+                <Image 
+                  src="/search-hv.png" 
+                  alt="Search icon - Search for life insurance policies in the HeirVault registry" 
+                  width={44} 
+                  height={44} 
+                  style={{ width: 'auto', height: 'auto' }} 
+                  className="object-contain" 
+                />
               </div>
               <h3 className="mt-6 font-display text-xl text-ink-900">Search for a Policy</h3>
               <p className="mt-3 text-sm md:text-base text-slateui-600">
@@ -242,7 +249,13 @@ export default function LandingPage() {
 
             <div className="card p-8 text-center transition hover:-translate-y-1 hover:shadow-lift">
               <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-paper-100 border border-slateui-200">
-                <Image src="/vault-hv.png" alt="Secure icon" width={44} height={44} className="object-contain" />
+                <Image 
+                  src="/vault-hv.png" 
+                  alt="Secure vault icon - Protect and secure your life insurance policy information" 
+                  width={44} 
+                  height={44} 
+                  className="object-contain" 
+                />
               </div>
               <h3 className="mt-6 font-display text-xl text-ink-900">Secure Your Claim</h3>
               <p className="mt-3 text-sm md:text-base text-slateui-600">
@@ -252,7 +265,13 @@ export default function LandingPage() {
 
             <div className="card p-8 text-center transition hover:-translate-y-1 hover:shadow-lift">
               <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-paper-100 border border-slateui-200">
-                <Image src="/folder-hv.png" alt="Folder icon" width={44} height={44} className="object-contain" />
+                <Image 
+                  src="/folder-hv.png" 
+                  alt="Folder icon - Manage and organize life insurance policies and beneficiary information" 
+                  width={44} 
+                  height={44} 
+                  className="object-contain" 
+                />
               </div>
               <h3 className="mt-6 font-display text-xl text-ink-900">Manage Policies</h3>
               <p className="mt-3 text-sm md:text-base text-slateui-600">
@@ -276,38 +295,38 @@ export default function LandingPage() {
           </div>
 
           <div className="mt-12 space-y-6">
-            <div className="card p-6">
+            <article className="card p-6">
               <h3 className="font-display text-xl text-ink-900">What is HeirVault?</h3>
               <p className="mt-3 text-slateui-600">
                 HeirVault is a secure, private registry that helps locate unclaimed life insurance policies. It&apos;s
                 designed for estate professionals and families to maintain organized records of life insurance coverage
                 and beneficiary information.
               </p>
-            </div>
+            </article>
 
-            <div className="card p-6">
+            <article className="card p-6">
               <h3 className="font-display text-xl text-ink-900">Who can use HeirVault?</h3>
               <p className="mt-3 text-slateui-600">
                 HeirVault is designed for attorneys and estate planning professionals. Clients can be invited
                 by their attorney to register their policy information securely.
               </p>
-            </div>
+            </article>
 
-            <div className="card p-6">
+            <article className="card p-6">
               <h3 className="font-display text-xl text-ink-900">Is HeirVault affiliated with insurance companies?</h3>
               <p className="mt-3 text-slateui-600">
                 No. HeirVault is a private, voluntary registry that is not affiliated with insurers or regulators.
                 Participation is voluntary and not required by law.
               </p>
-            </div>
+            </article>
 
-            <div className="card p-6">
+            <article className="card p-6">
               <h3 className="font-display text-xl text-ink-900">How secure is my information?</h3>
               <p className="mt-3 text-slateui-600">
                 HeirVault uses enterprise-grade security measures to protect your data. Access is controlled and all
                 searches are logged for audit and compliance purposes. Policy amounts are not stored.
               </p>
-            </div>
+            </article>
           </div>
         </div>
       </section>

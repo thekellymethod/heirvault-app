@@ -46,6 +46,11 @@ export function Footer() {
                   Attorney Use Agreement
                 </Link>
               </li>
+              <li>
+                <Link href="/legal/compliance" className="text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100">
+                  Security & Compliance
+                </Link>
+              </li>
             </ul>
           </div>
 
