@@ -15,27 +15,31 @@ function createPrismaClient(): PrismaClient {
   // Check for Prisma Accelerate URL first
   const accelerateUrl = process.env.PRISMA_ACCELERATE_URL?.trim();
   
-  // Only use Accelerate if URL is valid and contains API key
+  // Only use Accelerate if URL is valid and contains a valid API key
   // Validate BEFORE creating PrismaClient to avoid runtime errors
   if (accelerateUrl) {
-    const isValidAccelerateUrl = 
+    // Check format
+    const hasValidFormat = 
       (accelerateUrl.startsWith("prisma://") || accelerateUrl.startsWith("prisma+postgres://")) &&
-      accelerateUrl.includes("api_key=") &&
       accelerateUrl.length > 50; // Basic sanity check
     
+    // Check if api_key parameter exists and has a value (not just "api_key=")
+    const apiKeyMatch = accelerateUrl.match(/[?&]api_key=([^&]+)/);
+    const hasValidApiKey = apiKeyMatch && apiKeyMatch[1] && apiKeyMatch[1].length > 10;
+    
+    const isValidAccelerateUrl = hasValidFormat && hasValidApiKey;
+    
     if (!isValidAccelerateUrl) {
-      // Invalid Accelerate URL format - log warning and fall back
+      // Invalid Accelerate URL format or missing API key - log warning and fall back
       console.warn(
-        `[Prisma] PRISMA_ACCELERATE_URL is set but invalid format. ` +
-        `Expected format: prisma://...?api_key=... or prisma+postgres://...?api_key=... ` +
-        `Got: ${accelerateUrl.substring(0, 50)}... ` +
+        `[Prisma] PRISMA_ACCELERATE_URL is set but invalid. ` +
+        `Expected format: prisma://...?api_key=YOUR_KEY or prisma+postgres://...?api_key=YOUR_KEY ` +
+        `Got: ${accelerateUrl.substring(0, 60)}... ` +
         `Falling back to direct connection adapter.`
       );
       // Fall through to adapter creation
     } else {
-      // URL format looks valid - try to use Accelerate
-      // Note: Prisma will validate the API key when the client is first used
-      // If it fails, we'll catch it and the app will error, but at least we tried
+      // URL format and API key look valid - use Accelerate
       return new PrismaClient({
         accelerateUrl,
         log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
