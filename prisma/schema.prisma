@@ -4,9 +4,9 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  // Connection URLs are now configured in prisma.config.ts (Prisma 7+)
-  // DATABASE_URL is used by PrismaClient for runtime queries and migrations
-  // PRISMA_ACCELERATE_URL is passed to PrismaClient constructor in code
+  // Connection URLs are configured in prisma.config.ts (Prisma 7+)
+  // DATABASE_URL = transaction pooler 6543 (runtime)
+  // DIRECT_URL = session pooler 5432 (migrations)
 }
 
 model access_grants {
