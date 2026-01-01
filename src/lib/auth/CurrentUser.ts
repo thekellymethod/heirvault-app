@@ -34,9 +34,12 @@ export async function getOrCreateAppUser(): Promise<AppUser | null> {
   // Apple, Google, and Microsoft may provide emails in different cases
   const email = emailRaw.toLowerCase().trim();
 
-  // Check if this is the bootstrap admin email
-  const bootstrapAdminEmail = process.env.BOOTSTRAP_ADMIN_EMAIL || "admin@heirvault.app";
-  const isAdmin = email === bootstrapAdminEmail.toLowerCase();
+  // Check if this is an admin email (check both BOOTSTRAP_ADMIN_EMAIL and ADMIN_EMAILS)
+  const bootstrapAdminEmail = process.env.BOOTSTRAP_ADMIN_EMAIL?.toLowerCase().trim();
+  const adminEmails = process.env.ADMIN_EMAILS?.split(",").map((e) => e.trim().toLowerCase()) || [];
+  const isAdmin = 
+    (bootstrapAdminEmail && email === bootstrapAdminEmail) ||
+    adminEmails.includes(email);
 
   // Determine initial roles
   const initialRoles = isAdmin ? ["USER", "ADMIN"] : ["USER"];
@@ -112,11 +115,15 @@ export async function getOrCreateAppUser(): Promise<AppUser | null> {
   let dbUser: AppUser;
 
   if (existingUser) {
-    // Update existing user - ensure ADMIN role is added if email matches
+    // Update existing user - ensure ADMIN role is added if email matches admin list
     let updatedRoles = existingUser.roles;
     if (isAdmin && !existingUser.roles.includes("ADMIN")) {
       updatedRoles = [...new Set([...existingUser.roles, "ADMIN"])];
       console.log(`[AUDIT] Adding ADMIN role to existing user: ${email} (was: ${existingUser.roles.join(", ")})`);
+    } else if (!isAdmin && existingUser.roles.includes("ADMIN")) {
+      // Remove ADMIN role if email no longer matches admin list
+      updatedRoles = existingUser.roles.filter((r) => r !== "ADMIN");
+      console.log(`[AUDIT] Removing ADMIN role from user: ${email} (email no longer in admin list)`);
     }
 
     dbUser = await prisma.user.update({

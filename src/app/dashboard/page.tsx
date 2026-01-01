@@ -1,7 +1,9 @@
 import { prisma } from "@/lib/db";
 import { requireVerifiedAttorney } from "@/lib/auth/guards";
+import { requireAuthPrincipal } from "@/lib/permissions/guard";
 import { redirect } from "next/navigation";
 import { AttorneyDashboardView } from "./_components/AttorneyDashboardView";
+import { requireBaseTierAcceptance } from "@/lib/contracts/acceptance";
 
 export const dynamic = "force-dynamic";
 
@@ -107,6 +109,26 @@ export default async function DashboardPage() {
   } catch (error: unknown) {
     if (isRedirectError(error)) redirect(error.redirectTo);
     redirect("/attorney/apply");
+  }
+
+  // Base Tier contract acceptance gate
+  try {
+    const principal = await requireAuthPrincipal();
+    const membership = await prisma.org_members.findFirst({
+      where: { userId: principal.dbUserId },
+      include: { organizations: true },
+    });
+
+    if (membership) {
+      await requireBaseTierAcceptance(membership.organizations.id);
+    }
+  } catch (error: unknown) {
+    // Redirect to contract acceptance if not accepted
+    if (error instanceof Error && error.message.includes("BASE_TIER_CONTRACT_REQUIRED")) {
+      redirect("/attorney/onboard/contract");
+    }
+    // Re-throw other errors
+    throw error;
   }
 
   // Pull recent policies + related info using the relation names from YOUR schema

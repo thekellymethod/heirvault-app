@@ -5,6 +5,7 @@ import { hashToken } from "@/lib/invites";
 import { putObject } from "@/lib/storage";
 import { auditLog } from "@/lib/audit";
 import { ClientInviteStatus, DocumentClassificationStatus, DocumentSensitivity } from "@prisma/client";
+import { getDocumentCategory } from "@/lib/documents/taxonomy";
 // import { rateLimit, clientIp } from "@/lib/security/rateLimit";
 // import { validateUpload } from "@/lib/security/uploads";
 import crypto from "crypto";
@@ -59,6 +60,30 @@ export async function POST(req: Request) {
   const docType = parseDocType(docTypeRaw);
   const c = classify(docType);
 
+  // Check tier-based upload permission
+  const { checkUploadPermission } = await import("@/lib/documents/upload-guard");
+  const permissionError = await checkUploadPermission(
+    docType,
+    file.name,
+    "/api/public/upload",
+    invite.clients.orgId || null,
+    invite.clientId,
+    null // Public upload, no user ID
+  );
+
+  if (permissionError) {
+    return NextResponse.json(
+      {
+        error: "TIER_UPGRADE_REQUIRED",
+        code: permissionError.code,
+        requiredTier: permissionError.requiredTier,
+        reason: permissionError.reason,
+        message: `This document type requires ${permissionError.requiredTier === "ACTIVE_ESTATE" ? "Active Estate Operations" : "Firm-Wide Operations"} tier.`,
+      },
+      { status: 403 }
+    );
+  }
+
   const buf = Buffer.from(await file.arrayBuffer());
   const ext = file.name.split(".").pop()?.toLowerCase() || "bin";
   const safeId = crypto.randomBytes(10).toString("hex"); // not a DB id
@@ -69,6 +94,9 @@ export async function POST(req: Request) {
     body: buf,
     contentType: file.type || "application/octet-stream",
   });
+
+  // Map fileType to document category
+  const documentCategory = getDocumentCategory(docType, null);
 
   const _doc = await prisma.documents.create({
     data: {
@@ -86,6 +114,7 @@ export async function POST(req: Request) {
       containsCaseData: c.legal,
       classificationStatus: DocumentClassificationStatus.PENDING_OCR,
       uploadedVia: "CLIENT_INVITE_UPLOAD",
+      documentCategory, // Store category if mapped
       extractedData: { received: true },
     },
   });

@@ -77,6 +77,30 @@ export async function POST(req: Request) {
   const docType = parseDocType(docTypeRaw);
   const c = classify(docType);
 
+  // Check tier-based upload permission
+  const { checkUploadPermission } = await import("@/lib/documents/upload-guard");
+  const permissionError = await checkUploadPermission(
+    docType,
+    file.name,
+    "/api/public/change-request/upload",
+    cr.clients.orgId || null,
+    cr.clientId,
+    null // Public upload, no user ID
+  );
+
+  if (permissionError) {
+    return NextResponse.json(
+      {
+        error: "TIER_UPGRADE_REQUIRED",
+        code: permissionError.code,
+        requiredTier: permissionError.requiredTier,
+        reason: permissionError.reason,
+        message: `This document type requires ${permissionError.requiredTier === "ACTIVE_ESTATE" ? "Active Estate Operations" : "Firm-Wide Operations"} tier.`,
+      },
+      { status: 403 }
+    );
+  }
+
   // Version grouping: group by (clientId + docType)
   // This ensures "latest" supersedes old ones.
   const versionGroupId = `${cr.clientId}:${docType}`;
@@ -98,6 +122,10 @@ export async function POST(req: Request) {
     contentType: file.type || "application/octet-stream",
   });
 
+  // Map fileType to document category
+  const { getDocumentCategory } = await import("@/lib/documents/taxonomy");
+  const documentCategory = getDocumentCategory(docType, null);
+
   const _doc = await prisma.documents.create({
     data: {
       id: crypto.randomUUID(),
@@ -115,6 +143,7 @@ export async function POST(req: Request) {
       containsCaseData: c.legal,
       classificationStatus: DocumentClassificationStatus.PENDING_OCR,
       uploadedVia: "CHANGE_REQUEST_UPLOAD",
+      documentCategory, // Store category if mapped
       versionGroupId: versionGroupId,
       versionNumber: nextVersion,
       extractedData: { received: true },

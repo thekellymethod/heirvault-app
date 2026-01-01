@@ -128,6 +128,10 @@ export async function POST(req: NextRequest) {
       orgId: orgId,
     });
 
+    // Track active estate count change (client created with access grant = may become active)
+    const { trackActiveEstateCount } = await import("@/lib/billing/active-estates-tracker");
+    await trackActiveEstateCount(orgId, principal.dbUserId);
+
     return NextResponse.json({ client: result }, { status: 201 });
   } catch (e) {
     const error = e as { status?: number };

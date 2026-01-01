@@ -163,17 +163,56 @@ export async function POST(req: Request) {
                       subscription.status === "unpaid" ? "UNPAID" :
                       "INACTIVE";
 
+        const previousStatus = org.billingStatus;
+        const previousPlan = org.billingPlan;
+        
+        // Determine new plan from price ID
+        const priceId = subscription.items.data[0]?.price.id;
+        let newPlan: "FREE" | "SOLO" | "SMALL_FIRM" | "ENTERPRISE" = "FREE";
+        if (priceId === process.env.STRIPE_PRICE_SOLO) newPlan = "SOLO";
+        else if (priceId === process.env.STRIPE_PRICE_SMALL_FIRM) newPlan = "SMALL_FIRM";
+        else if (priceId === process.env.STRIPE_PRICE_ENTERPRISE) newPlan = "ENTERPRISE";
+        
         await prisma.organizations.update({
           where: { id: org.id },
           data: {
+            billingPlan: newPlan,
             stripeSubscriptionId: subscription.id,
             billingStatus: status,
-            stripePriceId: subscription.items.data[0]?.price.id ?? null,
+            stripePriceId: priceId ?? null,
             currentPeriodEnd: subscription.current_period_end
               ? new Date(subscription.current_period_end * 1000)
               : null,
           },
         });
+
+        // Emit billing events
+        const { emitPaymentStatusChangeEvent, emitTierChangeEvent } = await import("@/lib/billing/ledger");
+        const { getTierFromBillingPlan } = await import("@/lib/tiers");
+        
+        // Payment status change
+        if (previousStatus !== status) {
+          await emitPaymentStatusChangeEvent(
+            org.id,
+            previousStatus,
+            status,
+            event.id,
+            null // System event
+          );
+        }
+        
+        // Tier change (if billing plan changed)
+        if (previousPlan !== newPlan) {
+          const fromTier = getTierFromBillingPlan(previousPlan);
+          const toTier = getTierFromBillingPlan(newPlan);
+          await emitTierChangeEvent(
+            org.id,
+            fromTier,
+            toTier,
+            `billing_plan_changed_from_${previousPlan}_to_${newPlan}`,
+            null // System event
+          );
+        }
         break;
       }
 
@@ -193,6 +232,8 @@ export async function POST(req: Request) {
           break;
         }
 
+        const previousStatus = org.billingStatus;
+        
         await prisma.organizations.update({
           where: { id: org.id },
           data: {
@@ -201,6 +242,18 @@ export async function POST(req: Request) {
             currentPeriodEnd: null,
           },
         });
+
+        // Emit billing event for payment status change
+        if (previousStatus !== "CANCELED") {
+          const { emitPaymentStatusChangeEvent } = await import("@/lib/billing/ledger");
+          await emitPaymentStatusChangeEvent(
+            org.id,
+            previousStatus,
+            "CANCELED",
+            event.id,
+            null // System event
+          );
+        }
         break;
       }
 

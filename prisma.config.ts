@@ -1,16 +1,22 @@
-import { config as dotenv } from "dotenv";
-import { defineConfig, env } from "prisma/config";
+import { config } from "dotenv";
+import { defineConfig } from "prisma/config";
 
-// Load env for local dev only (Vercel/GitHub already inject env vars)
-dotenv({ path: ".env.local" });
-dotenv({ path: ".env" });
+// Load envs
+config({ path: ".env.local" });
+config({ path: ".env" });
+
+const databaseUrl = process.env.DATABASE_URL;
+
+if (!databaseUrl) {
+  throw new Error("DATABASE_URL is missing");
+}
 
 export default defineConfig({
   schema: "prisma/schema.prisma",
-  migrations: { path: "prisma/migrations" },
-
-  // ✅ Prisma CLI uses THIS for migrate/db push/status
+  migrations: {
+    path: "prisma/migrations",
+  },
   datasource: {
-    url: env("DATABASE_URL"),
+    url: databaseUrl,
   },
 });

@@ -128,6 +128,7 @@ model clients {
 
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
+  archivedAt        DateTime? @map("archived_at") // Soft delete - null = active, date = archived
 
   userId            String?  @unique @map("user_id")
   orgId             String?  @map("org_id")
@@ -163,6 +164,7 @@ model clients {
   @@index([addressLine1, city, state, postalCode])
   @@index([clientFingerprint])
   @@index([orgId])
+  @@index([orgId, archivedAt]) // Composite index for active estate queries
   @@index([firstName, lastName, dateOfBirth])
   @@map("clients")
 }
@@ -187,6 +189,7 @@ model documents {
   containsCaseData    Boolean               @default(false) @map("contains_case_data")
   confidenceScore     Float?                @map("confidence_score")
   classificationStatus DocumentClassificationStatus @default(PENDING_OCR) @map("classification_status")
+  documentCategory    DocumentCategory?     @map("document_category") // Legal function taxonomy
   createdAt           DateTime              @default(now()) @map("created_at")
   updatedAt           DateTime              @updatedAt @map("updated_at")
   clients             clients               @relation(fields: [clientId], references: [id], onDelete: Cascade)
@@ -272,6 +275,7 @@ model organizations {
   country                String?
   phone                  String?
   logoUrl                String?                  @map("logo_url")
+  jurisdiction           String?                  // State/jurisdiction for contract law
   billingPlan            BillingPlan              @default(FREE) @map("billing_plan")
   billingStatus          String?                  @map("billing_status")
   stripeCustomerId       String?                  @map("stripe_customer_id")
@@ -285,8 +289,31 @@ model organizations {
   invites                invites[]
   org_members            org_members[]
   artifacts              artifacts[]
+  contract_acceptances  contract_acceptances[]
+  billingEvents          billing_events_ledger[]
 
   @@map("organizations")
+}
+
+model contract_acceptances {
+  id             String       @id @default(uuid())
+  organizationId String       @map("organization_id")
+  userId         String       @map("user_id") // User who accepted
+  tier           String       // "BASE", "ACTIVE_ESTATE", "FIRM_WIDE"
+  contractVersion String      @map("contract_version") // Version of contract accepted
+  jurisdiction   String?      // Governing law jurisdiction
+  ipAddress      String?      @map("ip_address")
+  userAgent      String?      @map("user_agent")
+  acceptedAt     DateTime     @default(now()) @map("accepted_at")
+  // Immutable - no updatedAt field
+  organizations  organizations @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  users          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, tier, contractVersion]) // One acceptance per tier/version per org
+  @@index([organizationId])
+  @@index([userId])
+  @@index([acceptedAt])
+  @@map("contract_acceptances")
 }
 
 model policies {
@@ -355,6 +382,8 @@ model User {
   orgMemberships    org_members[]
   documentAccessEvents document_access_events[]
   expectedPolicies  expected_policies[] @relation("PolicyCreator")
+  contractAcceptances contract_acceptances[]
+  billingEventsCreated billing_events_ledger[] @relation("BillingEventCreator")
 
   @@index([addressLine1, city, state, postalCode])
   @@index([firstName, lastName])
@@ -516,6 +545,14 @@ enum DocumentClassificationStatus {
   NEEDS_REVIEW
   APPROVED
   REJECTED
+}
+
+enum DocumentCategory {
+  AUTHORITY
+  OWNERSHIP
+  LIQUIDITY
+  CONTINUITY
+  INTENT
 }
 
 enum BeneficiaryVerificationStatus {

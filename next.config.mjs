@@ -23,17 +23,19 @@ const nextConfig = {
     // - 'unsafe-eval' is needed for some libraries like tesseract.js (OCR)
     // - 'unsafe-inline' is required for Next.js inline scripts (__NEXT_DATA__, hydration)
     //   Next.js requires inline scripts unless using middleware with nonces or experimental SRI
-    const scriptSrc = "'self' 'unsafe-eval' 'unsafe-inline'";
+    // - Clerk CDN must be allowed for script-src to load Clerk.js
+    const scriptSrc = "'self' 'unsafe-eval' 'unsafe-inline' https://*.clerk.accounts.dev https://*.clerk.com";
 
     const csp = [
       `default-src 'self'`,
       `script-src ${scriptSrc}`,
-      `style-src 'self' 'unsafe-inline'`,
+      `style-src 'self' 'unsafe-inline' https://*.clerk.accounts.dev https://*.clerk.com`,
       `img-src 'self' data: blob: https:`,
-      `font-src 'self' data:`,
+      `font-src 'self' data: https://*.clerk.accounts.dev https://*.clerk.com`,
       `connect-src 'self' https://*.clerk.accounts.dev https://*.clerk.com https://*.supabase.co https://api.openai.com https://*.sentry.io`,
+      `frame-src 'self' https://*.clerk.accounts.dev https://*.clerk.com`,
       `worker-src 'self' blob:`,
-      `child-src 'self' blob:`,
+      `child-src 'self' blob: https://*.clerk.accounts.dev https://*.clerk.com`,
       `object-src 'none'`,
       `base-uri 'self'`,
       `form-action 'self'`,

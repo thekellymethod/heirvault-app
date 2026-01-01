@@ -15,15 +15,34 @@ function createPrismaClient(): PrismaClient {
   // Check for Prisma Accelerate URL first
   const accelerateUrl = process.env.PRISMA_ACCELERATE_URL?.trim();
   
-  if (accelerateUrl && (accelerateUrl.startsWith("prisma://") || accelerateUrl.startsWith("prisma+postgres://"))) {
-    // Use Accelerate if available
-    return new PrismaClient({
-      accelerateUrl,
-      log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
-    });
+  // Only use Accelerate if URL is valid and contains API key
+  if (accelerateUrl) {
+    const isValidAccelerateUrl = 
+      (accelerateUrl.startsWith("prisma://") || accelerateUrl.startsWith("prisma+postgres://")) &&
+      accelerateUrl.includes("api_key=");
+    
+    if (isValidAccelerateUrl) {
+      try {
+        // Use Accelerate if available and valid
+        return new PrismaClient({
+          accelerateUrl,
+          log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
+        });
+      } catch (error) {
+        // If Accelerate fails to initialize, fall back to adapter
+        console.warn("[Prisma] Accelerate URL invalid, falling back to adapter:", error);
+      }
+    } else {
+      // Invalid Accelerate URL format - log warning and fall back
+      console.warn(
+        `[Prisma] PRISMA_ACCELERATE_URL is set but invalid format. ` +
+        `Expected format: prisma://...?api_key=... or prisma+postgres://...?api_key=... ` +
+        `Got: ${accelerateUrl.substring(0, 50)}...`
+      );
+    }
   }
 
-  // Otherwise use adapter with direct connection
+  // Use adapter with direct connection (fallback or primary)
   const url = process.env.DATABASE_URL;
   if (!url) {
     throw new Error(

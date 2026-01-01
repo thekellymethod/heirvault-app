@@ -39,9 +39,9 @@ export default function AttorneyOnboardPage() {
         throw new Error(data.error || "Failed to create organization");
       }
 
-      // Success - redirect to dashboard
+      // Success - redirect to contract acceptance
       // Use window.location for a hard redirect to ensure fresh data
-      window.location.href = "/dashboard";
+      window.location.href = "/attorney/onboard/contract";
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Something went wrong";
       setError(message);
