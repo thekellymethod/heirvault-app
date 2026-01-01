@@ -58,17 +58,24 @@ function createPrismaClient(): PrismaClient {
 
   // Ensure SSL is enabled for Supabase connections
   let connectionString = url;
-  try {
-    const urlObj = new URL(url);
-    if (!urlObj.searchParams.has("sslmode")) {
-      urlObj.searchParams.set("sslmode", "require");
-      connectionString = urlObj.toString();
-    }
-  } catch {
-    // If URL parsing fails, append sslmode to connection string
-    if (!url.includes("sslmode=")) {
-      const separator = url.includes("?") ? "&" : "?";
-      connectionString = `${url}${separator}sslmode=require`;
+  
+  // Check if sslmode is already in the connection string
+  if (url && !connectionString.includes("sslmode=")) {
+    try {
+      // Try to parse as URL and add sslmode parameter
+      const urlObj = new URL(connectionString);
+      if (urlObj && urlObj.searchParams) {
+        urlObj.searchParams.set("sslmode", "require");
+        connectionString = urlObj.toString();
+      } else {
+        // URL parsing succeeded but object is invalid - append manually
+        const separator = connectionString.includes("?") ? "&" : "?";
+        connectionString = `${connectionString}${separator}sslmode=require`;
+      }
+    } catch {
+      // If URL parsing fails (e.g., not a standard URL format), append sslmode manually
+      const separator = connectionString.includes("?") ? "&" : "?";
+      connectionString = `${connectionString}${separator}sslmode=require`;
     }
   }
   

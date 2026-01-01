@@ -1,6 +1,5 @@
 generator client {
-  provider   = "prisma-client"
-  engineType = "client"
+  provider = "prisma-client-js"
 }
 
 datasource db {
@@ -314,6 +313,23 @@ model contract_acceptances {
   @@index([userId])
   @@index([acceptedAt])
   @@map("contract_acceptances")
+}
+
+model billing_events_ledger {
+  id              String   @id @default(uuid())
+  organizationId  String   @map("organization_id")
+  eventType       String   @map("event_type") // tier_change, addendum_acceptance, active_estate_count_change, billing_model_transition, payment_status_change
+  eventPayload    Json     @map("event_payload") // JSON payload with event-specific data
+  createdAt       DateTime @default(now()) @map("created_at")
+  createdByUserId String?  @map("created_by_user_id") // Nullable for system events
+  // Immutable - no updatedAt field, no delete capability at application level
+  organizations   organizations @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  users           User?        @relation("BillingEventCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
+  @@index([eventType, createdAt])
+  @@index([createdAt])
+  @@map("billing_events_ledger")
 }
 
 model policies {
