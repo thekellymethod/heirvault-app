@@ -9,6 +9,7 @@ import { Pool } from "pg";
  */
 declare global {
   var __prisma: PrismaClient | undefined;
+  var __prisma_db_url: string | undefined; // Track DB URL to detect changes
 }
 
 function createPrismaClient(): PrismaClient {
@@ -71,12 +72,15 @@ function createPrismaClient(): PrismaClient {
     }
   }
   
+  // Determine if SSL should be enabled (Supabase always requires SSL)
+  const isSupabase = url.includes("supabase") || url.includes("pooler.supabase.com");
+  const sslConfig = isSupabase 
+    ? { rejectUnauthorized: false } // Supabase uses self-signed certs - don't reject
+    : undefined;
+  
   const pool = new Pool({ 
     connectionString,
-    // Explicitly enable SSL for Supabase
-    ssl: process.env.NODE_ENV === "production" || url.includes("supabase") 
-      ? { rejectUnauthorized: false } // Supabase uses self-signed certs
-      : undefined,
+    ssl: sslConfig,
   });
   const adapter = new PrismaPg(pool);
 
@@ -86,11 +90,20 @@ function createPrismaClient(): PrismaClient {
   });
 }
 
+// Clear cache if DATABASE_URL changes (for SSL config updates)
+const currentDbUrl = process.env.DATABASE_URL;
+if (globalThis.__prisma && globalThis.__prisma_db_url !== currentDbUrl) {
+  // Database URL changed - clear cache to force reconnection with new SSL config
+  globalThis.__prisma = undefined;
+  globalThis.__prisma_db_url = undefined;
+}
+
 export const prisma: PrismaClient =
   globalThis.__prisma ?? createPrismaClient();
 
 if (process.env.NODE_ENV !== "production") {
   globalThis.__prisma = prisma;
+  globalThis.__prisma_db_url = currentDbUrl;
 }
 
 /**
