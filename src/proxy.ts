@@ -7,6 +7,8 @@ const isPublicRoute = createRouteMatcher([
   "/",
   "/sign-in(.*)",
   "/sign-up(.*)",
+  "/admin/sign-in(.*)", // Admin sign-in page
+  "/attorney/sign-in(.*)", // Attorney sign-in page
   "/client-portal(.*)",
   "/invite(.*)",
   "/qr-update(.*)",

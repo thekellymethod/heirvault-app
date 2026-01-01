@@ -9,7 +9,9 @@ declare global {
 
 function makePrisma() {
   const url = process.env.DATABASE_URL;
-  if (!url) throw new Error("DATABASE_URL is missing at runtime.");
+  if (!url || typeof url !== "string" || url.trim() === "") {
+    throw new Error("DATABASE_URL is missing or invalid at runtime.");
+  }
 
   // Check for Prisma Accelerate URL first
   const accelerateUrl = process.env.PRISMA_ACCELERATE_URL?.trim();
@@ -48,10 +50,15 @@ function makePrisma() {
 
   // Use adapter with direct connection (fallback or primary)
   // Ensure SSL is enabled for Supabase connections
-  let connectionString = url;
+  let connectionString: string = url.trim();
+  
+  // Validate connection string is not empty
+  if (!connectionString || connectionString.length === 0) {
+    throw new Error("DATABASE_URL is empty or invalid.");
+  }
   
   // Check if sslmode is already in the connection string
-  if (url && !connectionString.includes("sslmode=")) {
+  if (!connectionString.includes("sslmode=")) {
     try {
       // Try to parse as URL and add sslmode parameter
       const urlObj = new URL(connectionString);
@@ -71,13 +78,18 @@ function makePrisma() {
   }
   
   // Determine if SSL should be enabled (Supabase always requires SSL)
-  const isSupabase = url.includes("supabase") || url.includes("pooler.supabase.com");
+  const isSupabase = connectionString.includes("supabase") || connectionString.includes("pooler.supabase.com");
   const sslConfig = isSupabase 
     ? { rejectUnauthorized: false } // Supabase uses self-signed certs - don't reject
     : undefined;
   
+  // Final validation - ensure connectionString is valid before creating Pool
+  if (!connectionString || connectionString.trim().length === 0) {
+    throw new Error("Connection string is invalid after processing.");
+  }
+  
   const pool = new Pool({ 
-    connectionString,
+    connectionString: connectionString.trim(),
     ssl: sslConfig,
   });
   const adapter = new PrismaPg(pool);

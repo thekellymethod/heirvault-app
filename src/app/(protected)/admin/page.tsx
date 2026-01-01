@@ -1,6 +1,6 @@
 import { requireAdmin } from "@/lib/auth/guards";
 import { AdminDashboard } from "./_components/AdminDashboard";
-import { AdminSignIn } from "./_components/AdminSignIn";
+import { redirect } from "next/navigation";
 
 /**
  * Administration Page
@@ -14,7 +14,10 @@ import { AdminSignIn } from "./_components/AdminSignIn";
 export default async function AdminPage() {
   const admin = await requireAdmin().catch(() => null);
 
-  if (!admin) return <AdminSignIn />;
+  if (!admin) {
+    // Redirect to dedicated admin sign-in page
+    redirect("/admin/sign-in");
+  }
 
   return <AdminDashboard admin={admin} />;
 }
