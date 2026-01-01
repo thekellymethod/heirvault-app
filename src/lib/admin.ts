@@ -12,16 +12,39 @@ export async function isAdmin(user?: AppUser): Promise<boolean> {
   try {
     // If user is provided, use it; otherwise fetch current user
     const userToCheck = user || await getUser();
-    if (!userToCheck || !userToCheck.email) {
+    if (!userToCheck) {
       return false;
     }
 
-    const adminEmails = process.env.ADMIN_EMAILS?.split(",").map((e) => e.trim().toLowerCase()) || [];
-    if (adminEmails.length === 0) {
-      return false;
+    // Check by email
+    if (userToCheck.email) {
+      const email = userToCheck.email.toLowerCase();
+      const bootstrapAdminEmail = process.env.BOOTSTRAP_ADMIN_EMAIL?.toLowerCase().trim();
+      const adminEmails = process.env.ADMIN_EMAILS?.split(",").map((e) => e.trim().toLowerCase()).filter(Boolean) || [];
+      
+      const isAdminByEmail = 
+        (bootstrapAdminEmail && email === bootstrapAdminEmail) ||
+        adminEmails.includes(email);
+      
+      if (isAdminByEmail) {
+        return true;
+      }
     }
 
-    return adminEmails.includes(userToCheck.email.toLowerCase());
+    // Check by userId (database ID) or clerkId
+    const adminUserIds = process.env.ADMIN_USER_IDS?.split(",").map((id) => id.trim()).filter(Boolean) || [];
+    
+    if (adminUserIds.length > 0 && userToCheck.id && userToCheck.clerkId) {
+      const isAdminById = 
+        adminUserIds.includes(userToCheck.id) ||
+        adminUserIds.includes(userToCheck.clerkId);
+      
+      if (isAdminById) {
+        return true;
+      }
+    }
+
+    return false;
   } catch (error) {
     console.error("Error checking admin status:", error);
     return false;

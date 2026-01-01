@@ -14,29 +14,30 @@ function makePrisma() {
   const accelerateUrl = process.env.PRISMA_ACCELERATE_URL?.trim();
   
   // Only use Accelerate if URL is valid and contains API key
+  // Validate BEFORE creating PrismaClient to avoid runtime errors
   if (accelerateUrl) {
     const isValidAccelerateUrl = 
       (accelerateUrl.startsWith("prisma://") || accelerateUrl.startsWith("prisma+postgres://")) &&
-      accelerateUrl.includes("api_key=");
+      accelerateUrl.includes("api_key=") &&
+      accelerateUrl.length > 50; // Basic sanity check
     
-    if (isValidAccelerateUrl) {
-      try {
-        // Use Accelerate if available and valid
-        return new PrismaClient({
-          accelerateUrl,
-          log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
-        });
-      } catch (error) {
-        // If Accelerate fails to initialize, fall back to adapter
-        console.warn("[Prisma] Accelerate URL invalid, falling back to adapter:", error);
-      }
-    } else {
+    if (!isValidAccelerateUrl) {
       // Invalid Accelerate URL format - log warning and fall back
       console.warn(
         `[Prisma] PRISMA_ACCELERATE_URL is set but invalid format. ` +
         `Expected format: prisma://...?api_key=... or prisma+postgres://...?api_key=... ` +
-        `Got: ${accelerateUrl.substring(0, 50)}...`
+        `Got: ${accelerateUrl.substring(0, 50)}... ` +
+        `Falling back to direct connection adapter.`
       );
+      // Fall through to adapter creation
+    } else {
+      // URL format looks valid - try to use Accelerate
+      // Note: Prisma will validate the API key when the client is first used
+      // If it fails, we'll catch it and the app will error, but at least we tried
+      return new PrismaClient({
+        accelerateUrl,
+        log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
+      });
     }
   }
 

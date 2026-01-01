@@ -34,12 +34,20 @@ export async function getOrCreateAppUser(): Promise<AppUser | null> {
   // Apple, Google, and Microsoft may provide emails in different cases
   const email = emailRaw.toLowerCase().trim();
 
-  // Check if this is an admin email (check both BOOTSTRAP_ADMIN_EMAIL and ADMIN_EMAILS)
+  // Check if this is an admin (by email, userId, or clerkId)
   const bootstrapAdminEmail = process.env.BOOTSTRAP_ADMIN_EMAIL?.toLowerCase().trim();
-  const adminEmails = process.env.ADMIN_EMAILS?.split(",").map((e) => e.trim().toLowerCase()) || [];
-  const isAdmin = 
+  const adminEmails = process.env.ADMIN_EMAILS?.split(",").map((e) => e.trim().toLowerCase()).filter(Boolean) || [];
+  const adminUserIds = process.env.ADMIN_USER_IDS?.split(",").map((id) => id.trim()).filter(Boolean) || [];
+  
+  const isAdminByEmail = 
     (bootstrapAdminEmail && email === bootstrapAdminEmail) ||
     adminEmails.includes(email);
+  
+  const isAdminById = adminUserIds.length > 0 && (
+    adminUserIds.includes(userId) // Check by Clerk ID
+  );
+  
+  const isAdmin = isAdminByEmail || isAdminById;
 
   // Determine initial roles
   const initialRoles = isAdmin ? ["USER", "ADMIN"] : ["USER"];
