@@ -1,211 +1,137 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
-import { requireAuth } from '@/lib/utils/clerk'
-import { logAuditEvent } from '@/lib/audit'
-import { randomUUID } from 'crypto'
+import { NextRequest, NextResponse } from "next/server";
+import { requireUserId } from "@/lib/authz";
+import { prisma } from "@/lib/prisma";
 
-interface Params {
-  params: Promise<{ id: string }>
-}
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
-export async function GET(req: NextRequest, { params }: Params) {
+/**
+ * Update policy
+ */
+export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   try {
-    const user = await requireAuth()
-    const { id } = await params
+    const { id } = await ctx.params;
+    const userId = await requireUserId();
+    const body = await req.json().catch(() => null);
 
-    const policy = await prisma.policies.findUnique({
+    const policy = await prisma.policy.findUnique({
       where: { id },
-      include: {
-        insurers: true,
-        clients: true,
-        policy_beneficiaries: {
-          include: {
-            beneficiaries: true,
-          },
-        },
-      },
-    })
-
+      select: { id: true, orgId: true, registryId: true },
+    });
+    
     if (!policy) {
-      return NextResponse.json({ error: 'Not found' }, { status: 404 })
+      return NextResponse.json(
+        { ok: false, message: "Policy not found." },
+        { status: 404 }
+      );
     }
 
-    // Check access via client
-    // Admins have full access to all policies
-    const { getOrCreateAppUser } = await import("@/lib/auth/CurrentUser");
-    const { hasAdminRole } = await import("@/lib/auth/admin-bypass");
-    const appUser = await getOrCreateAppUser();
-    if (appUser && hasAdminRole(appUser)) {
-      // Admin bypass - full access
-    } else if (user.role === 'attorney') {
-      // All attorneys have global access to all policies
-      // Global access granted - no need to check specific access
-    } else {
-      // Client can only view their own policies
-      const client = await prisma.clients.findUnique({
-        where: { id: policy.clientId },
-      })
-
-      if (!client || client.userId !== user.id) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-      }
+    const member = await prisma.orgMember.findUnique({
+      where: { orgId_clerkUserId: { orgId: policy.orgId, clerkUserId: userId } },
+      select: { role: true },
+    });
+    
+    if (!member) {
+      return NextResponse.json(
+        { ok: false, message: "Forbidden." },
+        { status: 403 }
+      );
     }
 
-    await logAuditEvent({
-      action: 'read',
-      resourceType: 'policy',
-      resourceId: id,
-      userId: user.id,
-    })
-
-    return NextResponse.json(policy)
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Unknown error'
-    return NextResponse.json(
-      { error: message },
-      { status: message === 'Unauthorized' || message === 'Forbidden' ? 401 : 400 }
-    )
-  }
-}
-
-export async function PUT(req: NextRequest, { params }: Params) {
-  try {
-    const user = await requireAuth()
-    const { id } = await params
-    const body = await req.json()
-
-    // Check if policy exists and get clientId:for access check
-    const existingPolicy = await prisma.policies.findUnique({
-      where: { id },
-      include: { clients: true },
-    })
-
-    if (!existingPolicy) {
-      return NextResponse.json({ error: 'Not found' }, { status: 404 })
-    }
-
-    // Check access
-    // All attorneys have global access to all policies
-    if (user.role === 'attorney') {
-      // Global access granted - no need to check specific access
-    } else {
-      if (existingPolicy.clients.userId !== user.id) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-      }
-    }
-
-    const {
-      insurerId,
-      policyNumber,
-      policyType,
-    } = body
-
-    // Update insurer if provided (separate from policy)
-    let insurerIdToUse = existingPolicy.insurerId
-    if (body.insurerName) {
-      // Find or create insurer
-      let insurer = await prisma.insurers.findFirst({
-        where: { name: body.insurerName },
-      })
-
-      if (!insurer) {
-        insurer = await prisma.insurers.create({
-          data: {
-            id: randomUUID(),
-            name: body.insurerName,
-            contactPhone: body.insurerPhone || null,
-            contactEmail: body.insurerEmail || null,
-            website: body.insurerWebsite || null,
-          },
-        })
-      } else {
-        // Update existing insurer
-        insurer = await prisma.insurers.update({
-          where: { id: insurer.id },
-          data: {
-            contactPhone: body.insurerPhone || insurer.contactPhone,
-            contactEmail: body.insurerEmail || insurer.contactEmail,
-            website: body.insurerWebsite || insurer.website,
-          },
-        })
-      }
-      insurerIdToUse = insurer.id
-    }
-
-    // Update policy
-    const policy = await prisma.policies.update({
-      where: { id },
+    await prisma.policy.update({
+      where: { id: policy.id },
       data: {
-        insurerId: insurerId || insurerIdToUse,
-        policyNumber: policyNumber ?? null,
-        policyType: policyType ?? null,
+        carrier: body?.carrier !== undefined ? (body.carrier?.trim() || null) : undefined,
+        policyNumber: body?.policyNumber !== undefined ? (body.policyNumber?.trim() || null) : undefined,
+        insuredName: body?.insuredName !== undefined ? (body.insuredName?.trim() || null) : undefined,
+        ownerName: body?.ownerName !== undefined ? (body.ownerName?.trim() || null) : undefined,
+        beneficiary: body?.beneficiary !== undefined ? (body.beneficiary?.trim() || null) : undefined,
+        faceAmount: body?.faceAmount !== undefined ? (body.faceAmount || null) : undefined,
+        status: body?.status !== undefined ? body.status : undefined,
+        notes: body?.notes !== undefined ? (body.notes?.trim() || null) : undefined,
       },
-    })
+    });
 
-    await logAuditEvent({
-      action: 'POLICY_UPDATED',
-      resourceType: 'policy',
-      resourceId: id,
-      details: { policyNumber, policyType },
-      userId: user.id,
-    })
+    await prisma.auditLog.create({
+      data: {
+        orgId: policy.orgId,
+        registryId: policy.registryId,
+        actorClerkUserId: userId,
+        action: "policy_update",
+        targetType: "policy",
+        targetId: policy.id,
+      },
+    });
 
-    return NextResponse.json(policy)
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Unknown error'
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    console.error("Error in policy PATCH route:", error);
+    const message = error instanceof Error ? error.message : "Internal server error";
+    const status = error instanceof Error && error.message === "UNAUTHENTICATED"
+      ? 401
+      : 500;
     return NextResponse.json(
-      { error: message },
-      { status: message === 'Unauthorized' || message === 'Forbidden' ? 401 : 400 }
-    )
+      { ok: false, message },
+      { status }
+    );
   }
 }
 
-export async function DELETE(req: NextRequest, { params }: Params) {
+/**
+ * Delete policy (admin only)
+ */
+export async function DELETE(_: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   try {
-    const user = await requireAuth()
-    const { id } = await params
+    const { id } = await ctx.params;
+    const userId = await requireUserId();
 
-    // Check if policy exists and get clientId:for access check
-    const existingPolicy = await prisma.policies.findUnique({
+    const policy = await prisma.policy.findUnique({
       where: { id },
-      include: { clients: true },
-    })
-
-    if (!existingPolicy) {
-      return NextResponse.json({ error: 'Not found' }, { status: 404 })
+      select: { id: true, orgId: true, registryId: true },
+    });
+    
+    if (!policy) {
+      return NextResponse.json(
+        { ok: false, message: "Policy not found." },
+        { status: 404 }
+      );
     }
 
-    // Check access
-    // All attorneys have global access to all policies
-    if (user.role === 'attorney') {
-      // Global access granted - no need to check specific access
-    } else {
-      if (existingPolicy.clients.userId !== user.id) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-      }
+    const member = await prisma.orgMember.findUnique({
+      where: { orgId_clerkUserId: { orgId: policy.orgId, clerkUserId: userId } },
+      select: { role: true },
+    });
+    
+    if (!member || member.role !== "admin") {
+      return NextResponse.json(
+        { ok: false, message: "Admin required." },
+        { status: 403 }
+      );
     }
 
-    await prisma.policies.delete({
-      where: { id },
-    })
+    await prisma.policy.delete({ where: { id: policy.id } });
 
-    // Note: There's no POLICY_DELETED action in the enum, so we'll use POLICY_UPDATED
-    // to track the deletion in the audit log
-    await logAuditEvent({
-      action: 'POLICY_UPDATED',
-      resourceType: 'policy',
-      resourceId: id,
-      details: { deleted: true },
-      userId: user.id,
-    })
+    await prisma.auditLog.create({
+      data: {
+        orgId: policy.orgId,
+        registryId: policy.registryId,
+        actorClerkUserId: userId,
+        action: "policy_delete",
+        targetType: "policy",
+        targetId: policy.id,
+      },
+    });
 
-    return new NextResponse(null, { status: 204 })
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Unknown error'
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    console.error("Error in policy DELETE route:", error);
+    const message = error instanceof Error ? error.message : "Internal server error";
+    const status = error instanceof Error && error.message === "UNAUTHENTICATED"
+      ? 401
+      : 500;
     return NextResponse.json(
-      { error: message },
-      { status: message === 'Unauthorized' || message === 'Forbidden' ? 401 : 400 }
-    )
+      { ok: false, message },
+      { status }
+    );
   }
 }
-

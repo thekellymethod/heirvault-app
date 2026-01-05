@@ -5,6 +5,7 @@ import { rateLimit, getRateLimitKey } from "@/lib/security/rateLimit";
 // Public routes = anyone can access (no login required)
 const isPublicRoute = createRouteMatcher([
   "/",
+  "/start(.*)",
   "/sign-in(.*)",
   "/sign-up(.*)",
   "/admin/sign-in(.*)", // Admin sign-in page
@@ -29,6 +30,9 @@ const isPublicRoute = createRouteMatcher([
   "/api/admin/samples(.*)",
   "/api/intake(.*)",
   "/api/attorney/apply(.*)",
+  "/api/leads(.*)",
+  "/api/policy-registry-summary(.*)",
+  "/api/signup(.*)",
   "/api/debug(.*)",
   "/api/health(.*)",
 ]);

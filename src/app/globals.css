@@ -4,13 +4,15 @@
   --background: #ffffff;
   --foreground: #171717;
   
-  /* HeirVault Brand Colors */
-  --navy-blue: #1e3a5f;
-  --navy-blue-dark: #0f1f35;
-  --navy-blue-light: #2d4a6f;
-  --gold: #d4af37;
-  --gold-dark: #b8941f;
-  --gold-light: #f4d03f;
+  /* HeirVault Brand Colors - Regal Navy & Gold */
+  --navy-blue: #0B1220;        /* Deep dark navy (primary) */
+  --navy-blue-dark: #070B12;   /* Darkest navy (backgrounds) */
+  --navy-blue-light: #1A2A45;  /* Lighter navy (accents) */
+  --navy-blue-mid: #111C33;    /* Mid-tone navy (cards, borders) */
+  --gold: #C8942D;             /* Rich metallic gold (primary) */
+  --gold-dark: #A97C1F;       /* Darker gold (hover states) */
+  --gold-light: #E1B75A;      /* Lighter gold (highlights) */
+  --gold-accent: #F2D48B;     /* Lightest gold (subtle accents) */
   --white: #ffffff;
   
   /* Font Variables */
@@ -26,12 +28,14 @@
   --color-ink-800: #111C33;
   --color-ink-700: #1A2A45;
   
-  /* Gold Palette */
-  --color-gold-700: #8A6516;
-  --color-gold-600: #A97C1F;
-  --color-gold-500: #C8942D;
-  --color-gold-400: #E1B75A;
-  --color-gold-300: #F2D48B;
+  /* Gold Palette - Refined for regal aesthetic */
+  --color-gold-800: #8A6516;   /* Deepest gold (shadows) */
+  --color-gold-700: #A97C1F;   /* Dark gold (active states) */
+  --color-gold-600: #C8942D;   /* Primary gold (buttons, accents) */
+  --color-gold-500: #D4A84A;   /* Mid gold (hover states) */
+  --color-gold-400: #E1B75A;  /* Light gold (highlights) */
+  --color-gold-300: #F2D48B;  /* Lightest gold (subtle) */
+  --color-gold-200: #F8E5B8;  /* Very light gold (backgrounds) */
   
   /* Paper (Warm Whites) */
   --color-paper-50: #FBFAF7;
@@ -67,18 +71,28 @@
   --shadow-lift: 0 16px 50px rgba(10, 18, 32, 0.18);
   --shadow-inset-soft: inset 0 1px 0 rgba(255,255,255,0.35);
   
-  /* Background Images */
-  --bg-hero-radial: radial-gradient(1200px 600px at 70% 20%, rgba(255, 210, 120, 0.22), transparent 60%), radial-gradient(900px 500px at 20% 40%, rgba(80, 120, 190, 0.18), transparent 62%), linear-gradient(180deg, #0B1220 0%, #070B12 100%);
+  /* Background Images - Enhanced with gold accents */
+  --bg-hero-radial: radial-gradient(1200px 600px at 70% 20%, rgba(200, 148, 45, 0.15), transparent 60%), radial-gradient(900px 500px at 20% 40%, rgba(26, 42, 69, 0.25), transparent 62%), linear-gradient(180deg, #0B1220 0%, #070B12 100%);
   --bg-paper-gradient: linear-gradient(180deg, #FBFAF7 0%, #F6F2EA 100%);
+  --bg-regal-gradient: linear-gradient(135deg, #0B1220 0%, #111C33 50%, #1A2A45 100%);
+  --bg-gold-gradient: linear-gradient(135deg, #C8942D 0%, #E1B75A 100%);
 }
 
 /* Background Image Utilities */
 .bg-hero-radial {
-  background-image: radial-gradient(1200px 600px at 70% 20%, rgba(255, 210, 120, 0.22), transparent 60%), radial-gradient(900px 500px at 20% 40%, rgba(80, 120, 190, 0.18), transparent 62%), linear-gradient(180deg, #0B1220 0%, #070B12 100%);
+  background-image: radial-gradient(1200px 600px at 70% 20%, rgba(200, 148, 45, 0.15), transparent 60%), radial-gradient(900px 500px at 20% 40%, rgba(26, 42, 69, 0.25), transparent 62%), linear-gradient(180deg, #0B1220 0%, #070B12 100%);
 }
 
 .bg-paper-gradient {
   background-image: linear-gradient(180deg, #FBFAF7 0%, #F6F2EA 100%);
+}
+
+.bg-regal-gradient {
+  background-image: linear-gradient(135deg, #0B1220 0%, #111C33 50%, #1A2A45 100%);
+}
+
+.bg-gold-gradient {
+  background-image: linear-gradient(135deg, #C8942D 0%, #E1B75A 100%);
 }
 
 @media (prefers-color-scheme: dark) {

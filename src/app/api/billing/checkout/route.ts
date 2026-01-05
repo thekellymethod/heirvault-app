@@ -1,68 +1,81 @@
-// src/app/api/billing/checkout/route.ts
-// import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { requireOrgMember } from "@/lib/authz";
 import { stripe } from "@/lib/stripe";
-import { prisma } from "@/lib/db";
-import { withRouteGuard } from "@/lib/permissions/route";
-import { requireAuthPrincipal, HttpError } from "@/lib/permissions/guard";
-import { BILLING_ENABLED } from "@/lib/flags";
 
-export async function POST() {
-  return withRouteGuard(async () => {
-    if (!BILLING_ENABLED) {
-      throw new HttpError(404, "Not available");
-    }
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+/**
+ * Create Stripe checkout session
+ */
+export async function POST(req: Request) {
+  try {
+    const body = await req.json().catch(() => null);
+    const orgId = String(body?.orgId ?? "").trim();
     
-    const principal = await requireAuthPrincipal();
+    if (!orgId) {
+      return NextResponse.json(
+        { ok: false, message: "Missing orgId." },
+        { status: 400 }
+      );
+    }
 
-    // Resolve org membership
-    const membership = await prisma.org_members.findFirst({
-      where: { userId: principal.dbUserId },
-      include: { organizations: true },
+    await requireOrgMember(orgId);
+
+    const org = await prisma.org.findUnique({
+      where: { id: orgId },
+      select: { stripeCustomerId: true, name: true },
     });
-
-    if (!membership) {
-      throw new Error("No organization found");
+    
+    if (!org) {
+      return NextResponse.json(
+        { ok: false, message: "Org not found." },
+        { status: 404 }
+      );
     }
 
-    const org = membership.organizations;
-
-    // If already active, send them to portal instead
-    if (org.billingStatus === "ACTIVE" && org.stripeCustomerId) {
-      const portal = await stripe.billingPortal.sessions.create({
-        customer: org.stripeCustomerId,
-        return_url: `${process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/dashboard/billing`,
-      });
-      return { ok: true, url: portal.url, mode: "portal" };
-    }
-
-    // Create or reuse Stripe customer
     let customerId = org.stripeCustomerId;
+
     if (!customerId) {
       const customer = await stripe.customers.create({
-        metadata: { orgId: org.id },
+        name: org.name,
+        metadata: { orgId },
       });
       customerId = customer.id;
-      await prisma.organizations.update({
-        where: { id: org.id },
+
+      await prisma.org.update({
+        where: { id: orgId },
         data: { stripeCustomerId: customerId },
       });
     }
 
-    const priceId = process.env.STRIPE_PRICE_FIRM;
-    if (!priceId) {
-      throw new Error("STRIPE_PRICE_FIRM not configured");
-    }
+    const basePrice = process.env.STRIPE_PRICE_BASE!;
+    const meteredPrice = process.env.STRIPE_PRICE_METERED!;
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL!;
+    const successUrl = process.env.STRIPE_SUCCESS_URL ?? `${appUrl}/app/billing/success`;
+    const cancelUrl = process.env.STRIPE_CANCEL_URL ?? `${appUrl}/app/billing`;
 
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       customer: customerId,
-      line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/dashboard/billing?success=1`,
-      cancel_url: `${process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/dashboard/billing?canceled=1`,
-      metadata: { orgId: org.id, priceId },
-      allow_promotion_codes: true,
+      line_items: [
+        { price: basePrice, quantity: 1 },
+        { price: meteredPrice }, // metered
+      ],
+      success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: cancelUrl,
+      subscription_data: { metadata: { orgId } },
+      metadata: { orgId },
     });
 
-    return { ok: true, url: session.url, mode: "checkout" };
-  });
+    return NextResponse.json({ ok: true, url: session.url });
+  } catch (error) {
+    console.error("Error in checkout route:", error);
+    const message = error instanceof Error ? error.message : "Internal server error";
+    return NextResponse.json(
+      { ok: false, message },
+      { status: 500 }
+    );
+  }
 }

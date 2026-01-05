@@ -11,8 +11,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen bg-paper-50">
       {/* Sidebar */}
-      <aside className="hidden w-64 border-r border-slateui-200 bg-white lg:block shadow-sm">
-        <div className="flex h-16 items-center gap-3 border-b border-slateui-200 px-6 bg-paper-50">
+      <aside className="hidden w-64 border-r lg:block shadow-sm" style={{ borderColor: "#D9E2EE", backgroundColor: "#FFFFFF" }}>
+        <div className="flex h-16 items-center gap-3 border-b px-6 bg-paper-50" style={{ borderColor: "#D9E2EE" }}>
           <Logo size="sm" showTagline={false} className="flex-row" href="/dashboard" />
         </div>
         <div className="p-4">
@@ -28,7 +28,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         <BillingBanner />
 
         {/* Header */}
-        <header className="sticky top-0 z-10 border-b border-slateui-200 bg-paper-50/95 backdrop-blur shadow-sm">
+        <header className="sticky top-0 z-10 border-b bg-paper-50/95 backdrop-blur shadow-sm" style={{ borderColor: "#D9E2EE" }}>
           <div className="flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
             <div className="flex items-center gap-4">
               {/* Mobile menu button - can be added later */}

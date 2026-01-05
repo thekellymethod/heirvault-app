@@ -80,19 +80,36 @@ export function SidebarNav() {
               flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all
               ${
                 isActive
-                  ? 'bg-gold-500/10 text-ink-900 border border-gold-500/20 shadow-sm'
-                  : 'text-slateui-600 hover:bg-paper-100 hover:text-ink-900'
+                  ? 'text-ink-900 shadow-sm'
+                  : 'text-slateui-600 hover:text-ink-900'
               }
             `}
+            style={{
+              backgroundColor: isActive ? 'rgba(200, 148, 45, 0.15)' : 'transparent',
+              border: isActive ? '1px solid rgba(200, 148, 45, 0.3)' : '1px solid transparent',
+              color: isActive ? '#0B1220' : undefined,
+            }}
+            onMouseEnter={(e) => {
+              if (!isActive) {
+                e.currentTarget.style.backgroundColor = 'rgba(200, 148, 45, 0.08)'
+                e.currentTarget.style.borderColor = 'rgba(200, 148, 45, 0.2)'
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!isActive) {
+                e.currentTarget.style.backgroundColor = 'transparent'
+                e.currentTarget.style.borderColor = 'transparent'
+              }
+            }}
           >
-            <Icon className="h-5 w-5" />
+            <Icon className="h-5 w-5" style={{ color: isActive ? '#C8942D' : undefined }} />
             {item.name}
           </Link>
         )
       })}
 
-      <div className="pt-4 mt-4 border-t border-slateui-200">
-        <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slateui-500 mb-1">
+      <div className="pt-4 mt-4" style={{ borderTop: '1px solid #D9E2EE' }}>
+        <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: '#52637A', fontFamily: "'Playfair Display', Georgia, serif" }}>
           Settings
         </div>
         {settingsItems.map((item) => {
@@ -108,12 +125,29 @@ export function SidebarNav() {
                 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all
                 ${
                   isActive
-                    ? 'bg-gold-500/10 text-ink-900 border border-gold-500/20 shadow-sm'
-                    : 'text-slateui-600 hover:bg-paper-100 hover:text-ink-900'
+                    ? 'text-ink-900 shadow-sm'
+                    : 'text-slateui-600 hover:text-ink-900'
                 }
               `}
+              style={{
+                backgroundColor: isActive ? 'rgba(200, 148, 45, 0.15)' : 'transparent',
+                border: isActive ? '1px solid rgba(200, 148, 45, 0.3)' : '1px solid transparent',
+                color: isActive ? '#0B1220' : undefined,
+              }}
+              onMouseEnter={(e) => {
+                if (!isActive) {
+                  e.currentTarget.style.backgroundColor = 'rgba(200, 148, 45, 0.08)'
+                  e.currentTarget.style.borderColor = 'rgba(200, 148, 45, 0.2)'
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isActive) {
+                  e.currentTarget.style.backgroundColor = 'transparent'
+                  e.currentTarget.style.borderColor = 'transparent'
+                }
+              }}
             >
-              <Icon className="h-5 w-5" />
+              <Icon className="h-5 w-5" style={{ color: isActive ? '#C8942D' : undefined }} />
               {item.name}
             </Link>
           )

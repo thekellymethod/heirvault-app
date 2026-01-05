@@ -66,22 +66,10 @@ function createPrismaClient(): PrismaClient {
   
   // Check if sslmode is already in the connection string
   if (!connectionString.includes("sslmode=")) {
-    try {
-      // Try to parse as URL and add sslmode parameter
-      const urlObj = new URL(connectionString);
-      if (urlObj && urlObj.searchParams) {
-        urlObj.searchParams.set("sslmode", "require");
-        connectionString = urlObj.toString();
-      } else {
-        // URL parsing succeeded but object is invalid - append manually
-        const separator = connectionString.includes("?") ? "&" : "?";
-        connectionString = `${connectionString}${separator}sslmode=require`;
-      }
-    } catch (error) {
-      // If URL parsing fails (e.g., not a standard URL format), append sslmode manually
-      const separator = connectionString.includes("?") ? "&" : "?";
-      connectionString = `${connectionString}${separator}sslmode=require`;
-    }
+    // Use string manipulation instead of URL parsing for reliability
+    // PostgreSQL connection strings may not always be valid URLs
+    const separator = connectionString.includes("?") ? "&" : "?";
+    connectionString = `${connectionString}${separator}sslmode=require`;
   }
   
   // Determine if SSL should be enabled (Supabase always requires SSL)

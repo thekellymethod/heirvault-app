@@ -7,57 +7,65 @@ interface LogoProps {
   showTagline?: boolean;
   size?: "sm" | "md" | "lg";
   href?: string,
+  variant?: "default" | "icon-only" | "text-only";
 }
 
-export function Logo({ className = "", showTagline = false, size = "md", href = "/" }: LogoProps) {
+export function Logo({ 
+  className = "", 
+  showTagline = false, 
+  size = "md", 
+  href = "/",
+  variant = "default"
+}: LogoProps) {
   const sizeClasses = {
-    sm: { width: 160, height: 53 },
-    md: { width: 240, height: 80 },
-    lg: { width: 320, height: 107 },
+    sm: { width: 40, height: 40, textSize: "text-lg" },
+    md: { width: 56, height: 56, textSize: "text-2xl" },
+    lg: { width: 80, height: 80, textSize: "text-3xl" },
   };
 
   const dimensions = sizeClasses[size];
   const isHorizontal = className.includes("flex-row");
 
-  const marginLeftClass = size === "sm" ? "-ml-16" : size === "md" ? "-ml-20" : "-ml-24";
-  const widthClass = size === "sm" ? "w-40" : size === "md" ? "w-60" : "w-80";
-  const heightClass = size === "sm" ? "h-[53px]" : size === "md" ? "h-20" : "h-[107px]";
-  
   const logoContent = (
-    <div className={`flex ${isHorizontal ? "flex-row items-center gap-0" : "flex-col items-center"} ${className}`}>
-      <div className={`relative -ml-2 ${widthClass} ${heightClass}`}>
-        <Image
-          src="/Designer.png"
-          alt="HeirVault Logo"
-          fill
-          className="object-contain"
-          priority
-          sizes={`${dimensions.width}px`}
-        />
-      </div>
+    <div className={`flex ${isHorizontal ? "flex-row items-center gap-3" : "flex-col items-center"} ${className}`}>
+      {variant !== "text-only" && (
+        <div className={`relative ${isHorizontal ? "" : "mb-2"}`} style={{ width: dimensions.width, height: dimensions.height }}>
+          <Image
+            src="/heirvault-logo.png"
+            alt="HeirVault Registry Seal"
+            fill
+            className="object-contain"
+            priority
+            sizes={`${dimensions.width}px`}
+          />
+        </div>
+      )}
       
-      {/* HeirVault text next to logo - overlapping significantly for better visual */}
-      <span
-        className={`font-serif font-bold ${
-          size === "sm" ? "text-lg" : size === "md" ? "text-2xl" : "text-3xl"
-        } tracking-tight relative z-10 ${marginLeftClass} font-['Playfair_Display',Georgia,serif]`}
-      >
-        <span className="text-[#0f1f35]">Heir</span>
-        <span className="text-gold-500">Vault</span>
-      </span>
-
-      {/* Tagline */}
-      {showTagline && (
-        <div className="flex items-center gap-2 mt-2">
-          <div className="h-px w-8 bg-slate-300"></div>
+      {variant !== "icon-only" && (
+        <div className={`flex flex-col ${isHorizontal ? "items-start" : "items-center"}`}>
           <span
-            className={`text-slate-500 ${
-              size === "sm" ? "text-xs" : size === "md" ? "text-sm" : "text-base"
-            } font-medium tracking-wide`}
+            className={`font-serif font-bold ${dimensions.textSize} tracking-[0.05em] font-['Playfair_Display',Georgia,serif]`}
+            style={{ 
+              color: "#0B1220",
+              textShadow: variant === "text-only" ? "none" : "0 1px 2px rgba(0,0,0,0.1)"
+            }}
           >
-            SECURING YOUR LEGACY
+            <span style={{ color: "#0B1220" }}>HEIR</span>
+            <span style={{ color: "#C8942D" }}>VAULT</span>
           </span>
-          <div className="h-px w-8 bg-slate-300"></div>
+          
+          {showTagline && (
+            <div className={`flex items-center gap-2 mt-1 ${isHorizontal ? "justify-start" : "justify-center"}`}>
+              <div className="h-px w-6" style={{ backgroundColor: "#C8942D", opacity: 0.3 }}></div>
+              <span
+                className={`text-xs font-medium tracking-wider uppercase`}
+                style={{ color: "#52637A" }}
+              >
+                Registry
+              </span>
+              <div className="h-px w-6" style={{ backgroundColor: "#C8942D", opacity: 0.3 }}></div>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -65,12 +73,12 @@ export function Logo({ className = "", showTagline = false, size = "md", href = 
 
   if (href) {
     return (
-      <Link href={href} className="inline-block -ml-4">
+      <Link href={href} className="inline-block">
         {logoContent}
       </Link>
     );
   }
 
-  return <div className="-ml-4">{logoContent}</div>;
+  return <div>{logoContent}</div>;
 }
 
