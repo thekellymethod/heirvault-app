@@ -3,7 +3,8 @@ import { auth, currentUser } from "@clerk/nextjs/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export async function POST() {
-  const { userId } = auth();
+  const authResult = await auth();
+  const userId = authResult.userId;
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const cu = await currentUser();

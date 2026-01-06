@@ -36,12 +36,12 @@ export async function command<T = unknown>(
   const data = (await res.json().catch(() => null)) as ClientCommandResponse<T> | null;
 
   if (!data) {
-    return { ok: false, error: "Failed to parse response JSON" };
+    return { ok: false, error: "Failed to parse response JSON" } as ClientCommandResponse<T>;
   }
 
   if (!res.ok) {
-    return { ok: false, ...data };
+    return { ok: false, error: data.error } as ClientCommandResponse<T>;
   }
 
-  return data;
+  return data as ClientCommandResponse<T>;  
 }
