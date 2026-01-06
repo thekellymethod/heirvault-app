@@ -1,6 +1,6 @@
 // src/app/api/public/intake/status/route.ts
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+;
 import { hashToken } from "@/lib/invites";
 import { ClientInviteStatus, DocumentClassificationStatus } from "@prisma/client";
 

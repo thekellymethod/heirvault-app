@@ -1,6 +1,6 @@
 import "server-only";
 import { currentUser } from "@clerk/nextjs/server";
-import { prisma } from "@/lib/db";
+;
 import { getOrCreateAppUser } from "@/lib/auth/CurrentUser";
 
 export class HttpError extends Error {

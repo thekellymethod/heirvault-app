@@ -1,6 +1,6 @@
 // src/app/api/public/change-request/validate/route.ts
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+;
 import { hashToken } from "@/lib/invites";
 import { ChangeRequestStatus } from "@prisma/client";
 import { rateLimit, clientIp } from "@/lib/security/rateLimit";

@@ -1,6 +1,6 @@
 // src/app/api/public/invite/validate/route.ts
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+;
 import { hashToken } from "@/lib/invites";
 import { ClientInviteStatus } from "@prisma/client";
 import { rateLimit, clientIp } from "@/lib/security/rateLimit";

@@ -1,5 +1,5 @@
 // src/lib/org/getOrgContext.ts
-import { prisma } from "@/lib/db";
+;
 import { HttpError } from "@/lib/permissions/guard";
 import type { AppPrincipal } from "@/lib/permissions/guard";
 

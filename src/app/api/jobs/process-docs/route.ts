@@ -1,6 +1,6 @@
 // src/app/api/jobs/process-docs/route.ts
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+;
 import { processDocument } from "@/lib/worker/processDocument";
 
 export const runtime = "nodejs";

@@ -1,6 +1,6 @@
 // src/app/api/review/queue/route.ts
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+;
 import { requireAuthPrincipal, requireRole } from "@/lib/permissions/guard";
 import { ChangeRequestStatus, DocumentClassificationStatus, UserRole } from "@prisma/client";
 

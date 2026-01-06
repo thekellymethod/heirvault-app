@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/db"
+
 import { auth } from "@clerk/nextjs/server"
 import { InvitePortal } from "./InvitePortal"
 import { redirect } from "next/navigation"

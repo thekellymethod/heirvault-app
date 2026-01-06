@@ -5,7 +5,7 @@
  * Deterministic and consistent with billing requirements.
  */
 
-import { prisma } from "@/lib/db";
+;
 import { Tier } from "@/lib/tiers";
 
 /**

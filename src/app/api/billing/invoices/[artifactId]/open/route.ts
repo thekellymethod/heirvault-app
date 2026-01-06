@@ -2,7 +2,7 @@
 import { withRouteGuard } from "@/lib/permissions/route";
 import { requireAuthPrincipal, requireRole, HttpError } from "@/lib/permissions/guard";
 import { requireOrgAccess } from "@/lib/permissions/orgAccess";
-import { prisma } from "@/lib/db";
+;
 import { UserRole, ArtifactType, UploaderType } from "@prisma/client";
 import { signGetUrl } from "@/lib/storage";
 import { auditLog } from "@/lib/audit";

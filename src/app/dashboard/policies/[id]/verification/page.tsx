@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/db";
+;
 import { requireAuth } from "@/lib/utils/clerk";
 import { assertAttorneyCanAccessClient } from "@/lib/authz";
 import { DocumentVerificationView } from "./_components/DocumentVerificationView";

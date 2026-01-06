@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { prisma } from "@/lib/db";
+;
 import { requireAuth } from "@/lib/utils/clerk";
 import { assertAttorneyCanAccessClient } from "@/lib/authz";
 import { ReceiptsAuditTrailView } from "./_components/ReceiptsAuditTrailView";

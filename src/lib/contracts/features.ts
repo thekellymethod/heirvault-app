@@ -5,7 +5,7 @@
  * These cannot be bypassed via frontend state manipulation.
  */
 
-import { prisma } from "@/lib/db";
+;
 import { Tier, TierFeatures, type TierType, getTierFromBillingPlan, hasFeatureAccess } from "@/lib/tiers";
 import { hasAcceptedContract } from "./acceptance";
 import { HttpError } from "@/lib/permissions/guard";

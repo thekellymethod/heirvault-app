@@ -1,5 +1,5 @@
 // src/lib/inviteCompletion.ts
-import { prisma } from "@/lib/db";
+;
 import { ClientInviteStatus, DocumentClassificationStatus } from "@prisma/client";
 
 export async function tryCompleteInvite(inviteId: string) {

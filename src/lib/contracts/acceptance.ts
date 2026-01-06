@@ -4,7 +4,7 @@
  * Handles immutable contract acceptance records for tier-based access control.
  */
 
-import { prisma } from "@/lib/db";
+;
 import { Tier, type TierType } from "@/lib/tiers";
 
 export const CONTRACT_VERSION = "1.0.0"; // Current contract version

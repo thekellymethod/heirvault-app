@@ -1,5 +1,5 @@
 // src/lib/versioning.ts
-import { prisma } from "@/lib/db";
+;
 import { DocumentClassificationStatus } from "@prisma/client";
 
 export async function supersedePriorVersions(documentId: string) {

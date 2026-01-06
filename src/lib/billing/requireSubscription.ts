@@ -1,5 +1,5 @@
 // src/lib/billing/requireSubscription.ts
-import { prisma } from "@/lib/db";
+;
 import { requireAuthPrincipal } from "@/lib/permissions/guard";
 import { HttpError } from "@/lib/permissions/guard";
 import { redirect } from "next/navigation";

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthPrincipal } from "@/lib/permissions/guard";
-import { prisma } from "@/lib/db";
+;
 import { getActiveEstateCount } from "@/lib/billing/active-estates";
 
 /**

@@ -1,5 +1,5 @@
 // src/lib/accessLog.ts
-import { prisma } from "@/lib/db";
+;
 import { UploaderType } from "@prisma/client";
 import crypto from "crypto";
 

@@ -1,6 +1,6 @@
 // src/app/api/documents/[documentId]/original/route.ts
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+;
 import { requireAuthPrincipal, requireRole, requireClientAccess, HttpError } from "@/lib/permissions/guard";
 import { getSignedObjectUrl } from "@/lib/storage";
 import { logDocumentAccess } from "@/lib/accessLog";

@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/db";
+;
 
 export async function ClientActivityFeed({ clientId }: { clientId: string }) {
   const logs = await prisma.audit_logs.findMany({

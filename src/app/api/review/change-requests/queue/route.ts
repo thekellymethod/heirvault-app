@@ -1,6 +1,6 @@
 // src/app/api/review/change-requests/queue/route.ts
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+;
 import { requireVerifiedAttorney } from "@/lib/auth/guards";
 import { ChangeRequestStatus } from "@prisma/client";
 

@@ -1,5 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
-import { prisma } from "@/lib/db";
+;
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/utils/clerk";
 import { ProfileForm } from "./ProfileForm";

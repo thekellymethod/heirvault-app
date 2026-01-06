@@ -2,7 +2,7 @@
 // Test endpoint for Stripe payments (uses test mode)
 import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
-import { prisma } from "@/lib/db";
+;
 import { withRouteGuard } from "@/lib/permissions/route";
 import { requireAuthPrincipal, requireRole } from "@/lib/permissions/guard";
 import { getOrgContext } from "@/lib/org/getOrgContext";

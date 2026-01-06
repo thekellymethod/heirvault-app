@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+;
 import { randomUUID } from "crypto";
 import { AuditAction } from "@/lib/db/enums";
 import { verifyConfirmationCode } from "../send-confirmation/route";

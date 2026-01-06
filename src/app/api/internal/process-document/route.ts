@@ -3,7 +3,7 @@
 // This should be called by a queue system or cron job
 
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+;
 import { writeAuditLog } from "@/lib/db";
 
 /**

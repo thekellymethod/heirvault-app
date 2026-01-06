@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import { getCurrentUserWithOrg } from "@/lib/authz";
-import { prisma } from "@/lib/db";
+;
 
 export async function POST(req: NextRequest) {
   try {

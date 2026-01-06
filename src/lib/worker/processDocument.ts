@@ -1,5 +1,5 @@
 // src/lib/worker/processDocument.ts
-import { prisma } from "@/lib/db";
+;
 import { putObject } from "@/lib/storage";
 import { DocumentClassificationStatus } from "@prisma/client";
 import { supersedePriorVersions } from "@/lib/versioning";

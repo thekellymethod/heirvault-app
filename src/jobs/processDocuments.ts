@@ -1,5 +1,5 @@
 // src/jobs/processDocuments.ts
-import { prisma } from "@/lib/db";
+;
 import { textractDetectText } from "@/lib/textractOcr";
 import { blocksToText, parseEntitiesFromText } from "@/lib/textractParse";
 import { scoreDocument } from "@/lib/confidence";

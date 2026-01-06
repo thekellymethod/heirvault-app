@@ -1,6 +1,6 @@
 // src/app/api/attorney/clients/[clientId]/beneficiaries/proposed/route.ts
 import { NextResponse } from "next/server";
-// import { prisma } from "@/lib/db";
+// ;
 import { requireVerifiedAttorney } from "@/lib/auth/guards";
 
 export async function GET(_: Request, ctx: { params: Promise<{ clientId: string }> }) {

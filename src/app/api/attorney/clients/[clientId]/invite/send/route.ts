@@ -1,6 +1,6 @@
 // src/app/api/attorney/clients/[clientId]/invite/send/route.ts
 // import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+;
 import { withRouteGuard } from "@/lib/permissions/route";
 import { requireAuthPrincipal, requireRole, requireClientAccess } from "@/lib/permissions/guard";
 import { UserRole, UploaderType, ArtifactType } from "@prisma/client";

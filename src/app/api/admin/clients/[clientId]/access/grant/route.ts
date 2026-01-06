@@ -1,7 +1,7 @@
 // src/app/api/admin/clients/[clientId]/access/grant/route.ts
 import { withRouteGuard } from "@/lib/permissions/route";
 import { requireAuthPrincipal, requireRole } from "@/lib/permissions/guard";
-import { prisma } from "@/lib/db";
+;
 import { UserRole } from "@prisma/client";
 import crypto from "crypto";
 

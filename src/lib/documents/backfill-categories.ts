@@ -5,7 +5,7 @@
  * This can be run as a one-time migration or scheduled job.
  */
 
-import { prisma } from "@/lib/db";
+;
 import { getDocumentCategory } from "./taxonomy";
 
 /**

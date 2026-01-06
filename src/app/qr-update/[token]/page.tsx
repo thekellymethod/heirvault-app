@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/db";
+;
 import { QRUpdateForm } from "./_components/QRUpdateForm";
 import Link from "next/link";
 import { QrCode } from "lucide-react";

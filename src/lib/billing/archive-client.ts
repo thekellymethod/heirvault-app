@@ -5,7 +5,7 @@
  * Archiving a client removes it from active estate count.
  */
 
-import { prisma } from "@/lib/db";
+;
 import { writeAuditLog } from "@/lib/db";
 import { trackActiveEstateCount } from "./active-estates-tracker";
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth, clerkClient, currentUser } from "@clerk/nextjs/server";
-import { prisma } from "@/lib/db";
+;
 
 export async function POST(_req: NextRequest) {
   try {

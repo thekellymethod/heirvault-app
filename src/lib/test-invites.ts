@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/db";
+;
 
 /**
  * Test code prefix - any code starting with this will be auto-created

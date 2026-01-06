@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+;
 import { requireAdmin } from "@/lib/admin";
 import { HttpError } from "@/lib/errors";
 

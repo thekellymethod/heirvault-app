@@ -1,7 +1,7 @@
 // src/app/api/admin/clients/[clientId]/access/revoke/route.ts
 import { withRouteGuard } from "@/lib/permissions/route";
 import { requireAuthPrincipal, requireRole } from "@/lib/permissions/guard";
-import { prisma } from "@/lib/db";
+;
 import { UserRole } from "@prisma/client";
 
 export async function POST(req: Request, ctx: { params: Promise<{ clientId: string }> }) {

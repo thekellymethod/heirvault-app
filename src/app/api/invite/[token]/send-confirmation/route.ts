@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+;
 import { sendEmail } from "@/lib/email";
 import { getOrCreateTestInvite } from "@/lib/test-invites";
 

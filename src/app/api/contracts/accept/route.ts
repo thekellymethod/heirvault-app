@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import { prisma } from "@/lib/db";
+;
 import { requireAuthPrincipal } from "@/lib/permissions/guard";
 import { recordContractAcceptance } from "@/lib/contracts/acceptance";
 import { Tier } from "@/lib/tiers";

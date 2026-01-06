@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+;
 import { assertAttorneyCanAccessClient } from "@/lib/authz";
 import { generateAuditHash, generateReceiptHash } from "@/lib/audit-hash";
 

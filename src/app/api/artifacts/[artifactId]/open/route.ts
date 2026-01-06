@@ -1,7 +1,7 @@
 // src/app/api/artifacts/[artifactId]/open/route.ts
 import { withRouteGuard } from "@/lib/permissions/route";
 import { requireAuthPrincipal, requireRole, requireClientAccess, HttpError } from "@/lib/permissions/guard";
-import { prisma } from "@/lib/db";
+;
 import { UserRole, UploaderType } from "@prisma/client";
 import { signGetUrl } from "@/lib/storage";
 import { auditLog } from "@/lib/audit";

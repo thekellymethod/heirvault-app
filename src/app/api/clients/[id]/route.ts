@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+;
 import { requireAuthApi } from "@/lib/utils/clerk";
 
 export async function GET(

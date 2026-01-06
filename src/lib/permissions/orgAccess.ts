@@ -1,5 +1,5 @@
 // src/lib/permissions/orgAccess.ts
-import { prisma } from "@/lib/db";
+;
 import { HttpError } from "@/lib/permissions/guard";
 import { UserRole } from "@prisma/client";
 import type { AppPrincipal } from "@/lib/permissions/guard";

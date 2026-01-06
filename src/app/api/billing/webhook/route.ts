@@ -1,7 +1,7 @@
 // src/app/api/billing/webhook/route.ts
 import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
-import { prisma } from "@/lib/db";
+;
 import Stripe from "stripe";
 import crypto from "crypto";
 

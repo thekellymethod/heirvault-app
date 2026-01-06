@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth/guards";
-import { prisma } from "@/lib/db";
+;
 import { randomUUID } from "crypto";
 
 export const runtime = "nodejs";

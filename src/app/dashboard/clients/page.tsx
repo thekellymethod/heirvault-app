@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { prisma } from "@/lib/db";
+;
 import { requireAuth } from "@/lib/utils/clerk";
 // import { Button } from "@/components/ui/button";
 import { EmptyListState } from "@/components/ui/empty-state";

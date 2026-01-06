@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+;
 import { requireAuthPrincipal, requireRole } from "@/lib/permissions/guard";
 import { getOrgContext } from "@/lib/org/getOrgContext";
 import { requireRegistryActive } from "@/lib/billing/requireRegistryActive";

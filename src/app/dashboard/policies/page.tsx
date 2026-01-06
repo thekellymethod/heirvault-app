@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { prisma } from "@/lib/db";
+;
 import { requireAuth } from "@/lib/utils/clerk";
 import { EmptyListState, EmptySearchState } from "@/components/ui/empty-state";
 import { SortSelect } from "@/components/ui/sort-select";

@@ -5,7 +5,7 @@
  * Tamper-resistant at application level - no update/delete operations.
  */
 
-import { prisma } from "@/lib/db";
+;
 
 export type BillingEventType =
   | "tier_change"

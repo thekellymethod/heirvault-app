@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { prisma } from "@/lib/db";
+;
 import { requireAuth } from "@/lib/utils/clerk";
 import { SortSelect } from "@/components/ui/sort-select";
 

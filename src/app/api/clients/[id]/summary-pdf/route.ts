@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { prisma } from "@/lib/db"
+
 import { ClientRegistrySummaryPDF } from "@/pdfs/ClientRegistrySummary"
 import { renderToStream } from "@react-pdf/renderer"
 import { requireAttorneyOrOwner } from "@/lib/authz"

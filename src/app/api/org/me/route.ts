@@ -1,7 +1,7 @@
 // src/app/api/org/me/route.ts
 import { NextResponse } from "next/server";
 import { requireAuthPrincipal } from "@/lib/permissions/guard";
-import { prisma } from "@/lib/db";
+;
 import { withRouteGuard } from "@/lib/permissions/route";
 import { isAdminUser } from "@/lib/auth/admin-bypass";
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+;
 import { requireAuth } from "@/lib/utils/clerk";
 import { randomUUID } from "crypto";
 import type { Prisma, AuditAction } from "@prisma/client";

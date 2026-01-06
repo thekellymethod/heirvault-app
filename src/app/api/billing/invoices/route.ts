@@ -2,7 +2,7 @@
 import { withRouteGuard } from "@/lib/permissions/route";
 import { requireAuthPrincipal, requireRole } from "@/lib/permissions/guard";
 import { requireOrgAccess } from "@/lib/permissions/orgAccess";
-import { prisma } from "@/lib/db";
+;
 import { ArtifactType, UserRole } from "@prisma/client";
 
 export async function GET() {

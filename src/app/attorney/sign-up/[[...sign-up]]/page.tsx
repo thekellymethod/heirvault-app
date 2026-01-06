@@ -17,12 +17,9 @@ export default function Page() {
           <SignUp
             routing="path"
             path="/attorney/sign-up"
-            signInUrl="/attorney/sign-in"
-
-            /* ✅ the important part: force post-auth redirects */
-            afterSignUpUrl="/attorney/sign-up/complete"
-            redirectUrl="/attorney/sign-up/complete"
-            fallbackRedirectUrl="/attorney/sign-up/complete"
+            signInUrl="/sign-in"
+            afterSignUpUrl="/onboarding"
+            redirectUrl="/onboarding"
           />
         </div>
       </div>

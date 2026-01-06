@@ -1,5 +1,5 @@
 // src/lib/billing/requireActiveSubscription.ts
-import { prisma } from "@/lib/db";
+;
 import { HttpError } from "@/lib/permissions/guard";
 import { isAdminUser } from "@/lib/auth/admin-bypass";
 

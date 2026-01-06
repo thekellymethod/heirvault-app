@@ -1,6 +1,6 @@
 // src/app/api/attorney/beneficiaries/proposed/[id]/reject/route.ts
 import { NextResponse } from "next/server";
-// import { prisma } from "@/lib/db";
+// ;
 import { requireVerifiedAttorney } from "@/lib/auth/guards";
 // import { auditLog } from "@/lib/audit";
 // import { UploaderType } from "@prisma/client";

@@ -1,49 +1,29 @@
-import Stripe from "stripe";
+import { NextResponse } from "next/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
-  apiVersion: "2025-12-15.clover",
-});
+export async function POST() {
+  const { userId } = auth();
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-export async function POST(req: Request): Promise<Response> {
-  const signature = req.headers.get("stripe-signature");
+  const cu = await currentUser();
+  if (!cu?.id) return NextResponse.json({ error: "Missing Clerk user" }, { status: 400 });
 
-  if (!signature) {
-    return new Response(
-      JSON.stringify({ error: "Missing Stripe signature" }),
-      { status: 400, headers: { "Content-Type": "application/json" } }
-    );
-  }
+  const email = cu.emailAddresses?.[0]?.emailAddress ?? null;
 
-  const rawBody = await req.text();
+  const payload = {
+    clerkId: cu.id,
+    email: email ?? "",
+    firstName: cu.firstName ?? null,
+    lastName: cu.lastName ?? null,
+  };
 
-  let _event: Stripe.Event;
+  const { data, error } = await supabaseAdmin
+    .from("User")
+    .upsert(payload, { onConflict: "clerkId" })
+    .select("*")
+    .single();
 
-  try {
-    _event = stripe.webhooks.constructEvent(
-      rawBody,
-      signature,
-      process.env.STRIPE_WEBHOOK_SECRET as string
-    );
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Unknown Stripe webhook error";
-
-    return new Response(
-      JSON.stringify({ error: message }),
-      { status: 400, headers: { "Content-Type": "application/json" } }
-    );
-  }
-
-  // ---- HANDLE EVENTS HERE ----
-  // switch (event.type) {
-  //   case "checkout.session.completed":
-  //     break;
-  //   case "customer.subscription.updated":
-  //     break;
-  // }
-
-  return new Response(
-    JSON.stringify({ received: true }),
-    { status: 200, headers: { "Content-Type": "application/json" } }
-  );
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ user: data });
 }

@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/db";
+;
 import { requireAuth } from "@/lib/utils/clerk";
 import { RegistryRecordView } from "./_components/RegistryRecordView";
 import { redirect } from "next/navigation";

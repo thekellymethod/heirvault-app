@@ -1,5 +1,5 @@
 import { createHash } from "crypto";
-import { prisma } from "@/lib/db";
+;
 import type { PrismaClient } from "@prisma/client";
 
 /**

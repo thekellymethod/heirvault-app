@@ -1,6 +1,6 @@
 // src/app/api/attorney/clients/[clientId]/invite/route.ts
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+;
 import { requireVerifiedAttorney } from "@/lib/auth/guards";
 import { generateInviteToken, hashToken } from "@/lib/invites";
 import { auditLog } from "@/lib/audit";

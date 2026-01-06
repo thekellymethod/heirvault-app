@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+;
 import { createRegistryRecord, appendRegistryVersion, getRegistryById, getRegistryVersions } from "@/lib/db";
 import { sha256String, sha256Buffer } from "@/lib/hash";
 import { signToken, verifyToken } from "@/lib/qr";

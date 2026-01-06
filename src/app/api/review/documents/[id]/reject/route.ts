@@ -1,6 +1,6 @@
 // src/app/api/review/documents/[documentId]/reject/route.ts
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+;
 import { requireAuthPrincipal, requireRole, requireClientAccess, HttpError } from "@/lib/permissions/guard";
 import { auditLog } from "@/lib/audit";
 import { DocumentClassificationStatus, DocumentSensitivity, UploaderType, UserRole } from "@prisma/client";

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { prisma } from "@/lib/db";
+;
 import { getCurrentUserWithOrg } from "@/lib/authz";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";

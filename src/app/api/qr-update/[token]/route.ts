@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+;
 import { verifyToken } from "@/lib/qr"; // or whatever you actually use to verify tokens
 
 export const runtime = "nodejs";

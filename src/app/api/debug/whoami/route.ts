@@ -1,7 +1,7 @@
 // src/app/api/debug/whoami/route.ts
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import { prisma } from "@/lib/db";
+;
 import { UserRole } from "@prisma/client";
 
 /**

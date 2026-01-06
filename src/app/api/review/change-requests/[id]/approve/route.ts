@@ -1,6 +1,6 @@
 // src/app/api/review/change-requests/[id]/approve/route.ts
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+;
 import { requireVerifiedAttorney } from "@/lib/auth/guards";
 import { auditLog } from "@/lib/audit";
 import { ChangeRequestStatus, UploaderType } from "@prisma/client";
