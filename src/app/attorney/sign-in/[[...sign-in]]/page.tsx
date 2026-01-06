@@ -19,8 +19,7 @@ export default function Page() {
             path="/attorney/sign-in"
 
             /* ✅ force post-auth redirect to your provisioning gate */
-            afterSignInUrl="/attorney/sign-up/complete"
-            redirectUrl="/attorney/sign-up/complete"
+            fallbackRedirectUrl="/attorney/sign-up/complete"
           />
         </div>
       </div>

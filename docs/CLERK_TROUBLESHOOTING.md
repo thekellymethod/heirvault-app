@@ -70,8 +70,7 @@ CLERK_SECRET_KEY=sk_test_... or sk_live_...
   publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
   signInUrl="/sign-in" 
   signUpUrl="/sign-up"
-  afterSignInUrl="/dashboard"
-  afterSignUpUrl="/dashboard"
+  fallbackRedirectUrl="/dashboard"
 >
 ```
 

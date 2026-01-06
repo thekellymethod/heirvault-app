@@ -128,7 +128,6 @@ export default function SignInPage() {
             path="/sign-in"
             signUpUrl="/sign-up"
             fallbackRedirectUrl="/dashboard"
-            afterSignInUrl="/dashboard"
             appearance={{
               elements: {
                 rootBox: "mx-auto w-full",

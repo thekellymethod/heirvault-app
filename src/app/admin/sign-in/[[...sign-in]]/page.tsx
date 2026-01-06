@@ -94,15 +94,15 @@ export default function AdminSignInPage() {
         <div className="mt-6 text-center space-y-2">
           <p className="text-xs text-slate-500">
             Attorney?{" "}
-            <a
+            <p
               href="/attorney/sign-in"
               className="text-emerald-600 hover:text-emerald-700 font-medium underline"
             >
               Sign in here
-            </a>
+            </p>
           </p>
           <a
-            href="/"
+            href="/dashboard"
             className="mt-4 inline-block text-sm text-slate-600 hover:text-slate-900 transition"
           >
             ← Back to Home

@@ -129,7 +129,6 @@ export function AdminSignIn() {
             path="/sign-in"
             signUpUrl="/sign-up"
             fallbackRedirectUrl="/admin"
-            afterSignInUrl="/admin"
             appearance={{
               elements: {
                 rootBox: "mx-auto w-full",
