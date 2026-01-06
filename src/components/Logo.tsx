@@ -6,7 +6,7 @@ interface LogoProps {
   className?: string,
   showTagline?: boolean;
   size?: "sm" | "md" | "lg";
-  href?: string,
+  href?: string | null | undefined,
   variant?: "default" | "icon-only" | "text-only";
 }
 
@@ -14,7 +14,7 @@ export function Logo({
   className = "", 
   showTagline = false, 
   size = "md", 
-  href = "/",
+  href,
   variant = "default"
 }: LogoProps) {
   const sizeClasses = {
@@ -79,6 +79,6 @@ export function Logo({
     );
   }
 
-  return <div>{logoContent}</div>;
+  return <div className="inline-block">{logoContent}</div>;
 }
 

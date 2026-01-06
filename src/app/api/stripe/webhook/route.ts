@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { stripe } from "@/lib/stripe";
 import { prisma } from "@/lib/prisma";
+import { sendEngagementEmail } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -61,9 +62,45 @@ export async function POST(req: Request) {
         case "checkout.session.completed": {
           const session = event.data.object as Stripe.Checkout.Session;
           const orgId = session.metadata?.orgId;
+          const engagement = session.metadata?.engagement;
           const customerId = String(session.customer || "");
           const subscriptionId = String(session.subscription || "");
 
+          // Handle client registry (one-time payment)
+          if (engagement === "life-insurance-registry") {
+            const clientEmail = session.customer_email || session.metadata?.clientEmail;
+            const clientName = session.metadata?.clientName || null;
+
+            if (clientEmail) {
+              // idempotent upsert
+              const registry = await prisma.clientRegistry.upsert({
+                where: { stripeCheckoutSessionId: session.id },
+                create: {
+                  clientEmail,
+                  clientName: clientName ?? undefined,
+                  stripeCheckoutSessionId: session.id,
+                  stripePaymentIntentId: (session.payment_intent as string) || null,
+                },
+                update: {
+                  clientEmail,
+                  clientName: clientName ?? undefined,
+                  stripePaymentIntentId: (session.payment_intent as string) || null,
+                },
+              });
+
+              const appUrl = process.env.NEXT_PUBLIC_APP_URL!;
+              const uploadLink = `${appUrl}/upload?session_id=${session.id}`;
+
+              await sendEngagementEmail({
+                to: clientEmail,
+                clientName: clientName ?? undefined,
+                uploadLink,
+                registryId: registry.id,
+              });
+            }
+          }
+
+          // Handle org subscription (existing logic)
           if (orgId) {
             await prisma.org.update({
               where: { id: orgId },

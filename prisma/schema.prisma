@@ -1,12 +1,12 @@
 generator client {
-  provider = "prisma-client-js"
+  provider   = "prisma-client-js"
+  engineType = "binary"
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "postgresql"
 }
+
 
 enum MemberRole {
   admin
@@ -24,6 +24,28 @@ enum PolicyStatus {
   verified
   paid
   denied
+}
+
+enum UserRole {
+  attorney
+  client
+  admin
+}
+
+model User {
+  id        String   @id @default(uuid())
+  clerkId   String   @unique
+  email     String
+  firstName String?
+  lastName  String?
+  role      UserRole @default(attorney)
+  roles     String[] @default(["USER"])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  barNumber String?
+
+  @@index([clerkId])
+  @@index([email])
 }
 
 model Org {
@@ -151,4 +173,68 @@ model AuditLog {
   @@index([orgId])
   @@index([registryId])
   @@index([action])
+}
+
+// Standalone client payment flow models
+model ClientRegistry {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // who paid / who owns it
+  clientEmail String
+  clientName  String?
+  status      String   @default("ACTIVE") // ACTIVE | COMPLETE
+  completedAt DateTime?
+
+  // Stripe
+  stripeCheckoutSessionId String? @unique
+  stripePaymentIntentId   String?
+
+  // PDF summary stored in Supabase Storage
+  summaryBucket String?
+  summaryPath   String?
+
+  files ClientFileAsset[]
+
+  @@index([clientEmail])
+  @@index([stripeCheckoutSessionId])
+}
+
+model ClientFileAsset {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  registryId String
+  registry   ClientRegistry @relation(fields: [registryId], references: [id], onDelete: Cascade)
+
+  originalName String
+  mimeType     String
+  sizeBytes    Int?
+
+  storageBucket String
+  storagePath   String
+
+  status String @default("UPLOADED") // PENDING | UPLOADED | FAILED
+
+  @@index([registryId])
+  @@index([storagePath])
+}
+model OutreachLog {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  orgId     String?
+  email     String
+  firmName  String?
+  attorneyName String?
+
+  subject   String
+  body      String?
+
+  mode      String   @default("bulk") // single|bulk
+  status    String   @default("QUEUED") // QUEUED|SENT|FAILED|SKIPPED
+  provider  String   @default("resend")
+  providerMsgId String?
+  errorMessage String?
 }

@@ -241,3 +241,9 @@ body {
     }
   }
 }
+
+/* Next.js Portal Styles */
+nextjs-portal {
+  left: unset;
+  top: unset;
+}

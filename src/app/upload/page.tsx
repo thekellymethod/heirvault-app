@@ -3,8 +3,9 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import UploadClient from "./UploadClient";
 
-type Mode = "INVITE" | "CHANGE";
+type Mode = "INVITE" | "CHANGE" | "PAYMENT";
 
 async function postJson(url: string, body: Record<string, unknown>) {
   const res = await fetch(url, {
@@ -19,9 +20,26 @@ async function postJson(url: string, body: Record<string, unknown>) {
 
 export default function UploadPage() {
   const sp = useSearchParams();
+  const sessionId = sp.get("session_id");
   const inviteToken = sp.get("token");
   const changeToken = sp.get("changeToken");
 
+  // Payment-based upload flow
+  if (sessionId) {
+    return (
+      <div style={{ maxWidth: 720, margin: "40px auto", padding: 16 }}>
+        <h1 style={{ fontSize: 28, fontWeight: 700 }}>Upload Life Insurance Policies</h1>
+        <p style={{ marginTop: 8 }}>
+          Upload any policy PDFs, annual statements, or declaration pages. Do not upload passwords.
+        </p>
+        <div style={{ marginTop: 24 }}>
+          <UploadClient sessionId={sessionId} />
+        </div>
+      </div>
+    );
+  }
+
+  // Existing invite/change token flow
   const mode: Mode | null = inviteToken ? "INVITE" : changeToken ? "CHANGE" : null;
   const token = inviteToken ?? changeToken ?? "";
 

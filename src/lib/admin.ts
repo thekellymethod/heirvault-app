@@ -1,22 +1,38 @@
+import { currentUser } from "@clerk/nextjs/server";
 import { getUser, type AppUser } from "@/lib/auth";
 
 /**
  * Check if a user is an admin.
- * Admins are determined by environment variable ADMIN_EMAILS (comma-separated list).
- * If ADMIN_EMAILS is not set, no users are admins.
+ * 
+ * Priority order:
+ * 1. Clerk publicMetadata.role === "admin" (authoritative source)
+ * 2. Database roles array includes "ADMIN"
+ * 3. Email in ADMIN_EMAILS env var (backward compatibility)
+ * 4. User ID in ADMIN_USER_IDS env var (backward compatibility)
  * 
  * @param user - Optional user object. If provided, uses this user instead of fetching current user.
  *               This prevents race conditions when checking admin status after fetching the user.
  */
 export async function isAdmin(user?: AppUser): Promise<boolean> {
   try {
+    // First check Clerk public metadata (authoritative source)
+    const clerkUser = await currentUser();
+    if (clerkUser?.publicMetadata?.role === "admin") {
+      return true;
+    }
+
     // If user is provided, use it; otherwise fetch current user
     const userToCheck = user || await getUser();
     if (!userToCheck) {
       return false;
     }
 
-    // Check by email
+    // Check database roles
+    if (userToCheck.roles.includes("ADMIN")) {
+      return true;
+    }
+
+    // Check by email (backward compatibility)
     if (userToCheck.email) {
       const email = userToCheck.email.toLowerCase();
       const bootstrapAdminEmail = process.env.BOOTSTRAP_ADMIN_EMAIL?.toLowerCase().trim();
@@ -31,7 +47,7 @@ export async function isAdmin(user?: AppUser): Promise<boolean> {
       }
     }
 
-    // Check by userId (database ID) or clerkId
+    // Check by userId (database ID) or clerkId (backward compatibility)
     const adminUserIds = process.env.ADMIN_USER_IDS?.split(",").map((id) => id.trim()).filter(Boolean) || [];
     
     if (adminUserIds.length > 0 && userToCheck.id && userToCheck.clerkId) {

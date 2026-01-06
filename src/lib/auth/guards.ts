@@ -1,4 +1,5 @@
 import "server-only";
+import { currentUser } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/db";
 import { getOrCreateAppUser } from "@/lib/auth/CurrentUser";
 
@@ -16,14 +17,57 @@ export async function requireAuth() {
   return user;
 }
 
+/**
+ * Require admin access. Checks Clerk public metadata first (authoritative),
+ * then falls back to database roles and ADMIN_EMAILS env var for backward compatibility.
+ * 
+ * Primary source: Clerk publicMetadata.role === "admin"
+ * Fallback: Database roles array includes "ADMIN" OR email in ADMIN_EMAILS
+ * 
+ * @throws HttpError(401) if user is not authenticated
+ * @throws HttpError(403) if user is not an admin
+ */
 export async function requireAdmin() {
+  // First check Clerk public metadata (authoritative source)
+  const clerkUser = await currentUser();
+  if (!clerkUser) {
+    throw new HttpError(401, "Not authenticated.");
+  }
+
+  // Check Clerk public metadata first (primary source of truth)
+  const isAdminInClerk = clerkUser.publicMetadata?.role === "admin";
+  
+  if (isAdminInClerk) {
+    // User is admin via Clerk metadata - return the database user
+    const user = await requireAuth();
+    return user;
+  }
+
+  // Fallback: Check database roles and ADMIN_EMAILS (backward compatibility)
   const user = await requireAuth();
   
-  if (!user.roles.includes("ADMIN")) {
-    throw new HttpError(403, "Admin access required.");
+  // Check if user has ADMIN role in database
+  if (user.roles.includes("ADMIN")) {
+    return user;
   }
-  
-  return user;
+
+  // Check if email is in ADMIN_EMAILS env var (backward compatibility)
+  if (user.email) {
+    const email = user.email.toLowerCase();
+    const bootstrapAdminEmail = process.env.BOOTSTRAP_ADMIN_EMAIL?.toLowerCase().trim();
+    const adminEmails = process.env.ADMIN_EMAILS?.split(",").map((e) => e.trim().toLowerCase()).filter(Boolean) || [];
+    
+    const isAdminByEmail = 
+      (bootstrapAdminEmail && email === bootstrapAdminEmail) ||
+      adminEmails.includes(email);
+    
+    if (isAdminByEmail) {
+      return user;
+    }
+  }
+
+  // Not an admin via any method
+  throw new HttpError(403, "Admin access required.");
 }
 
 export async function requireVerifiedAttorney() {
