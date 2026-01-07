@@ -1,18 +1,19 @@
 // src/lib/permissions/orgAccess.ts
 ;
 import { HttpError } from "@/lib/permissions/guard";
-import { UserRole } from "@/lib/db/enums";
 import type { AppPrincipal } from "@/lib/permissions/guard";
 
 export async function requireOrgAccess(principal: AppPrincipal, orgId: string) {
-  if (principal.role === UserRole.ADMIN) return;
+  // Check roles array for ADMIN (admin is determined by roles array, not UserRole enum)
+  if (principal.roles.includes("ADMIN")) return;
 
-  const membership = await prisma.org_members.findFirst({
+  const { findMany } = await import("@/lib/db");
+  const memberships = await findMany("org_members", {
     where: { userId: principal.dbUserId, organizationId: orgId },
-    select: { id: true },
+    limit: 1,
   });
 
-  if (!membership) {
+  if (!memberships || memberships.length === 0) {
     throw new HttpError(403, "No access to organization");
   }
 }

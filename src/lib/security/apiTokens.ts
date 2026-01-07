@@ -76,23 +76,33 @@ export async function createApiToken(input: {
   const { token, hash } = generateApiToken();
   const expiresAt = input.expiresAt ?? (input.expiresInDays ? new Date(Date.now() + input.expiresInDays * 24 * 60 * 60 * 1000) : null);
 
-  const record = await prisma.apiToken.create({
-    data: {
-      name: input.name,
-      hash,
-      scopes: input.scopes,
-      createdById: input.actorUserId,
-      expiresAt,
+  const { create: createDb, findUnique: findUniqueUser } = await import("@/lib/db");
+  const { randomUUID } = await import("crypto");
+  
+  // Create the API token
+  const tokenId = randomUUID();
+  await createDb("api_tokens", {
+    id: tokenId,
+    name: input.name,
+    hash,
+    scopes: input.scopes,
+    createdById: input.actorUserId,
+    expiresAt: expiresAt ? expiresAt.toISOString() : null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  } as any);
+
+  // Fetch the created token with user info
+  const tokenRecord = await findUniqueUser("api_tokens", { id: tokenId }) as any;
+  const createdBy = await findUniqueUser("users", { id: input.actorUserId }) as any;
+  
+  const record = {
+    ...tokenRecord,
+    createdBy: {
+      id: createdBy.id,
+      email: createdBy.email,
     },
-    include: {
-      createdBy: {
-        select: {
-          id: true,
-          email: true,
-        },
-      },
-    },
-  });
+  };
 
   return {
     token,
@@ -128,17 +138,30 @@ export async function authenticateApiToken(bearerToken: string): Promise<ApiToke
 
   const hash = createHash("sha256").update(bearerToken).digest("hex");
 
-  const record = await prisma.apiToken.findUnique({
+  const { findMany: findManyTokens, findUnique: findUniqueUser } = await import("@/lib/db");
+  
+  // Find token by hash
+  const tokens = await findManyTokens("api_tokens", {
     where: { hash },
-    include: {
-      createdBy: {
-        select: {
-          id: true,
-          email: true,
-        },
-      },
-    },
+    limit: 1,
   });
+
+  if (!tokens || tokens.length === 0) {
+    throw new HttpError(401, "Invalid token");
+  }
+
+  const tokenRecord = tokens[0] as any;
+  
+  // Fetch the user who created the token
+  const createdBy = await findUniqueUser("users", { id: tokenRecord.createdById }) as any;
+  
+  const record = {
+    ...tokenRecord,
+    createdBy: {
+      id: createdBy.id,
+      email: createdBy.email,
+    },
+  };
 
   if (!record) {
     throw new HttpError(401, "Invalid token");

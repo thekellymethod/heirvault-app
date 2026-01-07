@@ -34,21 +34,20 @@ export async function POST(
     }
 
     // Update policy verification
-    await prisma.$executeRawUnsafe(`
-      UPDATE policies
-      SET 
-        verificationStatus = $2,
-        verified_at = CASE WHEN $2 != 'PENDING' THEN NOW() ELSE verified_at END,
-        verified_by_user_id = CASE WHEN $2 != 'PENDING' THEN $3 ELSE verified_by_user_id END,
-        verification_notes = $4,
-        updated_at = NOW()
-      WHERE id = $1
-    `,
-      id,
+    const { update: updateDb } = await import("@/lib/db");
+    const updateData: Record<string, unknown> = {
       verificationStatus,
-      user.id,
-      verificationNotes || null
-    );
+      verificationNotes: verificationNotes || null,
+      updatedAt: new Date().toISOString(),
+    };
+    
+    // Only set verified_at and verified_by_user_id if status is not PENDING
+    if (verificationStatus !== "PENDING") {
+      updateData.verifiedAt = new Date().toISOString();
+      updateData.verifiedByUserId = user.id;
+    }
+    
+    await updateDb("policies", { id }, updateData);
 
     // Log audit event
     try {

@@ -31,10 +31,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
 
     // Check if beneficiary exists
     const { findUnique } = await import("@/lib/db");
-    const existing = await findUnique("beneficiaries", {
-      where: { id },
-      select: { id: true, clientId: true },
-    });
+    const existing = await findUnique("beneficiaries", { id });
 
     if (!existing) {
       return NextResponse.json({ error: "Beneficiary not found" }, { status: 404 });
@@ -51,17 +48,16 @@ export async function PUT(req: NextRequest, { params }: Params) {
       }
     }
 
-    const updated = await prisma.beneficiaries.update({
-      where: { id },
-      data: {
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
-        relationship: relationship?.trim() || null,
-        email: email?.trim() || null,
-        phone: phone?.trim() || null,
-        dateOfBirth: parsedDateOfBirth,
-      },
-    });
+    const { update: updateDb } = await import("@/lib/db");
+    const updated = await updateDb("beneficiaries", { id }, {
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      relationship: relationship?.trim() || null,
+      email: email?.trim() || null,
+      phone: phone?.trim() || null,
+      dateOfBirth: parsedDateOfBirth ? parsedDateOfBirth.toISOString() : null,
+      updatedAt: new Date().toISOString(),
+    } as any);
 
     if (!updated) {
       return NextResponse.json(
@@ -70,16 +66,16 @@ export async function PUT(req: NextRequest, { params }: Params) {
       );
     }
 
+    const { AuditAction } = await import("@/lib/db/enums");
     await logAuditEvent({
-      action: "BENEFICIARY_UPDATED",
-      resourceType: "beneficiary",
-      resourceId: id,
-      details: { 
+      action: AuditAction.BENEFICIARY_UPDATED,
+      userId: user.id,
+      clientId: (updated as any).clientId,
+      metadata: { 
+        beneficiaryId: id,
         firstName, 
         lastName,
-        clientId: updated.clientId,
       },
-      userId: user.id,
     });
 
     return NextResponse.json(updated);
@@ -98,29 +94,26 @@ export async function DELETE(req: NextRequest, { params }: Params) {
     const { id } = await params;
 
     // Get beneficiary for audit before deleting
-    const beneficiary = await prisma.beneficiaries.findUnique({
-      where: { id },
-      select: { id: true, clientId: true, firstName: true, lastName: true },
-    });
+    const { findUnique, deleteRecord } = await import("@/lib/db");
+    const { AuditAction } = await import("@/lib/db/enums");
+    
+    const beneficiary = await findUnique("beneficiaries", { id });
 
     if (!beneficiary) {
       return NextResponse.json({ error: "Beneficiary not found" }, { status: 404 });
     }
 
-    await prisma.beneficiaries.delete({
-      where: { id },
-    });
+    await deleteRecord("beneficiaries", { id });
 
     await logAuditEvent({
-      action: "BENEFICIARY_UPDATED",
-      resourceType: "beneficiary",
-      resourceId: id,
-      details: { 
-        firstName: beneficiary.firstName,
-        lastName: beneficiary.lastName,
-        clientId: beneficiary.clientId,
-      },
+      action: AuditAction.BENEFICIARY_DELETED,
       userId: user.id,
+      clientId: (beneficiary as any).clientId,
+      metadata: { 
+        beneficiaryId: id,
+        firstName: (beneficiary as any).firstName,
+        lastName: (beneficiary as any).lastName,
+      },
     });
 
     return new NextResponse(null, { status: 204 });

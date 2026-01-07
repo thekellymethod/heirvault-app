@@ -1,97 +1,98 @@
-// Prisma removed - database access needs to be implemented
-// import { prisma } from "./db";
-
 /**
- * Looks up a client invite by token using raw SQL first, with Prisma fallback
- * This avoids Prisma client model name issues
+ * Looks up a client invite by token using Supabase
  */
 export async function lookupClientInvite(token: string) {
-  // Try raw SQL first
-  try {
-    const rawResult = await prisma.$queryRaw<Array<{
-      id: string,
-      clientId: string,
-      email: string,
-      token: string,
-      expires_at: Date;
-      used_at: Date | null;
-      createdAt: Date;
-      firstName: string,
-      lastName: string,
-      phone: string | null;
-      dateOfBirth: Date | null;
-    }>>`
-      SELECT 
-        ci.id,
-        ci.client_id as "clientId",
-        ci.email,
-        ci.token,
-        ci.expires_at,
-        ci.used_at,
-        ci.createdAt,
-        c.firstName,
-        c.lastName,
-        c.phone,
-        c.dateOfBirth
-      FROM client_invites ci
-      INNER JOIN clients c ON c.id = ci.client_id
-      WHERE ci.token = ${token}
-      LIMIT 1
-    `;
+  type InviteRow = {
+    id: string;
+    clientId: string;
+    client_id: string;
+    email: string;
+    token: string;
+    expires_at: string | Date;
+    used_at: string | Date | null;
+    createdAt: string | Date;
+  };
 
-    if (rawResult && rawResult.length > 0) {
-      const row = rawResult[0];
-      return {
-        id: row.id,
-        clientId: row.clientId,
-        email: row.email,
-        token: row.token,
-        expiresAt: row.expires_at,
-        usedAt: row.used_at,
-        createdAt: row.createdAt,
-        client: {
-          id: row.clientId,
-          firstName: row.firstName,
-          lastName: row.lastName,
-          email: row.email,
-          phone: row.phone,
-          dateOfBirth: row.dateOfBirth,
-        },
-      };
-    }
-  } catch (sqlError: unknown) {
-    const sqlErrorMessage = sqlError instanceof Error ? sqlError.message : "Unknown error";
-    console.error("lookupClientInvite: Raw SQL failed, trying Prisma:", sqlErrorMessage);
-    // Fallback to Prisma
-    try {
-      // Try both possible model names
-      const prismaAny = prisma as unknown as Record<string, unknown>;
-      if (prismaAny.client_invites && typeof prismaAny.client_invites === "object") {
-        const clientInvites = prismaAny.client_invites as { findUnique: (args: { where: { token: string }; include: { clients: boolean } }) => Promise<unknown> };
-        const prismaInvite = await clientInvites.findUnique({
-          where: { token },
-          include: { clients: true },
-        });
-        if (prismaInvite && typeof prismaInvite === "object" && "clients" in prismaInvite) {
-          return {
-            ...(prismaInvite as Record<string, unknown>),
-            client: (prismaInvite as { clients: unknown }).clients,
-          };
-        }
-      } else if (prismaAny.clientInvite && typeof prismaAny.clientInvite === "object") {
-        const clientInvite = prismaAny.clientInvite as { findUnique: (args: { where: { token: string }; include: { client: boolean } }) => Promise<unknown> };
-        return await clientInvite.findUnique({
-          where: { token },
-          include: { client: true },
-        });
-      }
-    } catch (prismaError: unknown) {
-      const prismaErrorMessage = prismaError instanceof Error ? prismaError.message : "Unknown error";
-      console.error("lookupClientInvite: Prisma also failed:", prismaErrorMessage);
+  type ClientRow = {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string | null;
+    dateOfBirth: string | Date | null;
+  };
+
+  try {
+    // First, find the invite by token
+    const { findMany: findManyInvites } = await import("@/lib/db");
+    const invites = await findManyInvites<InviteRow>("client_invites", {
+      where: { token },
+      limit: 1,
+    });
+
+    if (!invites || invites.length === 0) {
       return null;
     }
+
+    const invite = invites[0];
+    const clientId = invite.clientId || invite.client_id;
+
+    if (!clientId) {
+      return null;
+    }
+
+    // Then, find the associated client
+    const { findUnique: findUniqueClient } = await import("@/lib/db");
+    const client = await findUniqueClient<ClientRow>("clients", { id: clientId });
+
+    if (!client) {
+      return null;
+    }
+
+    // Convert dates appropriately
+    const expiresAt = invite.expires_at instanceof Date 
+      ? invite.expires_at 
+      : invite.expires_at 
+        ? new Date(invite.expires_at) 
+        : null;
+    
+    const usedAt = invite.used_at instanceof Date 
+      ? invite.used_at 
+      : invite.used_at 
+        ? new Date(invite.used_at) 
+        : null;
+    
+    const createdAt = invite.createdAt instanceof Date 
+      ? invite.createdAt 
+      : new Date(invite.createdAt);
+    
+    const dateOfBirth = client.dateOfBirth instanceof Date 
+      ? client.dateOfBirth 
+      : client.dateOfBirth 
+        ? new Date(client.dateOfBirth) 
+        : null;
+
+    return {
+      id: invite.id,
+      clientId: clientId,
+      email: invite.email,
+      token: invite.token,
+      expiresAt: expiresAt,
+      usedAt: usedAt,
+      createdAt: createdAt,
+      client: {
+        id: client.id,
+        firstName: client.firstName,
+        lastName: client.lastName,
+        email: client.email,
+        phone: client.phone,
+        dateOfBirth: dateOfBirth,
+      },
+    };
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    console.error("lookupClientInvite: Failed:", errorMessage);
+    return null;
   }
-  
-  return null;
 }
 

@@ -48,15 +48,36 @@ export async function GET(req: NextRequest) {
   });
 
   // Fetch clients for each access record
-  const clientIds = accessRecords.map((r: any) => r.clientId);
-  const clients = await findMany("clients", {
-    where: { id: { in: clientIds } as any },
+  type AttorneyClientAccess = {
+    id: string;
+    attorneyId: string;
+    clientId: string;
+    isActive: boolean;
+    grantedAt: string;
+  };
+  
+  type ClientRecord = {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string | null;
+    dateOfBirth: string | null;
+    createdAt: string;
+    updatedAt: string;
+  };
+
+  const clientIds = (accessRecords as AttorneyClientAccess[]).map((r) => r.clientId);
+  
+  // Fetch clients using 'in' operator (supported by supabase helper)
+  const clients = await findMany<ClientRecord>("clients", {
+    where: { id: { in: clientIds } },
   });
 
   // Map clients by ID for quick lookup
-  const clientsMap = new Map(clients.map((c: any) => [c.id, c]));
+  const clientsMap = new Map(clients.map((c) => [c.id, c]));
 
-  const clientList = accessRecords.map((r: any) => {
+  const clientList = (accessRecords as AttorneyClientAccess[]).map((r) => {
     const client = clientsMap.get(r.clientId);
     if (!client) return null;
     return {
@@ -98,7 +119,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const membership = memberships[0] as any;
+    type OrgMember = {
+      id: string;
+      userId: string;
+      organizationId: string;
+      role: string;
+      createdAt: string;
+    };
+    
+    const membership = memberships[0] as OrgMember;
     const orgs = await findManyDb("organizations", {
       where: { id: membership.organizationId },
       limit: 1,
@@ -150,7 +179,7 @@ export async function POST(req: NextRequest) {
         clientId: client.id,
         isActive: true,
         grantedAt: new Date().toISOString(),
-      } as any);
+      });
 
       return {
         id: client.id,
@@ -162,11 +191,9 @@ export async function POST(req: NextRequest) {
 
     await logAuditEvent({
       action: "CLIENT_CREATED",
-      resourceType: "client",
-      resourceId: result.id,
-      details: { firstName, lastName, email },
       userId: principal.dbUserId,
-      orgId: orgId,
+      clientId: result.id,
+      metadata: { firstName, lastName, email, orgId },
     });
 
     // Track active estate count change (client created with access grant = may become active)
@@ -175,10 +202,11 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ client: result }, { status: 201 });
   } catch (e) {
-    const error = e as { status?: number };
+    const error = e as { status?: number; message?: string };
     const status = error?.status || 402;
+    const message = error?.message || "Billing required";
     return NextResponse.json(
-      { error: e?.message || "Billing required" },
+      { error: message },
       { status }
     );
   }

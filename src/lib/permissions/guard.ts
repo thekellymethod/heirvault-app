@@ -14,8 +14,15 @@ export class HttpError extends Error {
 export type AppPrincipal = {
   clerkUserId: string;
   dbUserId: string;
-  role: UserRole;
+  role: string; // User role as string (e.g., "attorney", "admin")
   roles: string[]; // Keep for backward compatibility
+};
+
+type UserRecord = {
+  id: string;
+  clerkId: string;
+  role: string;
+  roles?: string[] | null;
 };
 
 export async function requireAuthPrincipal(): Promise<AppPrincipal> {
@@ -23,17 +30,15 @@ export async function requireAuthPrincipal(): Promise<AppPrincipal> {
   if (!userId) throw new HttpError(401, "Unauthorized");
 
   // Find user by clerkId (which maps to Clerk userId)
-  // Note: Prisma model is "User" but table is "users" (via @@map)
-  const dbUser = await prisma.user.findUnique({ 
-    where: { clerkId: userId },
-    select: { id: true, clerkId: true, role: true, roles: true },
-  });
+  const { findUnique } = await import("@/lib/db");
+  const dbUser = await findUnique<UserRecord>("users", { clerkId: userId });
 
   if (!dbUser) throw new HttpError(403, "User not provisioned");
 
-  // Map UserRole enum to string for roles array compatibility
+  // Map role to string for roles array compatibility
   const roleStrings = dbUser.roles || [];
-  if (dbUser.role === UserRole.ADMIN && !roleStrings.includes("ADMIN")) {
+  // Check if role is "admin" (case-insensitive) and add ADMIN to roles array
+  if (dbUser.role?.toLowerCase() === "admin" && !roleStrings.includes("ADMIN")) {
     roleStrings.push("ADMIN");
   }
   if (dbUser.role === UserRole.attorney && !roleStrings.includes("ATTORNEY")) {
@@ -48,11 +53,20 @@ export async function requireAuthPrincipal(): Promise<AppPrincipal> {
   };
 }
 
-export function requireRole(principal: AppPrincipal, roles: UserRole[]) {
+export function requireRole(principal: AppPrincipal, roles: string[]) {
   if (!roles.includes(principal.role)) {
     throw new HttpError(403, "Forbidden");
   }
 }
+
+type AttorneyClientAccessRecord = {
+  id: string;
+  attorneyId: string;
+  clientId: string;
+  isActive: boolean;
+  canViewSensitive?: boolean;
+  canDownload?: boolean;
+};
 
 export async function requireClientAccess(params: {
   principal: AppPrincipal;
@@ -61,16 +75,21 @@ export async function requireClientAccess(params: {
   requireSensitive?: boolean;
 }) {
   // Admins can access everything (you can tighten this later with org boundaries)
-  if (params.principal.role === UserRole.ADMIN) return;
+  // Check roles array for ADMIN (admin is determined by roles array, not UserRole enum)
+  if (params.principal.roles.includes("ADMIN")) return;
 
   // Attorneys must have explicit access grant
-  const grant = await prisma.attorneyClientAccess.findFirst({
+  const { findMany } = await import("@/lib/db");
+  const grants = await findMany<AttorneyClientAccessRecord>("attorney_client_access", {
     where: {
       attorneyId: params.principal.dbUserId,
       clientId: params.clientId,
       isActive: true,
     },
+    limit: 1,
   });
+
+  const grant = grants && grants.length > 0 ? grants[0] : null;
 
   if (!grant || !grant.isActive) throw new HttpError(403, "No access to client");
 

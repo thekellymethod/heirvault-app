@@ -87,17 +87,25 @@ export async function requireVerifiedAttorney() {
   }
 
   // Check attorney profile verification
-  const attorneyResult = await prisma.$queryRawUnsafe<Array<{
-    license_status: string,
-    verified_at: Date | null;
-  }>>(
-    `SELECT license_status, verified_at FROM attorney_profiles WHERE user_id = $1 LIMIT 1`,
-    user.id
-  );
+  type AttorneyProfileRecord = {
+    licenseStatus?: string;
+    license_status?: string;
+    verifiedAt?: string | Date | null;
+    verified_at?: string | Date | null;
+    userId?: string;
+    user_id?: string;
+  };
+
+  const { findMany } = await import("@/lib/db");
+  const attorneyResults = await findMany<AttorneyProfileRecord>("attorney_profiles", {
+    where: { userId: user.id },
+    limit: 1,
+  });
   
-  const attorney = attorneyResult && attorneyResult.length > 0 ? {
-    licenseStatus: attorneyResult[0].license_status,
-    verifiedAt: attorneyResult[0].verified_at,
+  const attorneyRow = attorneyResults && attorneyResults.length > 0 ? attorneyResults[0] : null;
+  const attorney = attorneyRow ? {
+    licenseStatus: attorneyRow.licenseStatus || attorneyRow.license_status || '',
+    verifiedAt: attorneyRow.verifiedAt || attorneyRow.verified_at || null,
   } : null;
 
   if (!attorney?.verifiedAt || attorney.licenseStatus !== "ACTIVE") {

@@ -54,49 +54,91 @@ export async function GET(req: NextRequest) {
     }
 
     // Fetch policies joined with authorized clients
-    const accessRecords = await prisma.attorneyClientAccess.findMany({
+    const { findMany: findManyDb, getDb } = await import("@/lib/db");
+    const db = getDb();
+    
+    // Get access records for this attorney
+    const accessRecords = await findManyDb("attorney_client_access", {
       where: {
         attorneyId: user.id,
         isActive: true,
       },
-      include: {
-        clients: {
-          include: {
-            policies: {
-              where: searchWhere,
-              include: {
-                insurers: true,
-              },
-              orderBy: (Array.isArray(orderBy) && orderBy.length === 1 ? orderBy[0] : orderBy) as Record<string, unknown> | undefined,
-            },
-          },
-        },
-      },
     });
+    
+    // Get client IDs from access records
+    const clientIds = (accessRecords as any[]).map((r: any) => r.clientId);
+    
+    if (clientIds.length === 0) {
+      const response = createPaginationResponse([], 0, page, limit);
+      return NextResponse.json(response);
+    }
+    
+    // Fetch clients
+    const clients = await findManyDb("clients", {
+      where: { id: { in: clientIds } as any },
+    });
+    const clientsMap = new Map((clients as any[]).map((c: any) => [c.id, c]));
+    
+    // Build policies query
+    let policiesQuery = db.from("policies").select("*");
+    policiesQuery = policiesQuery.in("clientId", clientIds);
+    
+    // Apply search filters
+    if (searchTerm) {
+      policiesQuery = policiesQuery.or(`policyNumber.ilike.%${searchTerm}%,policyType.ilike.%${searchTerm}%,carrierNameRaw.ilike.%${searchTerm}%`);
+    }
+    
+    // Apply sorting
+    const sortColumn = sortBy === 'policyNumber' ? 'policyNumber' :
+                     sortBy === 'verificationStatus' ? 'verificationStatus' :
+                     'createdAt';
+    const sortAscending = sortBy === 'createdAt' ? false : true; // Default desc for createdAt
+    policiesQuery = policiesQuery.order(sortColumn, { ascending: sortAscending });
+    
+    // Apply pagination
+    policiesQuery = policiesQuery.range(skip, skip + limit - 1);
+    
+    const { data: policies, error: policiesError } = await policiesQuery;
+    if (policiesError) throw policiesError;
+    
+    // Get policy IDs and fetch insurers
+    const policyIds = (policies as any[]).map((p: any) => p.id);
+    const insurerIds = [...new Set((policies as any[]).map((p: any) => p.insurerId).filter(Boolean))];
+    
+    const insurers = insurerIds.length > 0
+      ? await findManyDb("insurers", {
+          where: { id: { in: insurerIds } as any },
+        })
+      : [];
+    const insurersMap = new Map((insurers as any[]).map((i: any) => [i.id, i]));
 
-    const rows = accessRecords.flatMap((access: typeof accessRecords[number]) =>
-      access.clients.policies.map((policy: typeof access.clients.policies[number]) => ({
+    // Map policies to rows with client and insurer info
+    const rows = (policies as any[]).map((policy: any) => {
+      const client = clientsMap.get(policy.clientId);
+      const insurer = policy.insurerId ? insurersMap.get(policy.insurerId) : null;
+      
+      return {
         policy: {
           id: policy.id,
           policyNumber: policy.policyNumber,
           policyType: policy.policyType,
           carrierNameRaw: policy.carrierNameRaw,
-          verificationStatus: (policy as { verificationStatus?: string }).verificationStatus || 'PENDING',
+          verificationStatus: policy.verificationStatus || 'PENDING',
           createdAt: policy.createdAt,
           updatedAt: policy.updatedAt,
         },
-        client: {
-          id: access.clients.id,
-          firstName: access.clients.firstName,
-          lastName: access.clients.lastName,
-          email: access.clients.email,
-        },
-        insurer: policy.insurers ? {
-          id: policy.insurers.id,
-          name: policy.insurers.name,
+        client: client ? {
+          id: client.id,
+          firstName: client.firstName,
+          lastName: client.lastName,
+          email: client.email,
         } : null,
-      }))
-    );
+        insurer: insurer ? {
+          id: insurer.id,
+          name: insurer.name,
+        } : null,
+      };
+    });
 
     const policiesList = rows.map((r: typeof rows[number]) => {
       const displayName = r.insurer?.name ?? r.policy.carrierNameRaw ?? "Unknown";

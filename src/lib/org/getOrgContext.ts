@@ -3,31 +3,54 @@
 import { HttpError } from "@/lib/permissions/guard";
 import type { AppPrincipal } from "@/lib/permissions/guard";
 
+type OrgMemberRecord = {
+  id: string;
+  userId: string;
+  organizationId: string;
+  role: string | null;
+};
+
+type OrganizationRecord = {
+  id: string;
+  name: string;
+  billingStatus?: string | null;
+  currentPeriodEnd?: string | Date | null;
+  stripeCustomerId?: string | null;
+};
+
 export async function getOrgContext(principal: AppPrincipal) {
-  const membership = await prisma.org_members.findFirst({
+  const { findMany: findManyMembers, findUnique: findUniqueOrg } = await import("@/lib/db");
+  
+  // Get organization membership
+  const memberships = await findManyMembers<OrgMemberRecord>("org_members", {
     where: { userId: principal.dbUserId },
-    select: {
-      organizationId: true,
-      role: true,
-      organizations: {
-        select: {
-          id: true,
-          name: true,
-          billingStatus: true,
-          currentPeriodEnd: true,
-          stripeCustomerId: true,
-        },
-      },
-    },
+    limit: 1,
   });
 
-  if (!membership) {
+  if (!memberships || memberships.length === 0) {
     throw new HttpError(403, "No organization");
+  }
+
+  const membership = memberships[0];
+
+  // Get organization details
+  const org = await findUniqueOrg<OrganizationRecord>("organizations", { 
+    id: membership.organizationId 
+  });
+
+  if (!org) {
+    throw new HttpError(403, "Organization not found");
   }
 
   return {
     orgId: membership.organizationId,
-    org: membership.organizations,
+    org: {
+      id: org.id,
+      name: org.name,
+      billingStatus: org.billingStatus || null,
+      currentPeriodEnd: org.currentPeriodEnd || null,
+      stripeCustomerId: org.stripeCustomerId || null,
+    },
     orgRole: membership.role ?? null,
   };
 }

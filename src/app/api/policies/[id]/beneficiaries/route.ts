@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-;
 import { requireAuth } from "@/lib/utils/clerk";
 import { randomUUID } from "crypto";
 
@@ -20,20 +19,26 @@ export async function POST(
       );
     }
 
-    const policy = await prisma.policies.findUnique({
-      where: { id: policyId },
-      select: { id: true, clientId: true },
-    });
+    const { findUnique, findMany, create: createDb } = await import("@/lib/db");
+    
+    type PolicyRecord = {
+      id: string;
+      clientId: string;
+    };
+    
+    type BeneficiaryRecord = {
+      id: string;
+      clientId: string;
+    };
+
+    const policy = await findUnique<PolicyRecord>("policies", { id: policyId });
 
     if (!policy) {
       return NextResponse.json({ error: "Policy not found" }, { status: 404 });
     }
 
     // Ensure beneficiary exists and belongs to same client
-    const beneficiary = await prisma.beneficiaries.findUnique({
-      where: { id: beneficiaryId },
-      select: { id: true, clientId: true },
-    });
+    const beneficiary = await findUnique<BeneficiaryRecord>("beneficiaries", { id: beneficiaryId });
 
     if (!beneficiary || beneficiary.clientId !== policy.clientId) {
       return NextResponse.json(
@@ -42,22 +47,20 @@ export async function POST(
       );
     }
 
-    const existingLink = await prisma.policy_beneficiaries.findFirst({
+    const existingLinks = await findMany("policy_beneficiaries", {
       where: { policyId, beneficiaryId },
-      select: { id: true },
+      limit: 1,
     });
 
-    if (existingLink) {
+    if (existingLinks && existingLinks.length > 0) {
       return NextResponse.json({ ok: true, alreadyAttached: true });
     }
 
-    await prisma.policy_beneficiaries.create({
-      data: {
-        id: randomUUID(),
-        policyId,
-        beneficiaryId,
-        // DO NOT set createdAt/updatedAt if Prisma handles them
-      },
+    await createDb("policy_beneficiaries", {
+      id: randomUUID(),
+      policyId,
+      beneficiaryId,
+      createdAt: new Date().toISOString(),
     });
 
     return NextResponse.json({ ok: true });

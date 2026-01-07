@@ -1,5 +1,3 @@
-// Prisma removed - database access needs to be implemented
-// import { prisma } from '@/lib/db'
 import { logAuditEvent } from '@/lib/audit'
 import crypto from 'crypto'
 import { randomUUID } from 'crypto'
@@ -14,18 +12,29 @@ export async function createInvite(
   const expiresAt = new Date()
   expiresAt.setDate(expiresAt.getDate() + 7) // 7 days expiry
 
+  type InviteRecord = {
+    id: string;
+    token: string;
+    attorneyId: string;
+    organizationId: string | null;
+    clientEmail: string;
+    expiresAt: string;
+    status: string;
+    createdAt: string;
+  };
+
   const inviteId = randomUUID();
-  await prisma.$executeRawUnsafe(
-    `INSERT INTO invites (id, token, attorney_id, organization_id, client_email, expires_at, status, createdAt)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())`,
-    inviteId,
+  const { create: createDb } = await import("@/lib/db");
+  await createDb<InviteRecord>("invites", {
+    id: inviteId,
     token,
     attorneyId,
-    organizationId || null,
+    organizationId: organizationId || null,
     clientEmail,
-    expiresAt,
-    'pending'
-  );
+    expiresAt: expiresAt.toISOString(),
+    status: 'pending',
+    createdAt: new Date().toISOString(),
+  });
 
   const invite = {
     id: inviteId,
@@ -39,12 +48,11 @@ export async function createInvite(
     createdAt: new Date(),
   };
 
+  const { AuditAction } = await import("@/lib/db/enums");
   await logAuditEvent({
-    action: 'create',
-    resourceType: 'invite',
-    resourceId: invite.id,
-    details: { clientEmail },
+    action: AuditAction.INVITE_CREATED,
     userId: attorneyId,
+    metadata: { inviteId: invite.id, clientEmail },
   })
 
   return { ...invite, inviteUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/invite/${token}` }
@@ -52,36 +60,43 @@ export async function createInvite(
 
 export async function acceptInvite(token: string, userId: string) {
   // Get invite
-  const inviteResult = await prisma.$queryRawUnsafe<Array<{
-    id: string,
-    token: string,
-    attorney_id: string,
-    organization_id: string | null;
-    client_email: string,
-    status: string,
-    expires_at: Date;
-    accepted_at: Date | null;
-    createdAt: Date;
-  }>>(
-    `SELECT id, token, attorney_id, organization_id, client_email, status, expires_at, accepted_at, createdAt
-     FROM invites WHERE token = $1 LIMIT 1`,
-    token
-  );
+  type InviteRow = {
+    id: string;
+    token: string;
+    attorneyId?: string;
+    attorney_id?: string;
+    organizationId?: string | null;
+    organization_id?: string | null;
+    clientEmail?: string;
+    client_email?: string;
+    status: string;
+    expiresAt?: string | Date;
+    expires_at?: string | Date;
+    acceptedAt?: string | Date | null;
+    accepted_at?: string | Date | null;
+    createdAt: string;
+  };
 
-  if (!inviteResult || inviteResult.length === 0) {
+  const { findMany: findManyInvites, update: updateInviteExpired } = await import("@/lib/db");
+  const invites = await findManyInvites<InviteRow>("invites", {
+    where: { token },
+    limit: 1,
+  });
+
+  if (!invites || invites.length === 0) {
     throw new Error('Invalid or expired invite');
   }
 
-  const inviteRow = inviteResult[0];
+  const inviteRow = invites[0];
   const invite = {
     id: inviteRow.id,
     token: inviteRow.token,
-    attorneyId: inviteRow.attorney_id,
-    organizationId: inviteRow.organization_id,
-    clientEmail: inviteRow.client_email,
+    attorneyId: inviteRow.attorneyId || inviteRow.attorney_id || '',
+    organizationId: inviteRow.organizationId || inviteRow.organization_id || null,
+    clientEmail: inviteRow.clientEmail || inviteRow.client_email || '',
     status: inviteRow.status,
-    expiresAt: inviteRow.expires_at,
-    acceptedAt: inviteRow.accepted_at,
+    expiresAt: inviteRow.expiresAt || inviteRow.expires_at || '',
+    acceptedAt: inviteRow.acceptedAt || inviteRow.accepted_at || null,
     createdAt: inviteRow.createdAt,
   };
 
@@ -90,49 +105,55 @@ export async function acceptInvite(token: string, userId: string) {
   }
 
   // Check expiry
-  if (invite.expiresAt < new Date()) {
-    await prisma.$executeRawUnsafe(
-      `UPDATE invites SET status = $1 WHERE id = $2`,
-      'expired',
-      invite.id
-    );
+  const expiresAtDate = invite.expiresAt instanceof Date ? invite.expiresAt : new Date(invite.expiresAt);
+  if (expiresAtDate < new Date()) {
+    await updateInviteExpired("invites", { id: invite.id }, {
+      status: 'expired',
+      updatedAt: new Date().toISOString(),
+    });
     
     throw new Error('Invite has expired');
   }
 
   // Get user to link client record
-  const userResult = await prisma.$queryRawUnsafe<Array<{
-    id: string,
-    email: string,
+  type UserRecord = {
+    id: string;
+    email: string;
     firstName: string | null;
     lastName: string | null;
-  }>>(
-    `SELECT id, email, firstName, lastName FROM users WHERE id = $1 LIMIT 1`,
-    userId
-  );
+  };
 
-  if (!userResult || userResult.length === 0) {
+  const { findUnique } = await import("@/lib/db");
+  const userRecord = await findUnique<UserRecord>("users", { id: userId });
+
+  if (!userRecord) {
     throw new Error('User not found');
   }
 
   const user = {
-    id: userResult[0].id,
-    email: userResult[0].email,
-    firstName: userResult[0].firstName,
-    lastName: userResult[0].lastName,
+    id: userRecord.id,
+    email: userRecord.email,
+    firstName: userRecord.firstName,
+    lastName: userRecord.lastName,
   };
 
   // Get or create client record
-  const clientResult = await prisma.$queryRawUnsafe<Array<{
-    id: string,
-    email: string,
-    firstName: string,
-    lastName: string,
-    user_id: string | null;
-  }>>(
-    `SELECT id, email, firstName, lastName, user_id FROM clients WHERE email = $1 LIMIT 1`,
-    invite.clientEmail
-  );
+  type ClientRecord = {
+    id: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+    userId?: string | null;
+    user_id?: string | null;
+    createdAt?: string;
+    updatedAt?: string;
+  };
+
+  const { findMany: findManyClients, create: createClient, update: updateClientRecord } = await import("@/lib/db");
+  const existingClients = await findManyClients<ClientRecord>("clients", {
+    where: { email: invite.clientEmail },
+    limit: 1,
+  });
 
   let client: {
     id: string,
@@ -142,90 +163,113 @@ export async function acceptInvite(token: string, userId: string) {
     userId: string | null;
   };
 
-  if (!clientResult || clientResult.length === 0) {
+  if (!existingClients || existingClients.length === 0) {
     // Create client record
     const clientId = randomUUID();
-    await prisma.$executeRawUnsafe(
-      `INSERT INTO clients (id, email, firstName, lastName, user_id, createdAt, updated_at)
-       VALUES ($1, $2, $3, $4, $5, NOW(), NOW())`,
-      clientId,
-      invite.clientEmail,
-      user.firstName || '',
-      user.lastName || '',
-      user.id
-    );
-    client = {
+    const newClient = await createClient<ClientRecord>("clients", {
       id: clientId,
       email: invite.clientEmail,
       firstName: user.firstName || '',
       lastName: user.lastName || '',
       userId: user.id,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+    client = {
+      id: newClient.id,
+      email: newClient.email,
+      firstName: newClient.firstName,
+      lastName: newClient.lastName,
+      userId: newClient.userId || newClient.user_id || user.id,
     };
   } else {
-    const clientRow = clientResult[0];
+    const clientRow = existingClients[0];
     client = {
       id: clientRow.id,
       email: clientRow.email,
       firstName: clientRow.firstName,
       lastName: clientRow.lastName,
-      userId: clientRow.user_id,
+      userId: clientRow.userId || clientRow.user_id || null,
     };
 
     if (!client.userId && user.id) {
       // Link existing client to user account
-      await prisma.$executeRawUnsafe(
-        `UPDATE clients SET user_id = $1, updated_at = NOW() WHERE id = $2`,
-        user.id,
-        client.id
-      );
+      await updateClientRecord("clients", { id: client.id }, {
+        userId: user.id,
+        updatedAt: new Date().toISOString(),
+      });
       client.userId = user.id;
     }
   }
 
   // Grant attorney access
+  type AttorneyClientAccessRecord = {
+    id: string;
+    attorneyId?: string;
+    attorney_id?: string;
+    clientId?: string;
+    client_id?: string;
+    organizationId?: string | null;
+    organization_id?: string | null;
+    isActive?: boolean;
+    is_active?: boolean;
+    grantedAt?: string;
+    granted_at?: string;
+  };
+
+  const { create: createAccess, findMany: findManyAccess, update: updateAccess } = await import("@/lib/db");
+  
   try {
     const accessId = randomUUID();
-    await prisma.$executeRawUnsafe(
-      `INSERT INTO attorneyClientAccess (id, attorney_id, client_id, organization_id, is_active, granted_at)
-       VALUES ($1, $2, $3, $4, $5, NOW())`,
-      accessId,
-      invite.attorneyId,
-      client.id,
-      invite.organizationId || null,
-      true
-    );
+    await createAccess<AttorneyClientAccessRecord>("attorney_client_access", {
+      id: accessId,
+      attorneyId: invite.attorneyId,
+      clientId: client.id,
+      organizationId: invite.organizationId || null,
+      isActive: true,
+      grantedAt: new Date().toISOString(),
+    });
   } catch (error: unknown) {
     // May already exist, check if active
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    const existingResult = await prisma.$queryRawUnsafe<Array<{
-      id: string,
-      attorney_id: string,
-      clientId:string,
-      is_active: boolean;
-    }>>(
-      `SELECT id, attorney_id, client_id, is_active
-       FROM attorneyClientAccess
-       WHERE attorney_id = $1 AND client_id = $2
-       LIMIT 1`,
-      invite.attorneyId,
-      client.id
-    );
+    
+    // Try to find existing access record
+    let existingResults = await findManyAccess<AttorneyClientAccessRecord>("attorney_client_access", {
+      where: {
+        attorneyId: invite.attorneyId,
+        clientId: client.id,
+      },
+      limit: 1,
+    });
 
-    const existing = existingResult && existingResult.length > 0 ? {
-      id: existingResult[0].id,
-      attorneyId: existingResult[0].attorney_id,
-      clientId: existingResult[0].clientId,
-      isActive: existingResult[0].is_active,
+    // If not found with camelCase, try snake_case using direct Supabase query
+    if (!existingResults || existingResults.length === 0) {
+      const { getDb } = await import("@/lib/db");
+      const db = getDb();
+      const { data } = await db
+        .from("attorney_client_access")
+        .select("*")
+        .eq("attorney_id", invite.attorneyId)
+        .eq("client_id", client.id)
+        .limit(1);
+      existingResults = (data || []) as AttorneyClientAccessRecord[];
+    }
+
+    const existing = existingResults && existingResults.length > 0 ? {
+      id: existingResults[0].id,
+      attorneyId: existingResults[0].attorneyId || existingResults[0].attorney_id || invite.attorneyId,
+      clientId: existingResults[0].clientId || existingResults[0].client_id || client.id,
+      isActive: existingResults[0].isActive ?? existingResults[0].is_active ?? false,
     } : null;
 
     if (!existing || !existing.isActive) {
       // Update to active if exists but inactive
       if (existing) {
-        await prisma.$executeRawUnsafe(
-          `UPDATE attorneyClientAccess SET is_active = $1, revoked_at = NULL WHERE id = $2`,
-          true,
-          existing.id
-        );
+        await updateAccess("attorney_client_access", { id: existing.id }, {
+          isActive: true,
+          revokedAt: null,
+          updatedAt: new Date().toISOString(),
+        });
       } else {
         throw new Error(`Failed to grant access: ${errorMessage}`);
       }
@@ -233,20 +277,19 @@ export async function acceptInvite(token: string, userId: string) {
   }
 
   // Update invite status
-  await prisma.$executeRawUnsafe(
-    `UPDATE invites SET status = $1, accepted_at = NOW() WHERE id = $2`,
-    'accepted',
-    invite.id
-  );
+  const { update: updateInviteStatus } = await import("@/lib/db");
+  await updateInviteStatus("invites", { id: invite.id }, {
+    status: 'accepted',
+    acceptedAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  });
 
+  const { AuditAction } = await import("@/lib/db/enums");
   await logAuditEvent({
-    action: 'update',
-    resourceType: 'invite',
-    resourceId: invite.id,
-    details: { status: 'accepted' },
+    action: AuditAction.INVITE_ACCEPTED,
     userId,
+    metadata: { inviteId: invite.id, status: 'accepted' },
   })
 
   return client
 }
-

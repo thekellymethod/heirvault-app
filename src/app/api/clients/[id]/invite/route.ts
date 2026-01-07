@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
 import { requireAuthApi } from '@/lib/utils/clerk'
 import { logAuditEvent } from '@/lib/audit'
 import { sendClientInviteEmail } from '@/lib/email'
@@ -28,9 +27,8 @@ export async function POST(req: NextRequest, { params }: Params) {
     }
 
     // Verify client exists
-    const client = await prisma.clients.findFirst({
-      where: { id },
-    });
+    const { findUnique, create: createDb } = await import("@/lib/db");
+    const client = await findUnique("clients", { id });
 
     if (!client) {
       return NextResponse.json(
@@ -47,17 +45,15 @@ export async function POST(req: NextRequest, { params }: Params) {
     expiresAt.setDate(expiresAt.getDate() + 14) // 14-day expiry
 
     const inviteId = randomUUID();
-    const invite = await prisma.client_invites.create({
-      data: {
-        id: inviteId,
-        clientId: id,
-        email,
-        token,
-        expiresAt: expiresAt,
-        invitedByUserId: user.id,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
+    const invite = await createDb("client_invites", {
+      id: inviteId,
+      clientId: id,
+      email,
+      token,
+      expiresAt: expiresAt.toISOString(),
+      invitedByUserId: user.id,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     });
 
     const baseUrl =
@@ -85,10 +81,13 @@ export async function POST(req: NextRequest, { params }: Params) {
 
     await logAuditEvent({
       action: 'INVITE_CREATED',
-      resourceType: 'client_invite',
-      resourceId: inviteId,
-      details: { email, clientId: id },
       userId: user.id,
+      metadata: { 
+        resourceType: 'client_invite',
+        resourceId: inviteId,
+        email, 
+        clientId: id 
+      },
     })
 
     return NextResponse.json(

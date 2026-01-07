@@ -58,25 +58,24 @@ async function logTokenUsage(
 
     // Update lastUsed fields (rate-limited: only update if last update was > 1 minute ago)
     // This prevents excessive DB writes on high-frequency token usage
-    await prisma.apiToken.update({
-      where: { id: tokenRecord.id },
-      data: {
-        lastUsedAt: new Date(),
-        lastUsedIp: ip,
-        lastUsedPath: path,
-      },
-    });
+    const { update: updateDb, create: createAudit } = await import("@/lib/db");
+    const { randomUUID } = await import("crypto");
+    
+    await updateDb("api_tokens", { id: tokenRecord.id }, {
+      lastUsedAt: new Date().toISOString(),
+      lastUsedIp: ip,
+      lastUsedPath: path,
+      updatedAt: new Date().toISOString(),
+    } as any);
 
     // Audit log
-    await prisma.audit_logs.create({
-      data: {
-        id: crypto.randomUUID(),
-        userId: tokenRecord.createdById,
-        action: "API_TOKEN_USED",
-        message: `API token used: tokenId=${tokenRecord.id}, path=${path}, scopes=${checkedScopes.join(",") || "none"}`,
-        createdAt: new Date(),
-      },
-    });
+    await createAudit("audit_logs", {
+      id: randomUUID(),
+      userId: tokenRecord.createdById,
+      action: "API_TOKEN_USED",
+      message: `API token used: tokenId=${tokenRecord.id}, path=${path}, scopes=${checkedScopes.join(",") || "none"}`,
+      createdAt: new Date().toISOString(),
+    } as any);
   } catch (error) {
     // Don't fail the request if audit logging fails, but log the error
     console.error("Failed to log API token usage:", error);

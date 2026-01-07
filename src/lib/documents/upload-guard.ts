@@ -6,7 +6,6 @@
 
 // Prisma removed - database access needs to be implemented
 // import { prisma, writeAuditLog } from "@/lib/db";
-import { requireAuthPrincipal } from "@/lib/permissions/guard";
 import { getEffectiveTier } from "@/lib/contracts/features";
 import { checkDocumentUploadPermission } from "./permissions";
 import { getDocumentCategory } from "./taxonomy";
@@ -35,11 +34,13 @@ export async function checkUploadPermission(
   let orgId = organizationId;
   
   if (!orgId && clientId) {
-    const client = await prisma.clients.findUnique({
-      where: { id: clientId },
-      select: { orgId: true },
-    });
-    orgId = client?.orgId || null;
+    const { findUnique } = await import("@/lib/db");
+    type ClientRecord = {
+      orgId?: string | null;
+      organizationId?: string | null;
+    };
+    const client = await findUnique<ClientRecord>("clients", { id: clientId });
+    orgId = client?.orgId || client?.organizationId || null;
   }
 
   // If no organization, allow upload (public uploads without org context)
@@ -84,15 +85,20 @@ async function logRestrictedUploadAttempt(input: {
   endpoint: string;
 }): Promise<void> {
   try {
-    // Use a generic action that exists in the enum, or extend the enum
-    // For now, we'll use DOCUMENT_UPLOADED with metadata indicating it was blocked
-    await writeAuditLog({
-      action: "DOCUMENT_UPLOADED", // Using existing action, blocked status in metadata
-      message: `Restricted document upload attempt blocked: ${input.fileName} (category: ${input.category || "UNCATEGORIZED"}, endpoint: ${input.endpoint})`,
-      userId: input.userId,
-      orgId: input.organizationId,
+    // Use audit logging
+    const { auditLog } = await import("@/lib/audit");
+    await auditLog({
+      actorType: "ATTORNEY",
+      actorId: input.userId,
       clientId: null,
-      policyId: null,
+      inviteId: null,
+      action: "DOCUMENT_UPLOAD_BLOCKED",
+      metadata: {
+        organizationId: input.organizationId,
+        category: input.category || "UNCATEGORIZED",
+        fileName: input.fileName,
+        endpoint: input.endpoint,
+      },
     });
 
     // Log structured data for easier querying
@@ -127,7 +133,6 @@ export async function requireUploadPermission(
     const { HttpError } = await import("@/lib/permissions/guard");
     throw new HttpError(
       403,
-      error.code,
       `Document upload blocked: ${error.reason}. Required tier: ${error.requiredTier}`
     );
   }
