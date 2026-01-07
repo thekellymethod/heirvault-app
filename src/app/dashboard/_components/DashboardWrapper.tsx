@@ -1,9 +1,15 @@
 "use client";
 
 import { DashboardLayout } from "./DashboardLayout";
+import { GlobalKeyboardShortcuts } from "@/components/KeyboardShortcuts";
 
 export function DashboardWrapper({ children }: { children: React.ReactNode }) {
-  return <DashboardLayout>{children}</DashboardLayout>;
+  return (
+    <>
+      <GlobalKeyboardShortcuts />
+      <DashboardLayout>{children}</DashboardLayout>
+    </>
+  );
 }
 
 

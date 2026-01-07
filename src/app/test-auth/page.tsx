@@ -1,15 +1,13 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { getCurrentUser } from "@/lib/utils/clerk";
+import { notFound } from "next/navigation";
 ;
 
 export default async function TestAuthPage() {
+  // Only available in development mode
   if (process.env.NODE_ENV === "production") {
-    return (
-      <div className="p-8 max-w-4xl mx-auto bg-white min-h-screen">
-        <h1 className="text-2xl font-bold mb-4 text-slate-900">Access Denied</h1>
-        <p className="text-slate-600">This page is only available in development mode.</p>
-      </div>
-    );
+    // Return 404 in production
+    notFound();
   }
 
   const { userId } = await auth();

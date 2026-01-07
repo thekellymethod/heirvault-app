@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { PageLoadingSkeleton } from "@/components/ui/loading";
 
 async function getJson(url: string) {
   const res = await fetch(url);
@@ -83,11 +84,18 @@ export default function ReviewQueueClient() {
   const approveDoc = async (documentId: string) => {
     setBusyId(documentId);
     try {
-      await postJson(`/api/review/documents/${documentId}/approve`, {});
+      const { showPromise } = await import("@/lib/toast");
+      await showPromise(
+        postJson(`/api/review/documents/${documentId}/approve`, {}),
+        {
+          loading: "Approving document...",
+          success: "Document approved successfully!",
+          error: (err) => err instanceof Error ? err.message : "Failed to approve",
+        }
+      );
       await load();
     } catch (e) {
-      const error = e as Error;
-      alert(error?.message ?? "Failed to approve");
+      // Error already handled by showPromise
     } finally {
       setBusyId(null);
     }
@@ -98,11 +106,18 @@ export default function ReviewQueueClient() {
     if (!reason || reason.trim().length < 5) return;
     setBusyId(documentId);
     try {
-      await postJson(`/api/review/documents/${documentId}/reject`, { reason });
+      const { showPromise } = await import("@/lib/toast");
+      await showPromise(
+        postJson(`/api/review/documents/${documentId}/reject`, { reason }),
+        {
+          loading: "Rejecting document...",
+          success: "Document rejected.",
+          error: (err) => err instanceof Error ? err.message : "Failed to reject",
+        }
+      );
       await load();
     } catch (e) {
-      const error = e as Error;
-      alert(error?.message ?? "Failed to reject");
+      // Error already handled by showPromise
     } finally {
       setBusyId(null);
     }
@@ -110,16 +125,22 @@ export default function ReviewQueueClient() {
 
   const previewDoc = async (documentId: string) => {
     try {
+      const { showError } = await import("@/lib/toast");
       const r = await getJson(`/api/documents/${documentId}/preview`) as { url?: string };
-      if (r?.url) window.open(r.url, "_blank", "noopener,noreferrer");
+      if (r?.url) {
+        window.open(r.url, "_blank", "noopener,noreferrer");
+      } else {
+        showError("Preview URL not available");
+      }
     } catch (e) {
+      const { showError } = await import("@/lib/toast");
       const error = e as Error;
-      alert(error?.message ?? "Failed to preview");
+      showError(error?.message ?? "Failed to preview");
     }
   };
 
   if (err) return <div className="p-6 text-red-600">{err}</div>;
-  if (!data) return <div className="p-6">Loading…</div>;
+  if (!data) return <PageLoadingSkeleton />;
 
   const docs = data.documents ?? [];
   const crs = data.changeRequests ?? [];

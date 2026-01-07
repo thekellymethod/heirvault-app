@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import Script from "next/script";
+import { PageLoadingSkeleton } from "@/components/ui/loading";
 import InvoicesPanel from "./InvoicesPanel";
 
 async function getJson(url: string) {
@@ -44,7 +45,7 @@ function BillingClientInner() {
     }
   };
 
-  if (!org) return <div className="p-6">Loading…</div>;
+  if (!org) return <PageLoadingSkeleton />;
 
   const active = org.subscriptionStatus === "ACTIVE" || org.subscriptionStatus === "TRIALING";
 

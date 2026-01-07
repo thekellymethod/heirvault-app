@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, UserPlus, Users } from "lucide-react";
 import { ListSkeleton } from "@/components/ui/skeleton";
 import { EmptyListState } from "@/components/ui/empty-state";
+import { FormField } from "@/components/ui/form-field";
 
 type Beneficiary = {
   id: string,
@@ -57,23 +58,73 @@ export default function ClientBeneficiariesPage() {
 
   async function createBeneficiary() {
     setError(null);
+    
+    // Validate required fields
+    const errors: string[] = [];
+    if (!firstName.trim()) errors.push("First name is required");
+    if (!lastName.trim()) errors.push("Last name is required");
+    if (!relationship.trim()) errors.push("Relationship is required");
+    
+    // Validate email if provided
+    if (email.trim()) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email.trim())) {
+        errors.push("Please enter a valid email address");
+      }
+    }
+    
+    // Validate phone if provided
+    if (phone.trim()) {
+      const phoneRegex = /^[\+]?[(]?[0-9]{1,4}[)]?[-\s\.]?[(]?[0-9]{1,4}[)]?[-\s\.]?[0-9]{1,9}$/;
+      const cleanedPhone = phone.replace(/\D/g, "");
+      if (cleanedPhone.length < 10) {
+        errors.push("Please enter a valid phone number");
+      }
+    }
+    
+    // Validate date of birth if provided
+    if (dateOfBirth) {
+      const date = new Date(dateOfBirth);
+      if (isNaN(date.getTime())) {
+        errors.push("Please enter a valid date of birth");
+      } else if (date > new Date()) {
+        errors.push("Date of birth cannot be in the future");
+      }
+    }
+    
+    if (errors.length > 0) {
+      setError(errors.join(". "));
+      return;
+    }
+    
     setSaving(true);
     try {
-      const res = await fetch(`/api/beneficiaries`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          clientId,
-          firstName: firstName.trim(),
-          lastName: lastName.trim(),
-          relationship: relationship.trim(),
-          email: email.trim() || null,
-          phone: phone.trim() || null,
-          dateOfBirth: dateOfBirth || null,
+      const { showPromise } = await import("@/lib/toast");
+      
+      await showPromise(
+        fetch(`/api/beneficiaries`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            clientId,
+            firstName: firstName.trim(),
+            lastName: lastName.trim(),
+            relationship: relationship.trim(),
+            email: email.trim() || null,
+            phone: phone.trim() || null,
+            dateOfBirth: dateOfBirth || null,
+          }),
+        }).then(async (res) => {
+          const data = await res.json();
+          if (!res.ok) throw new Error(data?.error || "Failed to create beneficiary");
+          return data;
         }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || "Failed to create beneficiary");
+        {
+          loading: "Creating beneficiary...",
+          success: "Beneficiary added successfully!",
+          error: (err) => err instanceof Error ? err.message : "Failed to create beneficiary",
+        }
+      );
 
       setOpen(false);
       setFirstName("");
@@ -84,7 +135,8 @@ export default function ClientBeneficiariesPage() {
       setDateOfBirth("");
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unknown error");
+      const error = e instanceof Error ? e.message : "Unknown error";
+      setError(error);
     } finally {
       setSaving(false);
     }
@@ -126,32 +178,24 @@ export default function ClientBeneficiariesPage() {
           <div className="card p-6">
             <h2 className="font-display text-xl font-semibold text-ink-900 mb-6">Add New Beneficiary</h2>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
-              <div>
-                <label className="label mb-1 block">
-                  First Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
-                  required
-                  className="input"
-                  placeholder="Enter first name"
-                />
-              </div>
-              <div>
-                <label className="label mb-1 block">
-                  Last Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
-                  required
-                  className="input"
-                  placeholder="Enter last name"
-                />
-              </div>
+              <FormField
+                label="First Name"
+                name="firstName"
+                type="text"
+                value={firstName}
+                onChange={setFirstName}
+                required
+                placeholder="Enter first name"
+              />
+              <FormField
+                label="Last Name"
+                name="lastName"
+                type="text"
+                value={lastName}
+                onChange={setLastName}
+                required
+                placeholder="Enter last name"
+              />
               <div>
                 <label className="label mb-1 block" htmlFor="relationship-select">
                   Relationship <span className="text-red-500">*</span>
@@ -161,7 +205,7 @@ export default function ClientBeneficiariesPage() {
                   value={relationship}
                   onChange={(e) => setRelationship(e.target.value)}
                   required
-                  className="input"
+                  className={`input ${!relationship ? "border-rose-500" : ""}`}
                   aria-label="Relationship"
                 >
                   <option value="">Select relationship</option>
@@ -176,40 +220,36 @@ export default function ClientBeneficiariesPage() {
                   <option value="Business Partner">Business Partner</option>
                   <option value="Other">Other</option>
                 </select>
+                {!relationship && (
+                  <p className="mt-1 text-xs text-rose-600">Relationship is required</p>
+                )}
               </div>
-              <div>
-                <label className="label mb-1 block">Email</label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="input"
-                  placeholder="Enter email address"
-                />
-              </div>
-              <div>
-                <label className="label mb-1 block">Phone</label>
-                <input
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  className="input"
-                  placeholder="Enter phone number"
-                />
-              </div>
-              <div>
-                <label className="label mb-1 block" htmlFor="date-of-birth-input">
-                  Date of Birth
-                </label>
-                <input
-                  id="date-of-birth-input"
-                  type="date"
-                  value={dateOfBirth}
-                  onChange={(e) => setDateOfBirth(e.target.value)}
-                  className="input"
-                  aria-label="Date of Birth"
-                />
-              </div>
+              <FormField
+                label="Email"
+                name="email"
+                type="email"
+                value={email}
+                onChange={setEmail}
+                placeholder="Enter email address"
+                helpText="Optional"
+              />
+              <FormField
+                label="Phone"
+                name="phone"
+                type="tel"
+                value={phone}
+                onChange={setPhone}
+                placeholder="Enter phone number"
+                helpText="Optional"
+              />
+              <FormField
+                label="Date of Birth"
+                name="dateOfBirth"
+                type="date"
+                value={dateOfBirth}
+                onChange={setDateOfBirth}
+                helpText="Optional"
+              />
             </div>
             <div className="mt-6 flex justify-end gap-3">
               <Button

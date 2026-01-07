@@ -3,6 +3,10 @@
 import * as React from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { LoadingText } from "@/components/ui/loading";
+import { ListSkeleton } from "@/components/ui/skeleton";
+import { EmptyListState } from "@/components/ui/empty-state";
+import { FormField } from "@/components/ui/form-field";
 
 type Beneficiary = {
   id: string,
@@ -101,25 +105,45 @@ export default function ClientPoliciesPage() {
 
   async function createPolicy() {
     setError(null);
+    
+    // Validate required fields
+    if (!insurerId.trim()) {
+      setError("Please select an insurer");
+      return;
+    }
+
     try {
-      const res = await fetch(`/api/clients/${clientId}/policies`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          insurerId: insurerId.trim(),
-          policyNumber: policyNumber.trim() || null,
-          policyType: policyType.trim() || null,
+      const { showPromise } = await import("@/lib/toast");
+      
+      await showPromise(
+        fetch(`/api/clients/${clientId}/policies`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            insurerId: insurerId.trim(),
+            policyNumber: policyNumber.trim() || null,
+            policyType: policyType.trim() || null,
+          }),
+        }).then(async (res) => {
+          const data = await res.json();
+          if (!res.ok) throw new Error(data?.error || "Failed to create policy");
+          return data;
         }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || "Failed to create policy");
+        {
+          loading: "Creating policy...",
+          success: "Policy created successfully!",
+          error: (err) => err instanceof Error ? err.message : "Failed to create policy",
+        }
+      );
+      
       setCreateOpen(false);
       setInsurerId("");
       setPolicyNumber("");
       setPolicyType("");
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unknown error");
+      const error = e instanceof Error ? e.message : "Unknown error";
+      setError(error);
     }
   }
 
@@ -185,10 +209,33 @@ export default function ClientPoliciesPage() {
                 </p>
               )}
             </div>
-            <Field label="Policy Number" value={policyNumber} onChange={setPolicyNumber} />
-            <Field label="Policy Type" value={policyType} onChange={setPolicyType} />
+            <div className="block">
+              <FormField
+                label="Policy Number"
+                name="policyNumber"
+                type="text"
+                value={policyNumber}
+                onChange={setPolicyNumber}
+                placeholder="Optional"
+                helpText="Policy number from the insurance company"
+              />
+            </div>
+            <div className="block">
+              <FormField
+                label="Policy Type"
+                name="policyType"
+                type="text"
+                value={policyType}
+                onChange={setPolicyType}
+                placeholder="Optional (e.g., Term, Whole Life)"
+                helpText="Type of life insurance policy"
+              />
+            </div>
           </div>
-          <div className="mt-6 flex justify-end">
+          <div className="mt-6 flex justify-end gap-3">
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>
+              Cancel
+            </Button>
             <Button disabled={!insurerId.trim()} onClick={createPolicy}>
               Create policy
             </Button>
@@ -198,12 +245,20 @@ export default function ClientPoliciesPage() {
 
       <div className="mt-6 rounded-xl border border-slate-200 bg-white">
         <div className="border-b border-slate-200 px-6 py-4 text-sm font-semibold text-slate-900">
-          {loading ? "Loading..." : `${policies.length} policy(ies)`}
+          {loading ? <LoadingText message="Loading policies..." /> : `${policies.length} policy(ies)`}
         </div>
         <div className="divide-y divide-slate-200">
-          {!loading && policies.length === 0 && (
-            <div className="px-6 py-8 text-slate-600">No policies yet.</div>
-          )}
+          {loading ? (
+            <div className="px-6 py-8">
+              <ListSkeleton count={3} />
+            </div>
+          ) : policies.length === 0 ? (
+            <EmptyListState
+              icon="FileText"
+              title="No policies yet"
+              description="Add a policy to track life insurance information for this client."
+            />
+          ) : null}
           {policies.map((p) => (
             <div key={p.id} className="px-6 py-4">
               <div className="flex items-start justify-between gap-4 mb-3">

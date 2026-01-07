@@ -1,15 +1,15 @@
-import Link from "next/link";
-;
-import { requireAuth } from "@/lib/utils/clerk";
-import { SortSelect } from "@/components/ui/sort-select";
+import BeneficiariesPageClient from "./page.client";
+
+export const dynamic = "force-dynamic";
 
 export default async function BeneficiariesPage({
   searchParams,
 }: {
   searchParams: Promise<{ search?: string, sort?: string }>;
 }) {
-  try {
-    const user = await requireAuth();
+  // This is now a wrapper that passes search params to the client component
+  // The client component handles all the data fetching and pagination
+  return <BeneficiariesPageClient />;
     const params = await searchParams;
     const searchTerm = params.search?.trim() || "";
     const sortBy = params.sort || "createdAt";

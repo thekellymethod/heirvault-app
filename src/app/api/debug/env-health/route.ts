@@ -6,12 +6,18 @@ import { NextResponse } from "next/server";
  * Debug endpoint to check environment configuration
  * Safely prints which database it's connected to, Accelerate status, etc.
  * Helps verify environment variables are set correctly
- * Only available in development mode
+ * 
+ * In development: Available to all users
+ * In production: Admin-only (useful for troubleshooting)
  */
 export async function GET() {
-  // Only allow in development
+  // In production, require admin access
   if (process.env.NODE_ENV === "production") {
-    return NextResponse.json({ error: "Not available in production" }, { status: 403 });
+    const { isAdmin } = await import("@/lib/admin");
+    const adminStatus = await isAdmin();
+    if (!adminStatus) {
+      return NextResponse.json({ error: "Admin access required" }, { status: 403 });
+    }
   }
 
   try {

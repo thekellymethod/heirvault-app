@@ -7,16 +7,21 @@ interface SortSelectProps {
   defaultValue: string,
   options: Array<{ value: string, label: string }>;
   className?: string,
+  onChange?: (e: React.ChangeEvent<HTMLSelectElement>) => void;
 }
 
-export function SortSelect({ name, defaultValue, options, className }: SortSelectProps) {
+export function SortSelect({ name, defaultValue, options, className, onChange }: SortSelectProps) {
   const _router = useRouter();
   const searchParams = useSearchParams();
 
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const form = e.currentTarget.form;
-    if (form) {
-      form.submit();
+    if (onChange) {
+      onChange(e);
+    } else {
+      const form = e.currentTarget.form;
+      if (form) {
+        form.submit();
+      }
     }
   };
 

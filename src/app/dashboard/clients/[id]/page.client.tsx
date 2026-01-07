@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { PageLoadingSkeleton } from "@/components/ui/loading";
 import AccessControlPanel from "./components/AccessControlPanel";
 import ReceiptsPanel from "./components/ReceiptsPanel";
 
@@ -122,15 +123,20 @@ export default function ClientPageClient({ params }: { params: Promise<{ id: str
 
   const onPreview = async (documentId: string) => {
     try {
+      const { showError } = await import("@/lib/toast");
       const r = await apiGet(`/api/documents/${documentId}/preview`);
-      if (r?.url) window.open(r.url, "_blank", "noopener,noreferrer");
-      else if (r?.requiresReasonedAccess) {
+      if (r?.url) {
+        window.open(r.url, "_blank", "noopener,noreferrer");
+      } else if (r?.requiresReasonedAccess) {
         // Preview blocked, need to request original with reason
         onOriginalWithReason(documentId);
+      } else {
+        showError("Preview not available");
       }
     } catch (e) {
+      const { showError } = await import("@/lib/toast");
       const error = e as Error;
-      alert(error?.message ?? "Preview failed");
+      showError(error?.message ?? "Preview failed");
     }
   };
 
@@ -138,11 +144,18 @@ export default function ClientPageClient({ params }: { params: Promise<{ id: str
     const reason = window.prompt("Reason required to view original (logged):");
     if (!reason || reason.trim().length < 5) return;
     try {
-      const r = await apiPost(`/api/documents/${documentId}/original`, { reason });
+      const { showPromise } = await import("@/lib/toast");
+      const r = await showPromise(
+        apiPost(`/api/documents/${documentId}/original`, { reason }),
+        {
+          loading: "Requesting access...",
+          success: "Opening document...",
+          error: (err) => err instanceof Error ? err.message : "Access failed",
+        }
+      );
       if (r?.url) window.open(r.url, "_blank", "noopener,noreferrer");
     } catch (e) {
-      const error = e as Error;
-      alert(error?.message ?? "Access failed");
+      // Error already handled by showPromise
     }
   };
 
@@ -150,22 +163,36 @@ export default function ClientPageClient({ params }: { params: Promise<{ id: str
     const reason = window.prompt("Reason required to download (logged):");
     if (!reason || reason.trim().length < 5) return;
     try {
-      const r = await apiPost(`/api/documents/${documentId}/download`, { reason });
+      const { showPromise } = await import("@/lib/toast");
+      const r = await showPromise(
+        apiPost(`/api/documents/${documentId}/download`, { reason }),
+        {
+          loading: "Preparing download...",
+          success: "Downloading...",
+          error: (err) => err instanceof Error ? err.message : "Download failed",
+        }
+      );
       if (r?.url) window.open(r.url, "_blank", "noopener,noreferrer");
     } catch (e) {
-      const error = e as Error;
-      alert(error?.message ?? "Download failed");
+      // Error already handled by showPromise
     }
   };
 
   const confirmProposed = async (id: string) => {
     setBusy(true);
     try {
-      await apiPost(`/api/attorney/beneficiaries/proposed/${id}/confirm`, {});
+      const { showPromise } = await import("@/lib/toast");
+      await showPromise(
+        apiPost(`/api/attorney/beneficiaries/proposed/${id}/confirm`, {}),
+        {
+          loading: "Confirming beneficiary...",
+          success: "Beneficiary confirmed successfully!",
+          error: (err) => err instanceof Error ? err.message : "Failed to confirm",
+        }
+      );
       await reload();
     } catch (e) {
-      const error = e as Error;
-      alert(error?.message ?? "Confirm failed");
+      // Error already handled by showPromise
     } finally {
       setBusy(false);
     }
@@ -175,19 +202,26 @@ export default function ClientPageClient({ params }: { params: Promise<{ id: str
     const reason = window.prompt("Reason (optional, logged):") ?? "";
     setBusy(true);
     try {
-      await apiPost(`/api/attorney/beneficiaries/proposed/${id}/reject`, { reason });
+      const { showPromise } = await import("@/lib/toast");
+      await showPromise(
+        apiPost(`/api/attorney/beneficiaries/proposed/${id}/reject`, { reason }),
+        {
+          loading: "Rejecting beneficiary...",
+          success: "Beneficiary rejected.",
+          error: (err) => err instanceof Error ? err.message : "Failed to reject",
+        }
+      );
       await reload();
     } catch (e) {
-      const error = e as Error;
-      alert(error?.message ?? "Reject failed");
+      // Error already handled by showPromise
     } finally {
       setBusy(false);
     }
   };
 
-  if (!clientId) return <div className="p-6">Loading…</div>;
+  if (!clientId) return <PageLoadingSkeleton />;
   if (err) return <div className="p-6 text-red-600">{err}</div>;
-  if (!data) return <div className="p-6">Loading…</div>;
+  if (!data) return <PageLoadingSkeleton />;
 
   const isAdmin = data.principal?.isAdmin ?? false;
 

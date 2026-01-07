@@ -16,12 +16,24 @@ function toDateOnlyOrNull(input: unknown) {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const auth = await requireAuthApi();
   if (auth.response) return auth.response;
   const { user } = auth;
 
-  // Attorney's accessible clients (via AttorneyClientAccess)
+  const { searchParams } = new URL(req.url);
+  const { parsePaginationParams, createPaginationResponse } = await import("@/lib/api/pagination");
+  const { page, limit, skip } = parsePaginationParams(searchParams);
+
+  // Get total count
+  const totalCount = await prisma.attorneyClientAccess.count({
+    where: {
+      attorneyId: user.id,
+      isActive: true,
+    },
+  });
+
+  // Attorney's accessible clients (via AttorneyClientAccess) with pagination
   const accessRecords = await prisma.attorneyClientAccess.findMany({
     where: {
       attorneyId: user.id,
@@ -33,6 +45,8 @@ export async function GET() {
     orderBy: {
       grantedAt: 'desc',
     },
+    skip,
+    take: limit,
   });
 
   const clientList = accessRecords.map((r: typeof accessRecords[0]) => ({
@@ -46,7 +60,8 @@ export async function GET() {
     updatedAt: r.clients.updatedAt,
   }));
 
-  return NextResponse.json({ clients: clientList });
+  const response = createPaginationResponse(clientList, totalCount, page, limit);
+  return NextResponse.json(response);
 }
 
 export async function POST(req: NextRequest) {

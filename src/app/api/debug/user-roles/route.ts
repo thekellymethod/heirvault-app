@@ -5,10 +5,21 @@ import { getOrCreateAppUser } from "@/lib/auth/CurrentUser";
 
 export const runtime = "nodejs";
 
+/**
+ * Debug endpoint to check user roles and admin configuration
+ * Used by admin sign-in flow
+ * 
+ * In development: Available to all authenticated users
+ * In production: Admin-only (used by admin sign-in)
+ */
 export async function GET() {
-  // Only allow in development
+  // In production, require admin access (this endpoint is used by admin sign-in)
   if (process.env.NODE_ENV === "production") {
-    return NextResponse.json({ error: "Not available in production" }, { status: 403 });
+    const { isAdmin } = await import("@/lib/admin");
+    const adminStatus = await isAdmin();
+    if (!adminStatus) {
+      return NextResponse.json({ error: "Admin access required" }, { status: 403 });
+    }
   }
 
   try {

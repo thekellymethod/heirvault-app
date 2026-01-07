@@ -4,12 +4,19 @@ import { requireAuthApi } from "@/lib/utils/clerk";
 import { logAuditEvent } from "@/lib/audit";
 import { randomUUID } from "crypto";
 
-export async function GET(_req: NextRequest) {
+export async function GET(req: NextRequest) {
   const authResult = await requireAuthApi();
   if (authResult.response) return authResult.response;
 
   try {
-    // Get ALL beneficiaries globally - all attorneys can see all beneficiaries
+    const { searchParams } = new URL(req.url);
+    const { parsePaginationParams, createPaginationResponse } = await import("@/lib/api/pagination");
+    const { page, limit, skip } = parsePaginationParams(searchParams);
+
+    // Get total count
+    const totalCount = await prisma.beneficiaries.count();
+
+    // Get ALL beneficiaries globally - all attorneys can see all beneficiaries with pagination
     const beneficiariesList = await prisma.beneficiaries.findMany({
       include: {
         clients: {
@@ -22,6 +29,8 @@ export async function GET(_req: NextRequest) {
         },
       },
       orderBy: { createdAt: 'desc' },
+      skip,
+      take: limit,
     });
 
     // Get policies for each beneficiary
@@ -67,7 +76,8 @@ export async function GET(_req: NextRequest) {
       };
     });
 
-    return NextResponse.json(beneficiariesWithPolicies);
+    const response = createPaginationResponse(beneficiariesWithPolicies, totalCount, page, limit);
+    return NextResponse.json(response);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Unable to fetch beneficiaries";
     return NextResponse.json(

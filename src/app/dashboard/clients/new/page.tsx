@@ -3,45 +3,79 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-
-type FormState = {
-  firstName: string,
-  lastName: string,
-  email: string,
-  phone: string,
-  dateOfBirth: string, // yyyy-mm-dd
-};
+import { FormField } from "@/components/ui/form-field";
+import { useFormValidation } from "@/lib/validation/useFormValidation";
+import { rules } from "@/lib/validation/rules";
 
 export default function NewClientPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [form, setForm] = useState<FormState>({
-    firstName: "",
-    lastName: "",
-    email: "",
-    phone: "",
-    dateOfBirth: "",
+  const {
+    fields,
+    setFieldValue,
+    setFieldTouched,
+    validateForm,
+    getFieldError,
+    getFormValues,
+  } = useFormValidation({
+    initialValues: {
+      firstName: "",
+      lastName: "",
+      email: "",
+      phone: "",
+      dateOfBirth: "",
+    },
+    validationRules: {
+      firstName: [rules.required("First name"), rules.name("First name"), rules.maxLength(100, "First name")],
+      lastName: [rules.required("Last name"), rules.name("Last name"), rules.maxLength(100, "Last name")],
+      email: [rules.required("Email"), rules.email()],
+      phone: [rules.phone()],
+      dateOfBirth: [rules.date("Date of birth"), rules.dateNotFuture("Date of birth")],
+    },
   });
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+
+    // Mark all fields as touched
+    Object.keys(fields).forEach((key) => setFieldTouched(key));
+
+    // Validate form
+    if (!validateForm()) {
+      setError("Please fix the errors below");
+      return;
+    }
+
     setLoading(true);
 
     try {
       // Use unified fetchJson which handles 402 automatically
       const { fetchJson } = await import("@/lib/http/fetchJson");
-      const data = await fetchJson("/api/clients", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...form,
-          phone: form.phone.trim() || null,
-          dateOfBirth: form.dateOfBirth || null,
+      const { showPromise } = await import("@/lib/toast");
+      
+      const formValues = getFormValues();
+      
+      const data = await showPromise(
+        fetchJson("/api/clients", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            firstName: formValues.firstName,
+            lastName: formValues.lastName,
+            email: formValues.email,
+            phone: formValues.phone || null,
+            dateOfBirth: formValues.dateOfBirth || null,
+          }),
         }),
-      });
+        {
+          loading: "Creating client...",
+          success: "Client created successfully!",
+          error: (err) => err instanceof Error ? err.message : "Failed to create client",
+        }
+      );
 
       const clientId = data?.client?.id as string | undefined;
       if (!clientId) throw new Error("Client created but no id returned");
@@ -75,58 +109,62 @@ export default function NewClientPage() {
         ) : null}
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <label className="space-y-1">
-            <div className="text-xs font-semibold text-ink-900">First name</div>
-            <input
-              className="h-10 w-full rounded-md border border-slateui-300 bg-white px-3 text-sm text-ink-900 placeholder:text-slateui-400 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
-              value={form.firstName}
-              onChange={(e) => setForm((f) => ({ ...f, firstName: e.target.value }))}
-              required
-            />
-          </label>
-
-          <label className="space-y-1">
-            <div className="text-xs font-semibold text-ink-900">Last name</div>
-            <input
-              className="h-10 w-full rounded-md border border-slateui-300 bg-white px-3 text-sm text-ink-900 placeholder:text-slateui-400 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
-              value={form.lastName}
-              onChange={(e) => setForm((f) => ({ ...f, lastName: e.target.value }))}
-              required
-            />
-          </label>
-        </div>
-
-        <label className="space-y-1 block">
-          <div className="text-xs font-semibold text-ink-900">Email</div>
-          <input
-            type="email"
-            className="h-10 w-full rounded-md border border-slateui-300 bg-white px-3 text-sm text-ink-900 placeholder:text-slateui-400 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
-            value={form.email}
-            onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+          <FormField
+            label="First name"
+            name="firstName"
+            type="text"
+            value={fields.firstName.value}
+            onChange={(value) => setFieldValue("firstName", value)}
+            onBlur={() => setFieldTouched("firstName")}
+            error={getFieldError("firstName")}
             required
           />
-        </label>
+
+          <FormField
+            label="Last name"
+            name="lastName"
+            type="text"
+            value={fields.lastName.value}
+            onChange={(value) => setFieldValue("lastName", value)}
+            onBlur={() => setFieldTouched("lastName")}
+            error={getFieldError("lastName")}
+            required
+          />
+        </div>
+
+        <FormField
+          label="Email"
+          name="email"
+          type="email"
+          value={fields.email.value}
+          onChange={(value) => setFieldValue("email", value)}
+          onBlur={() => setFieldTouched("email")}
+          error={getFieldError("email")}
+          required
+        />
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <label className="space-y-1">
-            <div className="text-xs font-semibold text-ink-900">Phone</div>
-            <input
-              className="h-10 w-full rounded-md border border-slateui-300 bg-white px-3 text-sm text-ink-900 placeholder:text-slateui-400 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
-              value={form.phone}
-              onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-              placeholder="Optional"
-            />
-          </label>
+          <FormField
+            label="Phone"
+            name="phone"
+            type="tel"
+            value={fields.phone.value}
+            onChange={(value) => setFieldValue("phone", value)}
+            onBlur={() => setFieldTouched("phone")}
+            error={getFieldError("phone")}
+            placeholder="Optional"
+          />
 
-          <label className="space-y-1">
-            <div className="text-xs font-semibold text-ink-900">Date of birth</div>
-            <input
-              type="date"
-              className="h-10 w-full rounded-md border border-slateui-300 bg-white px-3 text-sm text-ink-900 placeholder:text-slateui-400 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
-              value={form.dateOfBirth}
-              onChange={(e) => setForm((f) => ({ ...f, dateOfBirth: e.target.value }))}
-            />
-          </label>
+          <FormField
+            label="Date of birth"
+            name="dateOfBirth"
+            type="date"
+            value={fields.dateOfBirth.value}
+            onChange={(value) => setFieldValue("dateOfBirth", value)}
+            onBlur={() => setFieldTouched("dateOfBirth")}
+            error={getFieldError("dateOfBirth")}
+            helpText="Optional"
+          />
         </div>
 
         <div className="flex items-center justify-end gap-3 pt-2">

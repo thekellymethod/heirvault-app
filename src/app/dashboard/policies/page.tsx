@@ -1,8 +1,4 @@
-import Link from "next/link";
-;
-import { requireAuth } from "@/lib/utils/clerk";
-import { EmptyListState, EmptySearchState } from "@/components/ui/empty-state";
-import { SortSelect } from "@/components/ui/sort-select";
+import PoliciesPageClient from "./page.client";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +7,9 @@ export default async function PoliciesPage({
 }: {
   searchParams: Promise<{ search?: string, sort?: string }>;
 }) {
+  // This is now a wrapper that passes search params to the client component
+  // The client component handles all the data fetching and pagination
+  return <PoliciesPageClient />;
   const user = await requireAuth();
   const params = await searchParams;
   const searchTerm = params.search?.trim() || "";
