@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+// Prisma removed - database access needs to be implemented
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 function requireAdmin(req: Request) {

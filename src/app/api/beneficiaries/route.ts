@@ -13,65 +13,79 @@ export async function GET(req: NextRequest) {
     const { parsePaginationParams, createPaginationResponse } = await import("@/lib/api/pagination");
     const { page, limit, skip } = parsePaginationParams(searchParams);
 
+    const { count, findMany: findManyDb, getDb } = await import("@/lib/db");
+    const db = getDb();
+    
     // Get total count
-    const totalCount = await prisma.beneficiaries.count();
+    const totalCount = await count("beneficiaries", {});
 
     // Get ALL beneficiaries globally - all attorneys can see all beneficiaries with pagination
-    const beneficiariesList = await prisma.beneficiaries.findMany({
-      include: {
-        clients: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-          },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-      skip,
-      take: limit,
+    const beneficiariesList = await findManyDb("beneficiaries", {
+      orderBy: { column: "createdAt", ascending: false },
+      limit,
+      offset: skip,
     });
 
+    // Fetch clients for beneficiaries
+    const clientIds = [...new Set((beneficiariesList as any[]).map((b: any) => b.clientId))];
+    const clients = clientIds.length > 0
+      ? await findManyDb("clients", {
+          where: { id: { in: clientIds } as any },
+        })
+      : [];
+    const clientsMap = new Map((clients as any[]).map((c: any) => [c.id, c]));
+
     // Get policies for each beneficiary
-    const beneficiaryIds = beneficiariesList.map(b => b.id);
+    const beneficiaryIds = (beneficiariesList as any[]).map((b: any) => b.id);
     const policiesData = beneficiaryIds.length > 0
-      ? await prisma.policy_beneficiaries.findMany({
-          where: { beneficiaryId: { in: beneficiaryIds } },
-          include: {
-            policies: {
-              include: {
-                insurers: {
-                  select: {
-                    name: true,
-                  },
-                },
-              },
-            },
-          },
+      ? await findManyDb("policy_beneficiaries", {
+          where: { beneficiaryId: { in: beneficiaryIds } as any },
         })
       : [];
 
+    // Fetch policies and insurers
+    const policyIds = [...new Set((policiesData as any[]).map((p: any) => p.policyId))];
+    const policies = policyIds.length > 0
+      ? await findManyDb("policies", {
+          where: { id: { in: policyIds } as any },
+        })
+      : [];
+    const policiesMap = new Map((policies as any[]).map((p: any) => [p.id, p]));
+
+    const insurerIds = [...new Set((policies as any[]).map((p: any) => p.insurerId).filter(Boolean))];
+    const insurers = insurerIds.length > 0
+      ? await findManyDb("insurers", {
+          where: { id: { in: insurerIds } as any },
+        })
+      : [];
+    const insurersMap = new Map((insurers as any[]).map((i: any) => [i.id, i]));
+
     // Combine beneficiaries with their policies
-    const beneficiariesWithPolicies = beneficiariesList.map(b => {
-      const beneficiaryPolicies = policiesData
-        .filter(p => p.beneficiaryId === b.id)
-        .map(p => ({
-          id: p.policies.id,
-          policyNumber: p.policies.policyNumber,
-          policyType: p.policies.policyType,
-          // Handle null insurer from leftJoin - return null instead of { name: null }
-          insurer: p.policies.insurers?.name ? { name: p.policies.insurers.name } : null,
-        }));
+    const beneficiariesWithPolicies = (beneficiariesList as any[]).map((b: any) => {
+      const client = clientsMap.get(b.clientId);
+      const beneficiaryPolicies = (policiesData as any[])
+        .filter((p: any) => p.beneficiaryId === b.id)
+        .map((p: any) => {
+          const policy = policiesMap.get(p.policyId);
+          if (!policy) return null;
+          const insurer = policy.insurerId ? insurersMap.get(policy.insurerId) : null;
+          return {
+            id: policy.id,
+            policyNumber: policy.policyNumber,
+            policyType: policy.policyType,
+            insurer: insurer?.name ? { name: insurer.name } : null,
+          };
+        })
+        .filter(Boolean);
 
       return {
         ...b,
-        client: {
-          id: b.clients.id,
-          firstName: b.clients.firstName,
-          lastName: b.clients.lastName,
-          email: b.clients.email,
-        },
+        client: client ? {
+          id: client.id,
+          firstName: client.firstName,
+          lastName: client.lastName,
+          email: client.email,
+        } : null,
         policies: beneficiaryPolicies,
       };
     });
@@ -113,10 +127,10 @@ export async function POST(req: NextRequest) {
     }
 
     // All attorneys can create beneficiaries for any client (global access)
-    const clientExists = await prisma.clients.findFirst({
-      where: { id: clientId },
-      select: { id: true },
-    });
+    const { findUnique, create: createDb } = await import("@/lib/db");
+    const { AuditAction } = await import("@/lib/db/enums");
+    
+    const clientExists = await findUnique("clients", { id: clientId });
 
     if (!clientExists) {
       return NextResponse.json({ error: "Client not found" }, { status: 404 });
@@ -130,27 +144,24 @@ export async function POST(req: NextRequest) {
           : new Date(dateOfBirth))
       : null;
 
-    const beneficiary = await prisma.beneficiaries.create({
-      data: {
-        id: beneficiaryId,
-        clientId: clientId,
-        firstName: firstName,
-        lastName: lastName,
-        relationship: relationship || null,
-        email: email ?? null,
-        phone: phone ?? null,
-        dateOfBirth: dateOfBirthValue,
-        createdAt: now,
-        updatedAt: now,
-      },
-    });
+    const beneficiary = await createDb("beneficiaries", {
+      id: beneficiaryId,
+      clientId: clientId,
+      firstName: firstName,
+      lastName: lastName,
+      relationship: relationship || null,
+      email: email ?? null,
+      phone: phone ?? null,
+      dateOfBirth: dateOfBirthValue ? dateOfBirthValue.toISOString() : null,
+      createdAt: now.toISOString(),
+      updatedAt: now.toISOString(),
+    } as any);
 
     await logAuditEvent({
-      action: "BENEFICIARY_CREATED",
-      resourceType: "beneficiary",
-      resourceId: beneficiaryId,
-      details: { clientId, firstName, lastName },
+      action: AuditAction.BENEFICIARY_CREATED,
       userId: user.id,
+      clientId: clientId,
+      metadata: { beneficiaryId, firstName, lastName },
     });
 
     return NextResponse.json(beneficiary, { status: 201 });

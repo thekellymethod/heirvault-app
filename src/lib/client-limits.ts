@@ -1,4 +1,5 @@
-import { prisma } from "./db";
+// Prisma removed - database access needs to be implemented
+// import { prisma } from "./db";
 import { getClientLimitForPlan } from "./plan";
 import { getCurrentUserWithOrg } from "./authz";
 
@@ -9,11 +10,12 @@ export async function assertCanCreateClient() {
     throw new Error("Unauthorized");
   }
 
-  const orgResult = await prisma.$queryRawUnsafe<Array<{
+  const { queryRaw } = await import("@/lib/db");
+  const orgResult = await queryRaw<{
     id: string,
     billing_plan: string,
     client_count: number;
-  }>>(
+  }>(
     `SELECT 
       o.id,
       o.billing_plan,
@@ -23,7 +25,7 @@ export async function assertCanCreateClient() {
     WHERE o.id = $1
     GROUP BY o.id, o.billing_plan
     LIMIT 1`,
-    orgMember.organizationId
+    [orgMember.organizationId]
   );
 
   if (!orgResult || orgResult.length === 0) {

@@ -10,7 +10,7 @@ import {
   DocumentClassificationStatus,
   DocumentSensitivity,
   UploaderType,
-} from "@prisma/client";
+} from "@/lib/db/enums";
 import { normalizeCarrier, normalizePolicyNumber, nameSimilarity, dobMatch } from "@/lib/match";
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import { Readable } from "stream";

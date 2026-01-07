@@ -1,5 +1,5 @@
 // src/lib/rules/requiredDocs.ts
-import { ChangeRequestType } from "@prisma/client";
+import { ChangeRequestType } from "@/lib/db/enums";
 
 // Document type strings (matching your schema's fileType field)
 export type DocTypeString = "DRIVERS_LICENSE" | "PASSPORT" | "POLICY" | "BENEFICIARY_DOC" | "TAX_W9" | "TAX_1040" | "TAX_OTHER" | "COURT_FILING" | "DEMAND_LETTER" | "CLAIM_SUMMARY" | "OTHER";

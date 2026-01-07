@@ -1,4 +1,5 @@
-import { prisma } from "./db";
+// Prisma removed - database access needs to be implemented
+// import { prisma } from "./db";
 
 /**
  * Looks up a client invite by token using raw SQL first, with Prisma fallback

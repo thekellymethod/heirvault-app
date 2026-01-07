@@ -1,5 +1,14 @@
 // Database exports
-// Note: Prisma has been removed. Database access should be implemented using a different ORM or direct SQL.
+// Supabase database client and helpers
+
+export { getDb, findUnique, findMany, create, update, deleteRecord, count, upsert, transaction, queryRaw } from "./supabase";
+export { supabaseAdmin as db } from "@/lib/supabaseAdmin";
+
+// Export enum types
+export type DocumentCategory = typeof import("./enums").DocumentCategory[keyof typeof import("./enums").DocumentCategory];
+export type ChangeRequestType = typeof import("./enums").ChangeRequestType[keyof typeof import("./enums").ChangeRequestType];
+export type ChangeRequestStatus = typeof import("./enums").ChangeRequestStatus[keyof typeof import("./enums").ChangeRequestStatus];
+export type BillingPlan = typeof import("./enums").BillingPlan[keyof typeof import("./enums").BillingPlan];
 
 // Placeholder types for compatibility (should be replaced with actual types)
 export type User = {

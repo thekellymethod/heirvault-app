@@ -1,6 +1,6 @@
 // src/lib/accessLog.ts
 ;
-import { UploaderType } from "@prisma/client";
+import { UploaderType } from "@/lib/db/enums";
 import crypto from "crypto";
 
 export async function logDocumentAccess(params: {

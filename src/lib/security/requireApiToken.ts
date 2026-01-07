@@ -2,7 +2,7 @@ import "server-only";
 import { NextRequest } from "next/server";
 import { authenticateApiToken, requireScope, ApiTokenRecord, parseBearer } from "./apiTokens";
 import { HttpError } from "@/lib/auth/guards";
-import { prisma } from "@/lib/prisma";
+// Prisma removed - database access needs to be implemented
 
 /**
  * Require API token authentication for a request

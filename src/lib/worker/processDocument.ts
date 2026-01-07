@@ -1,7 +1,7 @@
 // src/lib/worker/processDocument.ts
 ;
 import { putObject } from "@/lib/storage";
-import { DocumentClassificationStatus } from "@prisma/client";
+import { DocumentClassificationStatus } from "@/lib/db/enums";
 import { supersedePriorVersions } from "@/lib/versioning";
 import crypto from "crypto";
 

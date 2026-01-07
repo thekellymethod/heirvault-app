@@ -5,7 +5,7 @@
  * Server-side only - cannot be bypassed via frontend.
  */
 
-import type { DocumentCategory } from "@prisma/client";
+import type { DocumentCategory } from "@/lib/db";
 import { Tier, type TierType } from "@/lib/tiers";
 import { DOCUMENT_CATEGORIES } from "./taxonomy";
 

@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+// Prisma removed - database access needs to be implemented
 import AdminRegistriesTable from "./table";
 
 export const dynamic = "force-dynamic";

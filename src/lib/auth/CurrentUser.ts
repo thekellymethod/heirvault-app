@@ -1,6 +1,6 @@
 import "server-only";
 import { auth, currentUser } from "@clerk/nextjs/server";
-import { prisma } from "@/lib/prisma";
+// Prisma removed - database access needs to be implemented
 
 export type AppUser = {
   id: string,

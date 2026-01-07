@@ -1,6 +1,6 @@
 // src/lib/versioning.ts
 ;
-import { DocumentClassificationStatus } from "@prisma/client";
+import { DocumentClassificationStatus } from "@/lib/db/enums";
 
 export async function supersedePriorVersions(documentId: string) {
   const doc = await prisma.documents.findUnique({ where: { id: documentId } });

@@ -1,4 +1,5 @@
-import { prisma } from '@/lib/db'
+// Prisma removed - database access needs to be implemented
+// import { prisma } from '@/lib/db'
 import { logAuditEvent } from '@/lib/audit'
 import crypto from 'crypto'
 import { randomUUID } from 'crypto'

@@ -1,7 +1,7 @@
 // src/lib/permissions/guard.ts
 import { auth } from "@clerk/nextjs/server";
 ;
-import { UserRole } from "@prisma/client";
+import { UserRole } from "@/lib/db/enums";
 
 export class HttpError extends Error {
   status: number;

@@ -1,7 +1,7 @@
 // src/lib/permissions/orgAccess.ts
 ;
 import { HttpError } from "@/lib/permissions/guard";
-import { UserRole } from "@prisma/client";
+import { UserRole } from "@/lib/db/enums";
 import type { AppPrincipal } from "@/lib/permissions/guard";
 
 export async function requireOrgAccess(principal: AppPrincipal, orgId: string) {

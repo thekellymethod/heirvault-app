@@ -1,7 +1,5 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-;
-import { randomUUID } from "crypto";
 
 type Role = "attorney";
 
@@ -60,25 +58,38 @@ export async function getCurrentUser(): Promise<DbUser | null> {
 
     const role: Role = "attorney";
 
-    // Upsert user using Prisma
-    const user = await prisma.user.upsert({
-      where: { clerkId: userId },
-      update: {
-        email,
-        firstName,
-        lastName,
-        role,
-        updatedAt: new Date(),
-      },
-      create: {
+    // Upsert user using Supabase
+    const { findUnique, create, update } = await import("@/lib/db");
+    
+    // Try to find existing user
+    let user = await findUnique<DbUser>("users", { clerkId: userId });
+    
+    if (user) {
+      // Update existing user
+      user = await update<DbUser>(
+        "users",
+        { clerkId: userId },
+        {
+          email,
+          firstName,
+          lastName,
+          role,
+        } as any
+      );
+    } else {
+      // Create new user
+      const { randomUUID } = await import("crypto");
+      const { randomUUID } = await import("crypto");
+      user = await create<DbUser>("users", {
         id: randomUUID(),
         clerkId: userId,
         email,
         firstName,
         lastName,
         role,
-      },
-    });
+        barNumber: null,
+      } as any);
+    }
 
     return {
       id: user.id,
@@ -178,11 +189,13 @@ export async function requireAuth(): Promise<NonNullable<Awaited<ReturnType<type
   // Enforce attorney role
   if (user.role !== "attorney") {
     try {
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { role: "attorney", updatedAt: new Date() },
-      });
-      user.role = "attorney";
+      const { update: dbUpdate } = await import("@/lib/db");
+      const updated = await dbUpdate(
+        "users",
+        { id: user.id },
+        { role: "attorney", updatedAt: new Date().toISOString() }
+      );
+      user.role = updated.role as Role;
     } catch (error: unknown) {
       console.error("requireAuth: Error forcing attorney role:", error);
       user.role = "attorney";

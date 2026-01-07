@@ -1,4 +1,4 @@
-// Enum constants for compatibility with Prisma-style usage
+// Enum constants for database usage
 // Use these like: AuditAction.CLIENT_CREATED
 
 export const AuditAction = {
@@ -53,6 +53,59 @@ export const AccessGrantStatus = {
   REVOKED: "REVOKED",
 } as const;
 
-// Note: Type exports are handled in index.ts from Prisma
-// This file only exports the enum value constants for backward compatibility
+export const DocumentClassificationStatus = {
+  PENDING_OCR: "PENDING_OCR",
+  AUTO_ACCEPTED: "AUTO_ACCEPTED",
+  NEEDS_REVIEW: "NEEDS_REVIEW",
+  APPROVED: "APPROVED",
+  REJECTED: "REJECTED",
+} as const;
+
+export const DocumentSensitivity = {
+  PUBLIC: "PUBLIC",
+  CONFIDENTIAL: "CONFIDENTIAL",
+  RESTRICTED: "RESTRICTED",
+} as const;
+
+export const UploaderType = {
+  ATTORNEY: "ATTORNEY",
+  POLICYHOLDER: "POLICYHOLDER",
+  SYSTEM: "SYSTEM",
+} as const;
+
+export const ClientInviteStatus = {
+  PENDING: "PENDING",
+  ACCEPTED: "ACCEPTED",
+  EXPIRED: "EXPIRED",
+  REVOKED: "REVOKED",
+} as const;
+
+export const DocumentCategory = {
+  AUTHORITY: "AUTHORITY",
+  OWNERSHIP: "OWNERSHIP",
+  LIQUIDITY: "LIQUIDITY",
+  CONTINUITY: "CONTINUITY",
+  INTENT: "INTENT",
+  OTHER: "OTHER",
+} as const;
+
+export const ChangeRequestType = {
+  ADD_POLICY: "ADD_POLICY",
+  UPDATE_POLICY: "UPDATE_POLICY",
+  REMOVE_POLICY: "REMOVE_POLICY",
+  ADD_BENEFICIARY: "ADD_BENEFICIARY",
+  UPDATE_BENEFICIARY: "UPDATE_BENEFICIARY",
+  REMOVE_BENEFICIARY: "REMOVE_BENEFICIARY",
+  UPDATE_CLIENT_INFO: "UPDATE_CLIENT_INFO",
+} as const;
+
+export const ChangeRequestStatus = {
+  SUBMITTED: "SUBMITTED",
+  NEEDS_REVIEW: "NEEDS_REVIEW",
+  APPROVED: "APPROVED",
+  REJECTED: "REJECTED",
+} as const;
+
+// Note: Type exports are handled in index.ts
+// This file exports the enum value constants
 

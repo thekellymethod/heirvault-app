@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+// Prisma removed - database access needs to be implemented
 import { stripe } from "@/lib/stripe";
 
 export async function POST(req: Request) {

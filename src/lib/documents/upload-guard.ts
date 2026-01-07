@@ -4,12 +4,13 @@
  * Server-side guard for document uploads with tier-based category enforcement.
  */
 
-import { prisma, writeAuditLog } from "@/lib/db";
+// Prisma removed - database access needs to be implemented
+// import { prisma, writeAuditLog } from "@/lib/db";
 import { requireAuthPrincipal } from "@/lib/permissions/guard";
 import { getEffectiveTier } from "@/lib/contracts/features";
 import { checkDocumentUploadPermission } from "./permissions";
 import { getDocumentCategory } from "./taxonomy";
-import type { DocumentCategory } from "@prisma/client";
+import type { DocumentCategory } from "@/lib/db";
 
 /**
  * Check if user can upload a document with given fileType

@@ -30,7 +30,8 @@ export async function PUT(req: NextRequest, { params }: Params) {
     }
 
     // Check if beneficiary exists
-    const existing = await prisma.beneficiaries.findUnique({
+    const { findUnique } = await import("@/lib/db");
+    const existing = await findUnique("beneficiaries", {
       where: { id },
       select: { id: true, clientId: true },
     });

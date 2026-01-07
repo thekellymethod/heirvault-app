@@ -9,7 +9,7 @@
  * - INTENT: Documents expressing intent (wills, trusts, designations)
  */
 
-import type { DocumentCategory } from "@prisma/client";
+import type { DocumentCategory } from "@/lib/db";
 
 export const DOCUMENT_CATEGORIES = {
   AUTHORITY: "AUTHORITY",

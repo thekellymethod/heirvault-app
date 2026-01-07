@@ -1,6 +1,6 @@
 // src/lib/inviteCompletion.ts
 ;
-import { ClientInviteStatus, DocumentClassificationStatus } from "@prisma/client";
+import { ClientInviteStatus, DocumentClassificationStatus } from "@/lib/db/enums";
 
 export async function tryCompleteInvite(inviteId: string) {
   const invite = await prisma.client_invites.findUnique({

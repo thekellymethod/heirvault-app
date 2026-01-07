@@ -25,40 +25,51 @@ export async function GET(req: NextRequest) {
   const { parsePaginationParams, createPaginationResponse } = await import("@/lib/api/pagination");
   const { page, limit, skip } = parsePaginationParams(searchParams);
 
+  const { count, findMany } = await import("@/lib/db");
+  
   // Get total count
-  const totalCount = await prisma.attorneyClientAccess.count({
-    where: {
-      attorneyId: user.id,
-      isActive: true,
-    },
+  const totalCount = await count("attorney_client_access", {
+    attorneyId: user.id,
+    isActive: true,
   });
 
   // Attorney's accessible clients (via AttorneyClientAccess) with pagination
-  const accessRecords = await prisma.attorneyClientAccess.findMany({
+  const accessRecords = await findMany("attorney_client_access", {
     where: {
       attorneyId: user.id,
       isActive: true,
     },
-    include: {
-      clients: true,
-    },
     orderBy: {
-      grantedAt: 'desc',
+      column: "grantedAt",
+      ascending: false,
     },
-    skip,
-    take: limit,
+    limit,
+    offset: skip,
   });
 
-  const clientList = accessRecords.map((r: typeof accessRecords[0]) => ({
-    id: r.clients.id,
-    firstName: r.clients.firstName,
-    lastName: r.clients.lastName,
-    email: r.clients.email,
-    phone: r.clients.phone,
-    dateOfBirth: r.clients.dateOfBirth,
-    createdAt: r.clients.createdAt,
-    updatedAt: r.clients.updatedAt,
-  }));
+  // Fetch clients for each access record
+  const clientIds = accessRecords.map((r: any) => r.clientId);
+  const clients = await findMany("clients", {
+    where: { id: { in: clientIds } as any },
+  });
+
+  // Map clients by ID for quick lookup
+  const clientsMap = new Map(clients.map((c: any) => [c.id, c]));
+
+  const clientList = accessRecords.map((r: any) => {
+    const client = clientsMap.get(r.clientId);
+    if (!client) return null;
+    return {
+      id: client.id,
+      firstName: client.firstName,
+      lastName: client.lastName,
+      email: client.email,
+      phone: client.phone,
+      dateOfBirth: client.dateOfBirth,
+      createdAt: client.createdAt,
+      updatedAt: client.updatedAt,
+    };
+  }).filter(Boolean);
 
   const response = createPaginationResponse(clientList, totalCount, page, limit);
   return NextResponse.json(response);
@@ -68,20 +79,34 @@ export async function POST(req: NextRequest) {
   // Unified registry gate
   try {
     const principal = await requireAuthPrincipal();
-    requireRole(principal, [UserRole.ADMIN, UserRole.ATTORNEY]);
+    requireRole(principal, [UserRole.attorney]);
     
     const { org, orgId } = await getOrgContext(principal);
     await requireRegistryActive(org);
 
     // Get user's organization for client creation
-    const membership = await prisma.org_members.findFirst({
+    const { findMany: findManyDb } = await import("@/lib/db");
+    const memberships = await findManyDb("org_members", {
       where: { userId: principal.dbUserId },
-      include: { organizations: true },
+      limit: 1,
     });
 
-    if (!membership) {
+    if (!memberships || memberships.length === 0) {
       return NextResponse.json(
         { error: "No organization found" },
+        { status: 400 }
+      );
+    }
+
+    const membership = memberships[0] as any;
+    const orgs = await findManyDb("organizations", {
+      where: { id: membership.organizationId },
+      limit: 1,
+    });
+
+    if (!orgs || orgs.length === 0) {
+      return NextResponse.json(
+        { error: "Organization not found" },
         { status: 400 }
       );
     }
@@ -101,30 +126,31 @@ export async function POST(req: NextRequest) {
     );
   }
 
-    // Create client + grant attorney access in one transaction
-    const result = await prisma.$transaction(async (tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0]) => {
+    // Create client + grant attorney access
+    const { create: createDb, transaction } = await import("@/lib/db");
+    
+    const result = await transaction(async (_db) => {
       // Create client
-      const client = await tx.clients.create({
-        data: {
-          id: randomUUID(),
-          email,
-          firstName: firstName,
-          lastName: lastName,
-          phone: phone || null,
-          dateOfBirth: dateOfBirth || null,
-          orgId: orgId, // Set organization ID
-        },
+      const client = await createDb("clients", {
+        id: randomUUID(),
+        email,
+        firstName: firstName,
+        lastName: lastName,
+        phone: phone || null,
+        dateOfBirth: dateOfBirth ? dateOfBirth.toISOString() : null,
+        orgId: orgId, // Set organization ID
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       });
 
       // Grant attorney access
-      await tx.attorneyClientAccess.create({
-        data: {
-          id: randomUUID(),
-          attorneyId: principal.dbUserId,
-          clientId: client.id,
-          isActive: true,
-        },
-      });
+      await createDb("attorney_client_access", {
+        id: randomUUID(),
+        attorneyId: principal.dbUserId,
+        clientId: client.id,
+        isActive: true,
+        grantedAt: new Date().toISOString(),
+      } as any);
 
       return {
         id: client.id,

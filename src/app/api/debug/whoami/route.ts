@@ -2,7 +2,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 ;
-import { UserRole } from "@prisma/client";
+import { UserRole } from "@/lib/db/enums";
 
 /**
  * Debug endpoint to check user authentication and database mapping

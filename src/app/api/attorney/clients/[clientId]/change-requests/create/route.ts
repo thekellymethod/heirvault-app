@@ -8,7 +8,7 @@ import { UserRole } from "@prisma/client";
 import { generateInviteToken, hashToken } from "@/lib/invites";
 import { nowPlusHours } from "@/lib/security";
 import { auditLog } from "@/lib/audit";
-import { ChangeRequestStatus, ChangeRequestType, UploaderType } from "@prisma/client";
+import { ChangeRequestStatus, ChangeRequestType, UploaderType } from "@/lib/db/enums";
 import { sendEmail } from "@/lib/email";
 import { makeInvitePdf } from "@/lib/pdf/invite";
 import crypto from "crypto";

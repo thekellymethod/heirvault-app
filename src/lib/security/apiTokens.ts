@@ -1,6 +1,6 @@
 import "server-only";
 import { createHash, randomBytes } from "crypto";
-import { prisma } from "@/lib/prisma";
+// Prisma removed - database access needs to be implemented
 import { HttpError } from "@/lib/auth/guards";
 
 export type ApiTokenRecord = {
