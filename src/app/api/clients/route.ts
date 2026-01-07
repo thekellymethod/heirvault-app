@@ -5,7 +5,7 @@ import { logAuditEvent } from "@/lib/audit";
 import { requireAuthPrincipal, requireRole } from "@/lib/permissions/guard";
 import { getOrgContext } from "@/lib/org/getOrgContext";
 import { requireRegistryActive } from "@/lib/billing/requireRegistryActive";
-import { UserRole } from "@prisma/client";
+import { UserRole } from "@/lib/db/enums";
 import { randomUUID } from "crypto";
 
 export const runtime = "nodejs";

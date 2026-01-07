@@ -1,38 +1,84 @@
-// Re-export Prisma client from the main prisma module
-export { prisma } from "../prisma";
-export { prisma as db } from "../prisma";
+// Database exports
+// Note: Prisma has been removed. Database access should be implemented using a different ORM or direct SQL.
 
-// Export Prisma model types
-export type {
-  User,
-  clients as Client,
-  policies as Policy,
-  beneficiaries as Beneficiary,
-  organizations as Organization,
-  org_members as OrgMember,
-  documents as Document,
-} from "@prisma/client";
+// Placeholder types for compatibility (should be replaced with actual types)
+export type User = {
+  id: string;
+  clerkId: string;
+  email: string;
+  firstName: string | null;
+  lastName: string | null;
+  role: string;
+  barNumber: string | null;
+};
 
-// Export additional Prisma model types for convenience
-export type {
-  clients,
-  beneficiaries,
-  policies,
-  organizations,
-  org_members,
-  attorneyClientAccess,
-  insurers,
-} from "@prisma/client";
+export type Client = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string | null;
+  dateOfBirth: Date | null;
+  orgId: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
 
-// Export Prisma enum types (for type annotations)
-// Note: AuditAction, OrgRole, BillingPlan, UserRole, InviteStatus are exported as values from ./enums below
-// and can be used as types via typeof when needed
-export type {
-  AccessGrantStatus,
-} from "@prisma/client";
+export type Policy = {
+  id: string;
+  clientId: string;
+  policyNumber: string;
+  policyType: string | null;
+  carrierNameRaw: string | null;
+  insurerId: string | null;
+  verificationStatus: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type Beneficiary = {
+  id: string;
+  clientId: string;
+  firstName: string;
+  lastName: string;
+  relationship: string | null;
+  verificationStatus: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type Organization = {
+  id: string;
+  name: string;
+  billingPlan: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type OrgMember = {
+  id: string;
+  userId: string;
+  organizationId: string;
+  role: string;
+  createdAt: Date;
+};
+
+export type Document = {
+  id: string;
+  clientId: string;
+  fileName: string;
+  fileType: string;
+  fileSize: number;
+  filePath: string;
+  mimeType: string;
+  documentHash: string;
+  sensitivityLevel: string;
+  classificationStatus: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
 
 // Registry-related types (Supabase-only, not in Prisma schema)
-// These are defined separately since registry tables are in Supabase, not PostgreSQL
 export type RegistryRecord = {
   id: string;
   decedentName: string;
@@ -63,6 +109,4 @@ export type RegistrySubmissionSource = "INTAKE" | "TOKEN" | "ATTORNEY" | "SYSTEM
 export type AccessLogAction = "CREATED" | "UPDATED" | "VIEWED" | "VERIFIED" | "REJECTED";
 
 // Re-export enum constants from enums file (values)
-// These provide enum values like AuditAction.CLIENT_CREATED
-// Note: These can be used as both types (via typeof) and values in TypeScript
 export { AuditAction, OrgRole, BillingPlan, UserRole, InviteStatus } from "./enums";
