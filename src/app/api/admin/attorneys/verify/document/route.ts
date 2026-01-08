@@ -1,8 +1,7 @@
 import "server-only";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth/guards";
-import { prisma } from "@/lib/prisma";
-import { supabaseServer } from "@/lib/supabase";
+import { getDb } from "@/lib/db";
 
 export const runtime = "nodejs";
 
@@ -20,21 +19,17 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    const { findUnique: findUniqueProfile, findUnique: findUniqueUser } = await import("@/lib/db");
+    
     // Get attorney profile with license document
-    const profile = await prisma.attorneyProfile.findUnique({
-      where: { userId },
-      select: {
-        licenseDocumentPath: true,
-        licenseDocumentName: true,
-        user: {
-          select: {
-            email: true,
-            firstName: true,
-            lastName: true,
-          },
-        },
-      },
-    });
+    type AttorneyProfileRecord = {
+      id: string;
+      userId: string;
+      licenseDocumentPath: string | null;
+      licenseDocumentName: string | null;
+    };
+    
+    const profile = await findUniqueProfile<AttorneyProfileRecord>("attorney_profiles", { userId });
 
     if (!profile || !profile.licenseDocumentPath) {
       return NextResponse.json(
@@ -45,8 +40,8 @@ export async function GET(req: NextRequest) {
 
     // Download file from Supabase storage
     const bucket = process.env.HEIRVAULT_STORAGE_BUCKET || "heirvault-docs";
-    const sb = supabaseServer();
-    const { data, error } = await sb.storage
+    const db = getDb();
+    const { data, error } = await db.storage
       .from(bucket)
       .download(profile.licenseDocumentPath);
 

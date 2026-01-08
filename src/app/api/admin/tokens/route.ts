@@ -96,8 +96,6 @@ export async function POST(req: Request) {
   });
 
   // Audit log
-  const { create: createAudit, randomUUID } = await import("@/lib/db");
-  const { randomUUID: cryptoRandomUUID } = await import("crypto");
   const { logAuditEvent } = await import("@/lib/audit");
   
   await logAuditEvent({

@@ -35,7 +35,8 @@ export async function POST(req: NextRequest) {
     } | null = null;
 
     try {
-      const inviteResult = await prisma.$queryRawUnsafe<Array<{
+      const { queryRaw, update: updateInvite } = await import("@/lib/db");
+      const inviteResult = await queryRaw<Array<{
         id: string,
         clientId: string,
         token: string,
@@ -46,16 +47,16 @@ export async function POST(req: NextRequest) {
       }>>(`
         SELECT 
           id,
-          clientId,
+          "clientId",
           token,
           email,
           expires_at,
           used_at,
-          createdAt
+          "createdAt"
         FROM client_invites
         WHERE token = $1
         LIMIT 1
-      `, token);
+      `, [token]);
 
       if (inviteResult && inviteResult.length > 0) {
         invite = inviteResult[0];
@@ -85,13 +86,11 @@ export async function POST(req: NextRequest) {
 
     // Reactivate the invite (clear used_at and update expiry)
     try {
-      await prisma.$executeRawUnsafe(`
-        UPDATE client_invites
-        SET used_at = NULL,
-            expires_at = $1,
-            updated_at = NOW()
-        WHERE token = $2
-      `, newExpiresAt, token);
+      await updateInvite("client_invites", { token }, {
+        usedAt: null,
+        expiresAt: newExpiresAt.toISOString(),
+        updatedAt: new Date().toISOString(),
+      } as Record<string, unknown>);
     } catch (sqlError: unknown) {
       const errorMessage = sqlError instanceof Error ? sqlError.message : String(sqlError);
       console.error("Reactivate invite: Raw SQL update failed:", errorMessage);

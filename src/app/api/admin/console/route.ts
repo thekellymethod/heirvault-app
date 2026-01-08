@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { COMMAND_MAP } from "@/lib/admin/console/commands";
 import { getActorFromRequest } from "@/lib/security/requireApiToken";
-import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 
@@ -77,14 +76,13 @@ export async function POST(req: Request) {
 
   // Audit every console invocation (even failed ones)
   const auditId = crypto.randomUUID();
-  await prisma.audit_logs.create({
-    data: {
-      id: auditId,
-      userId: actor.id,
-      action: "GLOBAL_POLICY_SEARCH_PERFORMED", // Use an existing enum value; add a dedicated one later.
+  const { logAuditEvent } = await import("@/lib/audit");
+  await logAuditEvent({
+    userId: actor.id,
+    action: "GLOBAL_POLICY_SEARCH_PERFORMED", // Use an existing enum value; add a dedicated one later.
+    metadata: {
+      cmd,
       message: `AdminConsole cmd=${cmd}`,
-      createdAt: new Date(),
-      // Optional: add org_id/clientId/policy_id if you want later
     },
   });
 

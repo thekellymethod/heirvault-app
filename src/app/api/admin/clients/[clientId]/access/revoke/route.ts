@@ -2,7 +2,7 @@
 import { withRouteGuard } from "@/lib/permissions/route";
 import { requireAuthPrincipal, requireRole } from "@/lib/permissions/guard";
 ;
-import { UserRole } from "@prisma/client";
+import { UserRole } from "@/lib/db/enums";
 
 export async function POST(req: Request, ctx: { params: Promise<{ clientId: string }> }) {
   return withRouteGuard(async () => {
@@ -13,17 +13,23 @@ export async function POST(req: Request, ctx: { params: Promise<{ clientId: stri
     const { userId } = await req.json().catch(() => ({}));
     if (!userId || typeof userId !== "string") throw new Error("userId required");
 
+    const { findMany: findManyAccess, update: updateAccess } = await import("@/lib/db");
+    
     // Soft delete by setting isActive = false
-    await prisma.attorneyClientAccess.updateMany({
+    const grants = await findManyAccess("attorney_client_access", {
       where: {
         attorneyId: userId,
         clientId,
       },
-      data: {
-        isActive: false,
-        revokedAt: new Date(),
-      },
     });
+    
+    for (const grant of grants || []) {
+      await updateAccess("attorney_client_access", { id: (grant as any).id }, {
+        isActive: false,
+        revokedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      } as Record<string, unknown>);
+    }
 
     return { ok: true };
   });

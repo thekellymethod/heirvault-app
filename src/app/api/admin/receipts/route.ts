@@ -40,7 +40,8 @@ export async function GET(req: NextRequest) {
         const archivedClause = archived ? "AND ci.used_at IS NOT NULL" : "";
         
         // Search client_invites (which contain receipt information via token)
-        const receiptsResult = await prisma.$queryRawUnsafe<Array<{
+        const { queryRaw } = await import("@/lib/db");
+        const receiptsResult = await queryRaw<Array<{
           id: string,
           clientId: string,
           token: string,
@@ -55,29 +56,29 @@ export async function GET(req: NextRequest) {
         }>>(`
           SELECT 
             ci.id,
-            ci.clientId,
+            ci."clientId",
             ci.token,
             ci.email,
             ci.expires_at,
             ci.used_at,
-            ci.createdAt,
-            c.firstName,
-            c.lastName,
+            ci."createdAt",
+            c."firstName",
+            c."lastName",
             c.phone,
-            CONCAT('REC-', ci.clientId, '-', EXTRACT(EPOCH FROM ci.createdAt)::bigint) as receipt_id
+            CONCAT('REC-', ci."clientId", '-', EXTRACT(EPOCH FROM ci."createdAt")::bigint) as receipt_id
           FROM client_invites ci
-          INNER JOIN clients c ON c.id = ci.clientId
+          INNER JOIN clients c ON c.id = ci."clientId"
           WHERE 
             (LOWER(ci.token) LIKE LOWER($1) OR
              LOWER(ci.email) LIKE LOWER($1) OR
-             LOWER(c.firstName) LIKE LOWER($1) OR
-             LOWER(c.lastName) LIKE LOWER($1) OR
-             CONCAT('REC-', ci.clientId, '-', EXTRACT(EPOCH FROM ci.createdAt)::bigint) LIKE $1)
+             LOWER(c."firstName") LIKE LOWER($1) OR
+             LOWER(c."lastName") LIKE LOWER($1) OR
+             CONCAT('REC-', ci."clientId", '-', EXTRACT(EPOCH FROM ci."createdAt")::bigint) LIKE $1)
             ${archivedClause}
-          ORDER BY ci.createdAt DESC
+          ORDER BY ci."createdAt" DESC
           LIMIT $2
           OFFSET $3
-        `, searchPattern, limit, offset);
+        `, [searchPattern, limit, offset]);
 
         receipts = receiptsResult.map(row => ({
           id: row.id,
@@ -95,7 +96,7 @@ export async function GET(req: NextRequest) {
       } else {
         // Get all receipts if no search query
         const archivedClause = archived ? "WHERE ci.used_at IS NOT NULL" : "";
-        const receiptsResult = await prisma.$queryRawUnsafe<Array<{
+        const receiptsResult = await queryRaw<Array<{
           id: string,
           clientId: string,
           token: string,
@@ -109,22 +110,22 @@ export async function GET(req: NextRequest) {
         }>>(`
           SELECT 
             ci.id,
-            ci.clientId,
+            ci."clientId",
             ci.token,
             ci.email,
             ci.expires_at,
             ci.used_at,
-            ci.createdAt,
-            c.firstName,
-            c.lastName,
+            ci."createdAt",
+            c."firstName",
+            c."lastName",
             c.phone
           FROM client_invites ci
-          INNER JOIN clients c ON c.id = ci.clientId
+          INNER JOIN clients c ON c.id = ci."clientId"
           ${archivedClause}
-          ORDER BY ci.createdAt DESC
+          ORDER BY ci."createdAt" DESC
           LIMIT $1
           OFFSET $2
-        `, limit, offset);
+        `, [limit, offset]);
 
         receipts = receiptsResult.map(row => ({
           id: row.id,
@@ -143,20 +144,20 @@ export async function GET(req: NextRequest) {
 
       // Get total count for pagination
       const archivedClause = archived ? "WHERE ci.used_at IS NOT NULL" : "";
-      const countResult = await prisma.$queryRawUnsafe<Array<{ count: number }>>(`
+      const countResult = await queryRaw<Array<{ count: number }>>(`
         SELECT COUNT(*)::int as count
         FROM client_invites ci
         ${archivedClause}
-      `);
+      `, []);
 
       const total = Number(countResult[0]?.count || 0);
 
       // Get archived count (total archived receipts, not just current page)
-      const archivedCountResult = await prisma.$queryRawUnsafe<Array<{ count: number }>>(`
+      const archivedCountResult = await queryRaw<Array<{ count: number }>>(`
         SELECT COUNT(*)::int as count
         FROM client_invites ci
         WHERE ci.used_at IS NOT NULL
-      `);
+      `, []);
       const archivedCount = Number(archivedCountResult[0]?.count || 0);
 
       return NextResponse.json({
@@ -170,9 +171,8 @@ export async function GET(req: NextRequest) {
       const sqlErrorMessage = sqlError instanceof Error ? sqlError.message : "Unknown error";
       console.error("Admin receipts search: Raw SQL failed, trying Prisma:", sqlErrorMessage);
       
-      // Fallback to Prisma (may not work due to schema issues, but try anyway)
-      // Note: Using raw SQL query as Prisma model may not be available
-      const invitesResult = await prisma.$queryRawUnsafe<Array<{
+      // Retry with queryRaw
+      const invitesResult = await queryRaw<Array<{
         id: string,
         clientId:string,
         token: string,
@@ -186,22 +186,22 @@ export async function GET(req: NextRequest) {
       }>>(`
         SELECT 
           ci.id,
-          ci.clientId,
+          ci."clientId",
           ci.token,
           ci.email,
           ci.expires_at,
           ci.used_at,
-          ci.createdAt,
-          c.firstName,
-          c.lastName,
+          ci."createdAt",
+          c."firstName",
+          c."lastName",
           c.phone
         FROM client_invites ci
-        INNER JOIN clients c ON c.id = ci.clientId
+        INNER JOIN clients c ON c.id = ci."clientId"
         ${archived ? "WHERE ci.used_at IS NOT NULL" : ""}
-        ORDER BY ci.createdAt DESC
+        ORDER BY ci."createdAt" DESC
         LIMIT $1
         OFFSET $2
-      `, limit, offset);
+      `, [limit, offset]);
 
       const receipts = invitesResult.map((invite) => ({
         id: invite.id,
@@ -251,25 +251,30 @@ export async function POST(req: NextRequest) {
     }
 
     try {
+      const { queryRaw, update: updateInvite, findMany: findManyInvites } = await import("@/lib/db");
+      
       // Archive by marking as used
       if (token) {
-        await prisma.$executeRawUnsafe(`
-          UPDATE client_invites
-          SET used_at = NOW(), updated_at = NOW()
-          WHERE token = $1 AND used_at IS NULL
-        `, token);
+        await updateInvite("client_invites", { token }, {
+          usedAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        } as Record<string, unknown>);
       } else if (receiptId) {
         // Extract client ID from receipt ID
         const match = receiptId.match(/^REC-([^-]+)-/);
         if (match) {
           const clientId = match[1];
-          await prisma.$executeRawUnsafe(`
-            UPDATE client_invites
-            SET used_at = NOW(), updated_at = NOW()
-            WHERE clientId = $1 AND used_at IS NULL
-            ORDER BY createdAt DESC
-            LIMIT 1
-          `, clientId);
+          const invites = await findManyInvites("client_invites", {
+            where: { clientId, usedAt: null },
+            orderBy: { column: "createdAt", ascending: false },
+            limit: 1,
+          });
+          if (invites && invites.length > 0) {
+            await updateInvite("client_invites", { id: (invites[0] as any).id }, {
+              usedAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            } as Record<string, unknown>);
+          }
         }
       }
 
@@ -278,13 +283,12 @@ export async function POST(req: NextRequest) {
       const sqlErrorMessage = sqlError instanceof Error ? sqlError.message : "Unknown error";
       console.error("Archive receipt: Raw SQL failed, trying Prisma:", sqlErrorMessage);
       
-      // Fallback to Prisma - use raw SQL since Prisma model may not be available
+      // Retry with updateInvite
       if (token) {
-        await prisma.$executeRawUnsafe(`
-          UPDATE client_invites
-          SET used_at = NOW(), updated_at = NOW()
-          WHERE token = $1 AND used_at IS NULL
-        `, token);
+        await updateInvite("client_invites", { token }, {
+          usedAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        } as Record<string, unknown>);
       }
 
       return NextResponse.json({ success: true });

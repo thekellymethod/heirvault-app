@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/admin";
-;
+import { requireAdmin } from "@/lib/auth/guards";
 import { requireAuthPrincipal } from "@/lib/permissions/guard";
+import { getOrgContext } from "@/lib/org/getOrgContext";
 
 /**
  * GET /api/admin/billing-ledger
@@ -17,19 +17,8 @@ export async function GET(req: NextRequest) {
     const principal = await requireAuthPrincipal();
 
     // Get user's organization
-    const membership = await prisma.org_members.findFirst({
-      where: { userId: principal.dbUserId },
-      include: { organizations: true },
-    });
-
-    if (!membership) {
-      return NextResponse.json(
-        { error: "No organization found" },
-        { status: 403 }
-      );
-    }
-
-    const organizationId = membership.organizations.id;
+    const { org } = await getOrgContext(principal);
+    const organizationId = org.id;
 
     // Parse query parameters
     const searchParams = req.nextUrl.searchParams;
@@ -38,63 +27,79 @@ export async function GET(req: NextRequest) {
     const eventType = searchParams.get("eventType");
     const since = searchParams.get("since"); // ISO date string
 
-    // Build where clause
-    const where: {
-      organizationId: string;
-      eventType?: string;
-      createdAt?: { gte: Date };
-    } = {
-      organizationId,
-    };
+    const { findMany: findManyEvents, count: countEvents, findUnique: findUniqueUser, getDb } = await import("@/lib/db");
+    const db = getDb();
+    
+    // Build query with Supabase query builder for date filtering
+    let countQuery = db.from("billing_events_ledger").select("*", { count: "exact", head: true }).eq("organizationId", organizationId);
+    let eventsQuery = db.from("billing_events_ledger").select("*").eq("organizationId", organizationId);
 
     if (eventType) {
-      where.eventType = eventType;
+      countQuery = countQuery.eq("eventType", eventType);
+      eventsQuery = eventsQuery.eq("eventType", eventType);
     }
 
     if (since) {
       try {
-        where.createdAt = { gte: new Date(since) };
+        const sinceDate = new Date(since).toISOString();
+        countQuery = countQuery.gte("createdAt", sinceDate);
+        eventsQuery = eventsQuery.gte("createdAt", sinceDate);
       } catch {
         // Invalid date, ignore
       }
     }
 
     // Get total count for pagination
-    const total = await prisma.billing_events_ledger.count({ where });
+    const { count: totalCount } = await countQuery;
+    const total = totalCount || 0;
 
     // Get events (ordered by createdAt desc, most recent first)
-    const events = await prisma.billing_events_ledger.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      skip: (page - 1) * limit,
-      take: limit,
-      include: {
-        users: {
-          select: {
-            id: true,
-            email: true,
-            firstName: true,
-            lastName: true,
-          },
-        },
-      },
-    });
+    type BillingEventRecord = {
+      id: string;
+      organizationId: string;
+      eventType: string;
+      eventPayload: Record<string, unknown>;
+      createdAt: string;
+      createdByUserId: string | null;
+    };
+    
+    const { data: eventsData } = await eventsQuery
+      .order("createdAt", { ascending: false })
+      .range((page - 1) * limit, page * limit - 1);
+    
+    const events = (eventsData || []) as BillingEventRecord[];
+
+    // Fetch users for each event
+    const eventsWithUsers = await Promise.all(
+      (events || []).map(async (event) => {
+        const user = event.createdByUserId
+          ? await findUniqueUser<{
+              id: string;
+              email: string;
+              firstName: string | null;
+              lastName: string | null;
+            }>("users", { id: event.createdByUserId })
+          : null;
+        
+        return {
+          id: event.id,
+          eventType: event.eventType,
+          eventPayload: event.eventPayload,
+          createdAt: typeof event.createdAt === 'string' ? event.createdAt : new Date(event.createdAt).toISOString(),
+          createdBy: user
+            ? {
+                id: user.id,
+                email: user.email,
+                name: `${user.firstName || ""} ${user.lastName || ""}`.trim() || null,
+              }
+            : null,
+        };
+      })
+    );
 
     return NextResponse.json({
       organizationId,
-      events: events.map((event) => ({
-        id: event.id,
-        eventType: event.eventType,
-        eventPayload: event.eventPayload,
-        createdAt: event.createdAt.toISOString(),
-        createdBy: event.users
-          ? {
-              id: event.users.id,
-              email: event.users.email,
-              name: `${event.users.firstName || ""} ${event.users.lastName || ""}`.trim() || null,
-            }
-          : null,
-      })),
+      events: eventsWithUsers,
       pagination: {
         page,
         limit,

@@ -52,14 +52,16 @@ export async function POST(req: Request) {
   // Audit log the execution
   const auditId = randomUUID();
   try {
-    await prisma.$executeRawUnsafe(
-      `INSERT INTO audit_logs (id, user_id, action, message, createdAt) VALUES ($1, $2, $3, $4, NOW())`,
-      auditId,
-      actor.id,
-      // Note: Consider adding ADMIN_CONSOLE_NL_EXECUTE to AuditAction enum for more specific audit trail
-      "GLOBAL_POLICY_SEARCH_PERFORMED",
-      `AdminNLExecute cmd=${cmd} confirmed=${confirmed}`
-    );
+    const { logAuditEvent } = await import("@/lib/audit");
+    await logAuditEvent({
+      userId: actor.id,
+      action: "GLOBAL_POLICY_SEARCH_PERFORMED", // Note: Consider adding ADMIN_CONSOLE_NL_EXECUTE to AuditAction enum
+      metadata: {
+        cmd,
+        confirmed,
+        message: `AdminNLExecute cmd=${cmd} confirmed=${confirmed}`,
+      },
+    });
   } catch (auditError: unknown) {
     console.error("Failed to log audit event:", auditError);
     // Don't fail the request if audit logging fails

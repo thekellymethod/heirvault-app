@@ -10,7 +10,8 @@ export const runtime = "nodejs";
 export async function GET(_: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await ctx.params;
-    const { registry } = await requireRegistryAccess(id);
+    const accessResult = await requireRegistryAccess(id);
+    const registry = accessResult.registry as { id: string; orgId: string };
 
     const { findUnique: findUniqueRegistry, findMany: findManyPolicies } = await import("@/lib/db");
     
@@ -70,13 +71,20 @@ export async function GET(_: NextRequest, ctx: { params: Promise<{ id: string }>
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await ctx.params;
-    const { userId, registry } = await requireRegistryAccess(id);
+    const accessResult = await requireRegistryAccess(id);
+    const userId = accessResult.userId;
+    const registry = accessResult.registry as { id: string; orgId: string };
     const body = await req.json().catch(() => null);
     const action = String(body?.action ?? "").trim(); // "archive" | "restore" | "rename"
     const name = String(body?.name ?? "").trim();
 
-    const { update: updateRegistry, create: createAudit, randomUUID } = await import("@/lib/db");
-    const { randomUUID: cryptoRandomUUID } = await import("crypto");
+    const { update: updateRegistry } = await import("@/lib/db");
+    const { logAuditEvent } = await import("@/lib/audit");
+    const { findUnique: findUniqueUser } = await import("@/lib/db");
+    
+    // Get user ID for audit log
+    const user = await findUniqueUser<{ id: string }>("users", { clerkId: userId });
+    const dbUserId = user?.id || null;
     
     if (action === "archive") {
       await updateRegistry("registries", { id: registry.id }, {
@@ -84,16 +92,14 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
         archivedAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       } as Record<string, unknown>);
-      await createAudit("audit_logs", {
-        id: cryptoRandomUUID(),
-        orgId: registry.orgId,
-        registryId: registry.id,
-        actorClerkUserId: userId,
+      await logAuditEvent({
+        userId: dbUserId,
         action: "registry_archive",
-        targetType: "registry",
-        targetId: registry.id,
-        createdAt: new Date().toISOString(),
-      } as Record<string, unknown>);
+        metadata: {
+          registryId: registry.id,
+          orgId: registry.orgId,
+        },
+      });
       return NextResponse.json({ ok: true });
     }
 
@@ -103,16 +109,14 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
         archivedAt: null,
         updatedAt: new Date().toISOString(),
       } as Record<string, unknown>);
-      await createAudit("audit_logs", {
-        id: cryptoRandomUUID(),
-        orgId: registry.orgId,
-        registryId: registry.id,
-        actorClerkUserId: userId,
+      await logAuditEvent({
+        userId: dbUserId,
         action: "registry_restore",
-        targetType: "registry",
-        targetId: registry.id,
-        createdAt: new Date().toISOString(),
-      } as Record<string, unknown>);
+        metadata: {
+          registryId: registry.id,
+          orgId: registry.orgId,
+        },
+      });
       return NextResponse.json({ ok: true });
     }
 
@@ -127,17 +131,15 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
         name,
         updatedAt: new Date().toISOString(),
       } as Record<string, unknown>);
-      await createAudit("audit_logs", {
-        id: cryptoRandomUUID(),
-        orgId: registry.orgId,
-        registryId: registry.id,
-        actorClerkUserId: userId,
+      await logAuditEvent({
+        userId: dbUserId,
         action: "registry_rename",
-        targetType: "registry",
-        targetId: registry.id,
-        meta: { name },
-        createdAt: new Date().toISOString(),
-      } as Record<string, unknown>);
+        metadata: {
+          registryId: registry.id,
+          orgId: registry.orgId,
+          name,
+        },
+      });
       return NextResponse.json({ ok: true });
     }
 

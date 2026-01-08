@@ -11,8 +11,10 @@ export async function GET() {
   try {
     await requireAdmin();
 
+    const { queryRaw, update: updateUser } = await import("@/lib/db");
+    
     // Get attorneys using raw SQL
-    const attorneysResult = await prisma.$queryRawUnsafe<Array<{
+    const attorneysResult = await queryRaw<Array<{
       id: string,
       email: string,
       firstName: string | null;
@@ -23,14 +25,14 @@ export async function GET() {
       SELECT 
         id,
         email,
-        firstName,
-        lastName,
+        "firstName",
+        "lastName",
         bar_number,
         updated_at
       FROM users
-      WHERE role = 'attorney'
+      WHERE role = 'ATTORNEY'
       ORDER BY email ASC
-    `);
+    `, []);
 
     const credentials = attorneysResult.map((attorney) => ({
       id: attorney.id,
@@ -70,16 +72,15 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === "verify" && barNumber) {
-      await prisma.$executeRawUnsafe(
-        `UPDATE users SET bar_number = $1, updated_at = NOW() WHERE id = $2`,
-        barNumber,
-        attorneyId
-      );
+      await updateUser("users", { id: attorneyId }, {
+        barNumber: barNumber,
+        updatedAt: new Date().toISOString(),
+      } as Record<string, unknown>);
     } else if (action === "revoke") {
-      await prisma.$executeRawUnsafe(
-        `UPDATE users SET bar_number = NULL, updated_at = NOW() WHERE id = $1`,
-        attorneyId
-      );
+      await updateUser("users", { id: attorneyId }, {
+        barNumber: null,
+        updatedAt: new Date().toISOString(),
+      } as Record<string, unknown>);
     }
 
     return NextResponse.json({ success: true });

@@ -1,10 +1,7 @@
 // src/app/api/invite/[token]/upload-policy/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { renderToStream } from "@react-pdf/renderer";
-import { Prisma } from "@prisma/client";
 import { randomUUID } from "crypto";
-
-import { prisma } from "@/lib/prisma";
 import { AuditAction } from "@/lib/db/enums";
 import { ClientReceiptPDF } from "@/pdfs/ClientReceiptPDF";
 import { sendAttorneyNotificationEmail, sendClientReceiptEmail } from "@/lib/email";
@@ -214,14 +211,14 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
         const buffer = Buffer.from(arrayBuffer);
         const documentHash = generateDocumentHash(buffer);
 
-        const existingDoc = await prisma.$queryRaw<DocumentRow[]>(
-          Prisma.sql`
-            SELECT id, clientId, policy_id, extracted_data, ocr_confidence
-            FROM documents
-            WHERE document_hash = ${documentHash} AND clientId = ${clientId}
-            LIMIT 1
-          `
-        );
+        const { queryRaw, create: createDocument, create: createAudit } = await import("@/lib/db");
+        
+        const existingDoc = await queryRaw<DocumentRow[]>(`
+          SELECT id, "clientId", policy_id, extracted_data, ocr_confidence
+          FROM documents
+          WHERE document_hash = $1 AND "clientId" = $2
+          LIMIT 1
+        `, [documentHash, clientId]);
 
         if (existingDoc.length > 0) {
           const row = existingDoc[0];
@@ -245,14 +242,12 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
             extractedData = null;
           }
         } else {
-          const otherClientDoc = await prisma.$queryRaw<Array<{ id: string, clientId: string }>>(
-            Prisma.sql`
-              SELECT id, clientId
-              FROM documents
-              WHERE document_hash = ${documentHash} AND clientId != ${clientId}
-              LIMIT 1
-            `
-          );
+          const otherClientDoc = await queryRaw<Array<{ id: string, clientId: string }>>(`
+            SELECT id, "clientId"
+            FROM documents
+            WHERE document_hash = $1 AND "clientId" != $2
+            LIMIT 1
+          `, [documentHash, clientId]);
           if (otherClientDoc.length > 0) {
             console.warn(
               `Document hash collision: ${documentHash.slice(0, 16)}... exists for client ${otherClientDoc[0].clientId}; creating new for ${clientId}`
@@ -282,44 +277,35 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
 
           const documentId = randomUUID();
 
-          await prisma.$executeRaw(
-            Prisma.sql`
-              INSERT INTO documents (
-                id, clientId, file_name, file_type, file_size, file_path, mime_type,
-                uploaded_via, extracted_data, ocr_confidence, document_hash, createdAt, updated_at
-              ) VALUES (
-                ${documentId},
-                ${clientId},
-                ${file.name},
-                ${file.type},
-                ${file.size},
-                ${storagePath},
-                ${file.type},
-                ${"invite"},
-                ${extractedData ? JSON.stringify(extractedData) : null},
-                ${ocrResult.confidence},
-                ${documentHash},
-                NOW(),
-                NOW()
-              )
-            `
-          );
+          await createDocument("documents", {
+            id: documentId,
+            clientId: clientId,
+            fileName: file.name,
+            fileType: file.type,
+            fileSize: file.size,
+            filePath: storagePath,
+            mimeType: file.type,
+            uploadedVia: "invite",
+            extractedData: extractedData ? extractedData : null,
+            ocrConfidence: ocrResult.confidence,
+            documentHash: documentHash,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          } as Record<string, unknown>);
 
           archivedDocument = { id: documentId, clientId: clientId, policyId: null, fileName: file.name };
         }
 
-        await prisma.audit_logs.create({
-          data: {
-            id: randomUUID(),
-            action: AuditAction.DOCUMENT_UPLOADED,
-            message: `Policy document uploaded via invite: ${file.name}`,
-            clientId: clientId,
-            userId: null,
-            orgId: null,
-            policyId: null,
-            createdAt: new Date(),
-          },
-        });
+        await createAudit("audit_logs", {
+          id: randomUUID(),
+          action: AuditAction.DOCUMENT_UPLOADED,
+          message: `Policy document uploaded via invite: ${file.name}`,
+          clientId: clientId,
+          userId: null,
+          orgId: null,
+          policyId: null,
+          createdAt: new Date().toISOString(),
+        } as Record<string, unknown>);
       } catch (ocrError: unknown) {
         const msg = ocrError instanceof Error ? ocrError.message : String(ocrError);
         console.error("OCR/archive error:", msg);
@@ -330,14 +316,12 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
           const buffer = Buffer.from(fileArrayBuffer);
           const documentHash = generateDocumentHash(buffer);
 
-          const existingDoc = await prisma.$queryRaw<Array<{ id: string, clientId: string, policy_id: string | null }>>(
-            Prisma.sql`
-              SELECT id, clientId, policy_id
-              FROM documents
-              WHERE document_hash = ${documentHash} AND clientId = ${clientId}
-              LIMIT 1
-            `
-          );
+          const existingDoc = await queryRaw<Array<{ id: string, clientId: string, policy_id: string | null }>>(`
+            SELECT id, "clientId", policy_id
+            FROM documents
+            WHERE document_hash = $1 AND "clientId" = $2
+            LIMIT 1
+          `, [documentHash, clientId]);
 
           if (existingDoc.length > 0) {
             archivedDocument = {
@@ -354,28 +338,21 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
             });
 
             const documentId = randomUUID();
-            await prisma.$executeRaw(
-              Prisma.sql`
-                INSERT INTO documents (
-                  id, clientId, file_name, file_type, file_size, file_path, mime_type,
-                  uploaded_via, extracted_data, ocr_confidence, document_hash, createdAt, updated_at
-                ) VALUES (
-                  ${documentId},
-                  ${clientId},
-                  ${file.name},
-                  ${file.type},
-                  ${file.size},
-                  ${storagePath},
-                  ${file.type},
-                  ${"invite"},
-                  ${null},
-                  ${0},
-                  ${documentHash},
-                  NOW(),
-                  NOW()
-                )
-              `
-            );
+            await createDocument("documents", {
+              id: documentId,
+              clientId: clientId,
+              fileName: file.name,
+              fileType: file.type,
+              fileSize: file.size,
+              filePath: storagePath,
+              mimeType: file.type,
+              uploadedVia: "invite",
+              extractedData: null,
+              ocrConfidence: 0,
+              documentHash: documentHash,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            } as Record<string, unknown>);
 
             archivedDocument = { id: documentId, clientId: clientId, policyId: null, fileName: file.name };
           }
@@ -409,8 +386,9 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
     const insurerName = typeof finalPolicyData.insurerName === "string" ? finalPolicyData.insurerName : null;
     if (insurerName) {
       try {
-        const insurerRows = await prisma.$queryRaw<Array<{ id: string }>>(
-          Prisma.sql`SELECT id FROM insurers WHERE LOWER(name) = LOWER(${insurerName}) LIMIT 1`
+        const insurerRows = await queryRaw<Array<{ id: string }>>(
+          `SELECT id FROM insurers WHERE LOWER(name) = LOWER($1) LIMIT 1`,
+          [insurerName]
         );
         insurerId = insurerRows.length > 0 ? insurerRows[0].id : null;
         if (!insurerId) carrierNameRaw = insurerName;
@@ -427,33 +405,35 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
 
     if (insurerName && !isChangeRequest) {
       try {
-        const existing = await prisma.$queryRaw<Array<{ id: string }>>(
-          Prisma.sql`
-            SELECT id
-            FROM policies
-            WHERE clientId = ${invite.clientId}
-              AND (policy_number = ${policyNumber} OR (policy_number IS NULL AND ${policyNumber} IS NULL))
-              AND (
-                (insurer_id IS NOT NULL AND insurer_id = ${insurerId})
-                OR (insurer_id IS NULL AND carrier_name_raw = ${carrierNameRaw})
-              )
-            LIMIT 1
-          `
-        );
+        const { findMany: findManyPolicies, create: createPolicy } = await import("@/lib/db");
+        
+        const existing = await queryRaw<Array<{ id: string }>>(`
+          SELECT id
+          FROM policies
+          WHERE "clientId" = $1
+            AND (policy_number = $2 OR (policy_number IS NULL AND $2 IS NULL))
+            AND (
+              (insurer_id IS NOT NULL AND insurer_id = $3)
+              OR (insurer_id IS NULL AND carrier_name_raw = $4)
+            )
+          LIMIT 1
+        `, [clientId, policyNumber, insurerId, carrierNameRaw]);
 
         if (existing.length > 0) {
           policyId = existing[0].id;
         } else {
           policyId = randomUUID();
-          await prisma.$executeRaw(
-            Prisma.sql`
-              INSERT INTO policies (
-                id, clientId, insurer_id, carrier_name_raw, policy_number, policy_type, createdAt, updated_at
-              ) VALUES (
-                ${policyId}, ${clientId}, ${insurerId}, ${carrierNameRaw}, ${policyNumber}, ${policyType}, NOW(), NOW()
-              )
-            `
-          );
+          const now = new Date().toISOString();
+          await createPolicy("policies", {
+            id: policyId,
+            clientId: clientId,
+            insurerId: insurerId,
+            carrierNameRaw: carrierNameRaw,
+            policyNumber: policyNumber,
+            policyType: policyType,
+            createdAt: now,
+            updatedAt: now,
+          } as Record<string, unknown>);
         }
       } catch (e: unknown) {
         console.error("Policy create/reuse failed:", e);
@@ -464,15 +444,11 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
     // CRITICAL: Only update documents that belong to the current client to prevent cross-client corruption
     if (archivedDocument?.id && policyId && archivedDocument.clientId === clientId) {
       try {
-        await prisma.$executeRaw(
-          Prisma.sql`
-            UPDATE documents
-            SET policy_id = ${policyId}, updated_at = NOW()
-            WHERE id = ${archivedDocument.id} 
-              AND clientId = ${clientId}
-              AND policy_id IS NULL
-          `
-        );
+        const { update: updateDocument } = await import("@/lib/db");
+        await updateDocument("documents", { id: archivedDocument.id }, {
+          policyId: policyId,
+          updatedAt: new Date().toISOString(),
+        } as Record<string, unknown>);
       } catch (e: unknown) {
         console.error("Document policy attach failed:", e);
       }
@@ -548,24 +524,20 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
           driversLicense,
         });
 
-        await prisma.$executeRaw(
-          Prisma.sql`
-            UPDATE clients
-            SET
-              firstName = ${firstName},
-              lastName = ${lastName},
-              email = ${email},
-              phone = ${phone},
-              dateOfBirth = ${dateOfBirth},
-              ssn_last_4 = ${ssnLast4},
-              maiden_name = ${maidenName},
-              drivers_license = ${driversLicense},
-              passport_number = ${passportNumber},
-              client_fingerprint = ${fingerprint},
-              updated_at = NOW()
-            WHERE id = ${clientId}
-          `
-        );
+        const { update: updateClient } = await import("@/lib/db");
+        await updateClient("clients", { id: clientId }, {
+          firstName,
+          lastName,
+          email,
+          phone,
+          dateOfBirth: dateOfBirth ? (dateOfBirth instanceof Date ? dateOfBirth.toISOString() : dateOfBirth) : null,
+          ssnLast4,
+          maidenName,
+          driversLicense,
+          passportNumber,
+          clientFingerprint: fingerprint,
+          updatedAt: new Date().toISOString(),
+        } as Record<string, unknown>);
       } catch (e: unknown) {
         console.error("Client update failed:", e);
       }
@@ -574,9 +546,11 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
     // Mark invite used (first submission only)
     if (!inviteUsedAt && !isChangeRequest) {
       try {
-        await prisma.$executeRaw(
-          Prisma.sql`UPDATE client_invites SET used_at = ${now}, updated_at = NOW() WHERE id = ${inviteId}`
-        );
+        const { update: updateInvite } = await import("@/lib/db");
+        await updateInvite("client_invites", { id: inviteId }, {
+          usedAt: now.toISOString(),
+          updatedAt: new Date().toISOString(),
+        } as Record<string, unknown>);
       } catch (e: unknown) {
         console.error("Invite used_at update failed:", e);
       }
@@ -600,29 +574,27 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
       | null = null;
 
     try {
-      const access = await prisma.$queryRaw<AttorneyAccessRow[]>(
-        Prisma.sql`
-          SELECT
-            aca.attorney_id,
-            u.email as attorney_email,
-            u.firstName as attorney_firstName,
-            u.lastName as attorney_lastName,
-            o.id as org_id,
-            o.name as org_name,
-            o.address_line1 as org_address_line1,
-            o.address_line2 as org_address_line2,
-            o.city as org_city,
-            o.state as org_state,
-            o.postal_code as org_postal_code,
-            o.phone as org_phone
-          FROM attorneyClientAccess aca
-          INNER JOIN users u ON u.id = aca.attorney_id
-          LEFT JOIN org_members om ON om.user_id = aca.attorney_id
-          LEFT JOIN organizations o ON o.id = om.organization_id
-          WHERE aca.clientId = ${clientId} AND aca.is_active = true
-          LIMIT 1
-        `
-      );
+      const access = await queryRaw<AttorneyAccessRow[]>(`
+        SELECT
+          aca.attorney_id,
+          u.email as attorney_email,
+          u."firstName" as attorney_firstName,
+          u."lastName" as attorney_lastName,
+          o.id as org_id,
+          o.name as org_name,
+          o.address_line1 as org_address_line1,
+          o.address_line2 as org_address_line2,
+          o.city as org_city,
+          o.state as org_state,
+          o.postal_code as org_postal_code,
+          o.phone as org_phone
+        FROM attorney_client_access aca
+        INNER JOIN users u ON u.id = aca.attorney_id
+        LEFT JOIN org_members om ON om.user_id = aca.attorney_id
+        LEFT JOIN organizations o ON o.id = om.organization_id
+        WHERE aca."clientId" = $1 AND aca.is_active = true
+        LIMIT 1
+      `, [clientId]);
 
       if (access.length > 0) {
         const row = access[0];
@@ -653,29 +625,25 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
 
     try {
       const [clients, pols] = await Promise.all([
-        prisma.$queryRaw<ClientRow[]>(
-          Prisma.sql`
-            SELECT id, firstName, lastName, email, phone, dateOfBirth, createdAt
-            FROM clients
-            WHERE id = ${clientId}
-            LIMIT 1
-          `
-        ),
-        prisma.$queryRaw<PolicyRow[]>(
-          Prisma.sql`
-            SELECT
-              p.id,
-              p.policy_number,
-              p.policy_type,
-              p.carrier_name_raw,
-              i.name as insurer_name,
-              i.contact_phone as insurer_contact_phone,
-              i.contact_email as insurer_contact_email
-            FROM policies p
-            LEFT JOIN insurers i ON i.id = p.insurer_id
-            WHERE p.clientId = ${clientId}
-          `
-        ),
+        queryRaw<ClientRow[]>(`
+          SELECT id, "firstName", "lastName", email, phone, "dateOfBirth", "createdAt"
+          FROM clients
+          WHERE id = $1
+          LIMIT 1
+        `, [clientId]),
+        queryRaw<PolicyRow[]>(`
+          SELECT
+            p.id,
+            p.policy_number,
+            p.policy_type,
+            p.carrier_name_raw,
+            i.name as insurer_name,
+            i.contact_phone as insurer_contact_phone,
+            i.contact_email as insurer_contact_email
+          FROM policies p
+          LEFT JOIN insurers i ON i.id = p.insurer_id
+          WHERE p."clientId" = $1
+        `, [clientId]),
       ]);
 
       clientRow = clients.length > 0 ? clients[0] : null;

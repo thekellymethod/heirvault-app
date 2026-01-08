@@ -2,8 +2,8 @@
 import { withRouteGuard } from "@/lib/permissions/route";
 import { requireAuthPrincipal, requireRole } from "@/lib/permissions/guard";
 ;
-import { UserRole } from "@prisma/client";
-import crypto from "crypto";
+import { UserRole } from "@/lib/db/enums";
+import { randomUUID } from "crypto";
 
 export async function POST(req: Request, ctx: { params: Promise<{ clientId: string }> }) {
   return withRouteGuard(async () => {
@@ -17,35 +17,38 @@ export async function POST(req: Request, ctx: { params: Promise<{ clientId: stri
       throw new Error("userId required");
     }
 
+    const { findMany: findManyAccess, update: updateAccess, create: createAccess } = await import("@/lib/db");
+    
     // Check if grant already exists
-    const existing = await prisma.attorneyClientAccess.findFirst({
+    const existingGrants = await findManyAccess("attorney_client_access", {
       where: {
         attorneyId: userId,
         clientId,
       },
+      limit: 1,
     });
+    
+    const existing = existingGrants && existingGrants.length > 0 ? existingGrants[0] : null;
 
     if (existing) {
-      await prisma.attorneyClientAccess.update({
-        where: { id: existing.id },
-        data: {
-          canViewSensitive: !!canViewSensitive,
-          canDownload: !!canDownload,
-          isActive: true,
-          revokedAt: null,
-        },
-      });
+      await updateAccess("attorney_client_access", { id: (existing as any).id }, {
+        canViewSensitive: !!canViewSensitive,
+        canDownload: !!canDownload,
+        isActive: true,
+        revokedAt: null,
+        updatedAt: new Date().toISOString(),
+      } as Record<string, unknown>);
     } else {
-      await prisma.attorneyClientAccess.create({
-        data: {
-          id: crypto.randomUUID(),
-          attorneyId: userId,
-          clientId,
-          canViewSensitive: !!canViewSensitive,
-          canDownload: !!canDownload,
-          isActive: true,
-        },
-      });
+      await createAccess("attorney_client_access", {
+        id: randomUUID(),
+        attorneyId: userId,
+        clientId,
+        canViewSensitive: !!canViewSensitive,
+        canDownload: !!canDownload,
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      } as Record<string, unknown>);
     }
 
     return { ok: true };

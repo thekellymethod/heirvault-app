@@ -1,10 +1,8 @@
 import "server-only";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth/guards";
-import { prisma } from "@/lib/prisma";
-import { LicenseStatus } from "@prisma/client";
 import { sendEmail } from "@/lib/email";
-import { audit } from "@/lib/audit";
+import { logAuditEvent } from "@/lib/audit";
 
 export const runtime = "nodejs";
 
@@ -29,18 +27,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const { findUnique: findUniqueUser, update: updateProfile, update: updateUser } = await import("@/lib/db");
+    
     // Get user details before updating
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        roles: true,
-        clerkId: true,
-      },
-    });
+    type UserRecord = {
+      id: string;
+      email: string;
+      firstName: string | null;
+      lastName: string | null;
+      roles: string[];
+      clerkId: string;
+    };
+    
+    const user = await findUniqueUser<UserRecord>("users", { id: userId });
 
     if (!user) {
       return NextResponse.json(
@@ -49,30 +48,35 @@ export async function POST(req: NextRequest) {
       );
     }
 
-
     // Update attorney profile
-    const updatedProfile = await prisma.attorneyProfile.update({
-      where: { userId },
-      data: {
-        licenseStatus: licenseStatus as "ACTIVE" | "SUSPENDED" | "REVOKED",
-        verifiedAt: licenseStatus === "ACTIVE" ? new Date() : null,
-      },
-    });
+    type AttorneyProfileRecord = {
+      id: string;
+      licenseStatus: string;
+      verifiedAt: string | null;
+    };
+    
+    const updatedProfile = await updateProfile<AttorneyProfileRecord>("attorney_profiles", { userId }, {
+      licenseStatus: licenseStatus as "ACTIVE" | "SUSPENDED" | "REVOKED",
+      verifiedAt: licenseStatus === "ACTIVE" ? new Date().toISOString() : null,
+      updatedAt: new Date().toISOString(),
+    } as Record<string, unknown>);
 
     // Ensure user has ATTORNEY role
     if (!user.roles.includes("ATTORNEY")) {
-      await prisma.user.update({
-        where: { id: userId },
-        data: {
-          roles: [...user.roles, "ATTORNEY"],
-        },
-      });
+      await updateUser("users", { id: userId }, {
+        roles: [...user.roles, "ATTORNEY"],
+        updatedAt: new Date().toISOString(),
+      } as Record<string, unknown>);
     }
 
     // Write audit log
-    await audit("ATTORNEY_VERIFIED", {
+    await logAuditEvent({
       userId: userId,
-      message: `Attorney verified: ${user.email} | Status: ${licenseStatus}`,
+      action: "ATTORNEY_VERIFIED",
+      metadata: {
+        email: user.email,
+        licenseStatus,
+      },
     });
 
     // Send approval email if status is ACTIVE
@@ -122,9 +126,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       message: "Attorney verification updated",
       profile: {
-        id: updatedProfile.id,
-        licenseStatus: updatedProfile.licenseStatus,
-        verifiedAt: updatedProfile.verifiedAt,
+        id: (updatedProfile as AttorneyProfileRecord).id,
+        licenseStatus: (updatedProfile as AttorneyProfileRecord).licenseStatus,
+        verifiedAt: (updatedProfile as AttorneyProfileRecord).verifiedAt,
       },
     });
   } catch (error: unknown) {
@@ -145,40 +149,65 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const status = searchParams.get("status");
 
-    const where: { licenseStatus?: LicenseStatus } = {};
+    const { findMany: findManyProfiles, findUnique: findUniqueUser } = await import("@/lib/db");
+    
+    const where: Record<string, unknown> = {};
     if (status && (status === "ACTIVE" || status === "SUSPENDED" || status === "REVOKED" || status === "PENDING")) {
-      where.licenseStatus = status as LicenseStatus;
+      where.licenseStatus = status;
     }
 
-    const profiles = await prisma.attorneyProfile.findMany({
+    type AttorneyProfileRecord = {
+      id: string;
+      userId: string;
+      licenseStatus: string;
+      licenseState: string | null;
+      lawFirm: string | null;
+      licenseDocumentPath: string | null;
+      licenseDocumentName: string | null;
+      appliedAt: string;
+      verifiedAt: string | null;
+    };
+    
+    const profiles = await findManyProfiles<AttorneyProfileRecord>("attorney_profiles", {
       where,
-      select: {
-        id: true,
-        userId: true,
-        licenseStatus: true,
-        licenseState: true,
-        lawFirm: true,
-        licenseDocumentPath: true,
-        licenseDocumentName: true,
-        appliedAt: true,
-        verifiedAt: true,
-        user: {
-          select: {
-            id: true,
-            email: true,
-            firstName: true,
-            lastName: true,
-            barNumber: true,
-            phone: true,
-          },
-        },
-      },
-      orderBy: {
-        appliedAt: "desc",
-      },
+      orderBy: { column: "appliedAt", ascending: false },
     });
 
-    return NextResponse.json({ profiles });
+    // Fetch users for each profile
+    const profilesWithUsers = await Promise.all(
+      (profiles || []).map(async (profile) => {
+        const user = await findUniqueUser<{
+          id: string;
+          email: string;
+          firstName: string | null;
+          lastName: string | null;
+          barNumber: string | null;
+          phone: string | null;
+        }>("users", { id: profile.userId });
+        
+        return {
+          id: profile.id,
+          userId: profile.userId,
+          licenseStatus: profile.licenseStatus,
+          licenseState: profile.licenseState,
+          lawFirm: profile.lawFirm,
+          licenseDocumentPath: profile.licenseDocumentPath,
+          licenseDocumentName: profile.licenseDocumentName,
+          appliedAt: typeof profile.appliedAt === 'string' ? profile.appliedAt : new Date(profile.appliedAt).toISOString(),
+          verifiedAt: profile.verifiedAt ? (typeof profile.verifiedAt === 'string' ? profile.verifiedAt : new Date(profile.verifiedAt).toISOString()) : null,
+          user: user ? {
+            id: user.id,
+            email: user.email,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            barNumber: user.barNumber,
+            phone: user.phone,
+          } : null,
+        };
+      })
+    );
+
+    return NextResponse.json({ profiles: profilesWithUsers.filter(p => p.user !== null) });
   } catch (error: unknown) {
     console.error("Attorney list error:", error);
     const message = error instanceof Error ? error.message : "Failed to list attorneys";

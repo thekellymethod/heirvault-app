@@ -1,7 +1,6 @@
 import "server-only";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth/guards";
-import { prisma } from "@/lib/prisma";
 import { randomUUID } from "crypto";
 import { logAuditEvent } from "@/lib/audit";
 
@@ -47,10 +46,10 @@ export async function POST(req: NextRequest) {
           );
         }
 
+        const { findUnique: findUniqueUser, create: createUser, create: createProfile } = await import("@/lib/db");
+        
         // Check if user already exists
-        const existingUser = await prisma.user.findUnique({
-          where: { email },
-        });
+        const existingUser = await findUniqueUser("users", { email });
 
         if (existingUser) {
           return NextResponse.json(
@@ -64,37 +63,45 @@ export async function POST(req: NextRequest) {
         // This satisfies the required unique constraint and can be updated later if the user signs up with Clerk
         const userId = randomUUID();
         const placeholderClerkId = `manual_${randomUUID()}`;
+        const now = new Date().toISOString();
         
-        const user = await prisma.user.create({
-          data: {
-            id: userId,
-            clerkId: placeholderClerkId,
-            email,
-            firstName,
-            lastName,
-            phone: phone || undefined,
-            barNumber: barNumber || undefined,
-            roles: ["ATTORNEY"],
-          },
-        });
+        const user = await createUser("users", {
+          id: userId,
+          clerkId: placeholderClerkId,
+          email,
+          firstName,
+          lastName,
+          phone: phone || null,
+          barNumber: barNumber || null,
+          role: "ATTORNEY",
+          createdAt: now,
+          updatedAt: now,
+        } as Record<string, unknown>) as {
+          id: string;
+          email: string;
+          firstName: string;
+          lastName: string;
+        };
 
         // Create attorney profile
-        const profile = await prisma.attorneyProfile.create({
-          data: {
-            userId: user.id,
-            licenseStatus: "ACTIVE",
-            licenseState: licenseState || undefined,
-            lawFirm: lawFirm || undefined,
-            verifiedAt: new Date(),
-            appliedAt: new Date(),
-          },
-        });
+        const profile = await createProfile("attorney_profiles", {
+          userId: user.id,
+          licenseStatus: "ACTIVE",
+          licenseState: licenseState || null,
+          lawFirm: lawFirm || null,
+          verifiedAt: now,
+          appliedAt: now,
+          createdAt: now,
+          updatedAt: now,
+        } as Record<string, unknown>) as {
+          id: string;
+          licenseStatus: string;
+        };
 
         await logAuditEvent({
+          userId: admin.id,
           action: "ATTORNEY_CREATED",
-          resourceType: "attorney",
-          resourceId: user.id,
-          details: { 
+          metadata: { 
             email, 
             firstName, 
             lastName, 
@@ -102,9 +109,9 @@ export async function POST(req: NextRequest) {
             createdBy: admin.id,
             manuallyCreated: true,
             placeholderClerkId: placeholderClerkId,
-            note: "Manually created by admin. User will need to sign up with Clerk to link their account."
+            note: "Manually created by admin. User will need to sign up with Clerk to link their account.",
+            resourceId: user.id,
           },
-          userId: admin.id,
         });
 
         return NextResponse.json({
@@ -145,13 +152,15 @@ export async function POST(req: NextRequest) {
           );
         }
 
+        const { findMany: findManyClients, create: createClient } = await import("@/lib/db");
+        
         // Check if client already exists
-        const existingClient = await prisma.clients.findFirst({
+        const existingClients = await findManyClients("clients", {
           where: { email },
-          select: { id: true },
+          limit: 1,
         });
 
-        if (existingClient) {
+        if (existingClients && existingClients.length > 0) {
           return NextResponse.json(
             { error: "Client with this email already exists" },
             { status: 400 }
@@ -159,41 +168,36 @@ export async function POST(req: NextRequest) {
         }
 
         const clientId = randomUUID();
-        const dateOfBirthValue = dateOfBirth ? new Date(dateOfBirth) : null;
-        const now = new Date();
+        const dateOfBirthValue = dateOfBirth ? new Date(dateOfBirth).toISOString() : null;
+        const now = new Date().toISOString();
 
-        // Create client using Prisma
-        const client = await prisma.clients.create({
-          data: {
-            id: clientId,
-            email,
-            firstName: firstName,
-            lastName: lastName,
-            phone: phone || null,
-            dateOfBirth: dateOfBirthValue,
-            addressLine1: addressLine1 || null,
-            addressLine2: addressLine2 || null,
-            city: city || null,
-            state: state || null,
-            postalCode: postalCode || null,
-            country: country || null,
-            createdAt: now,
-            updatedAt: now,
-          },
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-          },
-        });
+        // Create client
+        const client = await createClient("clients", {
+          id: clientId,
+          email,
+          firstName: firstName,
+          lastName: lastName,
+          phone: phone || null,
+          dateOfBirth: dateOfBirthValue,
+          addressLine1: addressLine1 || null,
+          addressLine2: addressLine2 || null,
+          city: city || null,
+          state: state || null,
+          postalCode: postalCode || null,
+          country: country || null,
+          createdAt: now,
+          updatedAt: now,
+        } as Record<string, unknown>) as {
+          id: string;
+          firstName: string;
+          lastName: string;
+          email: string;
+        };
 
         await logAuditEvent({
-          action: "CLIENT_CREATED",
-          resourceType: "client",
-          resourceId: client.id,
-          details: { email, firstName, lastName, createdBy: admin.id },
           userId: admin.id,
+          action: "CLIENT_CREATED",
+          metadata: { email, firstName, lastName, createdBy: admin.id, resourceId: client.id },
         });
 
         return NextResponse.json({
@@ -232,11 +236,10 @@ export async function POST(req: NextRequest) {
           );
         }
 
+        const { findUnique: findUniqueClient, create: createBeneficiary } = await import("@/lib/db");
+        
         // Verify client exists
-        const clientExists = await prisma.clients.findFirst({
-          where: { id: clientId },
-          select: { id: true },
-        });
+        const clientExists = await findUniqueClient("clients", { id: clientId });
 
         if (!clientExists) {
           return NextResponse.json(
@@ -246,42 +249,37 @@ export async function POST(req: NextRequest) {
         }
 
         const beneficiaryId = randomUUID();
-        const dateOfBirthValue = dateOfBirth ? new Date(dateOfBirth) : null;
-        const now = new Date();
+        const dateOfBirthValue = dateOfBirth ? new Date(dateOfBirth).toISOString() : null;
+        const now = new Date().toISOString();
 
-        // Create beneficiary using Prisma
-        const beneficiary = await prisma.beneficiaries.create({
-          data: {
-            id: beneficiaryId,
-            clientId: clientId,
-            firstName: firstName,
-            lastName: lastName,
-            relationship: relationship || null,
-            email: email || null,
-            phone: phone || null,
-            dateOfBirth: dateOfBirthValue,
-            addressLine1: addressLine1 || null,
-            addressLine2: addressLine2 || null,
-            city: city || null,
-            state: state || null,
-            postalCode: postalCode || null,
-            country: country || null,
-            createdAt: now,
-            updatedAt: now,
-          },
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-          },
-        });
+        // Create beneficiary
+        const beneficiary = await createBeneficiary("beneficiaries", {
+          id: beneficiaryId,
+          clientId: clientId,
+          firstName: firstName,
+          lastName: lastName,
+          relationship: relationship || null,
+          email: email || null,
+          phone: phone || null,
+          dateOfBirth: dateOfBirthValue,
+          addressLine1: addressLine1 || null,
+          addressLine2: addressLine2 || null,
+          city: city || null,
+          state: state || null,
+          postalCode: postalCode || null,
+          country: country || null,
+          createdAt: now,
+          updatedAt: now,
+        } as Record<string, unknown>) as {
+          id: string;
+          firstName: string;
+          lastName: string;
+        };
 
         await logAuditEvent({
-          action: "BENEFICIARY_CREATED",
-          resourceType: "beneficiary",
-          resourceId: beneficiary.id,
-          details: { clientId, firstName, lastName, createdBy: admin.id },
           userId: admin.id,
+          action: "BENEFICIARY_CREATED",
+          metadata: { clientId, firstName, lastName, createdBy: admin.id, resourceId: beneficiary.id },
         });
 
         return NextResponse.json({

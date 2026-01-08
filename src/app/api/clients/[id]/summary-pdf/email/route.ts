@@ -35,22 +35,137 @@ export async function POST(req: NextRequest, { params }: Params) {
   }
 
   try {
-    const client = await prisma.clients.findUnique({
-      where: { id },
-      include: {
-        policies: {
-          include: {
-            insurers: true,
-            policy_beneficiaries: {
-              include: {
-                beneficiaries: true,
-              },
-            },
-          },
+    const { queryRaw } = await import("@/lib/db");
+    
+    // Get client data
+    const clientData = await queryRaw<Array<{
+      id: string;
+      firstName: string;
+      lastName: string;
+      email: string;
+      phone: string | null;
+      dateOfBirth: Date | null;
+      createdAt: Date;
+    }>>(`
+      SELECT id, "firstName", "lastName", email, phone, "dateOfBirth", "createdAt"
+      FROM clients
+      WHERE id = $1
+      LIMIT 1
+    `, [id]);
+
+    if (!clientData || clientData.length === 0) {
+      return NextResponse.json({ error: "Client not found" }, { status: 404 });
+    }
+
+    const clientRow = clientData[0];
+
+    // Get policies with insurers
+    const policiesData = await queryRaw<Array<{
+      id: string;
+      policy_number: string | null;
+      policy_type: string | null;
+      insurer_id: string;
+      insurer_name: string;
+      insurer_contact_phone: string | null;
+      insurer_contact_email: string | null;
+      insurer_website: string | null;
+    }>>(`
+      SELECT 
+        p.id,
+        p.policy_number,
+        p.policy_type,
+        i.id as insurer_id,
+        i.name as insurer_name,
+        i.contact_phone as insurer_contact_phone,
+        i.contact_email as insurer_contact_email,
+        i.website as insurer_website
+      FROM policies p
+      INNER JOIN insurers i ON i.id = p.insurer_id
+      WHERE p."clientId" = $1
+      ORDER BY p."createdAt" DESC
+    `, [id]);
+
+    // Get policy beneficiaries
+    const policyIds = policiesData.map((p) => p.id);
+    const policyBeneficiariesData = policyIds.length > 0
+      ? await queryRaw<Array<{
+          policy_id: string;
+          beneficiary_id: string;
+          beneficiary_firstName: string;
+          beneficiary_lastName: string;
+          beneficiary_relationship: string | null;
+          beneficiary_email: string | null;
+          beneficiary_phone: string | null;
+        }>>(`
+          SELECT 
+            pb.policy_id,
+            b.id as beneficiary_id,
+            b."firstName" as beneficiary_firstName,
+            b."lastName" as beneficiary_lastName,
+            b.relationship as beneficiary_relationship,
+            b.email as beneficiary_email,
+            b.phone as beneficiary_phone
+          FROM policy_beneficiaries pb
+          INNER JOIN beneficiaries b ON b.id = pb.beneficiary_id
+          WHERE pb.policy_id = ANY($1::uuid[])
+        `, [policyIds])
+      : [];
+
+    // Get all beneficiaries
+    const beneficiariesData = await queryRaw<Array<{
+      id: string;
+      firstName: string;
+      lastName: string;
+      relationship: string | null;
+      email: string | null;
+      phone: string | null;
+    }>>(`
+      SELECT id, "firstName", "lastName", relationship, email, phone
+      FROM beneficiaries
+      WHERE "clientId" = $1
+      ORDER BY "createdAt" DESC
+    `, [id]);
+
+    const client = {
+      id: clientRow.id,
+      firstName: clientRow.firstName,
+      lastName: clientRow.lastName,
+      email: clientRow.email,
+      phone: clientRow.phone,
+      dateOfBirth: clientRow.dateOfBirth,
+      createdAt: clientRow.createdAt,
+      beneficiaries: beneficiariesData.map(b => ({
+        id: b.id,
+        firstName: b.firstName,
+        lastName: b.lastName,
+        relationship: b.relationship || "",
+        email: b.email,
+        phone: b.phone,
+        notes: null,
+      })),
+      policies: policiesData.map(p => ({
+        id: p.id,
+        policyNumber: p.policy_number,
+        policyType: p.policy_type,
+        insurers: {
+          name: p.insurer_name,
+          contactPhone: p.insurer_contact_phone,
+          contactEmail: p.insurer_contact_email,
+          website: p.insurer_website,
         },
-        beneficiaries: true,
-      },
-    });
+        policy_beneficiaries: policyBeneficiariesData
+          .filter((pb) => pb.policy_id === p.id)
+          .map((pb) => ({
+            beneficiaries: {
+              firstName: pb.beneficiary_firstName,
+              lastName: pb.beneficiary_lastName,
+              relationship: pb.beneficiary_relationship || "",
+              email: pb.beneficiary_email,
+              phone: pb.beneficiary_phone,
+            },
+          })),
+      })),
+    };
 
     if (!client) {
       return NextResponse.json({ error: "Client not found" }, { status: 404 });

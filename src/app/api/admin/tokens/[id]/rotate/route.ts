@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth/guards";
 import { createApiToken } from "@/lib/security/apiTokens";
-import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 
@@ -15,17 +14,18 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const actor = await requireAdmin();
   const { id } = await params;
 
-  const oldToken = await prisma.apiToken.findUnique({
-    where: { id },
-    include: {
-      createdBy: {
-        select: {
-          id: true,
-          email: true,
-        },
-      },
-    },
-  });
+  const { findUnique: findUniqueToken } = await import("@/lib/db");
+  const { logAuditEvent } = await import("@/lib/audit");
+  
+  type ApiTokenRecord = {
+    id: string;
+    name: string;
+    scopes: string[];
+    expiresAt: string | Date | null;
+    revokedAt: string | Date | null;
+  };
+  
+  const oldToken = await findUniqueToken<ApiTokenRecord>("api_tokens", { id });
 
   if (!oldToken) {
     return NextResponse.json({ ok: false, error: "Token not found" }, { status: 404 });
@@ -36,11 +36,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   }
 
   // Check if old token is expired
-  const isExpired = oldToken.expiresAt && oldToken.expiresAt < new Date();
+  const expiresAtDate = oldToken.expiresAt ? (typeof oldToken.expiresAt === 'string' ? new Date(oldToken.expiresAt) : oldToken.expiresAt) : null;
+  const isExpired = expiresAtDate && expiresAtDate < new Date();
   
   // If expired, set new token expiry to undefined (no expiry) to prevent inheriting past date
   // Otherwise, copy the expiry from the old token (convert null to undefined)
-  const newExpiresAt = isExpired ? undefined : (oldToken.expiresAt ?? undefined);
+  const newExpiresAt = isExpired ? undefined : (expiresAtDate ?? undefined);
 
   // Create new token with same scopes and name (with " (rotated)" suffix)
   const { token, record: newToken } = await createApiToken({
@@ -51,13 +52,14 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   });
 
   // Audit log
-  await prisma.audit_logs.create({
-    data: {
-      id: crypto.randomUUID(),
-      userId: actor.id,
-      action: "API_TOKEN_ROTATED",
-      message: `API token rotated: oldTokenId=${id}, newTokenId=${newToken.id}, name=${oldToken.name}${isExpired ? " (expired token, new token has no expiry)" : ""}`,
-      createdAt: new Date(),
+  await logAuditEvent({
+    userId: actor.id,
+    action: "API_TOKEN_ROTATED",
+    metadata: {
+      oldTokenId: id,
+      newTokenId: newToken.id,
+      name: oldToken.name,
+      expired: isExpired,
     },
   });
 

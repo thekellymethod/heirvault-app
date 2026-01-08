@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth/guards";
 import { COMMANDS } from "@/lib/admin/console/commands";
 import { translateNLToPlan } from "@/lib/admin/nl/translate";
-import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 
@@ -38,13 +37,14 @@ export async function POST(req: Request) {
 
   // Audit the plan request (no execution yet)
   const auditId = crypto.randomUUID();
-  await prisma.audit_logs.create({
-    data: {
-      id: auditId,
-      userId: actor.id,
-      action: "GLOBAL_POLICY_SEARCH_PERFORMED", // replace later with ADMIN_CONSOLE_PLAN
+  const { logAuditEvent } = await import("@/lib/audit");
+  await logAuditEvent({
+    userId: actor.id,
+    action: "GLOBAL_POLICY_SEARCH_PERFORMED", // replace later with ADMIN_CONSOLE_PLAN
+    metadata: {
+      cmd: plan.cmd ?? "null",
+      confidence: plan.confidence,
       message: `AdminNLPlan cmd=${plan.cmd ?? "null"} conf=${plan.confidence}`,
-      createdAt: new Date(),
     },
   });
 

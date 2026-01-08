@@ -101,7 +101,7 @@ export async function GET(
     let policies: PolicyOut[] = [];
     try {
       const { queryRaw } = await import("@/lib/db");
-      const rows = await queryRaw<PolicyRow[]>(
+      const rowsResult = await queryRaw<PolicyRow>(
         `
         SELECT
           p.id,
@@ -118,8 +118,10 @@ export async function GET(
       `,
         [clientId]
       );
+      
+      const rows: PolicyRow[] = Array.isArray(rowsResult) ? rowsResult : [];
 
-      policies = (rows ?? []).map((p) => ({
+      policies = rows.map((p) => ({
         id: p.id,
         policyNumber: p.policy_number,
         policyType: p.policy_type,
@@ -140,7 +142,7 @@ export async function GET(
     let organization: OrgOut | null = null;
     try {
       const { queryRaw } = await import("@/lib/db");
-      const accessRows = await queryRaw<OrgRow[]>(
+      const accessRowsResult = await queryRaw<OrgRow>(
         `
         SELECT
           o.id AS org_id,
@@ -160,8 +162,10 @@ export async function GET(
       `,
         [clientId]
       );
+      
+      const accessRows: OrgRow[] = Array.isArray(accessRowsResult) ? accessRowsResult : [];
 
-      if (accessRows?.length) {
+      if (accessRows && accessRows.length > 0) {
         const row = accessRows[0];
         organization = {
           id: row.org_id,

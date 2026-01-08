@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth/guards";
-import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 
@@ -12,9 +11,16 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const actor = await requireAdmin();
   const { id } = await params;
 
-  const token = await prisma.apiToken.findUnique({
-    where: { id },
-  });
+  const { findUnique: findUniqueToken, update: updateToken } = await import("@/lib/db");
+  const { logAuditEvent } = await import("@/lib/audit");
+  
+  type ApiTokenRecord = {
+    id: string;
+    name: string;
+    revokedAt: string | null;
+  };
+  
+  const token = await findUniqueToken<ApiTokenRecord>("api_tokens", { id });
 
   if (!token) {
     return NextResponse.json({ ok: false, error: "Token not found" }, { status: 404 });
@@ -24,19 +30,18 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ ok: false, error: "Token already revoked" }, { status: 400 });
   }
 
-  await prisma.apiToken.update({
-    where: { id },
-    data: { revokedAt: new Date() },
-  });
+  await updateToken("api_tokens", { id }, {
+    revokedAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  } as Record<string, unknown>);
 
   // Audit log
-  await prisma.audit_logs.create({
-    data: {
-      id: crypto.randomUUID(),
-      userId: actor.id,
-      action: "API_TOKEN_REVOKED",
-      message: `API token revoked: tokenId=${id}, name=${token.name}`,
-      createdAt: new Date(),
+  await logAuditEvent({
+    userId: actor.id,
+    action: "API_TOKEN_REVOKED",
+    metadata: {
+      tokenId: id,
+      name: token.name,
     },
   });
 

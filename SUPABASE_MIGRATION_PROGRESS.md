@@ -50,7 +50,7 @@ Migrating from Prisma ORM to Supabase SQL for all database operations.
 - ✅ `src/lib/contracts/acceptance.ts` - Contract acceptance management
 - ✅ `src/lib/test-invites.ts` - Test invite creation utility
 
-### 3. API Routes - **58 FILES COMPLETE**
+### 3. API Routes - **75 FILES COMPLETE**
 - ✅ `src/app/api/clients/route.ts` - Client CRUD operations (GET, POST)
 - ✅ `src/app/api/clients/[id]/route.ts` - Client detail operations (GET)
 - ✅ `src/app/api/clients/[id]/invite/route.ts` - Client invite creation (POST)
@@ -115,6 +115,31 @@ Migrating from Prisma ORM to Supabase SQL for all database operations.
 - ✅ `src/app/api/admin/invites/route.ts` - Admin invite search/archive (GET, POST)
 - ✅ `src/app/api/admin/invites/generate/route.ts` - Generate invite (POST)
 - ✅ `src/app/api/admin/clients/[clientId]/access/route.ts` - Get client access grants (GET)
+- ✅ `src/app/api/admin/invites/reactivate/route.ts` - Reactivate invite (POST)
+- ✅ `src/app/api/admin/clients/[clientId]/access/grant/route.ts` - Grant client access (POST)
+- ✅ `src/app/api/admin/clients/[clientId]/access/revoke/route.ts` - Revoke client access (POST)
+- ✅ `src/app/api/invite/[token]/upload-policy/route.ts` - Upload policy document (POST)
+- ✅ `src/app/api/invite/[token]/receipt/route.ts` - Get receipt data (GET)
+- ✅ `src/app/api/invite/[token]/send-confirmation/route.ts` - Send confirmation code (POST)
+- ✅ `src/app/api/storage/create-upload/route.ts` - Create signed upload URL (POST)
+- ✅ `src/app/api/admin/receipts/route.ts` - Admin receipt search/archive (GET, POST)
+- ✅ `src/app/api/admin/users/attorneys/route.ts` - List attorneys (GET)
+- ✅ `src/app/api/admin/policies/resolve-insurer/route.ts` - Resolve insurer for policy (POST)
+- ✅ `src/app/api/admin/audit/search/route.ts` - Search audit logs (POST)
+- ✅ `src/app/api/admin/audit/access-events/route.ts` - Get access events (POST)
+- ✅ `src/app/api/admin/compliance/usage/route.ts` - Get usage statistics (GET)
+- ✅ `src/app/api/admin/compliance/credentials/route.ts` - Get/update attorney credentials (GET, POST)
+- ✅ `src/app/api/admin/billing-ledger/route.ts` - Get billing ledger (GET)
+- ✅ `src/app/api/admin/tokens/route.ts` - List/create API tokens (GET, POST)
+- ✅ `src/app/api/admin/tokens/[id]/route.ts` - Get/delete token (GET, DELETE)
+- ✅ `src/app/api/admin/tokens/[id]/revoke/route.ts` - Revoke token (POST)
+- ✅ `src/app/api/admin/tokens/[id]/rotate/route.ts` - Rotate token (POST)
+- ✅ `src/app/api/admin/nl/execute/route.ts` - Execute NL command (POST)
+- ✅ `src/app/api/admin/console/route.ts` - Admin console (GET, POST)
+- ✅ `src/app/api/admin/nl/plan/route.ts` - Plan NL command (POST)
+- ✅ `src/app/api/admin/manual-upload/route.ts` - Manual upload (POST)
+- ✅ `src/app/api/admin/attorneys/verify/route.ts` - Verify attorney (GET, POST)
+- ✅ `src/app/api/admin/attorneys/verify/document/route.ts` - Get license document (GET)
 
 ### 4. Database Exports - **COMPLETE**
 - ✅ Updated `src/lib/db/index.ts` to export Supabase helpers

@@ -11,7 +11,8 @@ export const runtime = "nodejs";
 export async function GET(_: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await ctx.params;
-    const { registry } = await requireRegistryAccess(id);
+    const accessResult = await requireRegistryAccess(id);
+    const registry = accessResult.registry as { id: string; orgId: string };
 
     const { findUnique: findUniqueRegistry, findUnique: findUniqueOrg, findMany: findManyPolicies } = await import("@/lib/db");
     
@@ -37,7 +38,8 @@ export async function GET(_: NextRequest, ctx: { params: Promise<{ id: string }>
       notes: string | null;
     };
     
-    const registryData = await findUniqueRegistry<RegistryRecord>("registries", { id: registry.id });
+    const registryId = registry.id;
+    const registryData = await findUniqueRegistry<RegistryRecord>("registries", { id: registryId });
     
     if (!registryData) {
       return NextResponse.json(
@@ -48,7 +50,7 @@ export async function GET(_: NextRequest, ctx: { params: Promise<{ id: string }>
     
     const org = await findUniqueOrg<OrgRecord>("organizations", { id: registryData.orgId });
     const policies = await findManyPolicies<PolicyRecord>("policies", {
-      where: { registryId: registry.id },
+      where: { registryId: registryId },
       orderBy: { column: "createdAt", ascending: false },
     });
     

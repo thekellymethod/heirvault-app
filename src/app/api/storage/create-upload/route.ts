@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { requireOrgMember } from "@/lib/authz";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
@@ -45,22 +44,27 @@ export async function POST(req: Request) {
 
     const bucket = process.env.SUPABASE_STORAGE_BUCKET || "heirvault-files";
 
+    const { create: createFileAsset, update: updateFileAsset, deleteRecord: deleteFileAsset } = await import("@/lib/db");
+    const { randomUUID } = await import("crypto");
+    
     // Create DB record first so we have a stable fileId
-    const created = await prisma.fileAsset.create({
-      data: {
-        orgId,
-        registryId: registryId || undefined,
-        policyId: body?.policyId ? String(body.policyId).trim() : undefined,
-        bucket,
-        storagePath: "TEMP",
-        originalName,
-        mimeType,
-        byteSize: Math.max(0, Math.floor(byteSize)),
-        category,
-        uploadedByClerkUserId: userId,
-      },
-      select: { id: true },
-    });
+    const fileId = randomUUID();
+    const now = new Date().toISOString();
+    const created = await createFileAsset("file_assets", {
+      id: fileId,
+      orgId,
+      registryId: registryId || null,
+      policyId: body?.policyId ? String(body.policyId).trim() : null,
+      bucket,
+      storagePath: "TEMP",
+      originalName,
+      mimeType,
+      byteSize: Math.max(0, Math.floor(byteSize)),
+      category,
+      uploadedByClerkUserId: userId,
+      createdAt: now,
+      updatedAt: now,
+    } as Record<string, unknown>) as { id: string };
 
     const ext = (originalName.split(".").pop() || "").slice(0, 8);
     const base = slugify(originalName.replace(/\.[^/.]+$/, ""));
@@ -68,10 +72,10 @@ export async function POST(req: Request) {
 
     const path = `orgs/${orgId}/registries/${registryId || "unassigned"}/${category}/${created.id}-${base}${safeExt}`;
 
-    await prisma.fileAsset.update({
-      where: { id: created.id },
-      data: { storagePath: path },
-    });
+    await updateFileAsset("file_assets", { id: created.id }, {
+      storagePath: path,
+      updatedAt: new Date().toISOString(),
+    } as Record<string, unknown>);
 
     // Signed upload URL (10 minutes)
     // @ts-ignore - createSignedUploadUrl may not be in types but exists in runtime
@@ -79,7 +83,7 @@ export async function POST(req: Request) {
 
     if (error || !data?.signedUrl) {
       // Clean up DB record if upload URL creation fails
-      await prisma.fileAsset.delete({ where: { id: created.id } }).catch(() => {});
+      await deleteFileAsset("file_assets", { id: created.id }).catch(() => {});
       return NextResponse.json(
         { ok: false, message: "Failed to create signed upload URL." },
         { status: 500 }

@@ -27,61 +27,58 @@ export async function POST(req: Request) {
     );
   }
 
+  const { findUnique: findUniquePolicy, findMany: findManyInsurers, create: createInsurer, update: updatePolicy, create: createAudit } = await import("@/lib/db");
+  
   // Find the policy
-  const policy = await prisma.policies.findUnique({
-    where: { id: body.policyId },
-    select: {
-      id: true,
-      clientId: true,
-      insurerId: true,
-      carrierNameRaw: true,
-    },
-  });
+  const policy = await findUniquePolicy<{
+    id: string;
+    clientId: string;
+    insurerId: string | null;
+    carrierNameRaw: string | null;
+  }>("policies", { id: body.policyId });
 
   if (!policy) {
     return NextResponse.json({ ok: false, error: "Policy not found" }, { status: 404 });
   }
 
   // Find or create insurer by exact name match
-  let insurer = await prisma.insurers.findFirst({
+  const insurers = await findManyInsurers("insurers", {
     where: { name: body.insurerName.trim() },
+    limit: 1,
   });
+  
+  let insurer = insurers && insurers.length > 0 ? (insurers[0] as { id: string; name: string }) : null;
 
   if (!insurer) {
     // Create new insurer
     const insurerId = randomUUID();
-    const now = new Date();
-    insurer = await prisma.insurers.create({
-      data: {
-        id: insurerId,
-        name: body.insurerName.trim(),
-        createdAt: now,
-        updatedAt: now,
-      },
-    });
+    const now = new Date().toISOString();
+    insurer = await createInsurer("insurers", {
+      id: insurerId,
+      name: body.insurerName.trim(),
+      createdAt: now,
+      updatedAt: now,
+    } as Record<string, unknown>) as { id: string; name: string };
   }
 
   // Update policy to link to insurer
   // Keep carrier_name_raw for provenance
-  await prisma.policies.update({
-    where: { id: body.policyId },
-    data: {
-      insurerId: insurer.id,
-      // carrier_name_raw remains for audit trail
-    },
-  });
+  await updatePolicy("policies", { id: body.policyId }, {
+    insurerId: insurer.id,
+    updatedAt: new Date().toISOString(),
+    // carrier_name_raw remains for audit trail
+  } as Record<string, unknown>);
 
   // Audit log
-  const auditLogId = randomUUID();
-  const auditNow = new Date();
-  await prisma.audit_logs.create({
-    data: {
-      id: auditLogId,
-      userId: actor.id,
-      // Note: Consider adding POLICY_INSURER_RESOLVED to AuditAction enum for more specific audit trail
-      action: "POLICY_UPDATED",
+  const { logAuditEvent } = await import("@/lib/audit");
+  await logAuditEvent({
+    userId: actor.id,
+    action: "POLICY_UPDATED",
+    metadata: {
+      policyId: body.policyId,
+      insurerId: insurer.id,
+      insurerName: insurer.name,
       message: `Resolved insurer for policyId=${body.policyId} to insurerId=${insurer.id}, name=${insurer.name}`,
-      createdAt: auditNow,
     },
   });
 

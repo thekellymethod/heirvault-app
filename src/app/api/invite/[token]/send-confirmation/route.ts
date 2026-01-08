@@ -73,6 +73,22 @@ export async function POST(
               phone: client.phone,
               dateOfBirth: client.dateOfBirth,
             },
+          } as {
+            id: string;
+            clientId: string;
+            email: string;
+            token: string;
+            expiresAt: Date;
+            usedAt: Date | null;
+            createdAt: Date;
+            client: {
+              id: string;
+              firstName: string;
+              lastName: string;
+              email: string;
+              phone: string | null;
+              dateOfBirth: Date | null;
+            };
           };
         }
       }

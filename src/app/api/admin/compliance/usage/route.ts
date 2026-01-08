@@ -12,6 +12,8 @@ export async function GET() {
     await requireAdmin();
 
     // Get counts from database using raw SQL
+    const { queryRaw } = await import("@/lib/db");
+    
     const [
       totalUsersResult,
       totalClientsResult,
@@ -20,13 +22,14 @@ export async function GET() {
       activeAttorneysResult,
       recentActivityResult,
     ] = await Promise.all([
-      prisma.$queryRawUnsafe<Array<{ count: number }>>(`SELECT COUNT(*)::int as count FROM users`),
-      prisma.$queryRawUnsafe<Array<{ count: number }>>(`SELECT COUNT(*)::int as count FROM clients`),
-      prisma.$queryRawUnsafe<Array<{ count: number }>>(`SELECT COUNT(*)::int as count FROM policies`),
-      prisma.$queryRawUnsafe<Array<{ count: number }>>(`SELECT COUNT(*)::int as count FROM organizations`),
-      prisma.$queryRawUnsafe<Array<{ count: number }>>(`SELECT COUNT(*)::int as count FROM users WHERE role = 'attorney'`),
-      prisma.$queryRawUnsafe<Array<{ count: number }>>(
-        `SELECT COUNT(*)::int as count FROM audit_logs WHERE createdAt >= NOW() - INTERVAL '24 hours'`
+      queryRaw<Array<{ count: number }>>(`SELECT COUNT(*)::int as count FROM users`, []),
+      queryRaw<Array<{ count: number }>>(`SELECT COUNT(*)::int as count FROM clients`, []),
+      queryRaw<Array<{ count: number }>>(`SELECT COUNT(*)::int as count FROM policies`, []),
+      queryRaw<Array<{ count: number }>>(`SELECT COUNT(*)::int as count FROM organizations`, []),
+      queryRaw<Array<{ count: number }>>(`SELECT COUNT(*)::int as count FROM users WHERE role = 'ATTORNEY'`, []),
+      queryRaw<Array<{ count: number }>>(
+        `SELECT COUNT(*)::int as count FROM audit_logs WHERE "createdAt" >= NOW() - INTERVAL '24 hours'`,
+        []
       ),
     ]);
 
