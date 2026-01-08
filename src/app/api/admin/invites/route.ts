@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
         const archivedClause = archived ? "AND ci.used_at IS NOT NULL" : "";
         
         const { queryRaw } = await import("@/lib/db");
-        const invitesResult = await queryRaw<Array<{
+        const invitesResult = await queryRaw<{
           id: string,
           clientId: string,
           token: string,
@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
           firstName: string,
           lastName: string,
           phone: string | null;
-        }>>(`
+        }>(`
           SELECT 
             ci.id,
             ci."clientId",
@@ -89,8 +89,9 @@ export async function GET(req: NextRequest) {
         }));
       } else {
         // Get all invites if no search query
+        const { queryRaw: queryRaw2 } = await import("@/lib/db");
         const archivedClause = archived ? "WHERE ci.used_at IS NOT NULL" : "";
-        const invitesResult = await queryRaw<Array<{
+        const invitesResult = await queryRaw2<{
           id: string,
           clientId: string,
           token: string,
@@ -101,7 +102,7 @@ export async function GET(req: NextRequest) {
           firstName: string,
           lastName: string,
           phone: string | null;
-        }>>(`
+        }>(`
           SELECT 
             ci.id,
             ci."clientId",
@@ -137,14 +138,15 @@ export async function GET(req: NextRequest) {
       }
 
       // Get total count for pagination
+      const { queryRaw: queryRaw3 } = await import("@/lib/db");
       const archivedClause = archived ? "WHERE ci.used_at IS NOT NULL" : "";
-      const countResult = await queryRaw<Array<{ count: number }>>(`
+      const countResult = await queryRaw3<{ count: number }>(`
         SELECT COUNT(*)::int as count
         FROM client_invites ci
         ${archivedClause}
       `, []);
 
-      const total = Number(countResult[0]?.count || 0);
+      const total = Number((countResult?.[0] as { count: number } | undefined)?.count || 0);
 
       return NextResponse.json({
         invites,

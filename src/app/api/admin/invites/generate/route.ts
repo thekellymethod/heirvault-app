@@ -37,23 +37,26 @@ export async function POST(req: NextRequest) {
     } | null = null;
 
     try {
-      const { queryRaw, create: createClient, findUnique: findUniqueClient } = await import("@/lib/db");
-      const { randomUUID } = await import("crypto");
-      
-      const clientResult = await queryRaw<Array<{
-        id: string,
-        email: string,
-        firstName: string,
-        lastName: string,
-      }>>(`
-        SELECT id, email, "firstName", "lastName"
-        FROM clients
-        WHERE email = $1
-        LIMIT 1
-      `, [normalizedEmail]);
+        const { queryRaw, create: createClient, findUnique: findUniqueClient } = await import("@/lib/db");
+        const { randomUUID } = await import("crypto");
+        
+        const clientResult = await queryRaw<{
+          id: string,
+          email: string,
+          firstName: string,
+          lastName: string,
+        }>(`
+          SELECT id, email, "firstName", "lastName"
+          FROM clients
+          WHERE email = $1
+          LIMIT 1
+        `, [normalizedEmail]);
 
-      if (clientResult && clientResult.length > 0 && clientResult[0]) {
-        client = clientResult[0];
+      if (clientResult && clientResult.length > 0) {
+        const firstResult = clientResult[0];
+        if (firstResult) {
+          client = firstResult;
+        }
       }
     } catch (sqlError: unknown) {
       const errorMessage = sqlError instanceof Error ? sqlError.message : String(sqlError);
@@ -64,6 +67,8 @@ export async function POST(req: NextRequest) {
     // Create client if they don't exist
     if (!client) {
       try {
+        const { create: createClient, findUnique: findUniqueClient } = await import("@/lib/db");
+        const { randomUUID } = await import("crypto");
         // Insert client and get the ID
         const clientId = randomUUID();
         const now = new Date().toISOString();
@@ -157,7 +162,8 @@ export async function POST(req: NextRequest) {
       } as Record<string, unknown>);
 
       // Query the created invite
-      const createdInvite = await findUniqueClient<{
+      const { findUnique: findUniqueInvite } = await import("@/lib/db");
+      const createdInvite = await findUniqueInvite<{
         id: string,
         token: string,
         email: string,

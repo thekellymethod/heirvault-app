@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
-import { prisma } from "@/lib/prisma";
 
 export async function POST(_req: NextRequest) {
   // Only allow in development
@@ -28,22 +27,21 @@ export async function POST(_req: NextRequest) {
       return NextResponse.json({ error: "No email found" }, { status: 400 });
     }
 
+    const { findUnique: findUniqueUser, create: createUser, update: updateUser } = await import("@/lib/db");
+    const { randomUUID } = await import("crypto");
+    
     // Check if user exists
-    const existing = await prisma.user.findUnique({
-      where: { clerkId: userId },
-    });
+    const existing = await findUniqueUser<{ id: string; email: string; role: string }>("users", { clerkId: userId });
 
     if (existing) {
       // Update existing user
-      const updated = await prisma.user.update({
-        where: { clerkId: userId },
-        data: {
-          email,
-          firstName,
-          lastName,
-          role: (clerkRole === "attorney" ? "attorney" : existing.role) || "attorney",
-        },
-      });
+      const updated = await updateUser("users", { id: existing.id }, {
+        email,
+        firstName,
+        lastName,
+        role: (clerkRole === "attorney" ? "ATTORNEY" : existing.role) || "ATTORNEY",
+        updatedAt: new Date().toISOString(),
+      } as Record<string, unknown>) as { id: string; email: string; role: string };
       return NextResponse.json({ 
         success: true, 
         action: "updated",
@@ -55,15 +53,17 @@ export async function POST(_req: NextRequest) {
       });
     } else {
       // Create new user
-      const created = await prisma.user.create({
-        data: {
-          clerkId: userId,
-          email,
-          firstName,
-          lastName,
-          role: "attorney",
-        },
-      });
+      const now = new Date().toISOString();
+      const created = await createUser("users", {
+        id: randomUUID(),
+        clerkId: userId,
+        email,
+        firstName,
+        lastName,
+        role: "ATTORNEY",
+        createdAt: now,
+        updatedAt: now,
+      } as Record<string, unknown>) as { id: string; email: string; role: string };
       return NextResponse.json({ 
         success: true, 
         action: "created",

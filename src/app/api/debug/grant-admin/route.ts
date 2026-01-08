@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
-import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 
@@ -30,11 +29,10 @@ export async function POST() {
       return NextResponse.json({ error: "No email found" }, { status: 400 });
     }
 
+    const { findUnique: findUniqueUser, update: updateUser } = await import("@/lib/db");
+    
     // Get current user
-    const dbUser = await prisma.user.findUnique({
-      where: { clerkId: userId },
-      select: { id: true, email: true, roles: true },
-    });
+    const dbUser = await findUniqueUser<{ id: string; email: string; roles: string[] }>("users", { clerkId: userId });
 
     if (!dbUser) {
       return NextResponse.json({ error: "User not found in database" }, { status: 404 });
@@ -45,11 +43,10 @@ export async function POST() {
       ? dbUser.roles
       : [...new Set([...dbUser.roles, "ADMIN"])];
 
-    const updated = await prisma.user.update({
-      where: { clerkId: userId },
-      data: { roles: updatedRoles },
-      select: { id: true, email: true, roles: true },
-    });
+    const updated = await updateUser("users", { id: dbUser.id }, {
+      roles: updatedRoles,
+      updatedAt: new Date().toISOString(),
+    } as Record<string, unknown>) as { id: string; email: string; roles: string[] };
 
     return NextResponse.json({
       success: true,

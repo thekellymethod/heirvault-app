@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
 
     try {
       const { queryRaw, update: updateInvite } = await import("@/lib/db");
-      const inviteResult = await queryRaw<Array<{
+      const inviteResult = await queryRaw<{
         id: string,
         clientId: string,
         token: string,
@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
         expires_at: Date;
         used_at: Date | null;
         createdAt: Date;
-      }>>(`
+      }>(`
         SELECT 
           id,
           "clientId",
@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
         LIMIT 1
       `, [token]);
 
-      if (inviteResult && inviteResult.length > 0) {
+      if (inviteResult && inviteResult.length > 0 && inviteResult[0]) {
         invite = inviteResult[0];
       }
     } catch (sqlError: unknown) {
@@ -85,6 +85,7 @@ export async function POST(req: NextRequest) {
       : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000); // Default 14 days
 
     // Reactivate the invite (clear used_at and update expiry)
+    const { update: updateInvite } = await import("@/lib/db");
     try {
       await updateInvite("client_invites", { token }, {
         usedAt: null,
@@ -102,10 +103,13 @@ export async function POST(req: NextRequest) {
 
     // Audit log the reactivation
     try {
-      await audit(AuditAction.INVITE_REACTIVATED, {
-        message: `Admin ${admin.email} reactivated invite code ${token} for client ${invite.clientId}`,
+      await logAuditEvent({
         userId: admin.id,
+        action: AuditAction.INVITE_REACTIVATED,
         clientId: invite.clientId,
+        metadata: {
+          message: `Admin ${admin.email} reactivated invite code ${token} for client ${invite.clientId}`,
+        },
       });
     } catch (auditError: unknown) {
       const auditErrorMessage = auditError instanceof Error ? auditError.message : String(auditError);

@@ -13,31 +13,32 @@ const testClients = [
 async function populateInvites(baseUrl: string) {
   const invites: Array<{ token: string, email: string, name: string, url: string }> = [];
 
+    const { findMany: findManyClients, findUnique: findUniqueInvite, create: createClient, create: createInvite } = await import("@/lib/db");
+    
   for (const clientData of testClients) {
     // Find or create client
-    let client = await prisma.clients.findFirst({
+    const existingClients = await findManyClients("clients", {
       where: { email: clientData.email },
+      limit: 1,
     });
+    
+    let client = existingClients && existingClients.length > 0 ? (existingClients[0] as { id: string; firstName: string; lastName: string }) : null;
 
     if (!client) {
       const clientId = randomUUID();
-      const now = new Date();
-      client = await prisma.clients.create({
-        data: {
-          id: clientId,
-          firstName: clientData.firstName,
-          lastName: clientData.lastName,
-          email: clientData.email,
-          createdAt: now,
-          updatedAt: now,
-        },
-      });
+      const now = new Date().toISOString();
+      client = await createClient("clients", {
+        id: clientId,
+        firstName: clientData.firstName,
+        lastName: clientData.lastName,
+        email: clientData.email,
+        createdAt: now,
+        updatedAt: now,
+      } as Record<string, unknown>) as { id: string; firstName: string; lastName: string };
     }
 
     // Check if invite already exists
-    const existingInvite = await prisma.client_invites.findUnique({
-      where: { token: clientData.token },
-    });
+    const existingInvite = await findUniqueInvite("client_invites", { token: clientData.token });
 
     if (existingInvite) {
       const url = `${baseUrl}/invite/${clientData.token}`;
@@ -53,19 +54,18 @@ async function populateInvites(baseUrl: string) {
     // Create expiration (14 days)
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 14);
+    const now = new Date().toISOString();
 
     // Create invite with fixed token
-    await prisma.client_invites.create({
-      data: {
-        id: randomUUID(),
-        clientId: client.id,
-        email: clientData.email,
-        token: clientData.token,
-        expiresAt: expiresAt,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-    });
+    await createInvite("client_invites", {
+      id: randomUUID(),
+      clientId: client.id,
+      email: clientData.email,
+      token: clientData.token,
+      expiresAt: expiresAt.toISOString(),
+      createdAt: now,
+      updatedAt: now,
+    } as Record<string, unknown>);
 
     const url = `${baseUrl}/invite/${clientData.token}`;
     invites.push({

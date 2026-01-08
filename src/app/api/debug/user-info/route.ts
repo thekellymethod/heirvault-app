@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
-import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/utils/clerk";
 
 export async function GET(_req: NextRequest) {
@@ -18,16 +17,28 @@ export async function GET(_req: NextRequest) {
     const clerkUser = await currentUser();
     const dbUser = await getCurrentUser();
     
-    const userWithOrg = dbUser ? await prisma.user.findUnique({
-      where: { id: dbUser.id },
-      include: {
-        orgMemberships: {
-          include: {
-            organizations: true,
-          },
-        },
-      },
-    }) : null;
+    const { findUnique: findUniqueUser, findMany: findManyMembers, findUnique: findUniqueOrg } = await import("@/lib/db");
+    
+    let userWithOrg = null;
+    if (dbUser) {
+      const user = await findUniqueUser<{ id: string }>("users", { id: dbUser.id });
+      if (user) {
+        const memberships = await findManyMembers("org_members", {
+          where: { userId: user.id },
+          limit: 1,
+        });
+        if (memberships && memberships.length > 0) {
+          const membership = memberships[0] as { organizationId: string };
+          const org = await findUniqueOrg<{ id: string; name: string }>("organizations", { id: membership.organizationId });
+          userWithOrg = {
+            id: user.id,
+            orgMemberships: org ? [{
+              organizations: org,
+            }] : [],
+          };
+        }
+      }
+    }
 
     return NextResponse.json({
       clerkId: userId,

@@ -14,14 +14,16 @@ export async function GET() {
   }
 
   try {
+    const { queryRaw } = await import("@/lib/db");
+    
     // Check if users table exists
-    const tableExists = await prisma.$queryRawUnsafe<Array<{ exists: boolean }>>(`
+    const tableExists = await queryRaw<Array<{ exists: boolean }>>(`
       SELECT EXISTS (
         SELECT FROM information_schema.tables 
         WHERE table_schema = 'public' 
         AND table_name = 'users'
       ) as exists;
-    `);
+    `, []);
 
     if (!tableExists[0]?.exists) {
       return NextResponse.json({ 
@@ -32,7 +34,7 @@ export async function GET() {
     }
 
     // Check column existence and uniqueness
-    const columnInfo = await prisma.$queryRawUnsafe<Array<{
+    const columnInfo = await queryRaw<Array<{
       column_name: string,
       data_type: string,
       is_nullable: string,
@@ -46,10 +48,10 @@ export async function GET() {
         AND table_name = 'users'
         AND column_name IN ('clerkId', 'clerk_id')
       ORDER BY column_name;
-    `);
+    `, []);
 
     // Check for unique constraints/indexes on clerkId columns
-    const uniqueConstraints = await prisma.$queryRawUnsafe<Array<{
+    const uniqueConstraints = await queryRaw<Array<{
       index_name: string,
       column_name: string,
       is_unique: boolean;
@@ -68,10 +70,10 @@ export async function GET() {
         AND NOT a.attisdropped
         AND ix.indisunique = true
       ORDER BY a.attname;
-    `);
+    `, []);
 
     // Check all indexes (unique and non-unique) for reference
-    const allIndexes = await prisma.$queryRawUnsafe<Array<{
+    const allIndexes = await queryRaw<Array<{
       index_name: string,
       column_name: string,
       is_unique: boolean;
@@ -89,7 +91,7 @@ export async function GET() {
         AND a.attnum > 0
         AND NOT a.attisdropped
       ORDER BY a.attname, ix.indisunique DESC NULLS LAST;
-    `);
+    `, []);
 
     const hasUniqueConstraint = uniqueConstraints.length > 0;
     const clerkIdColumn = columnInfo.find(c => c.column_name === 'clerkId');

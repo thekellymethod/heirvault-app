@@ -27,28 +27,30 @@ async function fixDatabase() {
   try {
     const results: string[] = [];
 
+    const { queryRaw } = await import("@/lib/db");
+    
     // Check if the constraint already exists
-    const existingIndex = await prisma.$queryRawUnsafe<Array<{
+    const existingIndex = await queryRaw<Array<{
       indexname: string,
     }>>(`
       SELECT indexname 
       FROM pg_indexes 
       WHERE tablename = 'users' 
         AND indexname = 'users_clerkId_key'
-    `);
+    `, []);
 
     if (existingIndex.length > 0) {
       results.push("✅ Unique constraint 'users_clerkId_key' already exists");
     } else {
       // Create the unique constraint
-      await prisma.$executeRawUnsafe(`
+      await queryRaw(`
         CREATE UNIQUE INDEX IF NOT EXISTS "users_clerkId_key" ON "users"("clerkId");
-      `);
+      `, []);
       results.push("✅ Created unique constraint 'users_clerkId_key' on users.clerkId");
     }
 
     // Verify it was created
-    const verifyIndex = await prisma.$queryRawUnsafe<Array<{
+    const verifyIndex = await queryRaw<Array<{
       indexname: string,
       indexdef: string,
     }>>(`
@@ -56,7 +58,7 @@ async function fixDatabase() {
       FROM pg_indexes 
       WHERE tablename = 'users' 
         AND indexname = 'users_clerkId_key'
-    `);
+    `, []);
 
     if (verifyIndex.length > 0) {
       results.push(`✅ Verified: ${verifyIndex[0].indexdef}`);
@@ -65,7 +67,7 @@ async function fixDatabase() {
     }
 
     // Also check if the column exists
-    const columnCheck = await prisma.$queryRawUnsafe<Array<{
+    const columnCheck = await queryRaw<Array<{
       column_name: string,
       data_type: string,
     }>>(`
@@ -74,7 +76,7 @@ async function fixDatabase() {
       WHERE table_schema = 'public' 
         AND table_name = 'users'
         AND column_name IN ('clerkId', 'clerk_id')
-    `);
+    `, []);
 
     if (columnCheck.length > 0) {
       results.push(`✅ Found column: ${columnCheck[0].column_name} (${columnCheck[0].data_type})`);

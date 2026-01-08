@@ -15,13 +15,18 @@ export async function PUT(req: NextRequest, { params }: Params) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const { findMany: findManyMembers, findUnique: findUniqueMember, count: countMembers, update: updateMember } = await import("@/lib/db");
+    
     // Check if current user is owner
-    const currentMember = await prisma.org_members.findFirst({
+    const currentMembers = await findManyMembers("org_members", {
       where: {
         userId: user.id,
         organizationId: orgMember.organizationId,
       },
+      limit: 1,
     });
+    
+    const currentMember = currentMembers && currentMembers.length > 0 ? (currentMembers[0] as { role: string }) : null;
 
     if (currentMember?.role !== "OWNER") {
       return NextResponse.json(
@@ -41,12 +46,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
     }
 
     // Get the member being updated
-    const memberToUpdate = await prisma.org_members.findUnique({
-      where: { id },
-      include: {
-        organizations: true,
-      },
-    });
+    const memberToUpdate = await findUniqueMember<{ id: string; organizationId: string; role: string }>("org_members", { id });
 
     if (!memberToUpdate) {
       return NextResponse.json({ error: "Member not found" }, { status: 404 });
@@ -59,7 +59,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
 
     // Prevent removing the last owner
     if (memberToUpdate.role === "OWNER" && role !== "OWNER") {
-      const ownerCount = await prisma.org_members.count({
+      const ownerCount = await countMembers("org_members", {
         where: {
           organizationId: orgMember.organizationId,
           role: "OWNER",
@@ -74,10 +74,10 @@ export async function PUT(req: NextRequest, { params }: Params) {
       }
     }
 
-    const updated = await prisma.org_members.update({
-      where: { id },
-      data: { role },
-    });
+    const updated = await updateMember("org_members", { id }, {
+      role,
+      updatedAt: new Date().toISOString(),
+    } as Record<string, unknown>);
 
     return NextResponse.json(updated);
   } catch (error: unknown) {

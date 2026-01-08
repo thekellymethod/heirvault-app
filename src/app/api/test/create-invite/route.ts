@@ -31,24 +31,32 @@ export async function POST(req: NextRequest) {
     // Generate a unique token
     const TEST_TOKEN = `TEST-${randomBytes(12).toString("hex").toUpperCase()}`;
 
+    const { findMany: findManyClients, findMany: findManyInvites, findUnique: findUniqueClient, create: createClient, create: createInvite } = await import("@/lib/db");
+    const { randomUUID: cryptoRandomUUID } = await import("crypto");
+    
     // Check if a client with this email already exists and has an active invite
-    const existingClient = await prisma.clients.findFirst({
+    const existingClients = await findManyClients("clients", {
       where: { email: TEST_EMAIL },
-      include: {
-        clientInvites: {
-          where: {
-            expiresAt: { gt: new Date() },
-            usedAt: null,
-          },
-          orderBy: { createdAt: "desc" },
-          take: 1,
-        },
-      },
+      limit: 1,
     });
+    
+    const existingClient = existingClients && existingClients.length > 0 ? (existingClients[0] as { id: string; firstName: string; lastName: string }) : null;
+    
+    if (existingClient) {
+      const activeInvites = await findManyInvites("client_invites", {
+        where: { clientId: existingClient.id },
+        orderBy: { column: "createdAt", ascending: false },
+        limit: 1,
+      });
+      
+      const validInvites = (activeInvites || []).filter((inv: any) => {
+        const expiresAt = typeof inv.expiresAt === 'string' ? new Date(inv.expiresAt) : inv.expiresAt;
+        return expiresAt > new Date() && !inv.usedAt;
+      });
 
-    // If client exists with active invite, return it
-    if (existingClient && existingClient.clientInvites.length > 0) {
-      const existingInvite = existingClient.clientInvites[0];
+      // If client exists with active invite, return it
+      if (validInvites.length > 0) {
+        const existingInvite = validInvites[0] as { token: string; email: string; expiresAt: Date | string };
       const requestUrl = req.nextUrl;
       const baseUrl = 
         process.env.NEXT_PUBLIC_APP_URL || 

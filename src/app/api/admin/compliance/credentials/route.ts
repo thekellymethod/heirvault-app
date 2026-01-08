@@ -14,14 +14,14 @@ export async function GET() {
     const { queryRaw, update: updateUser } = await import("@/lib/db");
     
     // Get attorneys using raw SQL
-    const attorneysResult = await queryRaw<Array<{
+    const attorneysResult = await queryRaw<{
       id: string,
       email: string,
       firstName: string | null;
       lastName: string | null;
       bar_number: string | null;
       updated_at: Date;
-    }>>(`
+    }>(`
       SELECT 
         id,
         email,
@@ -34,7 +34,14 @@ export async function GET() {
       ORDER BY email ASC
     `, []);
 
-    const credentials = (attorneysResult || []).map((attorney) => ({
+    const credentials = (attorneysResult || []).map((attorney: {
+      id: string;
+      email: string;
+      firstName: string | null;
+      lastName: string | null;
+      bar_number: string | null;
+      updated_at: Date | string;
+    }) => ({
       id: attorney.id,
       email: attorney.email,
       name: `${attorney.firstName || ""} ${attorney.lastName || ""}`.trim() || attorney.email,
@@ -71,6 +78,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Attorney ID is required" }, { status: 400 });
     }
 
+    const { update: updateUser } = await import("@/lib/db");
     if (action === "verify" && barNumber) {
       await updateUser("users", { id: attorneyId }, {
         barNumber: barNumber,

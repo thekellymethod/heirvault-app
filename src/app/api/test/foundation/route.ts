@@ -31,8 +31,10 @@ export async function GET() {
   try {
     const results: Record<string, unknown> = {};
 
+    const { queryRaw } = await import("@/lib/db");
+    
     // 1. Test database connection
-    const dbTest = await prisma.$queryRaw<Array<{ test: number }>>`SELECT 1 as test`;
+    const dbTest = await queryRaw<Array<{ test: number }>>(`SELECT 1 as test`, []);
     results.database = { connected: true, test: dbTest[0] || { test: 1 } };
 
     // 2. Test roles

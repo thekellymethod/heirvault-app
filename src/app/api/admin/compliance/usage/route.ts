@@ -22,23 +22,23 @@ export async function GET() {
       activeAttorneysResult,
       recentActivityResult,
     ] = await Promise.all([
-      queryRaw<Array<{ count: number }>>(`SELECT COUNT(*)::int as count FROM users`, []),
-      queryRaw<Array<{ count: number }>>(`SELECT COUNT(*)::int as count FROM clients`, []),
-      queryRaw<Array<{ count: number }>>(`SELECT COUNT(*)::int as count FROM policies`, []),
-      queryRaw<Array<{ count: number }>>(`SELECT COUNT(*)::int as count FROM organizations`, []),
-      queryRaw<Array<{ count: number }>>(`SELECT COUNT(*)::int as count FROM users WHERE role = 'ATTORNEY'`, []),
-      queryRaw<Array<{ count: number }>>(
+      queryRaw<{ count: number }>(`SELECT COUNT(*)::int as count FROM users`, []),
+      queryRaw<{ count: number }>(`SELECT COUNT(*)::int as count FROM clients`, []),
+      queryRaw<{ count: number }>(`SELECT COUNT(*)::int as count FROM policies`, []),
+      queryRaw<{ count: number }>(`SELECT COUNT(*)::int as count FROM organizations`, []),
+      queryRaw<{ count: number }>(`SELECT COUNT(*)::int as count FROM users WHERE role = 'ATTORNEY'`, []),
+      queryRaw<{ count: number }>(
         `SELECT COUNT(*)::int as count FROM audit_logs WHERE "createdAt" >= NOW() - INTERVAL '24 hours'`,
         []
       ),
     ]);
 
-    const totalUsers = Number((totalUsersResult && totalUsersResult[0])?.count || 0);
-    const totalClients = Number((totalClientsResult && totalClientsResult[0])?.count || 0);
-    const totalPolicies = Number((totalPoliciesResult && totalPoliciesResult[0])?.count || 0);
-    const totalOrganizations = Number((totalOrganizationsResult && totalOrganizationsResult[0])?.count || 0);
-    const activeAttorneys = Number((activeAttorneysResult && activeAttorneysResult[0])?.count || 0);
-    const recentActivity = Number((recentActivityResult && recentActivityResult[0])?.count || 0);
+    const totalUsers = Number(totalUsersResult?.[0]?.count || 0);
+    const totalClients = Number(totalClientsResult?.[0]?.count || 0);
+    const totalPolicies = Number(totalPoliciesResult?.[0]?.count || 0);
+    const totalOrganizations = Number(totalOrganizationsResult?.[0]?.count || 0);
+    const activeAttorneys = Number(activeAttorneysResult?.[0]?.count || 0);
+    const recentActivity = Number(recentActivityResult?.[0]?.count || 0);
 
     return NextResponse.json({
       totalUsers,
