@@ -50,7 +50,7 @@ Migrating from Prisma ORM to Supabase SQL for all database operations.
 - ✅ `src/lib/contracts/acceptance.ts` - Contract acceptance management
 - ✅ `src/lib/test-invites.ts` - Test invite creation utility
 
-### 3. API Routes - **75 FILES COMPLETE**
+### 3. API Routes - **88 FILES COMPLETE** (All active routes migrated)
 - ✅ `src/app/api/clients/route.ts` - Client CRUD operations (GET, POST)
 - ✅ `src/app/api/clients/[id]/route.ts` - Client detail operations (GET)
 - ✅ `src/app/api/clients/[id]/invite/route.ts` - Client invite creation (POST)
@@ -140,6 +140,23 @@ Migrating from Prisma ORM to Supabase SQL for all database operations.
 - ✅ `src/app/api/admin/manual-upload/route.ts` - Manual upload (POST)
 - ✅ `src/app/api/admin/attorneys/verify/route.ts` - Verify attorney (GET, POST)
 - ✅ `src/app/api/admin/attorneys/verify/document/route.ts` - Get license document (GET)
+- ✅ `src/app/api/subscriptions/create-checkout/route.ts` - Create Stripe checkout session (POST)
+- ✅ `src/app/api/stripe/webhook/route.ts` - Stripe webhook handler (POST)
+- ✅ `src/app/api/webhooks/stripe/route.ts` - Stripe webhook handler (POST)
+- ✅ `src/app/api/contracts/accept/route.ts` - Accept contract (POST)
+- ✅ `src/app/api/team/[id]/route.ts` - Update team member role (PUT)
+- ✅ `src/app/api/debug/user-info/route.ts` - Get user info (GET)
+- ✅ `src/app/api/debug/create-user/route.ts` - Create user (POST)
+- ✅ `src/app/api/debug/grant-admin/route.ts` - Grant admin role (POST)
+- ✅ `src/app/api/debug/db-check/route.ts` - Check database schema (GET)
+- ✅ `src/app/api/debug/fix-db/route.ts` - Fix database schema (GET, POST)
+- ✅ `src/app/api/test/populate-invites/route.ts` - Populate test invites (GET, POST)
+- ✅ `src/app/api/test/foundation/route.ts` - Foundation test (GET)
+- ✅ `src/app/api/test/create-invite/route.ts` - Create test invite (POST)
+- ✅ `src/app/api/test/check-invite/route.ts` - Check invite (GET)
+- ✅ `src/app/api/attorney/beneficiaries/proposed/[id]/confirm/route.ts` - Confirm proposed beneficiary (POST) - Placeholder (commented Prisma removed)
+- ✅ `src/app/api/attorney/beneficiaries/proposed/[id]/reject/route.ts` - Reject proposed beneficiary (POST) - Placeholder (commented Prisma removed)
+- ✅ `src/app/api/attorney/clients/[clientId]/beneficiaries/proposed/route.ts` - List proposed beneficiaries (GET) - Placeholder (commented Prisma removed)
 
 ### 4. Database Exports - **COMPLETE**
 - ✅ Updated `src/lib/db/index.ts` to export Supabase helpers

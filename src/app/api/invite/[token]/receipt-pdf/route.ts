@@ -4,7 +4,6 @@ import { renderToStream } from "@react-pdf/renderer";
 import { ClientReceiptPDF } from "@/pdfs/ClientReceiptPDF";
 import { getOrCreateTestInvite } from "@/lib/test-invites";
 import { lookupClientInvite } from "@/lib/invite-lookup";
-// import type { Prisma } from "@prisma/client";
 
 type InviteClient = {
   firstName?: string;

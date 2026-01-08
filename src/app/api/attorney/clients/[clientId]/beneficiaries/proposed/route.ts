@@ -11,28 +11,9 @@ export async function GET(_: Request, ctx: { params: Promise<{ clientId: string 
 
   // Note: Role/ownership enforcement should be added for production
   // For now, return empty array until ProposedBeneficiary model is added
-  // When model exists, uncomment:
-  /*
-  const items = await prisma.proposedBeneficiary.findMany({
-    where: { clientId, status: "PROPOSED" },
-    orderBy: { createdAt: "desc" },
-    include: { document: true },
-    take: 200,
-  });
-
-  return NextResponse.json({
-    ok: true,
-    items: items.map((pb) => ({
-      id: pb.id,
-      fullName: pb.fullName,
-      createdAt: pb.createdAt,
-      documentId: pb.documentId,
-      docType: pb.document.fileType,
-      docStatus: pb.document.classificationStatus,
-      sensitivity: pb.document.sensitivityLevel,
-    })),
-  });
-  */
+  // When model exists, implement using Supabase:
+  // - Use findMany("proposed_beneficiaries", { where: { clientId, status: "PROPOSED" } })
+  // - Use findUnique("documents", { id: documentId }) for each item to get document details
 
   return NextResponse.json({
     ok: true,

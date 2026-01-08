@@ -13,20 +13,33 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const invite = await prisma.client_invites.findUnique({
-      where: { token },
-      include: { clients: true },
-    });
-
-    if (!invite) {
+    const { findUnique: findUniqueInvite, findUnique: findUniqueClient } = await import("@/lib/db");
+    
+    const inviteRecord = await findUniqueInvite<{
+      token: string;
+      email: string;
+      expiresAt: string | Date;
+      usedAt: string | Date | null;
+      clientId: string;
+    }>("client_invites", { token });
+    
+    if (!inviteRecord) {
       return NextResponse.json({
         exists: false,
         message: "Invite not found in database",
       });
     }
+    
+    const client = await findUniqueClient<{ firstName: string; lastName: string }>("clients", { id: inviteRecord.clientId });
+    
+    const invite = {
+      ...inviteRecord,
+      clients: client || { firstName: "", lastName: "" },
+    };
 
     const now = new Date();
-    const daysSinceExpiration = (now.getTime() - invite.expiresAt.getTime()) / (1000 * 60 * 60 * 24);
+    const expiresAtDate = typeof invite.expiresAt === 'string' ? new Date(invite.expiresAt) : invite.expiresAt;
+    const daysSinceExpiration = (now.getTime() - expiresAtDate.getTime()) / (1000 * 60 * 60 * 24);
     const isExpired = daysSinceExpiration > 30;
 
     return NextResponse.json({
@@ -35,8 +48,8 @@ export async function GET(req: NextRequest) {
         token: invite.token,
         email: invite.email,
         clientName: `${invite.clients.firstName} ${invite.clients.lastName}`,
-        expiresAt: invite.expiresAt.toISOString(),
-        usedAt: invite.usedAt?.toISOString() || null,
+        expiresAt: expiresAtDate.toISOString(),
+        usedAt: invite.usedAt ? (typeof invite.usedAt === 'string' ? invite.usedAt : new Date(invite.usedAt).toISOString()) : null,
         daysSinceExpiration: Math.round(daysSinceExpiration * 100) / 100,
         isExpired,
         isValid: !isExpired,
