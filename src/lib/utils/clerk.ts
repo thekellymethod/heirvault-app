@@ -78,10 +78,9 @@ export async function getCurrentUser(): Promise<DbUser | null> {
       );
     } else {
       // Create new user
-      const { randomUUID } = await import("crypto");
-      const { randomUUID } = await import("crypto");
+      const crypto = await import("crypto");
       user = await create<DbUser>("users", {
-        id: randomUUID(),
+        id: crypto.randomUUID(),
         clerkId: userId,
         email,
         firstName,

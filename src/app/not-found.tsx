@@ -12,7 +12,7 @@ export default function NotFound() {
     <main className="min-h-screen flex items-center justify-center bg-paper-50 px-4 py-8">
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
-          <Logo size="sm" showTagline={false} className="flex-row justify-center" href="/" />
+          <Logo size="xl" showTagline={false} className="flex-row justify-center" href="/" />
         </div>
 
         <div className="card p-8 text-center">

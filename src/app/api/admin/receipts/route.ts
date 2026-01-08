@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
         
         // Search client_invites (which contain receipt information via token)
         const { queryRaw } = await import("@/lib/db");
-        const receiptsResult = await queryRaw<Array<{
+        const receiptsResult = await queryRaw<{
           id: string,
           clientId: string,
           token: string,
@@ -53,7 +53,7 @@ export async function GET(req: NextRequest) {
           lastName: string,
           phone: string | null;
           receipt_id: string | null;
-        }>>(`
+        }>(`
           SELECT 
             ci.id,
             ci."clientId",
@@ -80,23 +80,24 @@ export async function GET(req: NextRequest) {
           OFFSET $3
         `, [searchPattern, limit, offset]);
 
-        receipts = receiptsResult.map(row => ({
+        receipts = (receiptsResult || []).map((row) => ({
           id: row.id,
-          receiptId: row.receipt_id ?? `REC-${row.clientId}-${Math.floor(row.createdAt.getTime() / 1000)}`,
+          receiptId: row.receipt_id ?? `REC-${row.clientId}-${Math.floor((row.createdAt instanceof Date ? row.createdAt : new Date(row.createdAt)).getTime() / 1000)}`,
           token: row.token,
           clientId: row.clientId,
           clientName: `${row.firstName} ${row.lastName}`,
           email: row.email,
           phone: row.phone,
-          expiresAt: row.expires_at,
-          usedAt: row.used_at,
-          createdAt: row.createdAt,
+          expiresAt: row.expires_at instanceof Date ? row.expires_at : new Date(row.expires_at),
+          usedAt: row.used_at ? (row.used_at instanceof Date ? row.used_at : new Date(row.used_at)) : null,
+          createdAt: row.createdAt instanceof Date ? row.createdAt : new Date(row.createdAt),
           isArchived: row.used_at !== null,
         }));
       } else {
         // Get all receipts if no search query
+        const { queryRaw: queryRaw2 } = await import("@/lib/db");
         const archivedClause = archived ? "WHERE ci.used_at IS NOT NULL" : "";
-        const receiptsResult = await queryRaw<Array<{
+        const receiptsResult = await queryRaw2<{
           id: string,
           clientId: string,
           token: string,
@@ -107,7 +108,7 @@ export async function GET(req: NextRequest) {
           firstName: string,
           lastName: string,
           phone: string | null;
-        }>>(`
+        }>(`
           SELECT 
             ci.id,
             ci."clientId",
@@ -127,38 +128,40 @@ export async function GET(req: NextRequest) {
           OFFSET $2
         `, [limit, offset]);
 
-        receipts = receiptsResult.map(row => ({
+        receipts = (receiptsResult || []).map((row) => ({
           id: row.id,
-          receiptId: `REC-${row.clientId}-${Math.floor(row.createdAt.getTime() / 1000)}`,
+          receiptId: `REC-${row.clientId}-${Math.floor((row.createdAt instanceof Date ? row.createdAt : new Date(row.createdAt)).getTime() / 1000)}`,
           token: row.token,
           clientId: row.clientId,
           clientName: `${row.firstName} ${row.lastName}`,
           email: row.email,
           phone: row.phone,
-          expiresAt: row.expires_at,
-          usedAt: row.used_at,
-          createdAt: row.createdAt,
+          expiresAt: row.expires_at instanceof Date ? row.expires_at : new Date(row.expires_at),
+          usedAt: row.used_at ? (row.used_at instanceof Date ? row.used_at : new Date(row.used_at)) : null,
+          createdAt: row.createdAt instanceof Date ? row.createdAt : new Date(row.createdAt),
           isArchived: row.used_at !== null,
         }));
       }
 
       // Get total count for pagination
+      const { queryRaw: queryRaw3 } = await import("@/lib/db");
       const archivedClause = archived ? "WHERE ci.used_at IS NOT NULL" : "";
-      const countResult = await queryRaw<Array<{ count: number }>>(`
+      const countResult = await queryRaw3<{ count: number }>(`
         SELECT COUNT(*)::int as count
         FROM client_invites ci
         ${archivedClause}
       `, []);
 
-      const total = Number(countResult[0]?.count || 0);
+      const total = Number((countResult?.[0] as { count: number } | undefined)?.count || 0);
 
       // Get archived count (total archived receipts, not just current page)
-      const archivedCountResult = await queryRaw<Array<{ count: number }>>(`
+      const { queryRaw: queryRaw4 } = await import("@/lib/db");
+      const archivedCountResult = await queryRaw4<{ count: number }>(`
         SELECT COUNT(*)::int as count
         FROM client_invites ci
         WHERE ci.used_at IS NOT NULL
       `, []);
-      const archivedCount = Number(archivedCountResult[0]?.count || 0);
+      const archivedCount = Number((archivedCountResult?.[0] as { count: number } | undefined)?.count || 0);
 
       return NextResponse.json({
         receipts,
@@ -169,10 +172,11 @@ export async function GET(req: NextRequest) {
       });
     } catch (sqlError: unknown) {
       const sqlErrorMessage = sqlError instanceof Error ? sqlError.message : "Unknown error";
-      console.error("Admin receipts search: Raw SQL failed, trying Prisma:", sqlErrorMessage);
+      console.error("Admin receipts search: Raw SQL failed:", sqlErrorMessage);
       
       // Retry with queryRaw
-      const invitesResult = await queryRaw<Array<{
+      const { queryRaw: queryRaw5 } = await import("@/lib/db");
+      const invitesResult = await queryRaw5<{
         id: string,
         clientId:string,
         token: string,
@@ -183,7 +187,7 @@ export async function GET(req: NextRequest) {
         firstName: string,
         lastName: string,
         phone: string | null;
-      }>>(`
+      }>(`
         SELECT 
           ci.id,
           ci."clientId",
@@ -203,17 +207,17 @@ export async function GET(req: NextRequest) {
         OFFSET $2
       `, [limit, offset]);
 
-      const receipts = invitesResult.map((invite) => ({
+      const receipts = (invitesResult || []).map((invite) => ({
         id: invite.id,
-        receiptId: `REC-${invite.clientId}-${Math.floor(invite.createdAt.getTime() / 1000)}`,
+        receiptId: `REC-${invite.clientId}-${Math.floor((invite.createdAt instanceof Date ? invite.createdAt : new Date(invite.createdAt)).getTime() / 1000)}`,
         token: invite.token,
         clientId: invite.clientId,
         clientName: `${invite.firstName} ${invite.lastName}`,
         email: invite.email,
         phone: invite.phone,
-        expiresAt: invite.expires_at,
-        usedAt: invite.used_at,
-        createdAt: invite.createdAt,
+        expiresAt: invite.expires_at instanceof Date ? invite.expires_at : new Date(invite.expires_at),
+        usedAt: invite.used_at ? (invite.used_at instanceof Date ? invite.used_at : new Date(invite.used_at)) : null,
+        createdAt: invite.createdAt instanceof Date ? invite.createdAt : new Date(invite.createdAt),
         isArchived: invite.used_at !== null,
       }));
 
@@ -251,7 +255,7 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-      const { queryRaw, update: updateInvite, findMany: findManyInvites } = await import("@/lib/db");
+      const { update: updateInvite, findMany: findManyInvites } = await import("@/lib/db");
       
       // Archive by marking as used
       if (token) {
@@ -269,8 +273,9 @@ export async function POST(req: NextRequest) {
             orderBy: { column: "createdAt", ascending: false },
             limit: 1,
           });
-          if (invites && invites.length > 0) {
-            await updateInvite("client_invites", { id: (invites[0] as any).id }, {
+          if (invites && invites.length > 0 && invites[0]) {
+            const invite = invites[0] as { id: string };
+            await updateInvite("client_invites", { id: invite.id }, {
               usedAt: new Date().toISOString(),
               updatedAt: new Date().toISOString(),
             } as Record<string, unknown>);
@@ -281,11 +286,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true });
     } catch (sqlError: unknown) {
       const sqlErrorMessage = sqlError instanceof Error ? sqlError.message : "Unknown error";
-      console.error("Archive receipt: Raw SQL failed, trying Prisma:", sqlErrorMessage);
+      console.error("Archive receipt: Update failed:", sqlErrorMessage);
       
       // Retry with updateInvite
+      const { update: updateInvite2 } = await import("@/lib/db");
       if (token) {
-        await updateInvite("client_invites", { token }, {
+        await updateInvite2("client_invites", { token }, {
           usedAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         } as Record<string, unknown>);

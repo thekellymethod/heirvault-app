@@ -135,13 +135,31 @@ export async function findMany<T>(
  * Helper for create operations
  */
 export async function create<T>(table: string, data: Partial<T>): Promise<T> {
+  // Ensure id is included if provided (for tables that require explicit IDs)
+  const insertData = { ...data };
+  
+  // Log the data being inserted for debugging (especially for users table)
+  if (table === "users") {
+    const hasId = (insertData as Record<string, unknown>).id;
+    if (!hasId) {
+      console.error(`[DB] Warning: Creating user without id field. Data:`, JSON.stringify(insertData, null, 2));
+    } else {
+      console.log(`[DB] Creating user with id: ${hasId}`);
+    }
+  }
+  
   const { data: result, error } = await supabaseAdmin
     .from(table)
-    .insert(data)
+    .insert(insertData as Record<string, unknown>)
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) {
+    // Log the error for debugging
+    console.error(`[DB] Create error on table ${table}:`, error);
+    console.error(`[DB] Insert data was:`, JSON.stringify(insertData, null, 2));
+    throw error;
+  }
   return result as T;
 }
 
@@ -153,13 +171,19 @@ export async function update<T>(
   where: Record<string, unknown>,
   data: Partial<T>
 ): Promise<T> {
-  let query = supabaseAdmin.from(table).update(data).select().single();
+  // Supabase pattern: update() first, then chain filters
+  let query = supabaseAdmin
+    .from(table)
+    .update(data as Record<string, unknown>)
+    .select();
 
+  // Apply where filters after update
+  // Type assertion needed because Supabase types don't properly reflect the chaining
   for (const [key, value] of Object.entries(where)) {
-    query = query.eq(key, value);
+    query = (query as any).eq(key, value);
   }
 
-  const { data: result, error } = await query;
+  const { data: result, error } = await query.single();
 
   if (error) throw error;
   return result as T;

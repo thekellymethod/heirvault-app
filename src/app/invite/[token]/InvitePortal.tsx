@@ -330,7 +330,7 @@ export function InvitePortal(props: Props) {
       <main className="min-h-screen bg-paper-50 py-12">
         <div className="mx-auto max-w-4xl px-6">
           <div className="mb-8 flex items-center justify-between no-print">
-            <Logo size="sm" showTagline={false} className="flex-row" href="/" />
+            <Logo size="xl" showTagline={false} className="flex-row" href="/" />
             <div className="flex items-center gap-3">
               <Button onClick={() => window.print()} className="btn-secondary flex items-center gap-2">
                 <Printer className="h-4 w-4" />
@@ -711,7 +711,7 @@ export function InvitePortal(props: Props) {
     <main className="min-h-screen bg-paper-50 py-6 sm:py-12 overflow-x-hidden">
       <div className="mx-auto w-full max-w-2xl px-4 sm:px-6">
         <div className="mb-8 flex items-center justify-between">
-          <Logo size="sm" showTagline={false} className="flex-row gap-3" href="/" />
+          <Logo size="xl" showTagline={false} className="flex-row gap-3" href="/" />
           <Link href="/" className="text-sm font-medium text-slateui-600 hover:text-ink-900 transition">
             Back to Home
           </Link>

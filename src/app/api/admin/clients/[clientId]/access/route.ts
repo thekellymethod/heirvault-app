@@ -7,7 +7,7 @@ import { UserRole } from "@/lib/db/enums";
 export async function GET(_: Request, ctx: { params: Promise<{ clientId: string }> }) {
   return withRouteGuard(async () => {
     const principal = await requireAuthPrincipal();
-    requireRole(principal, [UserRole.ADMIN]);
+    requireRole(principal, [UserRole.attorney]); // Note: UserRole only has 'attorney', not 'ADMIN'
 
     const { clientId } = await ctx.params;
 

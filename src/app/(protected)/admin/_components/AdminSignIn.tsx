@@ -94,7 +94,7 @@ export function AdminSignIn() {
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
             <div className="mb-6">
-              <Logo size="lg" showTagline={false} className="flex-row" href="/" />
+              <Logo size="xl" showTagline={false} className="flex-row" href="/" />
             </div>
             <div className="h-10 w-10 mx-auto animate-spin rounded-full border-4 border-slate-200 border-t-ink-900" />
           </div>
@@ -109,7 +109,7 @@ export function AdminSignIn() {
         {/* Logo and Header */}
         <div className="text-center mb-8">
           <div className="mb-6">
-            <Logo size="lg" showTagline={false} className="flex-row" href="/" />
+            <Logo size="xl" showTagline={false} className="flex-row" href="/" />
           </div>
           <h1 className="font-display text-3xl font-bold text-ink-900 mb-2">
             Admin Sign In

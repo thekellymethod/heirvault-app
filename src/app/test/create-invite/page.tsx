@@ -70,7 +70,7 @@ export default function CreateTestInvitePage() {
       <div className="mx-auto max-w-2xl px-6">
         {/* Header */}
         <div className="mb-8 flex items-center justify-between">
-          <Logo size="sm" showTagline={false} className="flex-row gap-3" href="/" />
+          <Logo size="xl" showTagline={false} className="flex-row gap-3" href="/" />
           <Link
             href="/"
             className="text-sm font-medium text-slateui-600 hover:text-ink-900 transition"

@@ -173,7 +173,7 @@ export default function PolicyIntakePage() {
       <main className="min-h-screen bg-paper-50 py-6 sm:py-12">
         <div className="mx-auto w-full max-w-2xl px-4 sm:px-6">
           <div className="mb-8">
-            <Logo size="sm" showTagline={false} className="flex-row" href="/" />
+            <Logo size="xl" showTagline={false} className="flex-row" href="/" />
           </div>
 
           <div className="card p-8 text-center">
@@ -234,7 +234,7 @@ export default function PolicyIntakePage() {
     <main className="min-h-screen bg-paper-50 py-6 sm:py-12">
       <div className="mx-auto w-full max-w-3xl px-4 sm:px-6">
         <div className="mb-8">
-          <Logo size="sm" showTagline={false} className="flex-row" href="/" />
+          <Logo size="xl" showTagline={false} className="flex-row" href="/" />
         </div>
 
         <div className="card p-6 mb-6">

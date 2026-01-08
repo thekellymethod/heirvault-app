@@ -13,7 +13,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       {/* Sidebar */}
       <aside className="hidden w-64 border-r lg:block shadow-sm" style={{ borderColor: "#D9E2EE", backgroundColor: "#FFFFFF" }}>
         <div className="flex h-16 items-center gap-3 border-b px-6 bg-paper-50" style={{ borderColor: "#D9E2EE" }}>
-          <Logo size="sm" showTagline={false} className="flex-row" href="/dashboard" />
+          <Logo size="xl" showTagline={false} className="flex-row" href="/dashboard" />
         </div>
         <div className="p-4">
           <SidebarNav />
@@ -33,7 +33,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             <div className="flex items-center gap-4">
               {/* Mobile menu button - can be added later */}
               <div className="lg:hidden">
-                <Logo size="sm" showTagline={false} className="flex-row" href="/dashboard" />
+                <Logo size="xl" showTagline={false} className="flex-row" href="/dashboard" />
               </div>
             </div>
             <div className="flex items-center gap-4">

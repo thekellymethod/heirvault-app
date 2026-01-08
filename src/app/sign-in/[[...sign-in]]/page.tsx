@@ -87,15 +87,32 @@ export default function SignInPage() {
   }, []);
 
   // Show loading while checking auth
-  if (!isLoaded || (isLoaded && isSignedIn)) {
+  if (!isLoaded) {
     return (
       <main className="min-h-screen bg-gradient-to-b from-slate-50 to-white flex items-center justify-center px-4 py-8">
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
             <div className="mb-6">
-              <Logo size="lg" showTagline={false} className="flex-row" href="/" />
+              <Logo size="xl" showTagline={false} className="flex-row" href="/" />
             </div>
             <div className="h-10 w-10 mx-auto animate-spin rounded-full border-4 border-slate-200 border-t-ink-900" />
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  // Don't render SignIn if already signed in - redirect will happen via useEffect
+  if (isSignedIn) {
+    return (
+      <main className="min-h-screen bg-gradient-to-b from-slate-50 to-white flex items-center justify-center px-4 py-8">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <div className="mb-6">
+              <Logo size="xl" showTagline={false} className="flex-row" href="/" />
+            </div>
+            <div className="h-10 w-10 mx-auto animate-spin rounded-full border-4 border-slate-200 border-t-ink-900" />
+            <p className="mt-4 text-sm text-slateui-600">Redirecting...</p>
           </div>
         </div>
       </main>
@@ -108,7 +125,7 @@ export default function SignInPage() {
         {/* Logo and Header */}
         <div className="text-center mb-8">
           <div className="mb-6">
-            <Logo size="lg" showTagline={false} className="flex-row" href="/" />
+            <Logo size="xl" showTagline={false} className="flex-row" href="/" />
           </div>
           <h1 className="font-display text-3xl font-bold text-ink-900 mb-2">
             Sign In
@@ -116,12 +133,20 @@ export default function SignInPage() {
           <p className="text-sm text-slateui-600">
             Sign in to access your HeirVault dashboard
           </p>
-          <p className="text-xs text-slateui-500 mt-2">
-            For attorneys and administrators
-          </p>
+          <div className="mt-3 space-y-1">
+            <p className="text-xs text-slateui-500">
+              <a href="/attorney/sign-in" className="text-ink-900 hover:text-ink-800 font-medium underline">
+                Attorney sign in
+              </a>
+              {" • "}
+              <a href="/admin/sign-in" className="text-ink-900 hover:text-ink-800 font-medium underline">
+                Administrator sign in
+              </a>
+            </p>
+          </div>
         </div>
 
-        {/* Clerk Sign In Component */}
+        {/* Clerk Sign In Component - Only render when NOT signed in */}
         <div className="w-full">
           <SignIn
             routing="path"

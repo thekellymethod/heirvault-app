@@ -24,7 +24,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "Missing text." }, { status: 400 });
   }
 
-  const commands = COMMANDS.map((c) => ({
+  const commands = COMMANDS.map((c: { id: string; title: string; description: string; usage: string }) => ({
     id: c.id,
     title: c.title,
     description: c.description,

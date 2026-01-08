@@ -87,7 +87,7 @@ export async function POST(req: Request) {
   });
 
   try {
-    const result = await def.handler({ actor }, args);
+    const result = await def.handler({ actor: actor as { id: string; clerkId?: string; email: string; roles: string[] } }, args);
     return NextResponse.json({ ...result, meta: { auditId, rate: rl } }, { status: result.ok ? 200 : 400 });
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : "Unknown error";

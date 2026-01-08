@@ -20,7 +20,7 @@ export default function PrivacyPolicyPage() {
           <div className="flex items-center justify-between gap-6">
             <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition" aria-label="Return to homepage">
               <ArrowLeft className="h-5 w-5 text-slateui-600" aria-hidden="true" />
-              <Logo size="sm" showTagline={false} className="flex-row" />
+              <Logo size="xl" showTagline={false} className="flex-row" />
             </Link>
           </div>
         </div>

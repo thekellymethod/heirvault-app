@@ -7,7 +7,7 @@ export default function QRUpdateSuccessPage() {
     <main className="min-h-screen bg-paper-50 py-6 sm:py-12 overflow-x-hidden">
       <div className="mx-auto w-full max-w-2xl px-4 sm:px-6">
         <div className="mb-8 flex items-center justify-between">
-          <Logo size="sm" showTagline={false} className="flex-row" href="/" />
+          <Logo size="xl" showTagline={false} className="flex-row" href="/" />
           <Link
             href="/"
             className="text-sm font-medium text-slateui-600 hover:text-ink-900 transition"

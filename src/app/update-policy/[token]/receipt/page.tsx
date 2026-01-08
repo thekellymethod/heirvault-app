@@ -187,7 +187,7 @@ export default function ReceiptPage() {
       <header className="sticky top-0 z-50 border-b border-slateui-200 bg-paper-50/85 backdrop-blur print:hidden">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 py-3 sm:py-4">
           <div className="flex items-center justify-between gap-6">
-            <Logo size="sm" showTagline={false} className="flex-row" href="/" />
+            <Logo size="xl" showTagline={false} className="flex-row" href="/" />
             <div className="flex gap-3">
               <Button onClick={handleDownloadPDF} className="btn-secondary">
                 <Download className="h-4 w-4 mr-2" />

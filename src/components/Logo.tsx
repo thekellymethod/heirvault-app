@@ -5,7 +5,7 @@ import Link from "next/link";
 interface LogoProps {
   className?: string,
   showTagline?: boolean;
-  size?: "sm" | "md" | "lg";
+  size?: "sm" | "md" | "lg" | "xl";
   href?: string | null | undefined,
   variant?: "default" | "icon-only" | "text-only";
 }
@@ -21,6 +21,7 @@ export function Logo({
     sm: { width: 40, height: 40, textSize: "text-lg" },
     md: { width: 56, height: 56, textSize: "text-2xl" },
     lg: { width: 80, height: 80, textSize: "text-3xl" },
+    xl: { width: 120, height: 120, textSize: "text-4xl" },
   };
 
   const dimensions = sizeClasses[size];

@@ -72,7 +72,7 @@ export default function BaseTierContractPage() {
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-slate-50 to-white px-4 py-8 overflow-y-auto">
       <div className="w-full max-w-3xl space-y-6">
         <div className="text-center mb-6">
-          <Logo size="lg" showTagline={false} className="flex-row mb-4" />
+          <Logo size="xl" showTagline={false} className="flex-row mb-4" />
           <h1 className="text-2xl font-bold text-slate-900">Base Tier Service Agreement</h1>
           <p className="mt-2 text-sm text-slate-600">
             Please review and accept the terms to continue

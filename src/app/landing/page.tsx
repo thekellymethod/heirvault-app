@@ -12,7 +12,7 @@ export default function LandingPage() {
       <header className="sticky top-0 z-50 border-b border-slateui-200 bg-paper-50/85 backdrop-blur">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 py-2 sm:py-3">
           <div className="flex items-center justify-between gap-6">
-            <Logo size="lg" showTagline={false} className="flex-row gap-2" />
+            <Logo size="xl" showTagline={false} className="flex-row gap-2" />
 
             <nav className="hidden md:flex items-center gap-7">
               <Link href="#home" className="text-sm font-medium text-slateui-800 hover:text-ink-900 transition">

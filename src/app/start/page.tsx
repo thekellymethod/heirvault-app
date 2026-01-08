@@ -16,7 +16,7 @@ export default function StartFreePage() {
       {/* Nav */}
       <header className="relative z-10 mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-6">
         <Link href="/" className="flex items-center gap-3">
-          <Logo size="sm" variant="icon-only" />
+          <Logo size="xl" variant="icon-only" />
           <div className="leading-tight">
             <div className="text-sm font-semibold tracking-wide" style={{ color: "#E1B75A", fontFamily: "'Playfair Display', Georgia, serif" }}>HeirVault</div>
             <div className="text-[11px] text-white/60">

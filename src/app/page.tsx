@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Logo } from "@/components/Logo";
 import { Footer } from "@/components/Footer";
+import { Shield } from "lucide-react";
 
 export default function HomePage() {
   return (
@@ -17,7 +18,7 @@ export default function HomePage() {
       <header className="sticky top-0 z-20 border-b border-white/10 bg-[#070B14]/75 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4">
           <Link href="/" className="flex items-center gap-3">
-            <Logo size="sm" variant="icon-only" />
+            <Logo size="xl" variant="icon-only" />
             <div className="leading-tight">
               <div className="text-sm font-semibold tracking-wide" style={{ color: "#E1B75A", fontFamily: "'Playfair Display', Georgia, serif" }}>HeirVault</div>
               <div className="text-xs text-white/60">Life Insurance Policy Registry</div>
@@ -31,6 +32,14 @@ export default function HomePage() {
           </nav>
 
           <div className="flex items-center gap-3">
+            <Link
+              href="/admin/sign-in"
+              className="hidden rounded-xl border border-red-500/30 bg-red-600/10 px-3 py-2 text-xs font-semibold text-red-400 hover:border-red-500/50 hover:bg-red-600/20 transition md:inline-flex items-center gap-1.5"
+              title="Administrator Sign In"
+            >
+              <Shield className="h-3.5 w-3.5" />
+              Admin
+            </Link>
             <Link
               href="/attorney/sign-in"
               className="hidden rounded-xl border border-white/15 px-4 py-2 text-sm text-white/85 hover:border-[#E1B75A]/50 hover:text-[#E1B75A] transition md:inline-flex"
