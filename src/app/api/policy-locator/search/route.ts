@@ -1,16 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
 ;
-import { getCurrentUserWithOrg } from "@/lib/authz";
+import { requireAuthPrincipal } from "@/lib/permissions/guard";
 
 export const runtime = "nodejs";
 
 export async function GET(req: NextRequest) {
   try {
-    const { user, orgMember } = await getCurrentUserWithOrg();
+    const principal = await requireAuthPrincipal();
+    
+    // Get user's org membership
+    const { findMany: findManyMembers } = await import("@/lib/db");
+    
+    type OrgMemberRecord = {
+      id: string;
+      userId: string;
+      organizationId: string;
+    };
+    
+    const memberships = await findManyMembers<OrgMemberRecord>("org_members", {
+      where: { userId: principal.dbUserId },
+      limit: 1,
+    });
 
-    if (!user || !orgMember) {
+    if (!memberships || memberships.length === 0) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    
+    const orgMember = memberships[0];
 
     const { searchParams } = new URL(req.url);
     const firstName = searchParams.get("firstName")?.trim();
@@ -66,10 +82,11 @@ export async function GET(req: NextRequest) {
       params.push(`%${policyNumber}%`);
     }
 
-    query += ` ORDER BY c.createdAt DESC LIMIT 50`;
+    query += ` ORDER BY c.created_at DESC LIMIT 50`;
 
-    // Execute query
-    const rows = await prisma.$queryRawUnsafe<Array<{
+    // Execute query using Supabase
+    const { queryRaw } = await import("@/lib/db");
+    const rows = await queryRaw<Array<{
       id: string,
       firstName: string,
       lastName: string,
@@ -78,10 +95,11 @@ export async function GET(req: NextRequest) {
       policy_number: string | null;
       policy_type: string | null;
       insurer_name: string,
-    }>>(query, ...params);
+    }>>(query, params);
 
-    // Map results
-    const results = rows.map((row) => ({
+    // Map results - queryRaw returns an array
+    const rowsArray = Array.isArray(rows) ? rows : [];
+    const results = rowsArray.map((row: any) => ({
       id: row.id,
       clientName: `${row.firstName} ${row.lastName}`,
       policyNumber: row.policy_number,
@@ -93,14 +111,16 @@ export async function GET(req: NextRequest) {
 
     // Log the policy search for audit purposes (internal audit log, not visible to users)
     try {
-      await prisma.$executeRawUnsafe(
-        `INSERT INTO audit_logs (action, message, user_id, org_id, createdAt) 
-         VALUES ($1, $2, $3, $4, NOW())`,
-        "POLICY_SEARCH_PERFORMED",
-        `Policy search: ${firstName} ${lastName}${dateOfBirth ? ` (DOB: ${dateOfBirth})` : ""}${policyNumber ? ` | Policy #: ${policyNumber}` : ""} | Results: ${results.length} policy(ies)`,
-        user.id,
-        orgMember.organizationId
-      );
+      const { create: createAudit } = await import("@/lib/db");
+      const { randomUUID } = await import("crypto");
+      await createAudit("audit_logs", {
+        id: randomUUID(),
+        action: "POLICY_SEARCH_PERFORMED",
+        message: `Policy search: ${firstName} ${lastName}${dateOfBirth ? ` (DOB: ${dateOfBirth})` : ""}${policyNumber ? ` | Policy #: ${policyNumber}` : ""} | Results: ${results.length} policy(ies)`,
+        userId: principal.dbUserId,
+        orgId: orgMember.organizationId,
+        createdAt: new Date().toISOString(),
+      } as any);
     } catch (auditError) {
       console.error("Failed to log policy search audit:", auditError);
       // Don't fail the request if audit logging fails

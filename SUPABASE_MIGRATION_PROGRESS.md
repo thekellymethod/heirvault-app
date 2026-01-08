@@ -24,7 +24,7 @@ Migrating from Prisma ORM to Supabase SQL for all database operations.
   - `transaction()` - Transaction wrapper (sequential execution)
   - `queryRaw()` - Raw SQL queries (requires Postgres function)
 
-### 2. Core Library Files - **9 FILES COMPLETE**
+### 2. Core Library Files - **20 FILES COMPLETE**
 - ✅ `src/lib/utils/clerk.ts` - User authentication (getCurrentUser, requireAuth)
 - ✅ `src/lib/audit.ts` - Audit logging
 - ✅ `src/lib/authz.ts` - Authorization helpers
@@ -38,14 +38,50 @@ Migrating from Prisma ORM to Supabase SQL for all database operations.
 - ✅ `src/lib/permissions/guard.ts` - Authentication and authorization guards
 - ✅ `src/lib/auth/guards.ts` - Attorney verification guards
 - ✅ `src/lib/org/getOrgContext.ts` - Organization context retrieval
+- ✅ `src/lib/security/apiTokens.ts` - API token management (already migrated, cleaned up types)
+- ✅ `src/lib/security/requireApiToken.ts` - API token authentication (already migrated, cleaned up types)
+- ✅ `src/lib/billing/ledger.ts` - Billing events ledger
+- ✅ `src/lib/billing/active-estates.ts` - Active estate counting
+- ✅ `src/lib/billing/archive-client.ts` - Client archiving utilities
+- ✅ `src/lib/billing/requireActiveSubscription.ts` - Active subscription requirement
+- ✅ `src/lib/billing/requireSubscription.ts` - Organization subscription requirement
+- ✅ `src/lib/documents/backfill-categories.ts` - Document category backfill utility
+- ✅ `src/lib/contracts/features.ts` - Feature gate enforcement
+- ✅ `src/lib/contracts/acceptance.ts` - Contract acceptance management
+- ✅ `src/lib/test-invites.ts` - Test invite creation utility
 
-### 3. API Routes - **3 FILES COMPLETE**
+### 3. API Routes - **28 FILES COMPLETE**
 - ✅ `src/app/api/clients/route.ts` - Client CRUD operations (GET, POST)
 - ✅ `src/app/api/clients/[id]/route.ts` - Client detail operations (GET)
+- ✅ `src/app/api/clients/[id]/invite/route.ts` - Client invite creation (POST)
 - ✅ `src/app/api/policies/route.ts` - Policy CRUD operations (GET, POST)
 - ✅ `src/app/api/policies/[id]/route.ts` - Policy update/delete operations (PATCH, DELETE)
+- ✅ `src/app/api/policies/[id]/beneficiaries/route.ts` - Policy-beneficiary linking (POST)
+- ✅ `src/app/api/policies/[id]/verify/route.ts` - Policy verification (POST)
 - ✅ `src/app/api/beneficiaries/route.ts` - Beneficiary CRUD operations (GET, POST) - Already migrated
 - ✅ `src/app/api/beneficiaries/[id]/route.ts` - Beneficiary update/delete operations (PUT, DELETE) - Already migrated
+- ✅ `src/app/api/attorney/clients/[clientId]/dob/route.ts` - Client DOB update (POST)
+- ✅ `src/app/api/attorney/clients/[clientId]/overview/route.ts` - Client overview with relations (GET)
+- ✅ `src/app/api/attorney/clients/[clientId]/policies/route.ts` - Expected policy creation (POST)
+- ✅ `src/app/api/attorney/clients/[clientId]/invite/send/route.ts` - Send client invite (POST)
+- ✅ `src/app/api/attorney/clients/[clientId]/change-requests/create/route.ts` - Create change request (POST)
+- ✅ `src/app/api/attorney/apply/route.ts` - Attorney application submission (POST)
+- ✅ `src/app/api/insurers/route.ts` - Insurer list and creation (GET, POST)
+- ✅ `src/app/api/insurers/[id]/route.ts` - Insurer operations (GET, PATCH, DELETE)
+- ✅ `src/app/api/attorney/clients/[clientId]/change-requests/create/route.ts` - Change request creation (POST)
+- ✅ `src/app/api/attorney/clients/[clientId]/invite/route.ts` - Client invite creation (POST)
+- ✅ `src/app/api/attorney/clients/[clientId]/invite/send/route.ts` - Client invite send (POST)
+- ✅ `src/app/api/org/me/route.ts` - Get current user's organization (GET)
+- ✅ `src/app/api/org/team/invite/route.ts` - Invite team member (POST)
+- ✅ `src/app/api/debug/whoami/route.ts` - Debug user authentication (GET)
+- ✅ `src/app/api/debug/user-roles/route.ts` - Debug user roles (GET)
+- ✅ `src/app/api/artifacts/[artifactId]/open/route.ts` - Open artifact (GET)
+- ✅ `src/app/api/jobs/process-docs/route.ts` - Process documents job (POST)
+- ✅ `src/app/api/organizations/route.ts` - Organization creation (POST)
+- ✅ `src/app/api/organizations/[id]/route.ts` - Organization update/delete (PUT, DELETE)
+- ✅ `src/app/api/policy-locator/search/route.ts` - Policy search within organization (GET)
+- ✅ `src/app/api/policy-locator/global/route.ts` - Global policy search (GET)
+- ✅ `src/app/api/internal/process-document/route.ts` - Internal document processing (POST)
 
 ### 4. Database Exports - **COMPLETE**
 - ✅ Updated `src/lib/db/index.ts` to export Supabase helpers
@@ -57,7 +93,7 @@ Migrating from Prisma ORM to Supabase SQL for all database operations.
 
 ### Critical Files Still Using Prisma (500+ instances)
 
-#### Core Library Files (20 files remaining, ~50 instances)
+#### Core Library Files (~18 files remaining, ~30 instances)
 - ✅ `src/lib/inviteCompletion.ts` - **COMPLETE**
 - ✅ `src/lib/worker/processDocument.ts` - **COMPLETE**
 - ✅ `src/lib/utils/invites.ts` - **COMPLETE**
@@ -67,27 +103,31 @@ Migrating from Prisma ORM to Supabase SQL for all database operations.
 - ✅ `src/lib/permissions/guard.ts` - **COMPLETE** (already migrated)
 - ✅ `src/lib/auth/guards.ts` - **COMPLETE** (already migrated)
 - ✅ `src/lib/org/getOrgContext.ts` - **COMPLETE** (already migrated)
+- ✅ `src/lib/security/apiTokens.ts` - **COMPLETE** (already migrated, types cleaned up)
+- ✅ `src/lib/security/requireApiToken.ts` - **COMPLETE** (already migrated, types cleaned up)
 - ✅ `src/lib/invite-lookup.ts` - **COMPLETE**
 - ✅ `src/lib/documents/upload-guard.ts` - **COMPLETE**
-- `src/lib/documents/backfill-categories.ts` - 3 instances
-- `src/lib/billing/ledger.ts` - 1 instance
-- `src/lib/billing/archive-client.ts` - 5 instances
-- `src/lib/billing/active-estates.ts` - 2 instances
-- `src/lib/billing/requireActiveSubscription.ts` - 1 instance
-- `src/lib/billing/requireSubscription.ts` - 2 instances
-- `src/lib/contracts/features.ts` - 1 instance
-- `src/lib/contracts/acceptance.ts` - 3 instances
-- `src/lib/test-invites.ts` - 4 instances
-- `src/lib/utils/invites.ts` - 11 instances
-- `src/lib/security/apiTokens.ts` - 2 instances
-- `src/lib/security/requireApiToken.ts` - 2 instances
-- `src/lib/invite-lookup.ts` - 1 instance
+- ✅ `src/lib/security/apiTokens.ts` - **COMPLETE**
+- ✅ `src/lib/security/requireApiToken.ts` - **COMPLETE**
+- ✅ `src/lib/auth/CurrentUser.ts` - **COMPLETE**
+- ✅ `src/lib/documents/backfill-categories.ts` - **COMPLETE**
+- ✅ `src/lib/billing/ledger.ts` - **COMPLETE**
+- ✅ `src/lib/billing/archive-client.ts` - **COMPLETE**
+- ✅ `src/lib/billing/active-estates.ts` - **COMPLETE**
+- ✅ `src/lib/billing/requireActiveSubscription.ts` - **COMPLETE**
+- ✅ `src/lib/billing/requireSubscription.ts` - **COMPLETE**
+- ✅ `src/lib/contracts/features.ts` - **COMPLETE**
+- ✅ `src/lib/contracts/acceptance.ts` - **COMPLETE**
+- ✅ `src/lib/test-invites.ts` - **COMPLETE**
 
-#### API Routes (~137 files, ~415 instances remaining)
+#### API Routes (~131 files, ~400 instances remaining)
 - ✅ `src/app/api/clients/route.ts` - **COMPLETE**
 - ✅ `src/app/api/clients/[id]/route.ts` - **COMPLETE**
+- ✅ `src/app/api/clients/[id]/invite/route.ts` - **COMPLETE**
 - ✅ `src/app/api/policies/route.ts` - **COMPLETE**
 - ✅ `src/app/api/policies/[id]/route.ts` - **COMPLETE**
+- ✅ `src/app/api/policies/[id]/beneficiaries/route.ts` - **COMPLETE**
+- ✅ `src/app/api/policies/[id]/verify/route.ts` - **COMPLETE**
 - ✅ `src/app/api/beneficiaries/route.ts` - **COMPLETE** (already migrated)
 - ✅ `src/app/api/beneficiaries/[id]/route.ts` - **COMPLETE** (already migrated)
 - Remaining routes in `src/app/api/` that contain `prisma.` calls need to be migrated.

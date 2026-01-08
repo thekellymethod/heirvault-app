@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 ;
 import { requireAuth } from "@/lib/utils/clerk";
 import { randomUUID } from "crypto";
-import type { Prisma, AuditAction } from "@prisma/client";
 
 type PolicyLocatorResult = {
   id: string;
@@ -28,10 +27,9 @@ function parseDate(value: string | null): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
-function pickAuditAction(): AuditAction {
-  // You already used this elsewhere, so it should exist in your enum.
-  // If TypeScript complains here, change it to a real enum member from your schema.
-  return "GLOBAL_POLICY_SEARCH_PERFORMED" as AuditAction;
+function pickAuditAction(): string {
+  // Return audit action string
+  return "GLOBAL_POLICY_SEARCH_PERFORMED";
 }
 
 export async function GET(req: NextRequest) {
@@ -56,48 +54,100 @@ export async function GET(req: NextRequest) {
 
     const dateOfBirth = parseDate(dateOfBirthParam);
 
-    // IMPORTANT: your prisma model is "clients" but its fields are camelCase,
-    // and policy where input expects "policyNumber".
-    const where: Prisma.clientsWhereInput = {
-      firstName: { contains: firstName, mode: "insensitive" },
-      lastName: { contains: lastName, mode: "insensitive" },
-      ...(dateOfBirth ? { dateOfBirth } : {}),
-      ...(policyNumberParam
-        ? {
-            policies: {
-              some: {
-                policyNumber: { contains: policyNumberParam, mode: "insensitive" },
-              },
-            },
-          }
-        : {}),
-    };
-
-    const clients = await prisma.clients.findMany({
-      where,
-      include: {
-        policies: {
-          include: {
-            insurers: { select: { name: true } },
-            policy_beneficiaries: {
-              include: {
+    // Use Supabase to query clients with policies
+    const { findMany: findManyInsurers, findMany: findManyBeneficiaries, findMany: findManyPolicyBeneficiaries, getDb } = await import("@/lib/db");
+    const db = getDb();
+    
+    // Build query for clients
+    let clientQuery = db
+      .from("clients")
+      .select("*")
+      .ilike("firstName", `%${firstName}%`)
+      .ilike("lastName", `%${lastName}%`);
+    
+    if (dateOfBirth) {
+      clientQuery = clientQuery.eq("dateOfBirth", dateOfBirth.toISOString());
+    }
+    
+    const { data: clientsData } = await clientQuery.limit(100);
+    const clients = (clientsData || []) as Array<{
+      id: string;
+      firstName: string;
+      lastName: string;
+      email: string;
+      dateOfBirth: string | null;
+    }>;
+    
+    // Fetch policies for each client
+    const clientsWithPolicies = await Promise.all(
+      clients.map(async (client) => {
+        let policyQuery = db
+          .from("policies")
+          .select("*")
+          .eq("clientId", client.id);
+        
+        if (policyNumberParam) {
+          policyQuery = policyQuery.ilike("policyNumber", `%${policyNumberParam}%`);
+        }
+        
+        const { data: policiesData } = await policyQuery;
+        const policies = (policiesData || []) as Array<{
+          id: string;
+          policyNumber: string | null;
+          policyType: string | null;
+          insurerId: string | null;
+        }>;
+        
+        // Fetch insurers for policies
+        const policiesWithInsurers = await Promise.all(
+          policies.map(async (policy) => {
+            const insurer = policy.insurerId 
+              ? await findManyInsurers("insurers", { where: { id: policy.insurerId }, limit: 1 })
+              : null;
+            
+            // Fetch policy beneficiaries
+            const policyBeneficiaries = await findManyPolicyBeneficiaries("policy_beneficiaries", {
+              where: { policyId: policy.id },
+            });
+            
+            // Fetch beneficiaries
+            const beneficiaries = await Promise.all(
+              (policyBeneficiaries || []).map(async (pb: any) => {
+                const beneficiary = await findManyBeneficiaries("beneficiaries", {
+                  where: { id: pb.beneficiaryId },
+                  limit: 1,
+                });
+                return beneficiary && beneficiary.length > 0 ? beneficiary[0] : null;
+              })
+            );
+            
+            return {
+              ...policy,
+              insurers: insurer && insurer.length > 0 ? { name: (insurer[0] as any).name } : null,
+              policy_beneficiaries: beneficiaries.filter((b: any) => b !== null).map((b: any) => ({
                 beneficiaries: {
-                  select: { firstName: true, lastName: true, relationship: true },
+                  firstName: b.firstName,
+                  lastName: b.lastName,
+                  relationship: b.relationship,
                 },
-              },
-            },
-          },
-        },
-      },
-      take: 100,
-    });
+              })),
+            };
+          })
+        );
+        
+        return {
+          ...client,
+          policies: policiesWithInsurers,
+        };
+      })
+    );
 
-    const results: PolicyLocatorResult[] = clients.flatMap((client) =>
-      client.policies.map((policy) => {
-        const beneficiaries = policy.policy_beneficiaries.map((pb) => ({
-          firstName: pb.beneficiaries.firstName,
-          lastName: pb.beneficiaries.lastName,
-          relationship: pb.beneficiaries.relationship,
+    const results: PolicyLocatorResult[] = clientsWithPolicies.flatMap((client: any) =>
+      (client.policies || []).map((policy: any) => {
+        const beneficiaries = (policy.policy_beneficiaries || []).map((pb: any) => ({
+          firstName: pb.beneficiaries?.firstName || "",
+          lastName: pb.beneficiaries?.lastName || "",
+          relationship: pb.beneficiaries?.relationship || null,
         }));
 
         return {
@@ -118,27 +168,34 @@ export async function GET(req: NextRequest) {
 
     // Audit log (best effort; does not block response)
     try {
-      const member = await prisma.org_members.findFirst({
+      const { findMany: findManyMembers, create: createAudit } = await import("@/lib/db");
+      
+      type OrgMemberRecord = {
+        id: string;
+        userId: string;
+        organizationId: string;
+      };
+      
+      const memberships = await findManyMembers<OrgMemberRecord>("org_members", {
         where: { userId: user.id },
-        select: { organizationId: true },
+        limit: 1,
       });
 
+      const member = memberships && memberships.length > 0 ? memberships[0] : null;
       const action = pickAuditAction();
 
-      await prisma.audit_logs.create({
-        data: {
-          id: randomUUID(),
-          action,
-          message: `Global policy search: ${firstName} ${lastName}${
-            dateOfBirthParam ? ` (DOB: ${dateOfBirthParam})` : ""
-          }${proofOfDeathCertNumber ? ` | Death Cert: ${proofOfDeathCertNumber}` : ""} | Results: ${
-            results.length
-          }`,
-          userId: user.id, // NOTE: your audit_logs model likely uses snake field names; if TS errors, swap to userId.
-          orgId: member?.organizationId ?? null, // same note: if TS errors, swap to orgId / organizationId per schema.
-          createdAt: new Date(),
-        },
-      });
+      await createAudit("audit_logs", {
+        id: randomUUID(),
+        action,
+        message: `Global policy search: ${firstName} ${lastName}${
+          dateOfBirthParam ? ` (DOB: ${dateOfBirthParam})` : ""
+        }${proofOfDeathCertNumber ? ` | Death Cert: ${proofOfDeathCertNumber}` : ""} | Results: ${
+          results.length
+        }`,
+        userId: user.id,
+        orgId: member?.organizationId ?? null,
+        createdAt: new Date().toISOString(),
+      } as any);
     } catch (auditError: unknown) {
       console.error("Failed to log global search audit:", auditError);
     }

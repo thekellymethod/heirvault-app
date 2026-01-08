@@ -4,7 +4,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 ;
-import { writeAuditLog } from "@/lib/db";
+import { logAuditEvent } from "@/lib/audit";
 
 /**
  * Extract safe entities from OCR text (mask SSN/ID, last4 only if needed)
@@ -99,25 +99,25 @@ export async function POST(req: NextRequest) {
     }
 
     // Get document
-    const document = await prisma.documents.findUnique({
-      where: { id: documentId },
-      include: {
-        clients: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-          },
-        },
-      },
-    });
-
+    const { findUnique: findUniqueDoc } = await import("@/lib/db");
+    
+    type DocumentRecord = {
+      id: string;
+      clientId: string;
+      fileName: string;
+      classificationStatus: string;
+    };
+    
+    const document = await findUniqueDoc<DocumentRecord>("documents", { id: documentId });
+    
     if (!document) {
       return NextResponse.json(
         { error: "Document not found" },
         { status: 404 }
       );
     }
+    
+    // Client ID is available from document.clientId - no need to fetch separately
 
     if (document.classificationStatus !== "PENDING_OCR") {
       return NextResponse.json(
@@ -143,30 +143,30 @@ export async function POST(req: NextRequest) {
     const classificationStatus = confidenceScore >= 0.85 ? "AUTO_ACCEPTED" : "NEEDS_REVIEW";
 
     // Update document
-    await prisma.documents.update({
-      where: { id: document.id },
-      data: {
-        ocrConfidence: ocrConfidence,
-        confidenceScore: confidenceScore,
-        classificationStatus: classificationStatus,
-        extractedData: {
-          entities: entities,
-          ocrText: ocrText.substring(0, 1000), // Store first 1000 chars only
-        },
+    const { update: updateDoc, create: createDb } = await import("@/lib/db");
+    const { randomUUID } = await import("crypto");
+    
+    await updateDoc("documents", { id: document.id }, {
+      ocrConfidence: ocrConfidence,
+      confidenceScore: confidenceScore,
+      classificationStatus: classificationStatus,
+      extractedData: {
+        entities: entities,
+        ocrText: ocrText.substring(0, 1000), // Store first 1000 chars only
       },
-    });
+      updatedAt: new Date().toISOString(),
+    } as any);
 
     // Create document_extractions records
     for (const entity of entities) {
-      await prisma.document_extractions.create({
-        data: {
-          id: crypto.randomUUID(),
-          documentId: document.id,
-          entityType: entity.entityType,
-          entityValue: entity.entityValue,
-          confidence: entity.confidence,
-        },
-      });
+      await createDb("document_extractions", {
+        id: randomUUID(),
+        documentId: document.id,
+        entityType: entity.entityType,
+        entityValue: entity.entityValue,
+        confidence: entity.confidence,
+        createdAt: new Date().toISOString(),
+      } as any);
     }
 
     // If beneficiaries detected, create beneficiary rows
@@ -174,31 +174,34 @@ export async function POST(req: NextRequest) {
     for (const entity of beneficiaryEntities) {
       const nameParts = entity.entityValue.split(" ");
       if (nameParts.length >= 2) {
-        await prisma.beneficiaries.create({
-          data: {
-            id: crypto.randomUUID(),
-            clientId: document.clientId,
-            firstName: nameParts[0],
-            lastName: nameParts.slice(1).join(" "),
-            verificationStatus: "PENDING",
-          },
-        });
+        await createDb("beneficiaries", {
+          id: randomUUID(),
+          clientId: document.clientId,
+          firstName: nameParts[0],
+          lastName: nameParts.slice(1).join(" "),
+          verificationStatus: "PENDING",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        } as any);
       }
     }
 
     // Log processing
-    await writeAuditLog({
+    await logAuditEvent({
       action: "OCR_COMPLETED",
-      message: `OCR completed for document ${document.fileName}`,
-      userId: null,
-      clientId: document.clientId,
+      metadata: {
+        message: `OCR completed for document ${document.fileName}`,
+        documentId: document.id,
+      },
     });
 
-    await writeAuditLog({
+    await logAuditEvent({
       action: "EXTRACTION_COMPLETED",
-      message: `Extracted ${entities.length} entities from document ${document.fileName}`,
-      userId: null,
-      clientId: document.clientId,
+      metadata: {
+        message: `Extracted ${entities.length} entities from document ${document.fileName}`,
+        documentId: document.id,
+        entityCount: entities.length,
+      },
     });
 
     return NextResponse.json({
