@@ -35,10 +35,15 @@ export async function GET() {
       null;
 
     // Get user from database
-    const dbUser = await prisma.user.findUnique({
-      where: { clerkId: userId },
-      select: { id: true, email: true, roles: true },
-    });
+    const { findUnique: findUniqueUser } = await import("@/lib/db");
+    
+    type UserRecord = {
+      id: string;
+      email: string;
+      roles: string[];
+    };
+    
+    const dbUser = await findUniqueUser<UserRecord>("users", { clerkId: userId });
 
     // Check admin email config
     const bootstrapAdminEmail = process.env.BOOTSTRAP_ADMIN_EMAIL || "admin@heirvault.app";

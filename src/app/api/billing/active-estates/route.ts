@@ -9,24 +9,32 @@ import { getActiveEstateCount } from "@/lib/billing/active-estates";
  * Returns active estate count for the authenticated user's organization.
  * Internal endpoint for billing and usage tracking.
  */
-export async function GET(req: NextRequest) {
+export async function GET(_req: NextRequest) {
   try {
     const principal = await requireAuthPrincipal();
 
     // Get user's organization
-    const membership = await prisma.org_members.findFirst({
+    const { findMany: findManyMembers } = await import("@/lib/db");
+    
+    type OrgMemberRecord = {
+      id: string;
+      userId: string;
+      organizationId: string;
+    };
+    
+    const memberships = await findManyMembers<OrgMemberRecord>("org_members", {
       where: { userId: principal.dbUserId },
-      include: { organizations: true },
+      limit: 1,
     });
 
-    if (!membership) {
+    if (!memberships || memberships.length === 0) {
       return NextResponse.json(
         { error: "No organization found" },
         { status: 403 }
       );
     }
 
-    const orgId = membership.organizations.id;
+    const orgId = memberships[0].organizationId;
 
     // Get active estate count
     const count = await getActiveEstateCount(orgId);

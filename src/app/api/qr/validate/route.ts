@@ -46,9 +46,10 @@ export async function POST(req: NextRequest) {
     }
 
     // Verify client exists
-    const clientExists = await prisma.$queryRawUnsafe<Array<{ id: string }>>(`
+    const { queryRaw, findUnique } = await import("@/lib/db");
+    const clientExists = await queryRaw<Array<{ id: string }>>(`
       SELECT id FROM clients WHERE id = $1 LIMIT 1
-    `, clientId);
+    `, [clientId]);
 
     if (!clientExists || clientExists.length === 0) {
       return NextResponse.json(
@@ -62,25 +63,25 @@ export async function POST(req: NextRequest) {
     let inviteToken: string | null = null;
 
     // Check test invites
-    const testInvites = await prisma.$queryRawUnsafe<Array<{ token: string }>>(`
+    const testInvites = await queryRaw<Array<{ token: string }>>(`
       SELECT token FROM client_invites 
-      WHERE clientId = $1 
+      WHERE "clientId" = $1 
         AND (expires_at > NOW() OR expires_at IS NULL)
-      ORDER BY createdAt DESC
+      ORDER BY "createdAt" DESC
       LIMIT 1
-    `, clientId);
+    `, [clientId]);
 
     if (testInvites && testInvites.length > 0) {
       inviteToken = testInvites[0].token;
     } else {
       // Check regular invites
-      const regularInvites = await prisma.$queryRawUnsafe<Array<{ token: string }>>(`
+      const regularInvites = await queryRaw<Array<{ token: string }>>(`
         SELECT token FROM client_invites 
-        WHERE clientId = $1 
+        WHERE "clientId" = $1 
           AND expires_at > NOW()
-        ORDER BY createdAt DESC
+        ORDER BY "createdAt" DESC
         LIMIT 1
-      `, clientId);
+      `, [clientId]);
 
       if (regularInvites && regularInvites.length > 0) {
         inviteToken = regularInvites[0].token;

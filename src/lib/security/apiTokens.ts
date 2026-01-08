@@ -90,37 +90,57 @@ export async function createApiToken(input: {
     expiresAt: expiresAt ? expiresAt.toISOString() : null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-  } as any);
+  });
 
   // Fetch the created token with user info
-  const tokenRecord = await findUniqueUser("api_tokens", { id: tokenId }) as any;
-  const createdBy = await findUniqueUser("users", { id: input.actorUserId }) as any;
+  type ApiTokenDbRecord = {
+    id: string;
+    name: string;
+    hash: string;
+    scopes: string[];
+    createdById: string;
+    createdAt: string;
+    expiresAt: string | null;
+    revokedAt: string | null;
+    lastUsedAt: string | null;
+    lastUsedIp: string | null;
+    lastUsedPath: string | null;
+  };
   
-  const record = {
-    ...tokenRecord,
-    createdBy: {
-      id: createdBy.id,
-      email: createdBy.email,
-    },
+  type UserDbRecord = {
+    id: string;
+    email: string;
+  };
+  
+  const tokenRecord = await findUniqueUser<ApiTokenDbRecord>("api_tokens", { id: tokenId });
+  const createdBy = await findUniqueUser<UserDbRecord>("users", { id: input.actorUserId });
+  
+  if (!tokenRecord || !createdBy) {
+    throw new Error("Failed to create or fetch API token");
+  }
+
+  // Convert date strings to Date objects for the return type
+  const parseDate = (dateStr: string | null): Date | null => {
+    return dateStr ? new Date(dateStr) : null;
   };
 
   return {
     token,
     record: {
-      id: record.id,
-      name: record.name,
-      hash: record.hash,
-      scopes: record.scopes,
-      createdById: record.createdById,
-      createdAt: record.createdAt,
-      expiresAt: record.expiresAt,
-      revokedAt: record.revokedAt,
-      lastUsedAt: record.lastUsedAt,
-      lastUsedIp: record.lastUsedIp,
-      lastUsedPath: record.lastUsedPath,
+      id: tokenRecord.id,
+      name: tokenRecord.name,
+      hash: tokenRecord.hash,
+      scopes: tokenRecord.scopes,
+      createdById: tokenRecord.createdById,
+      createdAt: new Date(tokenRecord.createdAt),
+      expiresAt: parseDate(tokenRecord.expiresAt),
+      revokedAt: parseDate(tokenRecord.revokedAt),
+      lastUsedAt: parseDate(tokenRecord.lastUsedAt),
+      lastUsedIp: tokenRecord.lastUsedIp,
+      lastUsedPath: tokenRecord.lastUsedPath,
       createdBy: {
-        id: record.createdBy.id,
-        email: record.createdBy.email,
+        id: createdBy.id,
+        email: createdBy.email,
       },
     },
   };
@@ -150,46 +170,69 @@ export async function authenticateApiToken(bearerToken: string): Promise<ApiToke
     throw new HttpError(401, "Invalid token");
   }
 
-  const tokenRecord = tokens[0] as any;
-  
-  // Fetch the user who created the token
-  const createdBy = await findUniqueUser("users", { id: tokenRecord.createdById }) as any;
-  
-  const record = {
-    ...tokenRecord,
-    createdBy: {
-      id: createdBy.id,
-      email: createdBy.email,
-    },
+  type ApiTokenDbRecord = {
+    id: string;
+    name: string;
+    hash: string;
+    scopes: string[];
+    createdById: string;
+    createdAt: string;
+    expiresAt: string | null;
+    revokedAt: string | null;
+    lastUsedAt: string | null;
+    lastUsedIp: string | null;
+    lastUsedPath: string | null;
   };
-
-  if (!record) {
+  
+  type UserDbRecord = {
+    id: string;
+    email: string;
+  };
+  
+  const tokenRecord = tokens[0] as ApiTokenDbRecord;
+  
+  if (!tokenRecord) {
     throw new HttpError(401, "Invalid token");
   }
+  
+  // Fetch the user who created the token
+  const createdBy = await findUniqueUser<UserDbRecord>("users", { id: tokenRecord.createdById });
+  
+  if (!createdBy) {
+    throw new HttpError(401, "Token creator not found");
+  }
 
-  if (record.revokedAt) {
+  // Parse dates from strings
+  const parseDate = (dateStr: string | null): Date | null => {
+    return dateStr ? new Date(dateStr) : null;
+  };
+
+  const revokedAt = parseDate(tokenRecord.revokedAt);
+  const expiresAt = parseDate(tokenRecord.expiresAt);
+
+  if (revokedAt) {
     throw new HttpError(401, "Token has been revoked");
   }
 
-  if (record.expiresAt && record.expiresAt < new Date()) {
+  if (expiresAt && expiresAt < new Date()) {
     throw new HttpError(401, "Token has expired");
   }
 
   return {
-    id: record.id,
-    name: record.name,
-    hash: record.hash,
-    scopes: record.scopes,
-    createdById: record.createdById,
-    createdAt: record.createdAt,
-    expiresAt: record.expiresAt,
-    revokedAt: record.revokedAt,
-    lastUsedAt: record.lastUsedAt,
-    lastUsedIp: record.lastUsedIp,
-    lastUsedPath: record.lastUsedPath,
+    id: tokenRecord.id,
+    name: tokenRecord.name,
+    hash: tokenRecord.hash,
+    scopes: tokenRecord.scopes,
+    createdById: tokenRecord.createdById,
+    createdAt: new Date(tokenRecord.createdAt),
+    expiresAt,
+    revokedAt,
+    lastUsedAt: parseDate(tokenRecord.lastUsedAt),
+    lastUsedIp: tokenRecord.lastUsedIp,
+    lastUsedPath: tokenRecord.lastUsedPath,
     createdBy: {
-      id: record.createdBy.id,
-      email: record.createdBy.email,
+      id: createdBy.id,
+      email: createdBy.email,
     },
   };
 }

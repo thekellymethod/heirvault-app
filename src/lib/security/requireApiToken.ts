@@ -66,7 +66,7 @@ async function logTokenUsage(
       lastUsedIp: ip,
       lastUsedPath: path,
       updatedAt: new Date().toISOString(),
-    } as any);
+    });
 
     // Audit log
     await createAudit("audit_logs", {
@@ -75,7 +75,7 @@ async function logTokenUsage(
       action: "API_TOKEN_USED",
       message: `API token used: tokenId=${tokenRecord.id}, path=${path}, scopes=${checkedScopes.join(",") || "none"}`,
       createdAt: new Date().toISOString(),
-    } as any);
+    });
   } catch (error) {
     // Don't fail the request if audit logging fails, but log the error
     console.error("Failed to log API token usage:", error);

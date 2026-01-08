@@ -28,30 +28,49 @@ export async function POST(_req: NextRequest) {
       publicMetadata: { role },
     });
 
+    const { update: updateUser, create: createUser, getDb } = await import("@/lib/db");
+    
+    type UserRecord = {
+      id: string;
+      clerkId: string;
+      email: string;
+      firstName: string | null;
+      lastName: string | null;
+      role: string;
+    };
+    
     // Check if user exists by clerkId
-    const existingUserByClerkId = await prisma.user.findUnique({
-      where: { clerkId: userId },
-    });
+    const db = getDb();
+    const { data: usersByClerkId } = await db
+      .from("users")
+      .select("*")
+      .eq("clerkId", userId)
+      .limit(1);
+    const existingUserByClerkId = usersByClerkId && usersByClerkId.length > 0 
+      ? (usersByClerkId[0] as UserRecord) 
+      : null;
 
     // Check if email is already used by a different user
-    const existingUserByEmail = await prisma.user.findUnique({
-      where: { email },
-    });
+    const { data: usersByEmail } = await db
+      .from("users")
+      .select("*")
+      .eq("email", email)
+      .limit(1);
+    const existingUserByEmail = usersByEmail && usersByEmail.length > 0 
+      ? (usersByEmail[0] as UserRecord) 
+      : null;
 
     // Handle email conflict: if email exists for a different user
     if (existingUserByEmail && existingUserByEmail.clerkId !== userId) {
       // Email is already in use by another Clerk account
       if (existingUserByClerkId) {
         // User exists by clerkId - update but don't change email
-        await prisma.user.update({
-          where: { clerkId: userId },
-          data: {
-            firstName,
-            lastName,
-            role,
-            // Don't update email - it belongs to another account
-          },
-        });
+        await updateUser("users", { clerkId: userId }, {
+          firstName,
+          lastName,
+          role,
+          // Don't update email - it belongs to another account
+        } as Record<string, unknown>);
       } else {
         // User doesn't exist yet, but email is taken - create without email conflict
         // This shouldn't happen normally, but handle it gracefully
@@ -62,38 +81,35 @@ export async function POST(_req: NextRequest) {
       }
     } else if (existingUserByClerkId) {
       // User exists - just update
-      await prisma.user.update({
-        where: { clerkId: userId },
-        data: {
-          email,
-          firstName,
-          lastName,
-          role,
-        },
-      });
+      await updateUser("users", { clerkId: userId }, {
+        email,
+        firstName,
+        lastName,
+        role,
+      } as Record<string, unknown>);
     } else {
       // User doesn't exist - create new user
       // Use try-catch to handle race conditions where email might be taken between check and create
       try {
-        await prisma.user.create({
-          data: {
-            clerkId: userId,
-            email,
-            firstName,
-            lastName,
-            role,
-          },
-        });
+        const { randomUUID } = await import("crypto");
+        await createUser("users", {
+          id: randomUUID(),
+          clerkId: userId,
+          email,
+          firstName,
+          lastName,
+          role,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        } as Record<string, unknown>);
       } catch (error: unknown) {
-        const _errorMessage = error instanceof Error ? error.message : "Unknown error";
         console.error("Create user error:", error);
-        // Handle unique constraint violation on email
-        const errorAny = error as { code?: string, meta?: { target?: string[]; target_name?: string }; message?: string };
+        // Check if it's a unique constraint violation on email
+        const errorStr = String(error);
         const isEmailConstraintError = 
-          errorAny?.code === 'P2002' && 
-          (errorAny?.meta?.target?.includes('email') || 
-           errorAny?.meta?.target_name === 'users_email_key' ||
-           errorAny?.message?.includes('email'));
+          errorStr.includes('unique') || 
+          errorStr.includes('duplicate') ||
+          errorStr.includes('email');
         
         if (isEmailConstraintError) {
           console.log("Email constraint violation during create, email was taken by another user");

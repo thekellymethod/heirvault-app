@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -34,12 +33,17 @@ export async function GET(req: NextRequest) {
     }
 
     // Membership check
-    const member = await prisma.orgMember.findUnique({
-      where: { orgId_clerkUserId: { orgId, clerkUserId: userId } },
-      select: { role: true },
-    });
+    const { findMany: findManyFiles, getDb } = await import("@/lib/db");
     
-    if (!member) {
+    const db = getDb();
+    const { data: membersData } = await db
+      .from("org_members")
+      .select("*")
+      .eq("orgId", orgId)
+      .eq("clerkUserId", userId)
+      .limit(1);
+    
+    if (!membersData || membersData.length === 0) {
       return NextResponse.json(
         { ok: false, message: "Forbidden." },
         { status: 403 }
@@ -47,33 +51,28 @@ export async function GET(req: NextRequest) {
     }
 
     // Build where clause
-    const where: any = {
-      orgId,
+    type FileAssetRecord = {
+      id: string;
+      originalName: string;
+      mimeType: string;
+      byteSize: number;
+      createdAt: string;
+      registryId: string | null;
+      policyId: string | null;
     };
-
+    
+    const where: Record<string, unknown> = { orgId };
     if (registryId) {
       where.registryId = registryId;
     }
-
     if (policyId) {
       where.policyId = policyId;
     }
 
     // Fetch files
-    const files = await prisma.fileAsset.findMany({
+    const files = await findManyFiles<FileAssetRecord>("file_assets", {
       where,
-      select: {
-        id: true,
-        originalName: true,
-        mimeType: true,
-        byteSize: true,
-        createdAt: true,
-        registryId: true,
-        policyId: true,
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
+      orderBy: { column: "createdAt", ascending: false },
     });
 
     return NextResponse.json({
@@ -83,7 +82,7 @@ export async function GET(req: NextRequest) {
         originalName: f.originalName,
         mimeType: f.mimeType,
         byteSize: f.byteSize,
-        createdAt: f.createdAt.toISOString(),
+        createdAt: typeof f.createdAt === 'string' ? f.createdAt : new Date(f.createdAt).toISOString(),
         registryId: f.registryId,
         policyId: f.policyId,
       })),

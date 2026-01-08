@@ -2,62 +2,111 @@
 import { NextResponse } from "next/server";
 ;
 import { requireAuthPrincipal, requireRole } from "@/lib/permissions/guard";
-import { ChangeRequestStatus, DocumentClassificationStatus, UserRole } from "@prisma/client";
+import { ChangeRequestStatus, DocumentClassificationStatus, UserRole } from "@/lib/db/enums";
 
 export async function GET() {
   const principal = await requireAuthPrincipal();
-  requireRole(principal, [UserRole.ADMIN, UserRole.attorney]);
+  requireRole(principal, [UserRole.attorney]);
 
-  // If admin, show all; otherwise filter by client access
-  const docsWhere = principal.role === UserRole.ADMIN
-    ? { classificationStatus: DocumentClassificationStatus.NEEDS_REVIEW }
-    : {
-        classificationStatus: DocumentClassificationStatus.NEEDS_REVIEW,
-        clients: { 
-          attorneyClientAccess: { 
-            some: { 
-              attorneyId: principal.dbUserId,
-              isActive: true,
-            } 
-          } 
-        },
-      };
-
-  const docs = await prisma.documents.findMany({
-    where: docsWhere,
-    orderBy: { createdAt: "desc" },
-    include: { clients: true },
-    take: 200,
+  const { findMany: findManyDocs, findMany: findManyChangeRequests, findUnique: findUniqueClient, findMany: findManyAccess, getDb } = await import("@/lib/db");
+  
+  type DocumentRecord = {
+    id: string;
+    clientId: string;
+    fileType: string;
+    sensitivityLevel: string;
+    classificationStatus: string;
+    createdAt: string;
+    changeRequestId: string | null;
+    confidenceScore: number | null;
+  };
+  
+  type ChangeRequestRecord = {
+    id: string;
+    clientId: string;
+    requestType: string;
+    status: string;
+    createdAt: string;
+    submittedAt: string | null;
+  };
+  
+  type ClientRecord = {
+    id: string;
+    firstName: string | null;
+    lastName: string | null;
+  };
+  
+  // Get all documents needing review
+  let allDocs = await findManyDocs<DocumentRecord>("documents", {
+    where: { classificationStatus: DocumentClassificationStatus.NEEDS_REVIEW },
+    orderBy: { column: "createdAt", ascending: false },
+    limit: 200,
   });
 
-  const changeRequestsWhere = principal.role === UserRole.ADMIN
-    ? { status: { in: [ChangeRequestStatus.SUBMITTED, ChangeRequestStatus.NEEDS_REVIEW] } }
-    : {
-        status: { in: [ChangeRequestStatus.SUBMITTED, ChangeRequestStatus.NEEDS_REVIEW] },
-        clients: { 
-          attorneyClientAccess: { 
-            some: { 
-              attorneyId: principal.dbUserId,
-              isActive: true,
-            } 
-          } 
-        },
-      };
+  // If not admin, filter by client access
+  if (!principal.roles.includes("ADMIN")) {
+    // Get accessible client IDs
+    type AccessRecord = { clientId: string };
+    const accessRecords = await findManyAccess<AccessRecord>("attorney_client_access", {
+      where: { attorneyId: principal.dbUserId, isActive: true },
+    }) as AccessRecord[];
+    const accessibleClientIds = accessRecords.map((a) => a.clientId);
+    
+    allDocs = (allDocs || []).filter(doc => accessibleClientIds.includes(doc.clientId));
+  }
 
-  const changeRequests = await prisma.change_requests.findMany({
-    where: changeRequestsWhere,
-    orderBy: { createdAt: "desc" },
-    include: { clients: true },
-    take: 200,
+  // Fetch clients for documents
+  const docsWithClients = await Promise.all(
+    (allDocs || []).map(async (d) => {
+      const client = await findUniqueClient<ClientRecord>("clients", { id: d.clientId });
+      return {
+        ...d,
+        client: client || null,
+      };
+    })
+  );
+
+  // Get all change requests needing review
+  let allChangeRequests = await findManyChangeRequests<ChangeRequestRecord>("change_requests", {
+    where: { 
+      status: { in: [ChangeRequestStatus.SUBMITTED, ChangeRequestStatus.NEEDS_REVIEW] } 
+    },
+    orderBy: { column: "createdAt", ascending: false },
+    limit: 200,
   });
+
+  // If not admin, filter by client access
+  if (!principal.roles.includes("ADMIN")) {
+    // Get accessible client IDs
+    type AccessRecord = { clientId: string };
+    const accessRecords = await findManyAccess<AccessRecord>("attorney_client_access", {
+      where: { attorneyId: principal.dbUserId, isActive: true },
+    }) as AccessRecord[];
+    const accessibleClientIds = accessRecords.map((a) => a.clientId);
+    
+    allChangeRequests = (allChangeRequests || []).filter(cr => accessibleClientIds.includes(cr.clientId));
+  }
+
+  // Fetch clients for change requests
+  const changeRequestsWithClients = await Promise.all(
+    (allChangeRequests || []).map(async (cr) => {
+      const client = await findUniqueClient<ClientRecord>("clients", { id: cr.clientId });
+      return {
+        ...cr,
+        client: client || null,
+      };
+    })
+  );
 
   return NextResponse.json({
     ok: true,
-    documents: docs.map((d) => ({
+    documents: docsWithClients.map((d) => ({
       kind: "DOCUMENT",
       documentId: d.id,
       clientId: d.clientId,
-      clientName: `${d.clients.firstName ?? ""} ${d.clients.lastName ?? ""}`.trim(),
+      clientName: d.client 
+        ? `${d.client.firstName ?? ""} ${d.client.lastName ?? ""}`.trim() 
+        : "Unknown",
       docType: d.fileType,
       sensitivity: d.sensitivityLevel,
       status: d.classificationStatus,
@@ -68,11 +117,13 @@ export async function GET() {
       // Note: Redacted preview support can be added by adding redactedPreviewKey field to documents table
       hasRedactedPreview: false,
     })),
-    changeRequests: changeRequests.map((cr) => ({
+    changeRequests: changeRequestsWithClients.map((cr) => ({
       kind: "CHANGE_REQUEST",
       changeRequestId: cr.id,
       clientId: cr.clientId,
-      clientName: `${cr.clients.firstName ?? ""} ${cr.clients.lastName ?? ""}`.trim(),
+      clientName: cr.client 
+        ? `${cr.client.firstName ?? ""} ${cr.client.lastName ?? ""}`.trim() 
+        : "Unknown",
       requestType: cr.requestType,
       status: cr.status,
       createdAt: cr.createdAt,

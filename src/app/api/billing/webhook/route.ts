@@ -34,9 +34,10 @@ export async function POST(req: Request) {
   // Idempotency: check if we've processed this event
   // Using raw SQL since stripe_events table may not be in Prisma schema yet
   try {
-    const existing = await prisma.$queryRawUnsafe<Array<{ id: string }>>(
+    const { queryRaw, getDb } = await import("@/lib/db");
+    const existing = await queryRaw<Array<{ id: string }>>(
       `SELECT id FROM stripe_events WHERE id = $1`,
-      event.id
+      [event.id]
     );
 
     if (existing.length > 0) {
@@ -45,13 +46,12 @@ export async function POST(req: Request) {
     }
 
     // Store event for idempotency
-    await prisma.$executeRawUnsafe(
-      `INSERT INTO stripe_events (id, type, created_at)
-       VALUES ($1, $2, NOW())
-       ON CONFLICT (id) DO NOTHING`,
-      event.id,
-      event.type
-    );
+    const db = getDb();
+    await db.from("stripe_events").insert({
+      id: event.id,
+      type: event.type,
+      created_at: new Date().toISOString(),
+    }).select().single();
   } catch (err) {
     // If table doesn't exist yet, log and continue (migration will create it)
     const error = err as Error;
@@ -71,36 +71,39 @@ export async function POST(req: Request) {
 
         // If orgId is in metadata (custom checkout), link directly
         if (orgId) {
-          await prisma.organizations.updateMany({
-            where: { id: orgId },
-            data: {
-              stripeCustomerId: customerId,
-            },
-          });
+          const { update: updateOrg } = await import("@/lib/db");
+          await updateOrg("organizations", { id: orgId }, {
+            stripeCustomerId: customerId,
+            updatedAt: new Date().toISOString(),
+          } as Record<string, unknown>);
           break;
         }
 
         // If no orgId (Buy Button purchase), try to match by email
         if (customerEmail) {
+          const { findMany: findManyUsers, findMany: findManyMembers, update: updateOrg, getDb } = await import("@/lib/db");
+          const db = getDb();
+          
           // Find user by email, then find their organization
-          const user = await prisma.user.findFirst({
-            where: { email: customerEmail.toLowerCase() },
-            select: { id: true },
-          });
+          const { data: usersData } = await db
+            .from("users")
+            .select("id")
+            .ilike("email", customerEmail.toLowerCase())
+            .limit(1);
 
-          if (user) {
-            const membership = await prisma.org_members.findFirst({
+          if (usersData && usersData.length > 0) {
+            const user = usersData[0];
+            const members = await findManyMembers("org_members", {
               where: { userId: user.id },
-              select: { organizationId: true },
+              limit: 1,
             });
 
-            if (membership) {
-              await prisma.organizations.updateMany({
-                where: { id: membership.organizationId },
-                data: {
-                  stripeCustomerId: customerId,
-                },
-              });
+            if (members && members.length > 0) {
+              const membership = members[0] as { organizationId: string };
+              await updateOrg("organizations", { id: membership.organizationId }, {
+                stripeCustomerId: customerId,
+                updatedAt: new Date().toISOString(),
+              } as Record<string, unknown>);
             }
           }
         }
@@ -112,40 +115,53 @@ export async function POST(req: Request) {
         const subscription = event.data.object as Stripe.Subscription;
         const customerId = subscription.customer as string;
 
+        const { findUnique: findUniqueOrg, findMany: findManyMembers, update: updateOrg, getDb } = await import("@/lib/db");
+        
+        type OrgRecord = {
+          id: string;
+          billingStatus: string | null;
+          billingPlan: string | null;
+        };
+        
         // First try to find org by customer ID
-        let org = await prisma.organizations.findFirst({
-          where: { stripeCustomerId: customerId },
-        });
+        const db = getDb();
+        const { data: orgsData } = await db
+          .from("organizations")
+          .select("*")
+          .eq("stripeCustomerId", customerId)
+          .limit(1);
+        
+        let org: OrgRecord | null = orgsData && orgsData.length > 0 ? (orgsData[0] as OrgRecord) : null;
 
         // If not found (Buy Button purchase), try to match by customer email
         if (!org) {
           try {
             const customer = await stripe.customers.retrieve(customerId);
             if (customer && !customer.deleted && typeof customer.email === "string") {
-              const user = await prisma.user.findFirst({
-                where: { email: customer.email.toLowerCase() },
-                select: { id: true },
-              });
+              const { data: usersData } = await db
+                .from("users")
+                .select("id")
+                .ilike("email", customer.email.toLowerCase())
+                .limit(1);
 
-              if (user) {
-                const membership = await prisma.org_members.findFirst({
+              if (usersData && usersData.length > 0) {
+                const user = usersData[0];
+                const members = await findManyMembers("org_members", {
                   where: { userId: user.id },
-                  select: { organizationId: true },
+                  limit: 1,
                 });
 
-                if (membership) {
+                if (members && members.length > 0) {
+                  const membership = members[0] as { organizationId: string };
                   // Link customer to organization
-                  await prisma.organizations.updateMany({
-                    where: { id: membership.organizationId },
-                    data: {
-                      stripeCustomerId: customerId,
-                    },
-                  });
+                  await updateOrg("organizations", { id: membership.organizationId }, {
+                    stripeCustomerId: customerId,
+                    updatedAt: new Date().toISOString(),
+                  } as Record<string, unknown>);
 
                   // Reload org
-                  org = await prisma.organizations.findFirst({
-                    where: { id: membership.organizationId },
-                  });
+                  const reloaded = await findUniqueOrg<OrgRecord>("organizations", { id: membership.organizationId });
+                  org = reloaded;
                 }
               }
             }
@@ -173,18 +189,16 @@ export async function POST(req: Request) {
         else if (priceId === process.env.STRIPE_PRICE_SMALL_FIRM) newPlan = "SMALL_FIRM";
         else if (priceId === process.env.STRIPE_PRICE_ENTERPRISE) newPlan = "ENTERPRISE";
         
-        await prisma.organizations.update({
-          where: { id: org.id },
-          data: {
-            billingPlan: newPlan,
-            stripeSubscriptionId: subscription.id,
-            billingStatus: status,
-            stripePriceId: priceId ?? null,
-            currentPeriodEnd: subscription.current_period_end
-              ? new Date(subscription.current_period_end * 1000)
-              : null,
-          },
-        });
+        await updateOrg("organizations", { id: org.id }, {
+          billingPlan: newPlan,
+          stripeSubscriptionId: subscription.id,
+          billingStatus: status,
+          stripePriceId: priceId ?? null,
+          currentPeriodEnd: (subscription as Stripe.Subscription & { current_period_end?: number }).current_period_end
+            ? new Date((subscription as Stripe.Subscription & { current_period_end: number }).current_period_end * 1000).toISOString()
+            : null,
+          updatedAt: new Date().toISOString(),
+        } as Record<string, unknown>);
 
         // Emit billing events
         const { emitPaymentStatusChangeEvent, emitTierChangeEvent } = await import("@/lib/billing/ledger");
@@ -202,8 +216,8 @@ export async function POST(req: Request) {
         }
         
         // Tier change (if billing plan changed)
-        if (previousPlan !== newPlan) {
-          const fromTier = getTierFromBillingPlan(previousPlan);
+        if (previousPlan && previousPlan !== newPlan) {
+          const fromTier = getTierFromBillingPlan(previousPlan as string);
           const toTier = getTierFromBillingPlan(newPlan);
           await emitTierChangeEvent(
             org.id,
@@ -220,10 +234,22 @@ export async function POST(req: Request) {
         const subscription = event.data.object as Stripe.Subscription;
         const customerId = subscription.customer as string;
 
+        const { getDb, update: updateOrg } = await import("@/lib/db");
+        const db = getDb();
+        
         // Try to find org by customer ID (may not exist if Buy Button purchase)
-        const org = await prisma.organizations.findFirst({
-          where: { stripeCustomerId: customerId },
-        });
+        const { data: orgsData } = await db
+          .from("organizations")
+          .select("*")
+          .eq("stripeCustomerId", customerId)
+          .limit(1);
+        
+        type OrgRecord = {
+          id: string;
+          billingStatus: string | null;
+        };
+        
+        const org: OrgRecord | null = orgsData && orgsData.length > 0 ? (orgsData[0] as OrgRecord) : null;
 
         if (!org) {
           // If not found, subscription was likely canceled before org was linked
@@ -234,17 +260,15 @@ export async function POST(req: Request) {
 
         const previousStatus = org.billingStatus;
         
-        await prisma.organizations.update({
-          where: { id: org.id },
-          data: {
-            billingStatus: "CANCELED",
-            stripeSubscriptionId: null,
-            currentPeriodEnd: null,
-          },
-        });
+        await updateOrg("organizations", { id: org.id }, {
+          billingStatus: "CANCELED",
+          stripeSubscriptionId: null,
+          currentPeriodEnd: null,
+          updatedAt: new Date().toISOString(),
+        } as Record<string, unknown>);
 
         // Emit billing event for payment status change
-        if (previousStatus !== "CANCELED") {
+        if (previousStatus && previousStatus !== "CANCELED") {
           const { emitPaymentStatusChangeEvent } = await import("@/lib/billing/ledger");
           await emitPaymentStatusChangeEvent(
             org.id,
@@ -261,35 +285,52 @@ export async function POST(req: Request) {
         const invoice = event.data.object as Stripe.Invoice;
         const customerId = invoice.customer as string;
 
+        const { getDb, findMany: findManyMembers, update: updateOrg } = await import("@/lib/db");
+        const db = getDb();
+        
+        type OrgRecord = {
+          id: string;
+        };
+        
         // Try to find org by customer ID
-        let org = await prisma.organizations.findFirst({
-          where: { stripeCustomerId: customerId },
-        });
+        const { data: orgsData } = await db
+          .from("organizations")
+          .select("*")
+          .eq("stripeCustomerId", customerId)
+          .limit(1);
+        
+        let org: OrgRecord | null = orgsData && orgsData.length > 0 ? (orgsData[0] as OrgRecord) : null;
 
         // If not found (Buy Button purchase), try to match by email
         if (!org && invoice.customer_email) {
-          const user = await prisma.user.findFirst({
-            where: { email: invoice.customer_email.toLowerCase() },
-            select: { id: true },
-          });
+          const { data: usersData } = await db
+            .from("users")
+            .select("id")
+            .ilike("email", invoice.customer_email.toLowerCase())
+            .limit(1);
 
-          if (user) {
-            const membership = await prisma.org_members.findFirst({
+          if (usersData && usersData.length > 0) {
+            const user = usersData[0];
+            const members = await findManyMembers("org_members", {
               where: { userId: user.id },
-              select: { organizationId: true },
+              limit: 1,
             });
 
-            if (membership) {
-              await prisma.organizations.updateMany({
-                where: { id: membership.organizationId, stripeCustomerId: null },
-                data: {
-                  stripeCustomerId: customerId,
-                },
-              });
+            if (members && members.length > 0) {
+              const membership = members[0] as { organizationId: string };
+              await updateOrg("organizations", { id: membership.organizationId }, {
+                stripeCustomerId: customerId,
+                updatedAt: new Date().toISOString(),
+              } as Record<string, unknown>);
 
-              org = await prisma.organizations.findFirst({
-                where: { id: membership.organizationId },
-              });
+              const reloaded = await db
+                .from("organizations")
+                .select("*")
+                .eq("id", membership.organizationId)
+                .limit(1)
+                .single();
+              
+              org = reloaded.data as OrgRecord | null;
             }
           }
         }
@@ -297,51 +338,65 @@ export async function POST(req: Request) {
         if (!org) break;
 
         // Update status to indicate payment issue
-        await prisma.organizations.update({
-          where: { id: org.id },
-          data: {
-            billingStatus: "PAST_DUE",
-          },
-        });
+        await updateOrg("organizations", { id: org.id }, {
+          billingStatus: "PAST_DUE",
+          updatedAt: new Date().toISOString(),
+        } as Record<string, unknown>);
         break;
       }
 
       case "invoice.paid": {
         const inv = event.data.object as Stripe.Invoice;
 
+        const { getDb, findMany: findManyMembers, update: updateOrg } = await import("@/lib/db");
+        const db = getDb();
+        
         // Identify org by Stripe customer id
         const customerId = String(inv.customer);
-        let org = await prisma.organizations.findFirst({
-          where: { stripeCustomerId: customerId },
-          select: { id: true },
-        });
+        
+        type OrgRecord = {
+          id: string;
+        };
+        
+        const { data: orgsData } = await db
+          .from("organizations")
+          .select("id")
+          .eq("stripeCustomerId", customerId)
+          .limit(1);
+        
+        let org: OrgRecord | null = orgsData && orgsData.length > 0 ? (orgsData[0] as OrgRecord) : null;
 
         // If not found (Buy Button purchase), try to match by customer email
         if (!org && inv.customer_email) {
-          const user = await prisma.user.findFirst({
-            where: { email: inv.customer_email.toLowerCase() },
-            select: { id: true },
-          });
+          const { data: usersData } = await db
+            .from("users")
+            .select("id")
+            .ilike("email", inv.customer_email.toLowerCase())
+            .limit(1);
 
-          if (user) {
-            const membership = await prisma.org_members.findFirst({
+          if (usersData && usersData.length > 0) {
+            const user = usersData[0];
+            const members = await findManyMembers("org_members", {
               where: { userId: user.id },
-              select: { organizationId: true },
+              limit: 1,
             });
 
-            if (membership) {
+            if (members && members.length > 0) {
+              const membership = members[0] as { organizationId: string };
               // Link customer to organization if not already linked
-              await prisma.organizations.updateMany({
-                where: { id: membership.organizationId, stripeCustomerId: null },
-                data: {
-                  stripeCustomerId: customerId,
-                },
-              });
+              await updateOrg("organizations", { id: membership.organizationId }, {
+                stripeCustomerId: customerId,
+                updatedAt: new Date().toISOString(),
+              } as Record<string, unknown>);
 
-              org = await prisma.organizations.findFirst({
-                where: { id: membership.organizationId },
-                select: { id: true },
-              });
+              const reloaded = await db
+                .from("organizations")
+                .select("id")
+                .eq("id", membership.organizationId)
+                .limit(1)
+                .single();
+              
+              org = reloaded.data as OrgRecord | null;
             }
           }
         }
@@ -379,34 +434,37 @@ export async function POST(req: Request) {
           const { sha256 } = await putObject({ key, body: pdfBuf, contentType: "application/pdf" });
 
           // Idempotent check - use storageKey to prevent duplicates
-          const existing = await prisma.artifacts.findFirst({
+          const { findMany: findManyArtifacts, create: createArtifact } = await import("@/lib/db");
+          const { randomUUID } = await import("crypto");
+          
+          const existing = await findManyArtifacts("artifacts", {
             where: { orgId: org.id, type: "BILLING_INVOICE_PDF", storageKey: key },
-            select: { id: true },
+            limit: 1,
           });
 
-          if (!existing) {
-            await prisma.artifacts.create({
-              data: {
-                id: crypto.randomUUID(),
-                type: "BILLING_INVOICE_PDF",
-                orgId: org.id,
-                storageKey: key,
-                sha256,
-                fileName: `invoice-${inv.number || inv.id}.pdf`,
-                filePath: key, // Keep for backward compatibility
-                fileSize: pdfBuf.length,
-                mimeType: "application/pdf",
-                metadata: {
-                  invoiceId: inv.id,
-                  invoiceNumber: inv.number ?? null,
-                  hostedInvoiceUrl: (inv as Stripe.Invoice & { hosted_invoice_url?: string | null }).hosted_invoice_url ?? null,
-                  amountPaid: inv.amount_paid ?? null,
-                  currency: inv.currency ?? null,
-                  status: inv.status ?? null,
-                  created: inv.created ? new Date(inv.created * 1000).toISOString() : null,
-                },
+          if (!existing || existing.length === 0) {
+            await createArtifact("artifacts", {
+              id: randomUUID(),
+              type: "BILLING_INVOICE_PDF",
+              orgId: org.id,
+              storageKey: key,
+              sha256,
+              fileName: `invoice-${inv.number || inv.id}.pdf`,
+              filePath: key, // Keep for backward compatibility
+              fileSize: pdfBuf.length,
+              mimeType: "application/pdf",
+              metadata: {
+                invoiceId: inv.id,
+                invoiceNumber: inv.number ?? null,
+                hostedInvoiceUrl: (inv as Stripe.Invoice & { hosted_invoice_url?: string | null }).hosted_invoice_url ?? null,
+                amountPaid: inv.amount_paid ?? null,
+                currency: inv.currency ?? null,
+                status: inv.status ?? null,
+                created: inv.created ? new Date(inv.created * 1000).toISOString() : null,
               },
-            });
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            } as Record<string, unknown>);
           }
         } catch (e) {
           const error = e as Error;

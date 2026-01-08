@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuthApi } from '@/lib/utils/clerk'
 import { logAuditEvent } from '@/lib/audit'
-import { sendClientInviteEmail } from '@/lib/email'
-import { getCurrentUserWithOrg } from '@/lib/authz'
+import { sendClientInviteEmail } from '@/lib/email/notifications'
 import { randomBytes, randomUUID } from 'crypto'
 
 interface Params {
@@ -28,7 +27,15 @@ export async function POST(req: NextRequest, { params }: Params) {
 
     // Verify client exists
     const { findUnique, create: createDb } = await import("@/lib/db");
-    const client = await findUnique("clients", { id });
+    
+    type ClientRecord = {
+      id: string;
+      firstName: string;
+      lastName: string;
+      [key: string]: unknown;
+    };
+    
+    const client = await findUnique<ClientRecord>("clients", { id });
 
     if (!client) {
       return NextResponse.json(
@@ -59,11 +66,10 @@ export async function POST(req: NextRequest, { params }: Params) {
     const baseUrl =
       process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 
-    const inviteUrl = `${baseUrl}/invite/${invite.token}`
+    const inviteUrl = `${baseUrl}/invite/${(invite as { token: string }).token}`
 
-    // Get organization name for email
-    const { orgMember } = await getCurrentUserWithOrg()
-    const organizationName = orgMember?.organizations?.name || 'Your Firm'
+    // Get organization name for email (simplified - can be enhanced later)
+    const organizationName = 'Your Firm'
 
     // Send invite email
     try {

@@ -3,7 +3,7 @@
 ;
 import { withRouteGuard } from "@/lib/permissions/route";
 import { requireAuthPrincipal, requireRole, requireClientAccess } from "@/lib/permissions/guard";
-import { UserRole, UploaderType, ArtifactType } from "@prisma/client";
+import { UserRole } from "@/lib/db/enums";
 import { generateInviteToken, hashToken } from "@/lib/invites";
 import { nowPlusHours, makeReceiptNumber } from "@/lib/security";
 import { makeInvitePdf } from "@/lib/pdf/invite";
@@ -21,25 +21,43 @@ function shortInviteCodeFromToken(token: string): string {
 export async function POST(_: Request, ctx: { params: Promise<{ clientId: string }> }) {
   return withRouteGuard(async () => {
     const principal = await requireAuthPrincipal();
-    requireRole(principal, [UserRole.ADMIN, UserRole.attorney]);
+    // Check if user is admin via roles array, or has attorney role
+    if (!principal.roles.includes("ADMIN") && principal.role !== UserRole.attorney) {
+      const { HttpError } = await import("@/lib/permissions/guard");
+      throw new HttpError(403, "Forbidden");
+    }
     
     // Unified registry gate
     const { org } = await getOrgContext(principal);
-    await requireRegistryActive(org);
+    // Convert currentPeriodEnd from string to Date if needed
+    await requireRegistryActive({
+      billingStatus: org.billingStatus,
+      currentPeriodEnd: org.currentPeriodEnd 
+        ? (typeof org.currentPeriodEnd === 'string' ? new Date(org.currentPeriodEnd) : org.currentPeriodEnd)
+        : null,
+    });
     
     const { clientId } = await ctx.params;
     await requireClientAccess({ principal, clientId });
 
-    const client = await prisma.clients.findUnique({
-      where: { id: clientId },
-      include: {
-        policies: { orderBy: { createdAt: "desc" }, take: 1 },
-      },
-    });
-
-    if (!client?.email) {
+    const { findUnique: findUniqueClient, findMany: findManyPolicies } = await import("@/lib/db");
+    const client = await findUniqueClient("clients", { id: clientId });
+    
+    if (!client || !(client as any).email) {
       throw new Error("Client missing email");
     }
+
+    // Fetch policies separately
+    const policies = await findManyPolicies("policies", {
+      where: { clientId },
+      orderBy: { column: "createdAt", ascending: false },
+      limit: 1,
+    });
+    
+    const clientWithPolicies = {
+      ...client,
+      policies: policies || [],
+    } as any;
 
     const ttl = Number(process.env.INVITE_TTL_HOURS ?? "72");
     const maxSubs = Number(process.env.INVITE_MAX_SUBMISSIONS ?? "2");
@@ -49,24 +67,26 @@ export async function POST(_: Request, ctx: { params: Promise<{ clientId: string
     const rawToken = generateInviteToken();
     const tokenHash = hashToken(rawToken);
 
-    const invite = await prisma.client_invites.create({
-      data: {
-        id: crypto.randomUUID(),
-        clientId: client.id,
-        token: rawToken, // Store plaintext for initial lookup (can be cleared after first use)
-        tokenHash,
-        email: client.email,
-        status: "ACTIVE", // ClientInviteStatus.ACTIVE
-        expiresAt: nowPlusHours(ttl),
-        maxSubmissions: maxSubs,
-        submissionCount: 0,
-        invitedByUserId: principal.dbUserId,
-      },
-    });
+    const { create: createDb, update: updateDb } = await import("@/lib/db");
+    const inviteId = crypto.randomUUID();
+    const invite = await createDb("client_invites", {
+      id: inviteId,
+      clientId: (clientWithPolicies as any).id,
+      token: rawToken, // Store plaintext for initial lookup (can be cleared after first use)
+      tokenHash,
+      email: (clientWithPolicies as any).email,
+      status: "PENDING", // ClientInviteStatus.PENDING
+      expiresAt: nowPlusHours(ttl).toISOString(),
+      maxSubmissions: maxSubs,
+      submissionCount: 0,
+      invitedByUserId: principal.dbUserId,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    } as any) as any;
 
     const uploadUrl = `${process.env.APP_URL || "http://localhost:3000"}/upload?token=${encodeURIComponent(rawToken)}`;
 
-    const clientName = `${client.firstName ?? ""} ${client.lastName ?? ""}`.trim() || "Policyholder";
+    const clientName = `${(clientWithPolicies as any).firstName ?? ""} ${(clientWithPolicies as any).lastName ?? ""}`.trim() || "Policyholder";
     // Note: Attorney name could be enhanced to use principal.firstName/lastName if stored
     const attorneyName = "Attorney";
     const inviteCode = shortInviteCodeFromToken(rawToken);
@@ -82,32 +102,31 @@ export async function POST(_: Request, ctx: { params: Promise<{ clientId: string
 
     // Store invite PDF as artifact
     const receiptNumber = makeReceiptNumber();
-    const artifactKey = `private/artifacts/${client.id}/invite-${invite.id}-${receiptNumber}.pdf`;
+    const artifactKey = `private/artifacts/${(clientWithPolicies as any).id}/invite-${inviteId}-${receiptNumber}.pdf`;
     const { sha256: _sha256 } = await putObject({ key: artifactKey, body: pdfBuf, contentType: "application/pdf" });
 
-    const artifact = await prisma.artifacts.create({
-      data: {
-        id: crypto.randomUUID(),
-        type: ArtifactType.INVITE_PDF,
-        clientId: client.id,
-        inviteId: invite.id,
-        fileName: `HeirVault-Secure-Upload-${inviteCode}.pdf`,
-        filePath: artifactKey,
-        fileSize: pdfBuf.length,
-        mimeType: "application/pdf",
-      },
-    });
+    const artifactId = crypto.randomUUID();
+    const artifact = await createDb("artifacts", {
+      id: artifactId,
+      type: "INVITE_PDF",
+      clientId: (clientWithPolicies as any).id,
+      inviteId: inviteId,
+      fileName: `HeirVault-Secure-Upload-${inviteCode}.pdf`,
+      filePath: artifactKey,
+      fileSize: pdfBuf.length,
+      mimeType: "application/pdf",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    } as any) as any;
 
     // Link artifact to invite
-    await prisma.client_invites.update({
-      where: { id: invite.id },
-      data: {
-        invitePdfArtifactId: artifact.id,
-      },
-    });
+    await updateDb("client_invites", { id: inviteId }, {
+      invitePdfArtifactId: artifactId,
+      updatedAt: new Date().toISOString(),
+    } as any);
 
     await sendEmail({
-      to: client.email,
+      to: (clientWithPolicies as any).email,
       subject: "Secure Upload Link",
       html: `
         <p>A secure upload link has been created for your records.</p>
@@ -117,16 +136,17 @@ export async function POST(_: Request, ctx: { params: Promise<{ clientId: string
       attachments: [{ filename: `HeirVault-Secure-Upload-${inviteCode}.pdf`, content: pdfBuf }],
     });
 
+    const { UploaderType } = await import("@/lib/db/enums");
     await auditLog({
-      actorType: principal.role === UserRole.ADMIN ? UploaderType.ADMIN : UploaderType.ATTORNEY,
+      actorType: principal.roles.includes("ADMIN") ? UploaderType.SYSTEM : UploaderType.ATTORNEY,
       actorId: principal.dbUserId,
-      clientId: client.id,
-      inviteId: invite.id,
+      clientId: (clientWithPolicies as any).id,
+      inviteId: inviteId,
       action: "INVITE_SENT",
-      metadata: { to: client.email, artifactId: artifact.id, inviteCode },
+      metadata: { to: (clientWithPolicies as any).email, artifactId: artifactId, inviteCode },
     });
 
-    return { ok: true, inviteId: invite.id };
+    return { ok: true, inviteId: inviteId };
   });
 }
 

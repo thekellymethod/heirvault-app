@@ -1,18 +1,18 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 
 /**
  * GET /api/health
  * Health check endpoint that verifies:
- * - Prisma database connection
+ * - Supabase database connection
  * - Returns service status
  */
 export async function GET() {
   try {
-    // Test Prisma connection with a simple query
-    await prisma.$queryRaw`SELECT 1`;
+    // Test Supabase connection with a simple query
+    const { queryRaw } = await import("@/lib/db");
+    await queryRaw(`SELECT 1`, []);
     
     return NextResponse.json(
       {

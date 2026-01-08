@@ -3,7 +3,6 @@ import { NextResponse } from "next/server";
 ;
 import { requireVerifiedAttorney } from "@/lib/auth/guards";
 import { auditLog } from "@/lib/audit";
-import { UploaderType } from "@prisma/client";
 import crypto from "crypto";
 
 export async function POST(req: Request, ctx: { params: Promise<{ clientId: string }> }) {
@@ -14,21 +13,23 @@ export async function POST(req: Request, ctx: { params: Promise<{ clientId: stri
   const body = await req.json().catch(() => ({}));
 
   // Note: Explicit client ownership check recommended for production (currently relies on requireVerifiedAttorney)
-  const policy = await prisma.expected_policies.create({
-    data: {
-      id: crypto.randomUUID(),
-      clientId,
-      createdByUserId: user.id,
-      carrierName: body.carrierName ?? null,
-      carrierAlias: body.carrierAlias ?? null,
-      policyNumber: body.policyNumber ?? null,
-      policyType: body.policyType ?? null,
-      expectedBeneficiaryCount: body.expectedBeneficiaryCount ?? null,
-    },
-  });
+  const { create: createDb } = await import("@/lib/db");
+  const policyId = crypto.randomUUID();
+  const policy = await createDb("expected_policies", {
+    id: policyId,
+    clientId,
+    createdByUserId: user.id,
+    carrierName: body.carrierName ?? null,
+    carrierAlias: body.carrierAlias ?? null,
+    policyNumber: body.policyNumber ?? null,
+    policyType: body.policyType ?? null,
+    expectedBeneficiaryCount: body.expectedBeneficiaryCount ?? null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  } as any) as any;
 
   await auditLog({
-    actorType: UploaderType.ATTORNEY,
+    actorType: "ATTORNEY",
     actorId: user.id,
     clientId,
     inviteId: null,

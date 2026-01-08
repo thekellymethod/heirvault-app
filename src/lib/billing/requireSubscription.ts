@@ -12,33 +12,50 @@ import { isAdminUser } from "@/lib/auth/admin-bypass";
 export async function requireOrgSubscription() {
   const principal = await requireAuthPrincipal();
 
+  const { findMany: findManyMembers, findUnique: findUniqueOrg } = await import("@/lib/db");
+  
+  type OrgMemberRecord = {
+    id: string;
+    userId: string;
+    organizationId: string;
+  };
+  
+  type OrganizationRecord = {
+    id: string;
+    name: string;
+    billingStatus: string;
+    currentPeriodEnd: string | null;
+    [key: string]: unknown;
+  };
+
   // Admin bypass - admins can perform all operations regardless of billing status
   const isAdmin = await isAdminUser();
-  if (isAdmin) {
-    // Still return org for admins, but skip billing check
-    const membership = await prisma.org_members.findFirst({
-      where: { userId: principal.dbUserId },
-      include: { organizations: true },
-    });
-
-    if (!membership) {
-      throw new HttpError(403, "No organization found");
-    }
-
-    return { principal, org: membership.organizations };
-  }
-
-  // Resolve org membership
-  const membership = await prisma.org_members.findFirst({
+  
+  // Get org membership
+  const memberships = await findManyMembers<OrgMemberRecord>("org_members", {
     where: { userId: principal.dbUserId },
-    include: { organizations: true },
+    limit: 1,
   });
 
-  if (!membership) {
+  if (!memberships || memberships.length === 0) {
     throw new HttpError(403, "No organization found");
   }
 
-  const org = membership.organizations;
+  const membership = memberships[0];
+  
+  // Get organization details
+  const org = await findUniqueOrg<OrganizationRecord>("organizations", {
+    id: membership.organizationId,
+  });
+
+  if (!org) {
+    throw new HttpError(403, "Organization not found");
+  }
+
+  if (isAdmin) {
+    // Still return org for admins, but skip billing check
+    return { principal, org };
+  }
 
   // Check subscription status
   if (org.billingStatus !== "ACTIVE" && org.billingStatus !== "TRIALING") {

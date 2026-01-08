@@ -15,44 +15,61 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
   try {
     const { id: clientId } = await ctx.params;
 
+    const { findUnique: findUniqueClient, findMany: findManyPolicies, findMany: findManyPolicyBeneficiaries, findMany: findManyBeneficiaries, findMany: findManyInsurers } = await import("@/lib/db");
+    
     // Check if client exists
-    const clientExists = await prisma.clients.findFirst({
-      where: { id: clientId },
-      select: { id: true },
-    });
+    const clientExists = await findUniqueClient("clients", { id: clientId });
 
     if (!clientExists) {
       return NextResponse.json({ error: "Client not found" }, { status: 404 });
     }
 
-    // Get policies with insurers (left join to include policies without insurers)
-    const clientPolicies = await prisma.policies.findMany({
+    // Get policies
+    const clientPolicies = await findManyPolicies("policies", {
       where: { clientId: clientId },
-      include: {
-        insurers: true,
-      },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { column: "createdAt", ascending: false },
     });
 
+    // Get insurers for policies
+    const policyIds = (clientPolicies || []).map((p: any) => p.id);
+    const insurers = policyIds.length > 0 
+      ? await findManyInsurers("insurers", {
+          where: { id: { in: policyIds.map((p: any) => (clientPolicies as any[]).find((cp: any) => cp.id === p)?.insurerId).filter(Boolean) } },
+        })
+      : [];
+
     // Get policy beneficiaries for all policies
-    const policyIds = clientPolicies.map(p => p.id);
     const policyBeneficiaryData = policyIds.length > 0
-      ? await prisma.policy_beneficiaries.findMany({
+      ? await findManyPolicyBeneficiaries("policy_beneficiaries", {
           where: { policyId: { in: policyIds } },
-          include: {
-            beneficiaries: true,
-          },
+        })
+      : [];
+
+    // Get beneficiaries
+    const beneficiaryIds = (policyBeneficiaryData || []).map((pb: any) => pb.beneficiaryId).filter(Boolean);
+    const beneficiaries = beneficiaryIds.length > 0
+      ? await findManyBeneficiaries("beneficiaries", {
+          where: { id: { in: beneficiaryIds } },
         })
       : [];
 
     // Combine policy beneficiaries with policies
-    const policiesWithBeneficiaries = clientPolicies.map(p => ({
-      ...p,
-      insurer: p.insurers,
-      beneficiaries: policyBeneficiaryData
-        .filter(pb => pb.policyId === p.id)
-        .map(pb => pb.beneficiaries),
-    }));
+    const policiesWithBeneficiaries = (clientPolicies || []).map((p: any) => {
+      const insurer = insurers && insurers.length > 0 
+        ? (insurers as any[]).find((i: any) => i.id === p.insurerId)
+        : null;
+      const policyBeneficiaries = (policyBeneficiaryData || []).filter((pb: any) => pb.policyId === p.id);
+      const policyBeneficiaryList = policyBeneficiaries.map((pb: any) => {
+        const beneficiary = (beneficiaries || []).find((b: any) => b.id === pb.beneficiaryId);
+        return beneficiary;
+      }).filter(Boolean);
+      
+      return {
+        ...p,
+        insurer: insurer || null,
+        beneficiaries: policyBeneficiaryList,
+      };
+    });
 
     return NextResponse.json({ policies: policiesWithBeneficiaries });
   } catch (error: unknown) {
@@ -69,11 +86,10 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   try {
     const { id: clientId } = await ctx.params;
 
+    const { findUnique: findUniqueClient, create: createPolicy, findUnique: findUniqueInsurer, findUnique: findUniqueClientForEmail } = await import("@/lib/db");
+    
     // Verify client exists
-    const clientExists = await prisma.clients.findFirst({
-      where: { id: clientId },
-      select: { id: true },
-    });
+    const clientExists = await findUniqueClient("clients", { id: clientId });
 
     if (!clientExists) {
       return NextResponse.json({ error: "Client not found" }, { status: 404 });
@@ -92,31 +108,27 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     }
 
     const policyId = randomUUID();
-    const now = new Date();
-    const policy = await prisma.policies.create({
-      data: {
-        id: policyId,
-        clientId: clientId,
-        insurerId: insurerId || null,
-        carrierNameRaw: carrierNameRaw || null,
-        carrierConfidence: carrierConfidence ? Number(carrierConfidence) : null,
-        policyNumber: policyNumber,
-        policyType: policyType,
-        createdAt: now,
-        updatedAt: now,
-      },
-    });
+    const now = new Date().toISOString();
+    const policy = await createPolicy("policies", {
+      id: policyId,
+      clientId: clientId,
+      insurerId: insurerId || null,
+      carrierNameRaw: carrierNameRaw || null,
+      carrierConfidence: carrierConfidence ? Number(carrierConfidence) : null,
+      policyNumber: policyNumber,
+      policyType: policyType,
+      createdAt: now,
+      updatedAt: now,
+    } as Record<string, unknown>);
 
     // Get insurer info if insurerId was provided
     const insurer = insurerId
-      ? await prisma.insurers.findFirst({ where: { id: insurerId } })
+      ? await findUniqueInsurer("insurers", { id: insurerId })
       : null;
 
     // Send email notification to client (if email exists)
     try {
-      const client = await prisma.clients.findFirst({
-        where: { id: clientId },
-      });
+      const client = await findUniqueClientForEmail("clients", { id: clientId });
 
       if (client && client.email) {
         const { orgMember } = await getCurrentUserWithOrg();

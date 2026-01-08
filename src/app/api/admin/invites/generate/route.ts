@@ -37,17 +37,20 @@ export async function POST(req: NextRequest) {
     } | null = null;
 
     try {
-      const clientResult = await prisma.$queryRawUnsafe<Array<{
+      const { queryRaw, create: createClient, findUnique: findUniqueClient } = await import("@/lib/db");
+      const { randomUUID } = await import("crypto");
+      
+      const clientResult = await queryRaw<Array<{
         id: string,
         email: string,
         firstName: string,
         lastName: string,
       }>>(`
-        SELECT id, email, firstName, lastName
+        SELECT id, email, "firstName", "lastName"
         FROM clients
         WHERE email = $1
         LIMIT 1
-      `, normalizedEmail);
+      `, [normalizedEmail]);
 
       if (clientResult && clientResult.length > 0) {
         client = clientResult[0];
@@ -62,23 +65,28 @@ export async function POST(req: NextRequest) {
     if (!client) {
       try {
         // Insert client and get the ID
-        await prisma.$executeRawUnsafe(`
-          INSERT INTO clients (id, email, firstName, lastName, phone, dateOfBirth, createdAt, updated_at)
-          VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, NOW(), NOW())
-        `, normalizedEmail, firstName, lastName, phone || null, dateOfBirth || null);
+        const clientId = randomUUID();
+        const now = new Date().toISOString();
+        await createClient("clients", {
+          id: clientId,
+          email: normalizedEmail,
+          firstName,
+          lastName,
+          phone: phone || null,
+          dateOfBirth: dateOfBirth || null,
+          createdAt: now,
+          updatedAt: now,
+        } as Record<string, unknown>);
 
         // Query the created client
-        const createdClientResult = await prisma.$queryRawUnsafe<Array<{
+        const createdClient = await findUniqueClient<{
           id: string,
           email: string,
           firstName: string,
           lastName: string,
-        }>>(`
-          SELECT id, email, firstName, lastName
-          FROM clients
-          WHERE email = $1
-          LIMIT 1
-        `, normalizedEmail);
+        }>("clients", { email: normalizedEmail });
+        
+        const createdClientResult = createdClient ? [createdClient] : [];
 
         if (createdClientResult && createdClientResult.length > 0) {
           client = createdClientResult[0];
@@ -126,24 +134,35 @@ export async function POST(req: NextRequest) {
 
     try {
       // Insert invite
-      await prisma.$executeRawUnsafe(`
-        INSERT INTO client_invites (id, clientId, token, email, expires_at, invited_by_user_id, createdAt, updated_at)
-        VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, NOW(), NOW())
-      `, client.id, token, normalizedEmail, expiresAt, admin.id);
+      const inviteId = randomUUID();
+      const inviteNow = new Date().toISOString();
+      await createClient("client_invites", {
+        id: inviteId,
+        clientId: client.id,
+        token,
+        email: normalizedEmail,
+        expiresAt: expiresAt.toISOString(),
+        invitedByUserId: admin.id,
+        createdAt: inviteNow,
+        updatedAt: inviteNow,
+      } as Record<string, unknown>);
 
       // Query the created invite
-      const createdInviteResult = await prisma.$queryRawUnsafe<Array<{
+      const createdInvite = await findUniqueClient<{
         id: string,
         token: string,
         email: string,
-        expires_at: Date;
-        createdAt: Date;
-      }>>(`
-        SELECT id, token, email, expires_at, createdAt
-        FROM client_invites
-        WHERE token = $1
-        LIMIT 1
-      `, token);
+        expiresAt: string;
+        createdAt: string;
+      }>("client_invites", { token });
+      
+      const createdInviteResult = createdInvite ? [{
+        id: createdInvite.id,
+        token: createdInvite.token,
+        email: createdInvite.email,
+        expires_at: new Date(createdInvite.expiresAt),
+        createdAt: new Date(createdInvite.createdAt),
+      }] : [];
 
       if (createdInviteResult && createdInviteResult.length > 0) {
         invite = createdInviteResult[0];

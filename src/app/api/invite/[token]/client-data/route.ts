@@ -113,8 +113,9 @@ export async function GET(
       // If not present, fetch them via SQL
       if (prePolicies.length === 0 || preBeneficiaries.length === 0) {
         try {
+          const { queryRaw } = await import("@/lib/db");
           const [policiesResult, beneficiariesResult] = await Promise.all([
-            prisma.$queryRaw<PolicyRow[]>`
+            queryRaw<PolicyRow[]>(`
               SELECT
                 p.id,
                 p.policy_number,
@@ -122,9 +123,9 @@ export async function GET(
                 i.name as insurer_name
               FROM policies p
               INNER JOIN insurers i ON i.id = p.insurer_id
-              WHERE p.client_id = ${invite.clientId}
-            `,
-            prisma.$queryRaw<BeneficiaryRow[]>`
+              WHERE p."clientId" = $1
+            `, [invite.clientId]),
+            queryRaw<BeneficiaryRow[]>(`
               SELECT
                 b.id,
                 b."firstName",
@@ -137,8 +138,8 @@ export async function GET(
                   0
                 ) as percentage
               FROM beneficiaries b
-              WHERE b.client_id = ${invite.clientId}
-            `,
+              WHERE b."clientId" = $1
+            `, [invite.clientId]),
           ]);
 
           response.policies = (policiesResult ?? []).map((p) => ({

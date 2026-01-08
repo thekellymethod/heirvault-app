@@ -2,20 +2,21 @@
 // Test endpoint for Stripe payments (uses test mode)
 import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
-;
 import { withRouteGuard } from "@/lib/permissions/route";
 import { requireAuthPrincipal, requireRole } from "@/lib/permissions/guard";
 import { getOrgContext } from "@/lib/org/getOrgContext";
-import { UserRole } from "@prisma/client";
+import { UserRole } from "@/lib/db/enums";
 
 export async function POST() {
   return withRouteGuard(async () => {
     const principal = await requireAuthPrincipal();
-    requireRole(principal, [UserRole.ADMIN, UserRole.ATTORNEY]);
+    requireRole(principal, [UserRole.attorney]);
 
     const { org, orgId: _orgId } = await getOrgContext(principal);
 
     // Create or reuse Stripe customer
+    const { update: updateOrg } = await import("@/lib/db");
+    
     let customerId = org.stripeCustomerId;
     if (!customerId) {
       const customer = await stripe.customers.create({
@@ -23,10 +24,10 @@ export async function POST() {
         metadata: { orgId: org.id, testMode: "true" },
       });
       customerId = customer.id;
-      await prisma.organizations.update({
-        where: { id: org.id },
-        data: { stripeCustomerId: customerId },
-      });
+      await updateOrg("organizations", { id: org.id }, {
+        stripeCustomerId: customerId,
+        updatedAt: new Date().toISOString(),
+      } as Record<string, unknown>);
     }
 
     // Use test price ID (you'll need to create one in Stripe test mode)

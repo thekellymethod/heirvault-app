@@ -14,13 +14,15 @@ export async function requireActiveSubscription(orgId: string) {
     return; // Admin override - allow operation
   }
 
-  const org = await prisma.organizations.findUnique({
-    where: { id: orgId },
-    select: {
-      billingStatus: true,
-      currentPeriodEnd: true,
-    },
-  });
+  const { findUnique } = await import("@/lib/db");
+  
+  type OrganizationRecord = {
+    id: string;
+    billingStatus: string;
+    currentPeriodEnd: string | null;
+  };
+  
+  const org = await findUnique<OrganizationRecord>("organizations", { id: orgId });
 
   if (!org) {
     throw new HttpError(403, "Organization not found");
@@ -32,8 +34,11 @@ export async function requireActiveSubscription(orgId: string) {
   }
 
   // Optional grace check if period has expired
-  if (org.currentPeriodEnd && org.currentPeriodEnd < new Date()) {
-    throw new HttpError(402, "Subscription expired");
+  if (org.currentPeriodEnd) {
+    const periodEnd = new Date(org.currentPeriodEnd);
+    if (periodEnd < new Date()) {
+      throw new HttpError(402, "Subscription expired");
+    }
   }
 }
 

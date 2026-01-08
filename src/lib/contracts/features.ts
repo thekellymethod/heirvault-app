@@ -16,17 +16,21 @@ import { HttpError } from "@/lib/permissions/guard";
  */
 export async function getEffectiveTier(organizationId: string): Promise<TierType> {
   // Get organization billing plan
-  const org = await prisma.organizations.findUnique({
-    where: { id: organizationId },
-    select: { billingPlan: true },
-  });
+  const { findUnique } = await import("@/lib/db");
+  
+  type OrganizationRecord = {
+    id: string;
+    billingPlan: string;
+  };
+  
+  const org = await findUnique<OrganizationRecord>("organizations", { id: organizationId });
 
   if (!org) {
-    throw new HttpError(404, "ORGANIZATION_NOT_FOUND", "Organization not found");
+    throw new HttpError(404, "Organization not found");
   }
 
   // Map billing plan to tier
-  const tier = getTierFromBillingPlan(org.billingPlan);
+  const tier = getTierFromBillingPlan(org.billingPlan as "FREE" | "SOLO" | "SMALL_FIRM" | "ENTERPRISE");
 
   // Check contract acceptance for each tier level
   // Start from highest tier and work down
@@ -61,7 +65,6 @@ export async function requireFeatureAccess(
   if (!hasAccess) {
     throw new HttpError(
       403,
-      "FEATURE_NOT_AVAILABLE",
       `This feature requires ${tier === Tier.BASE ? "Active Estate Operations" : "Firm-Wide Operations"} tier.`
     );
   }

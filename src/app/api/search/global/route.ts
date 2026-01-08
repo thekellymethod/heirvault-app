@@ -58,8 +58,10 @@ export async function GET(req: Request) {
       // Create search pattern once for reuse
       const searchPattern = `%${q.replace(/'/g, "''")}%`;
       
+      const { queryRaw } = await import("@/lib/db");
+      
       // Search clients using raw SQL
-      const clientsResult = await prisma.$queryRawUnsafe<Array<{
+      const clientsResult = await queryRaw<Array<{
         id: string,
         firstName: string,
         lastName: string,
@@ -71,23 +73,23 @@ export async function GET(req: Request) {
       }>>(
         `SELECT 
           c.id,
-          c.firstName,
-          c.lastName,
+          c."firstName",
+          c."lastName",
           c.email,
           c.phone,
-          c.createdAt,
+          c."createdAt",
           c.org_id,
           o.name as org_name
         FROM clients c
         LEFT JOIN organizations o ON o.id = c.org_id
         WHERE 
-          LOWER(c.firstName) LIKE LOWER($1) OR
-          LOWER(c.lastName) LIKE LOWER($1) OR
+          LOWER(c."firstName") LIKE LOWER($1) OR
+          LOWER(c."lastName") LIKE LOWER($1) OR
           LOWER(c.email) LIKE LOWER($1) OR
           (c.phone IS NOT NULL AND LOWER(c.phone) LIKE LOWER($1))
-        ORDER BY c.createdAt DESC
+        ORDER BY c."createdAt" DESC
         LIMIT 50`,
-        searchPattern
+        [searchPattern]
       );
 
       clients = clientsResult.map(row => ({
@@ -104,7 +106,7 @@ export async function GET(req: Request) {
       }));
 
       // Search policies using raw SQL (reusing searchPattern)
-      const policiesResult = await prisma.$queryRawUnsafe<Array<{
+      const policiesResult = await queryRaw<Array<{
         policy_id: string,
         policy_number: string | null;
         policy_type: string | null;
@@ -121,24 +123,24 @@ export async function GET(req: Request) {
           p.id as policy_id,
           p.policy_number,
           p.policy_type,
-          p.createdAt as policy_createdAt,
+          p."createdAt" as policy_createdAt,
           c.id as clientId,
-          c.firstName as client_firstName,
-          c.lastName as client_lastName,
+          c."firstName" as client_firstName,
+          c."lastName" as client_lastName,
           c.email as client_email,
           c.org_id as client_org_id,
           o.name as client_org_name,
           i.name as insurer_name
         FROM policies p
-        INNER JOIN clients c ON c.id = p.clientId
+        INNER JOIN clients c ON c.id = p."clientId"
         LEFT JOIN organizations o ON o.id = c.org_id
         INNER JOIN insurers i ON i.id = p.insurer_id
         WHERE 
           LOWER(i.name) LIKE LOWER($1) OR
           (p.policy_number IS NOT NULL AND LOWER(p.policy_number) LIKE LOWER($1))
-        ORDER BY p.createdAt DESC
+        ORDER BY p."createdAt" DESC
         LIMIT 50`,
-        searchPattern
+        [searchPattern]
       );
 
       policies = policiesResult.map(row => ({
@@ -171,15 +173,17 @@ export async function GET(req: Request) {
     // Log the global search for audit purposes (internal audit log, not visible to users)
     // This search includes ALL clients across ALL organizations
     try {
+      const { create: createAudit } = await import("@/lib/db");
+      const { randomUUID } = await import("crypto");
       const orgId = orgMember?.organizationId || null;
-      await prisma.$executeRawUnsafe(
-        `INSERT INTO audit_logs (action, message, user_id, org_id, createdAt) 
-         VALUES ($1, $2, $3, $4, NOW())`,
-        "GLOBAL_POLICY_SEARCH_PERFORMED",
-        `Global database search (all clients): "${q}" | Results: ${clients.length} client(s), ${policies.length} policy(ies)`,
-        user.id,
-        orgId
-      );
+      await createAudit("audit_logs", {
+        id: randomUUID(),
+        action: "GLOBAL_POLICY_SEARCH_PERFORMED",
+        message: `Global database search (all clients): "${q}" | Results: ${clients.length} client(s), ${policies.length} policy(ies)`,
+        userId: user.id,
+        orgId: orgId,
+        createdAt: new Date().toISOString(),
+      } as Record<string, unknown>);
     } catch (auditError) {
       console.error("Failed to log global search audit:", auditError);
       // Don't fail the request if audit logging fails

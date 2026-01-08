@@ -36,11 +36,20 @@ export async function POST(req: NextRequest) {
     }
 
     // Check if user already has an organization
-    const existingMembership = await prisma.org_members.findFirst({
+    const { findMany: findManyMembers, findMany: findManyOrgs, create: createDb } = await import("@/lib/db");
+    
+    type OrgMemberRecord = {
+      id: string;
+      userId: string;
+      organizationId: string;
+    };
+    
+    const existingMemberships = await findManyMembers<OrgMemberRecord>("org_members", {
       where: { userId: user.id },
+      limit: 1,
     });
 
-    if (existingMembership) {
+    if (existingMemberships && existingMemberships.length > 0) {
       return NextResponse.json(
         { error: "You already have an organization" },
         { status: 400 }
@@ -56,12 +65,18 @@ export async function POST(req: NextRequest) {
       .replace(/^-+|-+$/g, "");
 
     // Check if slug already exists
-    const existingOrg = await prisma.organizations.findFirst({
+    type OrgRecord = {
+      id: string;
+      slug: string;
+    };
+    
+    const existingOrgs = await findManyOrgs<OrgRecord>("organizations", {
       where: { slug },
+      limit: 1,
     });
 
     let finalSlug = slug;
-    if (existingOrg) {
+    if (existingOrgs && existingOrgs.length > 0) {
       // Append a random string if slug exists
       finalSlug = `${slug}-${Math.random().toString(36).substring(2, 9)}`;
     }
@@ -70,28 +85,24 @@ export async function POST(req: NextRequest) {
     console.log("Creating organization for user:", user.id, "with name:", name.trim());
     
     const orgId = randomUUID();
-    const now = new Date();
-    const organization = await prisma.organizations.create({
-      data: {
-        id: orgId,
-        name: name.trim(),
-        slug: finalSlug,
-        billingPlan: "FREE",
-        createdAt: now,
-        updatedAt: now,
-      },
-    });
+    const now = new Date().toISOString();
+    const organization = await createDb("organizations", {
+      id: orgId,
+      name: name.trim(),
+      slug: finalSlug,
+      billingPlan: "FREE",
+      createdAt: now,
+      updatedAt: now,
+    } as any) as any;
     
-    await prisma.org_members.create({
-      data: {
-        id: randomUUID(),
-        userId: user.id,
-        organizationId: organization.id,
-        role: "OWNER",
-        createdAt: now,
-        updatedAt: now,
-      },
-    });
+    await createDb("org_members", {
+      id: randomUUID(),
+      userId: user.id,
+      organizationId: organization.id,
+      role: "OWNER",
+      createdAt: now,
+      updatedAt: now,
+    } as any);
     
     console.log("Organization created successfully:", organization.id);
     

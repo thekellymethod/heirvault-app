@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-;
 import { requireAuth } from "@/lib/utils/clerk";
 import { AuditAction } from "@/lib/db";
-import { audit } from "@/lib/audit";
+import { logAuditEvent } from "@/lib/audit";
 
 /**
  * Verify policy (attorney-only)
@@ -51,9 +50,12 @@ export async function POST(
 
     // Log audit event
     try {
-      await audit(AuditAction.POLICY_UPDATED, {
-        policyId: id,
-        message: `Policy verification status updated to ${verificationStatus}`,
+      await logAuditEvent({
+        action: AuditAction.POLICY_UPDATED,
+        metadata: {
+          policyId: id,
+          message: `Policy verification status updated to ${verificationStatus}`,
+        },
       });
     } catch (auditError) {
       console.error("Failed to log audit event:", auditError);

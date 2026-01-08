@@ -100,7 +100,9 @@ export async function GET(
     // Fetch policies via raw SQL
     let policies: PolicyOut[] = [];
     try {
-      const rows = await prisma.$queryRaw<PolicyRow[]>`
+      const { queryRaw } = await import("@/lib/db");
+      const rows = await queryRaw<PolicyRow[]>(
+        `
         SELECT
           p.id,
           p.policy_number,
@@ -108,12 +110,14 @@ export async function GET(
           i.name AS insurer_name,
           i.contact_phone AS insurer_contact_phone,
           i.contact_email AS insurer_contact_email,
-          p.created_at
+          p."createdAt" as created_at
         FROM policies p
         INNER JOIN insurers i ON i.id = p.insurer_id
-        WHERE p.client_id = ${clientId}
-        ORDER BY p.created_at DESC
-      `;
+        WHERE p."clientId" = $1
+        ORDER BY p."createdAt" DESC
+      `,
+        [clientId]
+      );
 
       policies = (rows ?? []).map((p) => ({
         id: p.id,
@@ -135,7 +139,9 @@ export async function GET(
     // Fetch organization via raw SQL
     let organization: OrgOut | null = null;
     try {
-      const accessRows = await prisma.$queryRaw<OrgRow[]>`
+      const { queryRaw } = await import("@/lib/db");
+      const accessRows = await queryRaw<OrgRow[]>(
+        `
         SELECT
           o.id AS org_id,
           o.name AS org_name,
@@ -149,9 +155,11 @@ export async function GET(
         FROM attorney_client_access aca
         LEFT JOIN org_members om ON om.user_id = aca.attorney_id
         LEFT JOIN organizations o ON o.id = om.organization_id
-        WHERE aca.client_id = ${clientId} AND aca.is_active = true
+        WHERE aca."clientId" = $1 AND aca.is_active = true
         LIMIT 1
-      `;
+      `,
+        [clientId]
+      );
 
       if (accessRows?.length) {
         const row = accessRows[0];

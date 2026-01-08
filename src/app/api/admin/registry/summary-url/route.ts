@@ -20,10 +20,15 @@ export async function GET(req: Request) {
   const registryId = url.searchParams.get("registryId");
   if (!registryId) return new NextResponse("Missing registryId", { status: 400 });
 
-  const registry = await prisma.clientRegistry.findUnique({
-    where: { id: registryId },
-    select: { summaryBucket: true, summaryPath: true },
-  });
+  const { findUnique: findUniqueRegistry } = await import("@/lib/db");
+  
+  type RegistryRecord = {
+    id: string;
+    summaryBucket: string | null;
+    summaryPath: string | null;
+  };
+  
+  const registry = await findUniqueRegistry<RegistryRecord>("client_registries", { id: registryId });
 
   if (!registry?.summaryBucket || !registry.summaryPath) {
     return new NextResponse("No summary PDF available", { status: 404 });

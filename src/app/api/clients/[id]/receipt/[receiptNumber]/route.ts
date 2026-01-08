@@ -18,18 +18,20 @@ export async function GET(
     // Verify attorney has access to this client
     await assertAttorneyCanAccessClient(clientId);
 
+    const { queryRaw } = await import("@/lib/db");
+    
     // Get receipt record to determine historical state
-    const receiptData = await prisma.$queryRawUnsafe<Array<{
+    const receiptData = await queryRaw<Array<{
       id: string,
       receipt_number: string,
       clientId: string,
       createdAt: Date;
     }>>(`
-      SELECT id, receipt_number, clientId, createdAt
+      SELECT id, receipt_number, "clientId", "createdAt"
       FROM receipts
-      WHERE clientId = $1 AND receipt_number = $2
+      WHERE "clientId" = $1 AND receipt_number = $2
       LIMIT 1
-    `, clientId, receiptNumber);
+    `, [clientId, receiptNumber]);
 
     if (!receiptData || receiptData.length === 0) {
       return NextResponse.json({ error: "Receipt not found" }, { status: 404 });
@@ -38,7 +40,7 @@ export async function GET(
     const receipt = receiptData[0];
 
     // Get client data
-    const clientData = await prisma.$queryRawUnsafe<Array<{
+    const clientData = await queryRaw<Array<{
       id: string,
       firstName: string,
       lastName: string,
@@ -47,11 +49,11 @@ export async function GET(
       dateOfBirth: Date | null;
       createdAt: Date;
     }>>(`
-      SELECT id, firstName, lastName, email, phone, dateOfBirth, createdAt
+      SELECT id, "firstName", "lastName", email, phone, "dateOfBirth", "createdAt"
       FROM clients
       WHERE id = $1
       LIMIT 1
-    `, clientId);
+    `, [clientId]);
 
     if (!clientData || clientData.length === 0) {
       return NextResponse.json({ error: "Client not found" }, { status: 404 });
@@ -62,7 +64,7 @@ export async function GET(
     // CRITICAL: Get policies that existed at the time the receipt was created
     // This preserves historical accuracy - policies added/modified after receipt creation
     // will not appear in the receipt PDF, ensuring it matches the receipt hash
-    const policies = await prisma.$queryRawUnsafe<Array<{
+    const policies = await queryRaw<Array<{
       id: string,
       policy_number: string | null;
       policy_type: string | null;
@@ -79,15 +81,15 @@ export async function GET(
         i.contact_email as insurer_contact_email
       FROM policies p
       INNER JOIN insurers i ON i.id = p.insurer_id
-      WHERE p.clientId = $1
-        AND p.createdAt <= $2
-      ORDER BY p.createdAt ASC
-    `, clientId, receipt.createdAt);
+      WHERE p."clientId" = $1
+        AND p."createdAt" <= $2
+      ORDER BY p."createdAt" ASC
+    `, [clientId, receipt.createdAt]);
 
     // Get organization info if available
     let organization = null;
     try {
-      const orgData = await prisma.$queryRawUnsafe<Array<{
+      const orgData = await queryRaw<Array<{
         name: string,
         address_line1: string | null;
         address_line2: string | null;
@@ -99,10 +101,10 @@ export async function GET(
         SELECT o.name, o.address_line1, o.address_line2, o.city, o.state, o.postal_code, o.phone
         FROM organizations o
         INNER JOIN org_members om ON om.organization_id = o.id
-        INNER JOIN attorneyClientAccess aca ON aca.organization_id = o.id
-        WHERE aca.clientId = $1 AND aca.is_active = true
+        INNER JOIN attorney_client_access aca ON aca.organization_id = o.id
+        WHERE aca."clientId" = $1 AND aca.is_active = true
         LIMIT 1
-      `, clientId);
+      `, [clientId]);
 
       if (orgData && orgData.length > 0) {
         organization = orgData[0];

@@ -2,47 +2,75 @@
 // import { NextResponse } from "next/server";
 ;
 import { withRouteGuard } from "@/lib/permissions/route";
-import { requireAuthPrincipal, requireRole, requireClientAccess } from "@/lib/permissions/guard";
-import { UserRole } from "@prisma/client";
+import { requireAuthPrincipal, requireClientAccess } from "@/lib/permissions/guard";
+import { UserRole } from "@/lib/db/enums";
 
 export async function GET(_: Request, ctx: { params: Promise<{ clientId: string }> }) {
   return withRouteGuard(async () => {
     const principal = await requireAuthPrincipal();
-    requireRole(principal, [UserRole.ADMIN, UserRole.attorney]);
+    // Check if user is admin via roles array, or has attorney role
+    if (!principal.roles.includes("ADMIN") && principal.role !== UserRole.attorney) {
+      throw new Error("Forbidden");
+    }
     
     const { clientId } = await ctx.params;
     await requireClientAccess({ principal, clientId });
 
-  const client = await prisma.clients.findUnique({
-    where: { id: clientId },
-    include: {
-      // latest policy expectations
-      policies: { orderBy: { createdAt: "desc" }, take: 1 },
-
-      // invites for this client
-      clientInvites: { orderBy: { createdAt: "desc" }, take: 10 },
-
-      // change requests
-      changeRequests: { orderBy: { createdAt: "desc" }, take: 20 },
-
-      // documents (latest first)
-      documents: { orderBy: { createdAt: "desc" }, take: 200 },
-
-      // artifacts (receipts)
-      artifacts: {
-        where: { type: "RECEIPT_PDF" },
-        orderBy: { createdAt: "desc" },
-        take: 30,
-      },
-
-      // current beneficiaries (truth)
-      beneficiaries: { orderBy: { createdAt: "desc" }, take: 100 },
-    },
-  });
-
+  const { findUnique: findUniqueClient, findMany: findManyDb } = await import("@/lib/db");
+  
+  // Fetch client
+  const client = await findUniqueClient("clients", { id: clientId });
   if (!client) throw new Error("Client not found");
 
-  const clientName = `${client.firstName ?? ""} ${client.lastName ?? ""}`.trim();
+  // Fetch related data separately
+  const policies = await findManyDb("expected_policies", {
+    where: { clientId },
+    orderBy: { column: "createdAt", ascending: false },
+    limit: 1,
+  });
+
+  const clientInvites = await findManyDb("client_invites", {
+    where: { clientId },
+    orderBy: { column: "createdAt", ascending: false },
+    limit: 10,
+  });
+
+  const changeRequests = await findManyDb("change_requests", {
+    where: { clientId },
+    orderBy: { column: "createdAt", ascending: false },
+    limit: 20,
+  });
+
+  const documents = await findManyDb("documents", {
+    where: { clientId },
+    orderBy: { column: "createdAt", ascending: false },
+    limit: 200,
+  });
+
+  const artifacts = await findManyDb("artifacts", {
+    where: { clientId, type: "RECEIPT_PDF" },
+    orderBy: { column: "createdAt", ascending: false },
+    limit: 30,
+  });
+
+  const beneficiaries = await findManyDb("beneficiaries", {
+    where: { clientId },
+    orderBy: { column: "createdAt", ascending: false },
+    limit: 100,
+  });
+
+  // Combine data
+  const clientWithRelations = {
+    ...client,
+    policies: policies || [],
+    clientInvites: clientInvites || [],
+    changeRequests: changeRequests || [],
+    documents: documents || [],
+    artifacts: artifacts || [],
+    beneficiaries: beneficiaries || [],
+  } as any;
+
+  const clientName = `${(clientWithRelations as any).firstName ?? ""} ${(clientWithRelations as any).lastName ?? ""}`.trim();
 
   // Proposed beneficiaries - if you add ProposedBeneficiary model later, include it here
   // For now, we'll return empty array
@@ -56,45 +84,45 @@ export async function GET(_: Request, ctx: { params: Promise<{ clientId: string 
     ok: true,
     principal: {
       role: principal.role,
-      isAdmin: principal.role === UserRole.ADMIN,
+      isAdmin: principal.roles.includes("ADMIN"),
     },
     client: {
-      id: client.id,
+      id: (clientWithRelations as any).id,
       name: clientName,
-      email: client.email, // attorney/admin only
-      dob: client.dateOfBirth ? client.dateOfBirth.toISOString() : null,
-      createdAt: client.createdAt,
+      email: (clientWithRelations as any).email, // attorney/admin only
+      dob: (clientWithRelations as any).dateOfBirth ? new Date((clientWithRelations as any).dateOfBirth).toISOString() : null,
+      createdAt: (clientWithRelations as any).createdAt,
     },
-    policyExpected: client.policies[0]
+    policyExpected: (clientWithRelations.policies[0] as any)
       ? {
-          id: client.policies[0].id,
-          carrierName: client.policies[0].carrierName,
-          carrierAlias: client.policies[0].carrierAlias,
-          policyNumber: client.policies[0].policyNumber,
-          expectedBeneficiaryCount: client.policies[0].expectedBeneficiaryCount,
-          createdAt: client.policies[0].createdAt,
+          id: (clientWithRelations.policies[0] as any).id,
+          carrierName: (clientWithRelations.policies[0] as any).carrierName,
+          carrierAlias: (clientWithRelations.policies[0] as any).carrierAlias,
+          policyNumber: (clientWithRelations.policies[0] as any).policyNumber,
+          expectedBeneficiaryCount: (clientWithRelations.policies[0] as any).expectedBeneficiaryCount,
+          createdAt: (clientWithRelations.policies[0] as any).createdAt,
         }
       : null,
-    invites: client.clientInvites.map((i) => ({
+    invites: (clientWithRelations.clientInvites as any[]).map((i: any) => ({
       id: i.id,
       status: i.status,
       createdAt: i.createdAt,
       expiresAt: i.expiresAt,
-      submissionCount: i.submissionCount,
-      maxSubmissions: i.maxSubmissions,
+      submissionCount: i.submissionCount ?? 0,
+      maxSubmissions: i.maxSubmissions ?? 0,
     })),
-    changeRequests: client.changeRequests.map((cr) => ({
+    changeRequests: (clientWithRelations.changeRequests as any[]).map((cr: any) => ({
       id: cr.id,
       status: cr.status,
       requestType: cr.requestType,
       createdAt: cr.createdAt,
       submittedAt: cr.submittedAt ?? null,
       expiresAt: cr.expiresAt,
-      submissionCount: cr.submissionCount,
-      maxSubmissions: cr.maxSubmissions,
+      submissionCount: cr.submissionCount ?? 0,
+      maxSubmissions: cr.maxSubmissions ?? 0,
       note: cr.note ?? null,
     })),
-    documents: client.documents.map((d) => ({
+    documents: (clientWithRelations.documents as any[]).map((d: any) => ({
       id: d.id,
       docType: d.fileType, // Using fileType as docType
       status: d.classificationStatus,
@@ -106,12 +134,12 @@ export async function GET(_: Request, ctx: { params: Promise<{ clientId: string 
       changeRequestId: d.changeRequestId ?? null,
       inviteId: d.uploadedVia?.includes("INVITE") ? "linked" : null, // Simplified
       confidenceScore: d.confidenceScore ?? null, // attorney/admin only
-      processingState: (d as { processingState?: string }).processingState ?? "QUEUED",
-      processingAttempts: (d as { processingAttempts?: number }).processingAttempts ?? 0,
-      lastProcessingError: (d as { lastProcessingError?: string | null }).lastProcessingError ?? null,
-      hasRedactedPreview: !!(d as { redactedPreviewKey?: string | null }).redactedPreviewKey,
+      processingState: d.processingState ?? "QUEUED",
+      processingAttempts: d.processingAttempts ?? 0,
+      lastProcessingError: d.lastProcessingError ?? null,
+      hasRedactedPreview: !!d.redactedPreviewKey,
     })),
-    receipts: client.artifacts.map((a) => ({
+    receipts: (clientWithRelations.artifacts as any[]).map((a: any) => ({
       id: a.id,
       artifactId: a.id, // For opening the artifact
       createdAt: a.createdAt,
@@ -120,7 +148,7 @@ export async function GET(_: Request, ctx: { params: Promise<{ clientId: string 
       changeRequestId: ((a.metadata as Record<string, unknown> | null)?.changeRequestId as string | undefined) ?? null,
       inviteId: a.inviteId ?? null,
     })),
-    beneficiaries: client.beneficiaries.map((b) => ({
+    beneficiaries: (clientWithRelations.beneficiaries as any[]).map((b: any) => ({
       id: b.id,
       fullName: `${b.firstName ?? ""} ${b.lastName ?? ""}`.trim(),
       isActive: b.isActive ?? true,

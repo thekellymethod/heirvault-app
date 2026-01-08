@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import { hashToken } from "@/lib/invites";
 import { putObject } from "@/lib/storage";
 import { auditLog } from "@/lib/audit";
-import { ClientInviteStatus, DocumentClassificationStatus, DocumentSensitivity } from "@prisma/client";
+import { ClientInviteStatus, DocumentClassificationStatus, DocumentSensitivity } from "@/lib/db/enums";
 import { getDocumentCategory } from "@/lib/documents/taxonomy";
 // import { rateLimit, clientIp } from "@/lib/security/rateLimit";
 // import { validateUpload } from "@/lib/security/uploads";
@@ -22,18 +22,18 @@ function parseDocType(v: string): DocType {
 
 function classify(docType: DocType) {
   if (docType === "DRIVERS_LICENSE" || docType === "PASSPORT") {
-    return { sensitivityLevel: DocumentSensitivity.S4_HIGHLY_SENSITIVE, gov: true, tax: false, legal: false };
+    return { sensitivityLevel: DocumentSensitivity.RESTRICTED, gov: true, tax: false, legal: false };
   }
   if (docType.startsWith("TAX_")) {
-    return { sensitivityLevel: DocumentSensitivity.S4_HIGHLY_SENSITIVE, gov: false, tax: true, legal: false };
+    return { sensitivityLevel: DocumentSensitivity.RESTRICTED, gov: false, tax: true, legal: false };
   }
   if (["COURT_FILING", "DEMAND_LETTER", "CLAIM_SUMMARY"].includes(docType)) {
-    return { sensitivityLevel: DocumentSensitivity.S5_LEGAL_CASE, gov: false, tax: false, legal: true };
+    return { sensitivityLevel: DocumentSensitivity.RESTRICTED, gov: false, tax: false, legal: true };
   }
   if (["POLICY", "BENEFICIARY_DOC"].includes(docType)) {
-    return { sensitivityLevel: DocumentSensitivity.S3_CONFIDENTIAL, gov: false, tax: false, legal: false };
+    return { sensitivityLevel: DocumentSensitivity.CONFIDENTIAL, gov: false, tax: false, legal: false };
   }
-  return { sensitivityLevel: DocumentSensitivity.S2_INTERNAL, gov: false, tax: false, legal: false };
+  return { sensitivityLevel: DocumentSensitivity.CONFIDENTIAL, gov: false, tax: false, legal: false };
 }
 
 export const runtime = "nodejs";
@@ -49,13 +49,32 @@ export async function POST(req: Request) {
   if (!(file instanceof File)) return NextResponse.json({ error: "Missing file" }, { status: 400 });
 
   const tokenHash = hashToken(token);
-  const invite = await prisma.client_invites.findUnique({
-    where: { tokenHash },
-    include: { clients: true },
-  });
-  if (!invite || invite.status !== ClientInviteStatus.ACTIVE) return NextResponse.json({ error: "Invite invalid" }, { status: 403 });
-  if (invite.expiresAt.getTime() < Date.now()) return NextResponse.json({ error: "Invite expired" }, { status: 403 });
+  const { findUnique: findUniqueInvite, findUnique: findUniqueClient, create: createDb } = await import("@/lib/db");
+  
+  type InviteRecord = {
+    id: string;
+    tokenHash: string;
+    status: string;
+    expiresAt: string | Date;
+    submissionCount: number;
+    maxSubmissions: number;
+    clientId: string;
+  };
+  
+  type ClientRecord = {
+    id: string;
+    orgId: string | null;
+  };
+  
+  const invite = await findUniqueInvite<InviteRecord>("client_invites", { tokenHash });
+  if (!invite || invite.status !== ClientInviteStatus.PENDING) return NextResponse.json({ error: "Invite invalid" }, { status: 403 });
+  const expiresAt = typeof invite.expiresAt === 'string' ? new Date(invite.expiresAt) : invite.expiresAt;
+  if (expiresAt.getTime() < Date.now()) return NextResponse.json({ error: "Invite expired" }, { status: 403 });
   if (invite.submissionCount >= invite.maxSubmissions) return NextResponse.json({ error: "Invite used" }, { status: 403 });
+  
+  // Fetch client separately
+  const client = await findUniqueClient<ClientRecord>("clients", { id: invite.clientId });
+  if (!client) return NextResponse.json({ error: "Client not found" }, { status: 404 });
 
   const docType = parseDocType(docTypeRaw);
   const c = classify(docType);
@@ -66,7 +85,7 @@ export async function POST(req: Request) {
     docType,
     file.name,
     "/api/public/upload",
-    invite.clients.orgId || null,
+    client.orgId || null,
     invite.clientId,
     null // Public upload, no user ID
   );
@@ -98,26 +117,27 @@ export async function POST(req: Request) {
   // Map fileType to document category
   const documentCategory = getDocumentCategory(docType, null);
 
-  const _doc = await prisma.documents.create({
-    data: {
-      id: crypto.randomUUID(),
-      clientId: invite.clientId,
-      fileName: file.name,
-      fileType: docType,
-      fileSize: buf.length,
-      filePath: storageKey,
-      mimeType: file.type || "application/octet-stream",
-      documentHash: sha256,
-      sensitivityLevel: c.sensitivityLevel,
-      containsGovId: c.gov,
-      containsTaxData: c.tax,
-      containsCaseData: c.legal,
-      classificationStatus: DocumentClassificationStatus.PENDING_OCR,
-      uploadedVia: "CLIENT_INVITE_UPLOAD",
-      documentCategory, // Store category if mapped
-      extractedData: { received: true },
-    },
-  });
+  const { randomUUID } = await import("crypto");
+  const _doc = await createDb("documents", {
+    id: randomUUID(),
+    clientId: invite.clientId,
+    fileName: file.name,
+    fileType: docType,
+    fileSize: buf.length,
+    filePath: storageKey,
+    mimeType: file.type || "application/octet-stream",
+    documentHash: sha256,
+    sensitivityLevel: c.sensitivityLevel,
+    containsGovId: c.gov,
+    containsTaxData: c.tax,
+    containsCaseData: c.legal,
+    classificationStatus: DocumentClassificationStatus.PENDING_OCR,
+    uploadedVia: "CLIENT_INVITE_UPLOAD",
+    documentCategory, // Store category if mapped
+    extractedData: { received: true },
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  } as Record<string, unknown>);
 
   await auditLog({
     actorType: "POLICYHOLDER",

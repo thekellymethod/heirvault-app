@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { requireOrgMember } from "@/lib/authz";
 
 export const dynamic = "force-dynamic";
@@ -30,10 +29,14 @@ export async function POST(req: Request) {
     await requireOrgMember(orgId);
 
     // Ensure the file belongs to this org and was created by your system
-    const file = await prisma.fileAsset.findUnique({
-      where: { id: fileId },
-      select: { orgId: true },
-    });
+    const { findUnique: findUniqueFile, update: updateFile } = await import("@/lib/db");
+    
+    type FileAssetRecord = {
+      id: string;
+      orgId: string;
+    };
+    
+    const file = await findUniqueFile<FileAssetRecord>("file_assets", { id: fileId });
     
     if (!file || file.orgId !== orgId) {
       return NextResponse.json(
@@ -43,13 +46,17 @@ export async function POST(req: Request) {
     }
 
     // Attach
-    await prisma.fileAsset.update({
-      where: { id: fileId },
-      data: {
-        registryId: registryId || undefined,
-        policyId: policyId || undefined,
-      },
-    });
+    const updateData: Record<string, unknown> = {
+      updatedAt: new Date().toISOString(),
+    };
+    if (registryId) {
+      updateData.registryId = registryId;
+    }
+    if (policyId) {
+      updateData.policyId = policyId;
+    }
+    
+    await updateFile("file_assets", { id: fileId }, updateData);
 
     return NextResponse.json({ ok: true });
   } catch (error) {

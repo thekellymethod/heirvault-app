@@ -33,19 +33,20 @@ export async function GET() {
     }
 
     // Try to find user in database
-    const dbUser = await prisma.user.findUnique({
-      where: { clerkId: clerkUserId },
-      select: {
-        id: true,
-        clerkId: true,
-        email: true,
-        role: true,
-        roles: true,
-      },
-    });
+    const { findUnique: findUniqueUser } = await import("@/lib/db");
+    
+    type UserRecord = {
+      id: string;
+      clerkId: string;
+      email: string;
+      role: string;
+      roles: string[];
+    };
+    
+    const dbUser = await findUniqueUser<UserRecord>("users", { clerkId: clerkUserId });
 
-    // Check if user is admin (using enum comparison)
-    const isAdmin = dbUser?.role === UserRole.ADMIN || dbUser?.roles?.includes("ADMIN") || false;
+    // Check if user is admin (using roles array)
+    const isAdmin = dbUser?.roles?.includes("ADMIN") || false;
 
     return NextResponse.json({
       authenticated: true,
@@ -57,12 +58,12 @@ export async function GET() {
       roles: dbUser?.roles || [],
       isAdmin,
     });
-  } catch (error) {
-    const err = error as Error;
+  } catch (error: unknown) {
+    const err = error instanceof Error ? error : new Error(String(error));
     return NextResponse.json(
       {
         error: err.message,
-        stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
+        stack: process.env.NODE_ENV === "development" ? (error instanceof Error ? error.stack : undefined) : undefined,
       },
       { status: 500 }
     );

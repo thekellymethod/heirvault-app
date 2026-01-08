@@ -8,8 +8,9 @@ export async function GET() {
   if (authResult.response) return authResult.response;
 
   try {
-    const insurersList = await prisma.insurers.findMany({
-      orderBy: { name: 'asc' },
+    const { findMany } = await import("@/lib/db");
+    const insurersList = await findMany("insurers", {
+      orderBy: { column: "name", ascending: true },
     });
 
     return NextResponse.json({ insurers: insurersList }, { status: 200 });
@@ -38,18 +39,17 @@ export async function POST(req: NextRequest) {
     }
 
     const newInsurerId = randomUUID();
-    const now = new Date();
-    const newInsurer = await prisma.insurers.create({
-      data: {
-        id: newInsurerId,
-        name,
-        contactPhone: contactPhone,
-        contactEmail: contactEmail,
-        website,
-        createdAt: now,
-        updatedAt: now,
-      },
-    });
+    const { create: createDb } = await import("@/lib/db");
+    const now = new Date().toISOString();
+    const newInsurer = await createDb("insurers", {
+      id: newInsurerId,
+      name,
+      contactPhone: contactPhone,
+      contactEmail: contactEmail,
+      website,
+      createdAt: now,
+      updatedAt: now,
+    } as any) as any;
     
     const insurerId = newInsurer.id;
 

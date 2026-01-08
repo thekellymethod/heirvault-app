@@ -50,7 +50,7 @@ Migrating from Prisma ORM to Supabase SQL for all database operations.
 - ✅ `src/lib/contracts/acceptance.ts` - Contract acceptance management
 - ✅ `src/lib/test-invites.ts` - Test invite creation utility
 
-### 3. API Routes - **28 FILES COMPLETE**
+### 3. API Routes - **58 FILES COMPLETE**
 - ✅ `src/app/api/clients/route.ts` - Client CRUD operations (GET, POST)
 - ✅ `src/app/api/clients/[id]/route.ts` - Client detail operations (GET)
 - ✅ `src/app/api/clients/[id]/invite/route.ts` - Client invite creation (POST)
@@ -82,6 +82,39 @@ Migrating from Prisma ORM to Supabase SQL for all database operations.
 - ✅ `src/app/api/policy-locator/search/route.ts` - Policy search within organization (GET)
 - ✅ `src/app/api/policy-locator/global/route.ts` - Global policy search (GET)
 - ✅ `src/app/api/internal/process-document/route.ts` - Internal document processing (POST)
+- ✅ `src/app/api/public/intake/submit/route.ts` - Public intake submission (POST)
+- ✅ `src/app/api/public/change-request/submit/route.ts` - Public change request submission (POST)
+- ✅ `src/app/api/public/change-request/upload/route.ts` - Public change request upload (POST)
+- ✅ `src/app/api/public/upload/route.ts` - Public document upload (POST)
+- ✅ `src/app/api/policy-intake/submit/route.ts` - Policy intake receipt lookup (GET)
+- ✅ `src/app/api/policy-intake/receipt/[receiptId]/route.ts` - Policy intake receipt by ID (GET)
+- ✅ `src/app/api/qr/validate/route.ts` - QR token validation (POST)
+- ✅ `src/app/api/qr-update/[token]/route.ts` - QR update token lookup (GET)
+- ✅ `src/app/api/receipts/[receiptId]/lookup/route.ts` - Receipt lookup by ID (GET)
+- ✅ `src/app/api/registry/from-session/route.ts` - Registry from Stripe session (POST)
+- ✅ `src/app/api/registry/files/route.ts` - Registry files list (GET)
+- ✅ `src/app/api/admin/registry/complete/route.ts` - Complete registry (POST)
+- ✅ `src/app/api/admin/registry/summary-url/route.ts` - Registry summary URL (GET)
+- ✅ `src/app/api/clients/[id]/policies/route.ts` - Client policies list/create (GET, POST)
+- ✅ `src/app/api/clients/[id]/summary-pdf/route.ts` - Client summary PDF (GET)
+- ✅ `src/app/api/invites/accept/route.ts` - Accept client invite (POST)
+- ✅ `src/app/api/invite/[token]/client-data/route.ts` - Get client data for invite (GET)
+- ✅ `src/app/api/invite/[token]/update-client/route.ts` - Update client via invite (POST)
+- ✅ `src/app/api/invite/[token]/process-update-form/route.ts` - Process update form (POST)
+- ✅ `src/app/api/invite/[token]/receipt-pdf/route.ts` - Get receipt PDF (GET)
+- ✅ `src/app/api/clients/[id]/receipt/[receiptNumber]/route.ts` - Get receipt by number (GET)
+- ✅ `src/app/api/clients/[id]/receipts-audit/route.ts` - Get receipts and audit trail (GET)
+- ✅ `src/app/api/clients/[id]/probate-summary/route.ts` - Get probate summary PDF (GET)
+- ✅ `src/app/api/billing/invoices/route.ts` - List billing invoices (GET)
+- ✅ `src/app/api/billing/webhook/route.ts` - Stripe webhook handler (POST)
+- ✅ `src/app/api/registries/route.ts` - List/create registries (GET, POST)
+- ✅ `src/app/api/registries/create/route.ts` - Create registry (POST)
+- ✅ `src/app/api/registries/[id]/route.ts` - Get/update registry (GET, PATCH)
+- ✅ `src/app/api/registries/[id]/export/route.ts` - Export registry PDF (GET)
+- ✅ `src/app/api/search/global/route.ts` - Global search (GET)
+- ✅ `src/app/api/admin/invites/route.ts` - Admin invite search/archive (GET, POST)
+- ✅ `src/app/api/admin/invites/generate/route.ts` - Generate invite (POST)
+- ✅ `src/app/api/admin/clients/[clientId]/access/route.ts` - Get client access grants (GET)
 
 ### 4. Database Exports - **COMPLETE**
 - ✅ Updated `src/lib/db/index.ts` to export Supabase helpers

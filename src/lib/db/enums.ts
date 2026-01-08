@@ -107,6 +107,11 @@ export const ChangeRequestStatus = {
   REJECTED: "REJECTED",
 } as const;
 
+export const ArtifactType = {
+  BILLING_INVOICE_PDF: "BILLING_INVOICE_PDF",
+  CLIENT_INVITE_PDF: "CLIENT_INVITE_PDF",
+} as const;
+
 // Note: Type exports are handled in index.ts
 // This file exports the enum value constants
 

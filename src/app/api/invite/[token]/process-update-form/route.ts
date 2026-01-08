@@ -1,14 +1,12 @@
 // src/app/api/invite/[token]/receipt-pdf/route.ts
 
 import { NextRequest, NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
-import { prisma } from "@/lib/prisma"; // change to "@/lib/db" if that's where prisma is exported
 import { decodePassportForm } from "@/lib/ocr-form-decoder";
 import { uploadDocument } from "@/lib/storage";
 import { renderToStream } from "@react-pdf/renderer";
 import { ClientReceiptPDF } from "@/pdfs/ClientReceiptPDF";
 import { sendClientReceiptEmail, sendAttorneyNotificationEmail } from "@/lib/email";
-import { AuditAction } from "@/lib/db";
+import { AuditAction } from "@/lib/db/enums";
 import { getOrCreateTestInvite } from "@/lib/test-invites";
 import { lookupClientInvite } from "@/lib/invite-lookup";
 import { randomUUID } from "crypto";
@@ -65,10 +63,9 @@ type InviteShape = {
   client: InviteClientShape;
 };
 
-function toInputJson(value: unknown): Prisma.InputJsonValue {
-  // Prisma JSON fields require InputJsonValue (not unknown / any).
-  // This strips functions/BigInt/undefined safely and yields valid JSON.
-  return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
+function toInputJson(value: unknown): Record<string, unknown> {
+  // Convert to JSON-safe object
+  return JSON.parse(JSON.stringify(value)) as Record<string, unknown>;
 }
 
 function toDate(value: string | Date | null | undefined): Date | null {
@@ -169,41 +166,47 @@ export async function POST(
         contentType: file.type,
       });
 
-      archivedDocument = await prisma.documents.create({
-        data: {
-          id: randomUUID(),
-          clientId,
-          fileName: file.name,
-          fileType: file.type,
-          fileSize: file.size,
-          filePath: storagePath,
-          mimeType: file.type,
-          uploadedVia: "update-form",
-          extractedData: toInputJson(decodedData),
-          ocrConfidence:
-            typeof decodedData.confidence === "number"
-              ? Math.round(decodedData.confidence * 100)
-              : null,
-          // documentHash field doesn't exist in documents model - removed
-        },
-        select: { id: true },
-      });
+      const { create: createDocument } = await import("@/lib/db");
+      archivedDocument = await createDocument("documents", {
+        id: randomUUID(),
+        clientId,
+        fileName: file.name,
+        fileType: file.type,
+        fileSize: file.size,
+        filePath: storagePath,
+        mimeType: file.type,
+        uploadedVia: "update-form",
+        extractedData: toInputJson(decodedData),
+        ocrConfidence:
+          typeof decodedData.confidence === "number"
+            ? Math.round(decodedData.confidence * 100)
+            : null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      } as Record<string, unknown>) as { id: string };
     } catch (archiveError: unknown) {
       console.error("Failed to archive form:", archiveError);
       // Continue anyway
     }
 
     // 5) Update client info
-    const updatedClient = await prisma.clients.update({
-      where: { id: clientId },
-      data: {
-        firstName: decodedData.firstName || inviteClient.firstName || "",
-        lastName: decodedData.lastName || inviteClient.lastName || "",
-        email: decodedData.email || inviteClient.email || "",
-        phone: decodedData.phone || inviteClient.phone || null,
-        dateOfBirth: toDate(decodedData.dateOfBirth) ?? inviteClient.dateOfBirth ?? null,
-      },
-    });
+    const { update: updateClient } = await import("@/lib/db");
+    const updatedClient = await updateClient("clients", { id: clientId }, {
+      firstName: decodedData.firstName || inviteClient.firstName || "",
+      lastName: decodedData.lastName || inviteClient.lastName || "",
+      email: decodedData.email || inviteClient.email || "",
+      phone: decodedData.phone || inviteClient.phone || null,
+      dateOfBirth: toDate(decodedData.dateOfBirth) ?? inviteClient.dateOfBirth ?? null,
+      updatedAt: new Date().toISOString(),
+    } as Record<string, unknown>) as {
+      id: string;
+      firstName: string;
+      lastName: string;
+      email: string;
+      phone: string | null;
+      dateOfBirth: Date | null;
+      createdAt: Date;
+    };
 
     // 6) Create or update insurer/policy if present
     let updatedPolicy: { id: string } | null = null;
@@ -211,76 +214,120 @@ export async function POST(
     if (decodedData.policyNumber || decodedData.insurerName) {
       let insurer: { id: string } | null = null;
 
+      const { findMany: findManyInsurers, create: createInsurer, findMany: findManyPolicies, create: createPolicy, update: updatePolicy, update: updateDocument } = await import("@/lib/db");
+      
       if (decodedData.insurerName) {
-        insurer = await prisma.insurers.findFirst({
-          where: { name: { equals: decodedData.insurerName, mode: "insensitive" } },
-          select: { id: true },
+        const insurers = await findManyInsurers("insurers", {
+          where: { name: { ilike: decodedData.insurerName } },
+          limit: 1,
         });
+        
+        insurer = insurers && insurers.length > 0 ? (insurers[0] as { id: string }) : null;
 
         if (!insurer) {
-          insurer = await prisma.insurers.create({
-            data: { id: randomUUID(), name: decodedData.insurerName },
-            select: { id: true },
-          });
+          insurer = await createInsurer("insurers", {
+            id: randomUUID(),
+            name: decodedData.insurerName,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          } as Record<string, unknown>) as { id: string };
         }
       }
 
       if (insurer) {
-        const existingPolicy = await prisma.policies.findFirst({
+        const existingPolicies = await findManyPolicies("policies", {
           where: { clientId, insurerId: insurer.id },
-          select: { id: true, policyNumber: true, policyType: true },
+          limit: 1,
         });
+        
+        const existingPolicy = existingPolicies && existingPolicies.length > 0 
+          ? (existingPolicies[0] as { id: string; policyNumber: string | null; policyType: string | null })
+          : null;
 
         if (existingPolicy) {
-          updatedPolicy = await prisma.policies.update({
-            where: { id: existingPolicy.id },
-            data: {
-              policyNumber: decodedData.policyNumber || existingPolicy.policyNumber || null,
-              policyType: decodedData.policyType || existingPolicy.policyType || null,
-            },
-            select: { id: true },
-          });
+          updatedPolicy = await updatePolicy("policies", { id: existingPolicy.id }, {
+            policyNumber: decodedData.policyNumber || existingPolicy.policyNumber || null,
+            policyType: decodedData.policyType || existingPolicy.policyType || null,
+            updatedAt: new Date().toISOString(),
+          } as Record<string, unknown>) as { id: string };
         } else {
-          updatedPolicy = await prisma.policies.create({
-            data: {
-              id: randomUUID(),
-              clientId,
-              insurerId: insurer.id,
-              policyNumber: decodedData.policyNumber || null,
-              policyType: decodedData.policyType || null,
-            },
-            select: { id: true },
-          });
+          updatedPolicy = await createPolicy("policies", {
+            id: randomUUID(),
+            clientId,
+            insurerId: insurer.id,
+            policyNumber: decodedData.policyNumber || null,
+            policyType: decodedData.policyType || null,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          } as Record<string, unknown>) as { id: string };
         }
 
         if (archivedDocument && updatedPolicy) {
-          await prisma.documents.update({
-            where: { id: archivedDocument.id },
-            data: { policyId: updatedPolicy.id },
-          });
+          await updateDocument("documents", { id: archivedDocument.id }, {
+            policyId: updatedPolicy.id,
+            updatedAt: new Date().toISOString(),
+          } as Record<string, unknown>);
         }
       }
     }
 
     // 7) Get org + attorney info (best-effort)
-    const access = await prisma.attorneyClientAccess.findFirst({
+    const { findMany: findManyAccess, findMany: findManyUsers, findMany: findManyOrgMembers, findMany: findManyOrgs, findMany: findManyPoliciesForReceipt, findMany: findManyInsurersForReceipt } = await import("@/lib/db");
+    
+    const accesses = await findManyAccess("attorney_client_access", {
       where: { clientId, isActive: true },
-      include: {
-        users: {
-          include: {
-            orgMemberships: { include: { organizations: true } },
-          },
-        },
-      },
+      limit: 1,
     });
-
-    const organization = access?.users?.orgMemberships?.[0]?.organizations ?? null;
-    const attorney = access?.users ?? null;
+    
+    const access = accesses && accesses.length > 0 ? accesses[0] : null;
+    
+    let organization: any = null;
+    let attorney: any = null;
+    
+    if (access) {
+      const attorneyId = (access as any).attorneyId;
+      const users = await findManyUsers("users", {
+        where: { id: attorneyId },
+        limit: 1,
+      });
+      attorney = users && users.length > 0 ? users[0] : null;
+      
+      if (attorney) {
+        const orgMembers = await findManyOrgMembers("org_members", {
+          where: { userId: attorneyId },
+          limit: 1,
+        });
+        
+        if (orgMembers && orgMembers.length > 0) {
+          const orgId = (orgMembers[0] as any).organizationId;
+          const orgs = await findManyOrgs("organizations", {
+            where: { id: orgId },
+            limit: 1,
+          });
+          organization = orgs && orgs.length > 0 ? orgs[0] : null;
+        }
+      }
+    }
 
     // 8) Fetch updated policies for receipt
-    const updatedPolicies = await prisma.policies.findMany({
+    const updatedPoliciesData = await findManyPoliciesForReceipt("policies", {
       where: { clientId },
-      include: { insurers: true },
+    });
+    
+    // Fetch insurers for policies
+    const insurerIds = (updatedPoliciesData || []).map((p: any) => p.insurerId).filter(Boolean);
+    const insurers = insurerIds.length > 0
+      ? await findManyInsurersForReceipt("insurers", {
+          where: { id: { in: insurerIds } },
+        })
+      : [];
+    
+    const updatedPolicies = (updatedPoliciesData || []).map((p: any) => {
+      const insurer = (insurers || []).find((i: any) => i.id === p.insurerId);
+      return {
+        ...p,
+        insurers: insurer || null,
+      };
     });
 
     const receiptId = `REC-${clientId}-${Date.now()}`;
@@ -389,18 +436,17 @@ export async function POST(
     void Promise.all(emailTasks);
 
     // 11) Audit log
-    await prisma.audit_logs.create({
-      data: {
-        id: randomUUID(),
-        action: AuditAction.CLIENT_UPDATED,
-        message: `Client information updated via scanned form: ${file.name}`,
-        clientId,
-        policyId: updatedPolicy?.id ?? null,
-        userId: null,
-        orgId: null,
-        createdAt: new Date(),
-      },
-    });
+    const { create: createAudit } = await import("@/lib/db");
+    await createAudit("audit_logs", {
+      id: randomUUID(),
+      action: AuditAction.CLIENT_UPDATED,
+      message: `Client information updated via scanned form: ${file.name}`,
+      clientId,
+      policyId: updatedPolicy?.id ?? null,
+      userId: null,
+      orgId: null,
+      createdAt: new Date().toISOString(),
+    } as Record<string, unknown>);
 
     return NextResponse.json({
       success: true,

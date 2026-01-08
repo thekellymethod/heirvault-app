@@ -2,21 +2,28 @@
 import { withRouteGuard } from "@/lib/permissions/route";
 import { requireAuthPrincipal, requireRole, HttpError } from "@/lib/permissions/guard";
 import { requireOrgAccess } from "@/lib/permissions/orgAccess";
-;
-import { UserRole, ArtifactType, UploaderType } from "@prisma/client";
+import { UserRole, ArtifactType, UploaderType } from "@/lib/db/enums";
 import { signGetUrl } from "@/lib/storage";
-import { auditLog } from "@/lib/audit";
+import { logAuditEvent } from "@/lib/audit";
 
 export async function GET(_: Request, ctx: { params: Promise<{ artifactId: string }> }) {
   return withRouteGuard(async () => {
     const principal = await requireAuthPrincipal();
-    requireRole(principal, [UserRole.ADMIN, UserRole.ATTORNEY]);
+    requireRole(principal, [UserRole.attorney]);
 
     const { artifactId } = await ctx.params;
 
-    const artifact = await prisma.artifacts.findUnique({
-      where: { id: artifactId },
-    });
+    const { findUnique: findUniqueArtifact } = await import("@/lib/db");
+    
+    type ArtifactRecord = {
+      id: string;
+      type: string;
+      orgId: string | null;
+      storageKey: string | null;
+      filePath: string | null;
+    };
+    
+    const artifact = await findUniqueArtifact<ArtifactRecord>("artifacts", { id: artifactId });
 
     if (!artifact) throw new HttpError(404, "Not found");
     if (artifact.type !== ArtifactType.BILLING_INVOICE_PDF) {
@@ -40,11 +47,8 @@ export async function GET(_: Request, ctx: { params: Promise<{ artifactId: strin
       fileName: "invoice.pdf",
     });
 
-    await auditLog({
-      actorType: principal.role === UserRole.ADMIN ? UploaderType.ADMIN : UploaderType.ATTORNEY,
-      actorId: principal.clerkUserId,
-      clientId: null,
-      inviteId: null,
+    await logAuditEvent({
+      userId: principal.dbUserId || null,
       action: "BILLING_INVOICE_OPENED",
       metadata: { artifactId: artifact.id, orgId: artifact.orgId },
     });

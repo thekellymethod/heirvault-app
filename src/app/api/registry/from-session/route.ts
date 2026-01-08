@@ -16,16 +16,28 @@ export async function POST(req: Request) {
   const clientEmail = session.customer_email || session.metadata?.clientEmail;
   if (!clientEmail) return new NextResponse("Missing customer email", { status: 400 });
 
-  const registry = await prisma.clientRegistry.upsert({
-    where: { stripeCheckoutSessionId: session.id },
-    create: {
+  const { upsert: upsertRegistry, findUnique: findUniqueRegistry } = await import("@/lib/db");
+  const { randomUUID } = await import("crypto");
+  
+  // Check if registry exists
+  const existing = await findUniqueRegistry("client_registries", { stripeCheckoutSessionId: session.id });
+  
+  let registry;
+  if (existing) {
+    registry = existing;
+  } else {
+    registry = await upsertRegistry("client_registries", {
+      id: randomUUID(),
       clientEmail,
       clientName: session.metadata?.clientName || null,
       stripeCheckoutSessionId: session.id,
       stripePaymentIntentId: (session.payment_intent as string) || null,
-    },
-    update: {},
-  });
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    } as Record<string, unknown>, {
+      where: { stripeCheckoutSessionId: session.id },
+    });
+  }
 
   return NextResponse.json({ registryId: registry.id });
 }

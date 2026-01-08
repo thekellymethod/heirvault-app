@@ -2,21 +2,33 @@
 import { withRouteGuard } from "@/lib/permissions/route";
 import { requireAuthPrincipal, requireRole, requireClientAccess, HttpError } from "@/lib/permissions/guard";
 ;
-import { UserRole, UploaderType } from "@prisma/client";
+import { UserRole } from "@/lib/db/enums";
+import { UploaderType } from "@/lib/db/enums";
 import { signGetUrl } from "@/lib/storage";
 import { auditLog } from "@/lib/audit";
 
 export async function GET(_: Request, ctx: { params: Promise<{ artifactId: string }> }) {
   return withRouteGuard(async () => {
     const principal = await requireAuthPrincipal();
-    requireRole(principal, [UserRole.ADMIN, UserRole.attorney]);
+    // Check if user is admin via roles array, or has attorney role
+    if (!principal.roles.includes("ADMIN") && principal.role !== UserRole.attorney) {
+      throw new HttpError(403, "Forbidden");
+    }
 
     const { artifactId } = await ctx.params;
 
-    const artifact = await prisma.artifacts.findUnique({
-      where: { id: artifactId },
-      include: { clients: true },
-    });
+    const { findUnique: findUniqueArtifact, findUnique: findUniqueClient } = await import("@/lib/db");
+    
+    type ArtifactRecord = {
+      id: string;
+      clientId: string | null;
+      inviteId: string | null;
+      filePath: string;
+      fileName: string | null;
+      type: string;
+    };
+    
+    const artifact = await findUniqueArtifact<ArtifactRecord>("artifacts", { id: artifactId });
 
     if (!artifact) throw new HttpError(404, "Not found");
     if (!artifact.clientId) throw new HttpError(400, "Artifact not linked to client");
@@ -36,7 +48,7 @@ export async function GET(_: Request, ctx: { params: Promise<{ artifactId: strin
     });
 
     await auditLog({
-      actorType: principal.role === UserRole.ADMIN ? UploaderType.ADMIN : UploaderType.ATTORNEY,
+      actorType: principal.roles.includes("ADMIN") ? "ADMIN" : UploaderType.ATTORNEY,
       actorId: principal.dbUserId,
       clientId: artifact.clientId,
       inviteId: artifact.inviteId ?? null,

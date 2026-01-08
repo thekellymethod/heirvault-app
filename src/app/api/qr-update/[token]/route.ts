@@ -33,10 +33,14 @@ export async function GET(
     const clientId = decoded.registryId;
 
     // NOW clientId is typed as string; no more "{}.clientId" issues
-    const client = await prisma.clients.findUnique({
-      where: { id: clientId },
-      select: { id: true, firstName: true, lastName: true, email: true },
-    });
+    const { findUnique } = await import("@/lib/db");
+    type ClientRecord = {
+      id: string;
+      firstName: string | null;
+      lastName: string | null;
+      email: string | null;
+    };
+    const client = await findUnique<ClientRecord>("clients", { id: clientId });
 
     if (!client) {
       return NextResponse.json({ error: "Client not found" }, { status: 404 });

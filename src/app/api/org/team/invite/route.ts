@@ -1,15 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
 ;
-import { getCurrentUserWithOrg } from "@/lib/authz";
+import { requireAuthPrincipal } from "@/lib/permissions/guard";
 import { randomUUID } from "crypto";
 
 export async function POST(req: NextRequest) {
   try {
-    const { user, orgMember } = await getCurrentUserWithOrg();
+    const principal = await requireAuthPrincipal();
+    
+    // Get user's org membership
+    const { findMany: findManyMembers } = await import("@/lib/db");
+    
+    type OrgMemberRecord = {
+      id: string;
+      userId: string;
+      organizationId: string;
+      role: string;
+    };
+    
+    const memberships = await findManyMembers<OrgMemberRecord>("org_members", {
+      where: { userId: principal.dbUserId },
+      limit: 1,
+    });
 
-    if (!user || !orgMember) {
+    if (!memberships || memberships.length === 0) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    
+    const orgMember = memberships[0];
 
     // Note: We'll check ownership after determining which org to use
 
@@ -22,19 +39,12 @@ export async function POST(req: NextRequest) {
     // Verify user has permission to invite to this organization
     if (organizationId !== orgMember.organizationId) {
       // Check if user is owner of the requested organization
-      const requesterMembershipResult = await prisma.$queryRawUnsafe<Array<{
-        id: string,
-        user_id: string,
-        organization_id: string,
-        role: string,
-      }>>(
-        `SELECT id, user_id, organization_id, role FROM org_members WHERE user_id = $1 AND organization_id = $2 AND role = $3 LIMIT 1`,
-        user.id,
-        organizationId,
-        "OWNER"
-      );
+      const requesterMemberships = await findManyMembers<OrgMemberRecord>("org_members", {
+        where: { userId: principal.dbUserId, organizationId, role: "OWNER" },
+        limit: 1,
+      });
       
-      if (!requesterMembershipResult || requesterMembershipResult.length === 0) {
+      if (!requesterMemberships || requesterMemberships.length === 0) {
         return NextResponse.json(
           { error: "You can only invite members to your own organization" },
           { status: 403 }
@@ -57,15 +67,16 @@ export async function POST(req: NextRequest) {
     }
 
     // Check if user already exists
-    const targetUserResult = await prisma.$queryRawUnsafe<Array<{
-      id: string,
-      email: string,
-    }>>(
-      `SELECT id, email FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1`,
-      email
-    );
+    const { getDb } = await import("@/lib/db");
+    const db = getDb();
     
-    const targetUser = targetUserResult && targetUserResult.length > 0 ? targetUserResult[0] : null;
+    const { data: targetUserResult } = await db
+      .from("users")
+      .select("id, email")
+      .ilike("email", email)
+      .limit(1);
+    
+    const targetUser = targetUserResult && targetUserResult.length > 0 ? (targetUserResult[0] as { id: string; email: string }) : null;
 
     // If user doesn't exist, we could create them or just return an error
     // For now, require the user to exist (they need to sign up first)
@@ -77,18 +88,12 @@ export async function POST(req: NextRequest) {
     }
 
     // Check if current user is owner (only owners can invite)
-    const currentMemberResult = await prisma.$queryRawUnsafe<Array<{
-      id: string,
-      user_id: string,
-      organization_id: string,
-      role: string,
-    }>>(
-      `SELECT id, user_id, organization_id, role FROM org_members WHERE user_id = $1 AND organization_id = $2 LIMIT 1`,
-      user.id,
-      organizationId
-    );
+    const currentMemberships = await findManyMembers<OrgMemberRecord>("org_members", {
+      where: { userId: principal.dbUserId, organizationId },
+      limit: 1,
+    });
 
-    const currentMember = currentMemberResult && currentMemberResult.length > 0 ? currentMemberResult[0] : null;
+    const currentMember = currentMemberships && currentMemberships.length > 0 ? currentMemberships[0] : null;
 
     if (currentMember?.role !== "OWNER") {
       return NextResponse.json(
@@ -98,15 +103,12 @@ export async function POST(req: NextRequest) {
     }
 
     // Check if user is already a member
-    const existingMemberResult = await prisma.$queryRawUnsafe<Array<{
-      id: string,
-    }>>(
-      `SELECT id FROM org_members WHERE user_id = $1 AND organization_id = $2 LIMIT 1`,
-      targetUser.id,
-      organizationId
-    );
+    const existingMemberships = await findManyMembers<OrgMemberRecord>("org_members", {
+      where: { userId: targetUser.id, organizationId },
+      limit: 1,
+    });
 
-    if (existingMemberResult && existingMemberResult.length > 0) {
+    if (existingMemberships && existingMemberships.length > 0) {
       return NextResponse.json(
         { error: "User is already a member of this organization" },
         { status: 400 }
@@ -114,15 +116,15 @@ export async function POST(req: NextRequest) {
     }
 
     // Add user to organization
-    await prisma.$executeRawUnsafe(
-      `INSERT INTO org_members (id, user_id, organization_id, role, createdAt, updated_at) VALUES ($1, $2, $3, $4, $5, $6)`,
-      randomUUID(),
-      targetUser.id,
+    const { create: createDb } = await import("@/lib/db");
+    await createDb("org_members", {
+      id: randomUUID(),
+      userId: targetUser.id,
       organizationId,
       role,
-      new Date(),
-      new Date()
-    );
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    } as any);
 
     return NextResponse.json({ success: true }, { status: 201 });
   } catch (error: unknown) {

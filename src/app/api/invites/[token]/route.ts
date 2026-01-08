@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
 
 export async function GET(
   request: NextRequest,
@@ -8,9 +7,9 @@ export async function GET(
   try {
     const { token } = await params
     
-    const invite = await prisma.invites.findUnique({
-      where: { token },
-    })
+    const { findUnique: findUniqueInvite } = await import("@/lib/db");
+    
+    const invite = await findUniqueInvite("invites", { token })
 
     if (!invite) {
       return NextResponse.json({ error: 'Invalid invite link' }, { status: 404 })

@@ -29,8 +29,10 @@ export async function GET(req: NextRequest, { params }: Params) {
   const executorContact = searchParams.get("executorContact") || undefined;
   const caseNumber = searchParams.get("caseNumber") || undefined;
 
+  const { queryRaw } = await import("@/lib/db");
+  
   // Get client data using raw SQL
-  const clientData = await prisma.$queryRawUnsafe<Array<{
+  const clientData = await queryRaw<Array<{
     id: string,
     firstName: string,
     lastName: string,
@@ -39,11 +41,11 @@ export async function GET(req: NextRequest, { params }: Params) {
     dateOfBirth: Date | null;
     createdAt: Date;
   }>>(`
-    SELECT id, firstName, lastName, email, phone, dateOfBirth, createdAt
+    SELECT id, "firstName", "lastName", email, phone, "dateOfBirth", "createdAt"
     FROM clients
     WHERE id = $1
     LIMIT 1
-  `, id);
+  `, [id]);
 
   if (!clientData || clientData.length === 0) {
     return new NextResponse("Not found", { status: 404 });
@@ -52,7 +54,7 @@ export async function GET(req: NextRequest, { params }: Params) {
   const client = clientData[0];
 
   // Get policies with insurers and beneficiaries
-  const policiesData = await prisma.$queryRawUnsafe<Array<{
+  const policiesData = await queryRaw<Array<{
     id: string,
     policy_number: string | null;
     policy_type: string | null;
@@ -66,21 +68,21 @@ export async function GET(req: NextRequest, { params }: Params) {
       p.id,
       p.policy_number,
       p.policy_type,
-      p.verificationStatus,
+      p."verificationStatus",
       i.id as insurer_id,
       i.name as insurer_name,
       i.contact_phone as insurer_contact_phone,
       i.contact_email as insurer_contact_email
     FROM policies p
     INNER JOIN insurers i ON i.id = p.insurer_id
-    WHERE p.clientId = $1
-    ORDER BY p.createdAt DESC
-  `, id);
+    WHERE p."clientId" = $1
+    ORDER BY p."createdAt" DESC
+  `, [id]);
 
   // Get beneficiaries for each policy
   const policyIds = policiesData.map((p) => p.id);
   const policy_beneficiariesData = policyIds.length > 0
-    ? await prisma.$queryRawUnsafe<Array<{
+    ? await queryRaw<Array<{
         policy_id: string,
         beneficiary_id: string,
         beneficiary_firstName: string,
@@ -92,19 +94,19 @@ export async function GET(req: NextRequest, { params }: Params) {
         SELECT 
           pb.policy_id,
           b.id as beneficiary_id,
-          b.firstName as beneficiary_firstName,
-          b.lastName as beneficiary_lastName,
+          b."firstName" as beneficiary_firstName,
+          b."lastName" as beneficiary_lastName,
           b.relationship as beneficiary_relationship,
           b.email as beneficiary_email,
           b.phone as beneficiary_phone
         FROM policy_beneficiaries pb
         INNER JOIN beneficiaries b ON b.id = pb.beneficiary_id
         WHERE pb.policy_id = ANY($1::uuid[])
-      `, policyIds)
+      `, [policyIds])
     : [];
 
   // Get all beneficiaries for the client
-  const beneficiariesData = await prisma.$queryRawUnsafe<Array<{
+  const beneficiariesData = await queryRaw<Array<{
     id: string,
     firstName: string,
     lastName: string,
@@ -113,11 +115,11 @@ export async function GET(req: NextRequest, { params }: Params) {
     phone: string | null;
     dateOfBirth: Date | null;
   }>>(`
-    SELECT id, firstName, lastName, relationship, email, phone, dateOfBirth
+    SELECT id, "firstName", "lastName", relationship, email, phone, "dateOfBirth"
     FROM beneficiaries
-    WHERE clientId = $1
-    ORDER BY createdAt DESC
-  `, id);
+    WHERE "clientId" = $1
+    ORDER BY "createdAt" DESC
+  `, [id]);
 
   // Log the PDF download
   await audit(AuditAction.CLIENT_SUMMARY_PDF_DOWNLOADED, {

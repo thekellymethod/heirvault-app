@@ -34,14 +34,16 @@ export interface BillingEventInput {
 export async function emitBillingEvent(
   input: BillingEventInput
 ): Promise<void> {
-  await prisma.billing_events_ledger.create({
-    data: {
-      id: crypto.randomUUID(),
-      organizationId: input.organizationId,
-      eventType: input.eventType,
-      eventPayload: input.eventPayload,
-      createdByUserId: input.createdByUserId || null,
-    },
+  const { create } = await import("@/lib/db");
+  const { randomUUID } = await import("crypto");
+  
+  await create("billing_events_ledger", {
+    id: randomUUID(),
+    organizationId: input.organizationId,
+    eventType: input.eventType,
+    eventPayload: input.eventPayload,
+    createdByUserId: input.createdByUserId || null,
+    createdAt: new Date().toISOString(),
   });
 }
 

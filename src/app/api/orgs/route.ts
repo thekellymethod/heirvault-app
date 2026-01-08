@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { requireUserId } from "@/lib/authz";
-import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -12,31 +11,50 @@ export async function GET() {
   try {
     const userId = await requireUserId();
 
-    const orgs = await prisma.orgMember.findMany({
+    const { findMany: findManyMembers, findUnique: findUniqueOrg } = await import("@/lib/db");
+    
+    type OrgMemberRecord = {
+      id: string;
+      clerkUserId: string;
+      role: string;
+      organizationId: string;
+      createdAt: string;
+    };
+    
+    type OrgRecord = {
+      id: string;
+      name: string;
+      stripeSubscriptionStatus: string | null;
+      includedActiveRegistries: number;
+    };
+    
+    const members = await findManyMembers<OrgMemberRecord>("org_members", {
       where: { clerkUserId: userId },
-      select: {
-        role: true,
-        org: {
-          select: {
-            id: true,
-            name: true,
-            stripeSubscriptionStatus: true,
-            includedActiveRegistries: true,
-          },
-        },
-      },
-      orderBy: { createdAt: "desc" },
+      orderBy: { column: "createdAt", ascending: false },
     });
+
+    // Fetch organizations for each member
+    const orgs = await Promise.all(
+      (members || []).map(async (m) => {
+        const org = await findUniqueOrg<OrgRecord>("organizations", { id: m.organizationId });
+        return {
+          member: m,
+          org: org || null,
+        };
+      })
+    );
 
     return NextResponse.json({
       ok: true,
-      orgs: orgs.map((m) => ({
-        id: m.org.id,
-        name: m.org.name,
-        role: m.role,
-        stripeSubscriptionStatus: m.org.stripeSubscriptionStatus,
-        includedActiveRegistries: m.org.includedActiveRegistries,
-      })),
+      orgs: orgs
+        .filter((o) => o.org !== null)
+        .map((o) => ({
+          id: o.org!.id,
+          name: o.org!.name,
+          role: o.member.role,
+          stripeSubscriptionStatus: o.org!.stripeSubscriptionStatus,
+          includedActiveRegistries: o.org!.includedActiveRegistries,
+        })),
     });
   } catch (error) {
     console.error("Error in orgs route:", error);

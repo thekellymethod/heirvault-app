@@ -8,7 +8,7 @@ import { nowPlusHours } from "@/lib/security";
 import { putObject } from "@/lib/storage";
 import { makeInvitePdf } from "@/lib/pdf/invite";
 import { sendEmail } from "@/lib/email";
-import { ClientInviteStatus, ArtifactType } from "@prisma/client";
+import { ClientInviteStatus } from "@/lib/db/enums";
 import crypto from "crypto";
 
 function shortInviteCodeFromToken(token: string) {
@@ -25,8 +25,9 @@ export async function POST(_: Request, ctx: { params: Promise<{ clientId: string
   const clientId = params.clientId;
 
   // Note: Explicit ownership check recommended for production (currently relies on requireVerifiedAttorney)
-  const client = await prisma.clients.findUnique({ where: { id: clientId } });
-  if (!client?.email) return NextResponse.json({ error: "Client not found or missing email" }, { status: 404 });
+  const { findUnique: findUniqueClient, create: createDb, update: updateDb } = await import("@/lib/db");
+  const client = await findUniqueClient("clients", { id: clientId });
+  if (!client || !(client as any).email) return NextResponse.json({ error: "Client not found or missing email" }, { status: 404 });
 
   const ttl = Number(process.env.INVITE_TOKEN_TTL_HOURS ?? "72");
   const maxSubs = Number(process.env.INVITE_MAX_SUBMISSIONS ?? "2");
@@ -35,20 +36,21 @@ export async function POST(_: Request, ctx: { params: Promise<{ clientId: string
   const tokenHash = hashToken(token);
   const inviteCode = shortInviteCodeFromToken(token);
 
-  const invite = await prisma.client_invites.create({
-    data: {
-      id: crypto.randomUUID(),
-      clientId,
-      token, // Store plaintext temporarily for email
-      tokenHash,
-      email: client.email,
-      status: ClientInviteStatus.ACTIVE,
-      expiresAt: nowPlusHours(ttl),
-      maxSubmissions: maxSubs,
-      submissionCount: 0,
-      invitedByUserId: user.id,
-    },
-  });
+  const inviteId = crypto.randomUUID();
+  const invite = await createDb("client_invites", {
+    id: inviteId,
+    clientId,
+    token, // Store plaintext temporarily for email
+    tokenHash,
+    email: (client as any).email,
+    status: "PENDING", // ClientInviteStatus.PENDING
+    expiresAt: nowPlusHours(ttl).toISOString(),
+    maxSubmissions: maxSubs,
+    submissionCount: 0,
+    invitedByUserId: user.id,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  } as any) as any;
 
   await auditLog({
     actorType: "ATTORNEY",
@@ -62,8 +64,8 @@ export async function POST(_: Request, ctx: { params: Promise<{ clientId: string
   const uploadUrl = `${process.env.APP_URL || "http://localhost:3000"}/upload?token=${encodeURIComponent(token)}`;
 
   const pdfBuf = await makeInvitePdf({
-    clientName: `${client.firstName ?? ""} ${client.lastName ?? ""}`.trim() || "Policyholder",
-    attorneyName: `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() || "Attorney",
+    clientName: `${(client as any).firstName ?? ""} ${(client as any).lastName ?? ""}`.trim() || "Policyholder",
+    attorneyName: `${(user as any).firstName ?? ""} ${(user as any).lastName ?? ""}`.trim() || "Attorney",
     inviteCode,
     uploadUrl,
     requiresTax: false,
@@ -72,23 +74,24 @@ export async function POST(_: Request, ctx: { params: Promise<{ clientId: string
   const artifactKey = `private/artifacts/${clientId}/${invite.id}-invite.pdf`;
   const { sha256: _sha256 } = await putObject({ key: artifactKey, body: pdfBuf, contentType: "application/pdf" });
 
-  const artifact = await prisma.artifacts.create({
-    data: {
-      id: crypto.randomUUID(),
-      type: ArtifactType.INVITE_PDF,
-      clientId: clientId,
-      inviteId: invite.id,
-      fileName: `HeirVault-Invite-${invite.id}.pdf`,
-      filePath: artifactKey,
-      fileSize: pdfBuf.length,
-      mimeType: "application/pdf",
-    },
-  });
+  const artifactId = crypto.randomUUID();
+  const artifact = await createDb("artifacts", {
+    id: artifactId,
+    type: "INVITE_PDF",
+    clientId: clientId,
+    inviteId: invite.id,
+    fileName: `HeirVault-Invite-${invite.id}.pdf`,
+    filePath: artifactKey,
+    fileSize: pdfBuf.length,
+    mimeType: "application/pdf",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  } as any) as any;
 
-  await prisma.client_invites.update({
-    where: { id: invite.id },
-    data: { invitePdfArtifactId: artifact.id },
-  });
+  await updateDb("client_invites", { id: invite.id }, {
+    invitePdfArtifactId: artifact.id,
+    updatedAt: new Date().toISOString(),
+  } as any);
 
   await auditLog({
     actorType: "SYSTEM",
@@ -100,7 +103,7 @@ export async function POST(_: Request, ctx: { params: Promise<{ clientId: string
   });
 
   await sendEmail({
-    to: client.email,
+    to: (client as any).email,
     subject: "Secure Upload Invitation",
     html: `
       <p>Your secure upload invite is ready.</p>
@@ -117,7 +120,7 @@ export async function POST(_: Request, ctx: { params: Promise<{ clientId: string
     clientId,
     inviteId: invite.id,
     action: "INVITE_EMAIL_SENT",
-    metadata: { to: client.email },
+      metadata: { to: (client as any).email },
   });
 
   // Return only attorney-facing safe response

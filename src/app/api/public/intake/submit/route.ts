@@ -7,11 +7,14 @@ import { makeReceiptNumber } from "@/lib/security";
 import { makeReceiptPdf } from "@/lib/pdf/receipt";
 import { putObject } from "@/lib/storage";
 import { sendEmail } from "@/lib/email";
-import { ArtifactType, ClientInviteStatus, DocumentClassificationStatus } from "@prisma/client";
+import { ClientInviteStatus, DocumentClassificationStatus } from "@/lib/db/enums";
 import { bandFromScore } from "@/lib/confidence";
 import { intakeRules, requiredDocTypesForInvite } from "@/lib/rules/requiredDocs";
-import { rateLimit, clientIp } from "@/lib/security/rateLimit";
-import crypto from "crypto";
+import { rateLimit, getClientIp } from "@/lib/security/rateLimit";
+
+const ArtifactType = {
+  RECEIPT_PDF: "RECEIPT_PDF",
+} as const;
 
 function labelDocType(dt: string) {
   switch (dt) {
@@ -31,43 +34,73 @@ function labelDocType(dt: string) {
 
 export async function POST(req: Request) {
   // Rate limiting
-  const ip = clientIp(req);
-  const rl = rateLimit(`submit:${ip}`, { limit: 10, windowMs: 60_000 });
-  if (!rl.ok) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  const ip = getClientIp(req);
+  const rl = rateLimit(`submit:${ip}`, 10, 60_000);
+  if (!rl.allowed) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
 
   const { token } = await req.json().catch(() => ({}));
   if (!token || typeof token !== "string") return NextResponse.json({ error: "Invalid token" }, { status: 400 });
 
   const tokenHash = hashToken(token);
-  const invite = await prisma.client_invites.findUnique({
-    where: { tokenHash },
-    include: { clients: true },
-  });
+  const { findUnique: findUniqueInvite, findUnique: findUniqueClient, findMany: findManyPolicies, getDb } = await import("@/lib/db");
+  
+  type InviteRecord = {
+    id: string;
+    tokenHash: string;
+    status: string;
+    expiresAt: string | Date;
+    submissionCount: number;
+    maxSubmissions: number;
+    clientId: string;
+    createdAt: string;
+  };
+  
+  type ClientRecord = {
+    id: string;
+    firstName: string | null;
+    lastName: string | null;
+    email: string | null;
+  };
+  
+  const invite = await findUniqueInvite<InviteRecord>("client_invites", { tokenHash });
 
-  if (!invite || invite.status !== ClientInviteStatus.ACTIVE) return NextResponse.json({ error: "Invite invalid" }, { status: 403 });
-  if (invite.expiresAt.getTime() < Date.now()) return NextResponse.json({ error: "Invite expired" }, { status: 403 });
+  if (!invite || invite.status !== ClientInviteStatus.PENDING) return NextResponse.json({ error: "Invite invalid" }, { status: 403 });
+  const expiresAt = typeof invite.expiresAt === 'string' ? new Date(invite.expiresAt) : invite.expiresAt;
+  if (expiresAt.getTime() < Date.now()) return NextResponse.json({ error: "Invite expired" }, { status: 403 });
   if (invite.submissionCount >= invite.maxSubmissions) return NextResponse.json({ error: "Invite used" }, { status: 403 });
 
+  // Fetch client separately
+  const client = await findUniqueClient<ClientRecord>("clients", { id: invite.clientId });
+  if (!client) return NextResponse.json({ error: "Client not found" }, { status: 404 });
+
   // Get documents for this invite
-  const documents = await prisma.documents.findMany({
-    where: {
-      clientId: invite.clientId,
-      uploadedVia: "CLIENT_INVITE_UPLOAD",
-      createdAt: { gte: invite.createdAt },
-    },
-  });
+  const db = getDb();
+  const { data: docsData } = await db
+    .from("documents")
+    .select("*")
+    .eq("clientId", invite.clientId)
+    .eq("uploadedVia", "CLIENT_INVITE_UPLOAD")
+    .gte("createdAt", invite.createdAt);
+  
+  const documents = (docsData || []) as Array<{
+    fileType: string;
+    classificationStatus: string;
+    confidenceScore: number | null;
+  }>;
 
   // Get expected policy to determine required docs
-  const expectedPolicy = await prisma.policies.findFirst({
+  const policies = await findManyPolicies("policies", {
     where: { clientId: invite.clientId },
-    orderBy: { createdAt: "desc" },
+    orderBy: { column: "createdAt", ascending: false },
+    limit: 1,
   });
+  const expectedPolicy = policies && policies.length > 0 ? policies[0] : null;
 
   // Determine intake rules
   const rules = intakeRules({
     requireGovId: true,
     requireTax: false, // Can be set based on invite metadata if needed
-    beneficiariesExpected: expectedPolicy?.expectedBeneficiaryCount ?? null,
+    beneficiariesExpected: (expectedPolicy as { expectedBeneficiaryCount?: number | null } | null)?.expectedBeneficiaryCount ?? null,
   });
 
   const required = requiredDocTypesForInvite(rules);
@@ -99,10 +132,11 @@ export async function POST(req: Request) {
   }
 
   // Count submissions
-  await prisma.client_invites.update({
-    where: { id: invite.id },
-    data: { submissionCount: { increment: 1 } },
-  });
+  const { update: updateInvite } = await import("@/lib/db");
+  await updateInvite("client_invites", { id: invite.id }, {
+    submissionCount: invite.submissionCount + 1,
+    updatedAt: new Date().toISOString(),
+  } as Record<string, unknown>);
 
   await auditLog({
     actorType: "POLICYHOLDER",
@@ -116,7 +150,7 @@ export async function POST(req: Request) {
   // NOTE: The OCR/scoring worker is separate; at submit time we generate a receipt
   // based on current statuses. Later review/auto-accept happens asynchronously.
   const receiptNumber = makeReceiptNumber();
-  const clientName = `${invite.clients.firstName ?? ""} ${invite.clients.lastName ?? ""}`.trim() || "Policyholder";
+  const clientName = `${client.firstName ?? ""} ${client.lastName ?? ""}`.trim() || "Policyholder";
 
   const items = documents.map(d => {
     // Policyholder-safe status
@@ -150,28 +184,31 @@ export async function POST(req: Request) {
   const artifactKey = `private/artifacts/${invite.clientId}/${invite.id}-receipt-${receiptNumber}.pdf`;
   const { sha256: _sha256 } = await putObject({ key: artifactKey, body: pdfBuf, contentType: "application/pdf" });
 
-  const art = await prisma.artifacts.create({
-    data: {
-      id: crypto.randomUUID(),
-      type: ArtifactType.RECEIPT_PDF,
-      clientId: invite.clientId,
-      inviteId: invite.id,
-      fileName: `HeirVault-Receipt-${receiptNumber}.pdf`,
-      filePath: artifactKey,
-      fileSize: pdfBuf.length,
-      mimeType: "application/pdf",
-    },
-  });
+  const { create: createArtifact, create: createReceipt } = await import("@/lib/db");
+  const { randomUUID } = await import("crypto");
+  
+  const art = await createArtifact("artifacts", {
+    id: randomUUID(),
+    type: ArtifactType.RECEIPT_PDF,
+    clientId: invite.clientId,
+    inviteId: invite.id,
+    fileName: `HeirVault-Receipt-${receiptNumber}.pdf`,
+    filePath: artifactKey,
+    fileSize: pdfBuf.length,
+    mimeType: "application/pdf",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  } as Record<string, unknown>) as { id: string };
 
-  await prisma.receipts.create({
-    data: {
-      id: crypto.randomUUID(),
-      clientId: invite.clientId,
-      inviteId: invite.id,
-      receiptNumber: receiptNumber,
-      artifactId: art.id,
-    },
-  });
+  await createReceipt("receipts", {
+    id: randomUUID(),
+    clientId: invite.clientId,
+    inviteId: invite.id,
+    receiptNumber: receiptNumber,
+    artifactId: art.id,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  } as Record<string, unknown>);
 
   await auditLog({
     actorType: "SYSTEM",
@@ -183,7 +220,7 @@ export async function POST(req: Request) {
   });
 
   await sendEmail({
-    to: invite.clients.email!,
+    to: client.email!,
     subject: "Submission Receipt",
     html: `
       <p>Your submission has been received.</p>
@@ -199,7 +236,7 @@ export async function POST(req: Request) {
     clientId: invite.clientId,
     inviteId: invite.id,
     action: "RECEIPT_EMAIL_SENT",
-    metadata: { to: invite.clients.email, receiptNumber },
+    metadata: { to: client.email, receiptNumber },
   });
 
   // Fire-and-forget kickoff (do not block policyholder)

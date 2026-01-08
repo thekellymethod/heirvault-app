@@ -26,83 +26,29 @@ export async function PUT(req: NextRequest) {
       );
     }
 
-    // Use raw SQL first for reliability
-    let updated: {
-      id: string,
-      email: string,
+    // Update user using Supabase
+    const { update: updateUser, findUnique: findUniqueUser } = await import("@/lib/db");
+    
+    type UserRecord = {
+      id: string;
+      email: string;
       firstName: string | null;
       lastName: string | null;
       barNumber: string | null;
-      createdAt: Date;
-      updatedAt: Date;
-    } | null = null;
-    try {
-      // Update user using raw SQL
-      await prisma.$executeRaw`
-        UPDATE users
-        SET 
-          firstName = ${firstName.trim()},
-          lastName = ${lastName.trim()},
-          bar_number = ${barNumber?.trim() || null},
-          updated_at = NOW()
-        WHERE id = ${currentUser.id}
-      `;
+      createdAt: string;
+      updatedAt: string;
+    };
+    
+    // Update user
+    await updateUser("users", { id: currentUser.id }, {
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      barNumber: barNumber?.trim() || null,
+      updatedAt: new Date().toISOString(),
+    } as Record<string, unknown>);
 
-      // Fetch updated user
-      const updatedResult = await prisma.$queryRaw<Array<{
-        id: string,
-        email: string,
-        firstName: string | null;
-        lastName: string | null;
-        bar_number: string | null;
-        createdAt: Date;
-        updated_at: Date;
-      }>>`
-        SELECT id, email, firstName, lastName, bar_number, createdAt, updated_at
-        FROM users
-        WHERE id = ${currentUser.id}
-      `;
-
-      if (updatedResult && updatedResult.length > 0) {
-        const row = updatedResult[0];
-        updated = {
-          id: row.id,
-          email: row.email,
-          firstName: row.firstName,
-          lastName: row.lastName,
-          barNumber: row.bar_number,
-          createdAt: row.createdAt,
-          updatedAt: row.updated_at,
-        };
-      }
-    } catch (sqlError: unknown) {
-      const sqlErrorMessage = sqlError instanceof Error ? sqlError.message : "Unknown error";
-      console.error("User profile update: Raw SQL failed, trying Prisma:", sqlErrorMessage);
-      // Fallback to Prisma
-      try {
-        const prismaResult = await prisma.user.update({
-          where: { id: currentUser.id },
-          data: {
-            firstName: firstName.trim(),
-            lastName: lastName.trim(),
-            barNumber: barNumber?.trim() || null,
-          },
-        });
-        updated = {
-          id: prismaResult.id,
-          email: prismaResult.email,
-          firstName: prismaResult.firstName,
-          lastName: prismaResult.lastName,
-          barNumber: prismaResult.barNumber,
-          createdAt: prismaResult.createdAt,
-          updatedAt: prismaResult.updatedAt,
-        };
-      } catch (prismaError: unknown) {
-        const prismaErrorMessage = prismaError instanceof Error ? prismaError.message : "Unknown error";
-        console.error("User profile update: Prisma also failed:", prismaErrorMessage);
-        throw prismaError;
-      }
-    }
+    // Fetch updated user
+    const updated = await findUniqueUser<UserRecord>("users", { id: currentUser.id });
 
     if (!updated) {
       return NextResponse.json(
@@ -111,7 +57,15 @@ export async function PUT(req: NextRequest) {
       );
     }
 
-    return NextResponse.json(updated);
+    return NextResponse.json({
+      id: updated.id,
+      email: updated.email,
+      firstName: updated.firstName,
+      lastName: updated.lastName,
+      barNumber: updated.barNumber,
+      createdAt: new Date(updated.createdAt),
+      updatedAt: new Date(updated.updatedAt),
+    });
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error("Error updating user profile:", error);
@@ -121,4 +75,3 @@ export async function PUT(req: NextRequest) {
     );
   }
 }
-

@@ -17,8 +17,10 @@ export async function GET(
     // Verify attorney has access to this client
     await assertAttorneyCanAccessClient(clientId);
 
+    const { queryRaw } = await import("@/lib/db");
+    
     // Get all receipts for this client
-    const receipts = await prisma.$queryRawUnsafe<Array<{
+    const receipts = await queryRaw<Array<{
       id: string,
       receipt_number: string,
       clientId: string,
@@ -29,17 +31,17 @@ export async function GET(
       SELECT 
         r.id,
         r.receipt_number,
-        r.clientId,
-        r.createdAt,
+        r."clientId",
+        r."createdAt",
         r.email_sent,
         r.email_sent_at
       FROM receipts r
-      WHERE r.clientId = $1
-      ORDER BY r.createdAt DESC
-    `, clientId);
+      WHERE r."clientId" = $1
+      ORDER BY r."createdAt" DESC
+    `, [clientId]);
 
     // Get all audit logs for this client
-    const auditLogs = await prisma.$queryRawUnsafe<Array<{
+    const auditLogs = await queryRaw<Array<{
       id: string,
       user_id: string | null;
       org_id: string | null;
@@ -56,20 +58,20 @@ export async function GET(
         al.id,
         al.user_id,
         al.org_id,
-        al.clientId,
+        al."clientId",
         al.policy_id,
         al.action,
         al.message,
-        al.createdAt,
+        al."createdAt",
         u.email as user_email,
-        u.firstName as user_firstName,
-        u.lastName as user_lastName
+        u."firstName" as user_firstName,
+        u."lastName" as user_lastName
       FROM audit_logs al
       LEFT JOIN users u ON u.id = al.user_id
-      WHERE al.clientId = $1
-      ORDER BY al.createdAt DESC
+      WHERE al."clientId" = $1
+      ORDER BY al."createdAt" DESC
       LIMIT 1000
-    `, clientId);
+    `, [clientId]);
 
     // Generate hashes for receipts
     // CRITICAL: Each receipt must use only the policies that existed at the time it was created
@@ -79,16 +81,16 @@ export async function GET(
         // Query only policies that existed at the time this receipt was created
         // This preserves historical accuracy - policies added/modified after receipt creation
         // will not affect the receipt's hash
-        const policiesAtReceiptTime = await prisma.$queryRawUnsafe<Array<{
+        const policiesAtReceiptTime = await queryRaw<Array<{
           id: string,
           policy_number: string | null;
         }>>(`
           SELECT id, policy_number
           FROM policies
-          WHERE clientId = $1
-            AND createdAt <= $2
-          ORDER BY createdAt ASC
-        `, clientId, receipt.createdAt);
+          WHERE "clientId" = $1
+            AND "createdAt" <= $2
+          ORDER BY "createdAt" ASC
+        `, [clientId, receipt.createdAt]);
 
         const hash = generateReceiptHash({
           receiptId: receipt.receipt_number,

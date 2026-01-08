@@ -13,35 +13,33 @@ import { getDocumentCategory } from "./taxonomy";
  * Returns count of documents updated
  */
 export async function backfillDocumentCategories(batchSize: number = 100): Promise<number> {
+  const { update: updateDb, getDb } = await import("@/lib/db");
+  const db = getDb();
+  
   let updated = 0;
   let hasMore = true;
 
   while (hasMore) {
     // Find documents without category
-    const documents = await prisma.documents.findMany({
-      where: {
-        documentCategory: null,
-      },
-      select: {
-        id: true,
-        fileType: true,
-      },
-      take: batchSize,
-    });
+    const { data: documents } = await db
+      .from("documents")
+      .select("id, fileType")
+      .is("documentCategory", null)
+      .limit(batchSize);
 
-    if (documents.length === 0) {
+    if (!documents || documents.length === 0) {
       hasMore = false;
       break;
     }
 
     // Update each document with mapped category
-    for (const doc of documents) {
+    for (const doc of documents as Array<{ id: string; fileType: string | null }>) {
       const category = getDocumentCategory(doc.fileType, null);
       
       if (category) {
-        await prisma.documents.update({
-          where: { id: doc.id },
-          data: { documentCategory: category },
+        await updateDb("documents", { id: doc.id }, {
+          documentCategory: category,
+          updatedAt: new Date().toISOString(),
         });
         updated++;
       }
@@ -60,15 +58,29 @@ export async function backfillDocumentCategories(batchSize: number = 100): Promi
  * Get statistics on category distribution
  */
 export async function getCategoryStats() {
-  const stats = await prisma.documents.groupBy({
-    by: ["documentCategory"],
-    _count: {
-      id: true,
-    },
-  });
+  // Use raw SQL for groupBy since Supabase doesn't have groupBy helper
+  const { queryRaw } = await import("@/lib/db");
+  const statsResult = await queryRaw<{
+    documentCategory: string | null;
+    count: number;
+  }>(
+    `SELECT 
+      document_category as "documentCategory",
+      COUNT(*)::int as count
+    FROM documents
+    GROUP BY document_category`,
+    []
+  );
 
-  return stats.map((stat) => ({
+  // queryRaw returns an array
+  const stats = Array.isArray(statsResult) ? statsResult : [];
+
+  if (stats.length === 0) {
+    return [];
+  }
+
+  return stats.map((stat: { documentCategory: string | null; count: number }) => ({
     category: stat.documentCategory || "UNCATEGORIZED",
-    count: stat._count.id,
+    count: stat.count,
   }));
 }

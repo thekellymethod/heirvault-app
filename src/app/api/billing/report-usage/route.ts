@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { stripe } from "@/lib/stripe";
 
 export const dynamic = "force-dynamic";
@@ -34,14 +33,16 @@ export async function POST(req: Request) {
       );
     }
 
-    const org = await prisma.org.findUnique({
-      where: { id: orgId },
-      select: {
-        stripeSubscriptionId: true,
-        stripeSubscriptionStatus: true,
-        includedActiveRegistries: true,
-      },
-    });
+    const { findUnique: findUniqueOrg, count: countRegistries } = await import("@/lib/db");
+    
+    type OrgRecord = {
+      id: string;
+      stripeSubscriptionId: string | null;
+      stripeSubscriptionStatus: string | null;
+      includedActiveRegistries: number;
+    };
+    
+    const org = await findUniqueOrg<OrgRecord>("organizations", { id: orgId });
 
     if (!org?.stripeSubscriptionId) {
       return NextResponse.json(
@@ -50,14 +51,14 @@ export async function POST(req: Request) {
       );
     }
 
-    if (!BILLABLE_STATUSES.has(org.stripeSubscriptionStatus)) {
+    if (!org.stripeSubscriptionStatus || !BILLABLE_STATUSES.has(org.stripeSubscriptionStatus)) {
       return NextResponse.json(
         { ok: false, message: "Subscription not billable." },
         { status: 400 }
       );
     }
 
-    const activeCount = await prisma.registry.count({
+    const activeCount = await countRegistries("registries", {
       where: { orgId, status: "active" },
     });
 
@@ -78,7 +79,7 @@ export async function POST(req: Request) {
     }
 
     // Set exact usage quantity (prevents drift/double-count)
-    await stripe.subscriptionItems.createUsageRecord(meteredItem.id, {
+    await (stripe.subscriptionItems as any).createUsageRecord(meteredItem.id, {
       quantity: billable,
       timestamp: Math.floor(Date.now() / 1000),
       action: "set",

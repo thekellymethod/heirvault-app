@@ -15,26 +15,39 @@ export async function GET() {
     // For admins without org membership, return admin override response
     if (isAdmin) {
       try {
-        const membership = await prisma.org_members.findFirst({
+        const { findMany: findManyMembers, findUnique: findUniqueOrg } = await import("@/lib/db");
+        
+        type OrgMemberRecord = {
+          id: string;
+          userId: string;
+          organizationId: string;
+        };
+        
+        const memberships = await findManyMembers<OrgMemberRecord>("org_members", {
           where: { userId: principal.dbUserId },
-          include: { organizations: true },
+          limit: 1,
         });
 
-        if (membership) {
-          const o = membership.organizations;
-          const _active = o.billingStatus === "ACTIVE" || o.billingStatus === "TRIALING";
+        if (memberships && memberships.length > 0) {
+          const membership = memberships[0];
+          const org = await findUniqueOrg("organizations", { id: membership.organizationId });
           
-          return NextResponse.json({
-            ok: true,
-            org: {
-              id: o.id,
-              name: o.name,
-              subscriptionStatus: o.billingStatus,
-              currentPeriodEnd: (o as { currentPeriodEnd?: Date | null }).currentPeriodEnd,
-              active: true, // Admin override: always active
-              isAdmin: true,
-            },
-          });
+          if (org) {
+            const o = org as any;
+            const _active = o.billingStatus === "ACTIVE" || o.billingStatus === "TRIALING";
+            
+            return NextResponse.json({
+              ok: true,
+              org: {
+                id: o.id,
+                name: o.name,
+                subscriptionStatus: o.billingStatus,
+                currentPeriodEnd: o.currentPeriodEnd ? (typeof o.currentPeriodEnd === 'string' ? new Date(o.currentPeriodEnd) : o.currentPeriodEnd) : null,
+                active: true, // Admin override: always active
+                isAdmin: true,
+              },
+            });
+          }
         }
       } catch (error) {
         // If query fails, continue with admin override response
@@ -56,16 +69,31 @@ export async function GET() {
     }
 
     // Non-admin users must have org membership
-    const membership = await prisma.org_members.findFirst({
+    const { findMany: findManyMembers, findUnique: findUniqueOrg } = await import("@/lib/db");
+    
+    type OrgMemberRecord = {
+      id: string;
+      userId: string;
+      organizationId: string;
+    };
+    
+    const memberships = await findManyMembers<OrgMemberRecord>("org_members", {
       where: { userId: principal.dbUserId },
-      include: { organizations: true },
+      limit: 1,
     });
 
-    if (!membership) {
+    if (!memberships || memberships.length === 0) {
       return NextResponse.json({ error: "No organization" }, { status: 400 });
     }
 
-    const o = membership.organizations;
+    const membership = memberships[0];
+    const org = await findUniqueOrg("organizations", { id: membership.organizationId });
+    
+    if (!org) {
+      return NextResponse.json({ error: "Organization not found" }, { status: 400 });
+    }
+
+    const o = org as any;
     const active = o.billingStatus === "ACTIVE" || o.billingStatus === "TRIALING";
 
     return NextResponse.json({
@@ -74,7 +102,7 @@ export async function GET() {
         id: o.id,
         name: o.name,
         subscriptionStatus: o.billingStatus,
-        currentPeriodEnd: (o as { currentPeriodEnd?: Date | null }).currentPeriodEnd,
+        currentPeriodEnd: o.currentPeriodEnd ? (typeof o.currentPeriodEnd === 'string' ? new Date(o.currentPeriodEnd) : o.currentPeriodEnd) : null,
         active,
         isAdmin: false,
       },

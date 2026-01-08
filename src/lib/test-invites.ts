@@ -76,62 +76,112 @@ export async function getOrCreateTestInvite(token: string) {
   const clientInfo = extractTestClientInfo(normalizedToken);
 
   // Try to find existing invite (use normalized token)
-  const existingInvite = await prisma.client_invites.findFirst({
+  const { findMany: findManyInvites, findUnique: findUniqueClient, findMany: findManyClients, create: createDb } = await import("@/lib/db");
+  const { randomUUID } = await import("crypto");
+  
+  type InviteRecord = {
+    id: string;
+    clientId: string;
+    email: string;
+    token: string;
+    expiresAt: string;
+    usedAt: string | null;
+    createdAt: string;
+  };
+  
+  type ClientRecord = {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string | null;
+    dateOfBirth: string | null;
+  };
+  
+  const existingInvites = await findManyInvites<InviteRecord>("client_invites", {
     where: { token: normalizedToken },
-    include: {
-      clients: true,
-    },
+    limit: 1,
   });
 
-  if (existingInvite) {
-    return {
-      id: existingInvite.id,
-      clientId: existingInvite.clientId,
-      email: existingInvite.email,
-      token: existingInvite.token,
-      expiresAt: existingInvite.expiresAt,
-      usedAt: existingInvite.usedAt,
-      createdAt: existingInvite.createdAt,
-      client: {
-        id: existingInvite.clients.id,
-        firstName: existingInvite.clients.firstName || "",
-        lastName: existingInvite.clients.lastName || "",
-        email: existingInvite.clients.email,
-        phone: existingInvite.clients.phone || null,
-        dateOfBirth: existingInvite.clients.dateOfBirth || null,
-      },
-    };
+  if (existingInvites && existingInvites.length > 0) {
+    const existingInvite = existingInvites[0];
+    const client = await findUniqueClient<ClientRecord>("clients", { id: existingInvite.clientId });
+    
+    if (client) {
+      return {
+        id: existingInvite.id,
+        clientId: existingInvite.clientId,
+        email: existingInvite.email,
+        token: existingInvite.token,
+        expiresAt: existingInvite.expiresAt,
+        usedAt: existingInvite.usedAt,
+        createdAt: existingInvite.createdAt,
+        client: {
+          id: client.id,
+          firstName: client.firstName || "",
+          lastName: client.lastName || "",
+          email: client.email,
+          phone: client.phone || null,
+          dateOfBirth: client.dateOfBirth || null,
+        },
+      };
+    }
   }
 
   // Find or create client
-  let client = await prisma.clients.findFirst({
+  const existingClients = await findManyClients<ClientRecord>("clients", {
     where: { email: clientInfo.email },
+    limit: 1,
   });
+  
+  let client = existingClients && existingClients.length > 0 ? existingClients[0] : null;
 
   if (!client) {
-    client = await prisma.clients.create({
-      data: {
-        id: crypto.randomUUID(),
-        email: clientInfo.email,
-        firstName: clientInfo.firstName,
-        lastName: clientInfo.lastName,
-      },
+    const clientId = randomUUID();
+    const newClient = await createDb("clients", {
+      id: clientId,
+      email: clientInfo.email,
+      firstName: clientInfo.firstName,
+      lastName: clientInfo.lastName,
+      phone: null,
+      dateOfBirth: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     });
+    client = {
+      id: (newClient as { id: string }).id,
+      firstName: (newClient as { firstName: string }).firstName,
+      lastName: (newClient as { lastName: string }).lastName,
+      email: (newClient as { email: string }).email,
+      phone: null,
+      dateOfBirth: null,
+    };
   }
 
   // Create invite with expiration (14 days from now)
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + 14);
 
-  const newInvite = await prisma.client_invites.create({
-    data: {
-      id: crypto.randomUUID(),
-      clientId: client.id,
-      email: clientInfo.email,
-      token: normalizedToken,
-      expiresAt: expiresAt,
-    },
+  const newInviteResult = await createDb("client_invites", {
+    id: randomUUID(),
+    clientId: client.id,
+    email: clientInfo.email,
+    token: normalizedToken,
+    expiresAt: expiresAt.toISOString(),
+    usedAt: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
   });
+  
+  const newInvite: InviteRecord = {
+    id: (newInviteResult as { id: string }).id,
+    clientId: (newInviteResult as { clientId: string }).clientId,
+    email: (newInviteResult as { email: string }).email,
+    token: (newInviteResult as { token: string }).token,
+    expiresAt: (newInviteResult as { expiresAt: string }).expiresAt,
+    usedAt: null,
+    createdAt: (newInviteResult as { createdAt: string }).createdAt,
+  };
 
   return {
     id: newInvite.id,

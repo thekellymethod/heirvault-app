@@ -2,7 +2,7 @@
 import { withRouteGuard } from "@/lib/permissions/route";
 import { requireAuthPrincipal, requireRole } from "@/lib/permissions/guard";
 ;
-import { UserRole } from "@prisma/client";
+import { UserRole } from "@/lib/db/enums";
 
 export async function GET(_: Request, ctx: { params: Promise<{ clientId: string }> }) {
   return withRouteGuard(async () => {
@@ -11,25 +11,43 @@ export async function GET(_: Request, ctx: { params: Promise<{ clientId: string 
 
     const { clientId } = await ctx.params;
 
-    const grants = await prisma.attorneyClientAccess.findMany({
+    const { findMany: findManyAccess, findMany: findManyUsers } = await import("@/lib/db");
+    
+    const accessGrants = await findManyAccess("attorney_client_access", {
       where: { clientId, isActive: true },
-      include: { users: { select: { id: true, role: true, clerkId: true, email: true, firstName: true, lastName: true } } },
-      orderBy: { grantedAt: "desc" },
-      take: 200,
+      orderBy: { column: "grantedAt", ascending: false },
+      limit: 200,
     });
+    
+    // Fetch users for each grant
+    const grants = await Promise.all(
+      (accessGrants || []).map(async (grant: any) => {
+        const users = await findManyUsers("users", {
+          where: { id: grant.attorneyId },
+          limit: 1,
+        });
+        const user = users && users.length > 0 ? users[0] : null;
+        return {
+          ...grant,
+          users: user || null,
+        };
+      })
+    );
 
     return {
       ok: true,
-      grants: grants.map((g) => ({
-        id: g.id,
-        userId: g.attorneyId,
-        userEmail: g.users.email,
-        userName: `${g.users.firstName ?? ""} ${g.users.lastName ?? ""}`.trim() || g.users.email,
-        role: g.users.role,
-        canViewSensitive: g.canViewSensitive,
-        canDownload: g.canDownload,
-        createdAt: g.grantedAt,
-      })),
+      grants: grants
+        .filter((g: any) => g.users !== null)
+        .map((g: any) => ({
+          id: g.id,
+          userId: g.attorneyId,
+          userEmail: g.users.email,
+          userName: `${g.users.firstName ?? ""} ${g.users.lastName ?? ""}`.trim() || g.users.email,
+          role: g.users.role,
+          canViewSensitive: g.canViewSensitive || false,
+          canDownload: g.canDownload || false,
+          createdAt: g.grantedAt || g.createdAt,
+        })),
     };
   });
 }

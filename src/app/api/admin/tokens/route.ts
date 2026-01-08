@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth/guards";
 import { createApiToken } from "@/lib/security/apiTokens";
-import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 
@@ -12,35 +11,55 @@ export const runtime = "nodejs";
 export async function GET() {
   await requireAdmin(); // Authorization check
 
-  const tokens = await prisma.apiToken.findMany({
-    orderBy: { createdAt: "desc" },
-    include: {
-      createdBy: {
-        select: {
-          id: true,
-          email: true,
-        },
-      },
-    },
+  const { findMany: findManyTokens, findUnique: findUniqueUser } = await import("@/lib/db");
+  
+  type ApiTokenRecord = {
+    id: string;
+    name: string;
+    scopes: string[];
+    createdAt: string;
+    expiresAt: string | null;
+    revokedAt: string | null;
+    lastUsedAt: string | null;
+    lastUsedIp: string | null;
+    lastUsedPath: string | null;
+    createdByUserId: string;
+  };
+  
+  const tokens = await findManyTokens<ApiTokenRecord>("api_tokens", {
+    orderBy: { column: "createdAt", ascending: false },
   });
+
+  // Fetch users for each token
+  const tokensWithUsers = await Promise.all(
+    (tokens || []).map(async (token) => {
+      const user = await findUniqueUser<{ id: string; email: string }>("users", { id: token.createdByUserId });
+      return {
+        token,
+        user: user || null,
+      };
+    })
+  );
 
   return NextResponse.json({
     ok: true,
-    data: tokens.map((token: (typeof tokens)[0]) => ({
-      id: token.id,
-      name: token.name,
-      scopes: token.scopes,
-      createdAt: token.createdAt,
-      expiresAt: token.expiresAt,
-      revokedAt: token.revokedAt,
-      lastUsedAt: token.lastUsedAt,
-      lastUsedIp: token.lastUsedIp,
-      lastUsedPath: token.lastUsedPath,
-      createdBy: {
-        id: token.createdBy.id,
-        email: token.createdBy.email,
-      },
-    })),
+    data: tokensWithUsers
+      .filter((twu) => twu.user !== null)
+      .map((twu) => ({
+        id: twu.token.id,
+        name: twu.token.name,
+        scopes: twu.token.scopes,
+        createdAt: typeof twu.token.createdAt === 'string' ? twu.token.createdAt : new Date(twu.token.createdAt).toISOString(),
+        expiresAt: twu.token.expiresAt ? (typeof twu.token.expiresAt === 'string' ? twu.token.expiresAt : new Date(twu.token.expiresAt).toISOString()) : null,
+        revokedAt: twu.token.revokedAt ? (typeof twu.token.revokedAt === 'string' ? twu.token.revokedAt : new Date(twu.token.revokedAt).toISOString()) : null,
+        lastUsedAt: twu.token.lastUsedAt ? (typeof twu.token.lastUsedAt === 'string' ? twu.token.lastUsedAt : new Date(twu.token.lastUsedAt).toISOString()) : null,
+        lastUsedIp: twu.token.lastUsedIp,
+        lastUsedPath: twu.token.lastUsedPath,
+        createdBy: {
+          id: twu.user!.id,
+          email: twu.user!.email,
+        },
+      })),
   });
 }
 
@@ -77,13 +96,17 @@ export async function POST(req: Request) {
   });
 
   // Audit log
-  await prisma.audit_logs.create({
-    data: {
-      id: crypto.randomUUID(),
-      userId: actor.id,
-      action: "API_TOKEN_CREATED",
-      message: `API token created: tokenId=${record.id}, name=${body.name}, scopes=${body.scopes.join(",")}`,
-      createdAt: new Date(),
+  const { create: createAudit, randomUUID } = await import("@/lib/db");
+  const { randomUUID: cryptoRandomUUID } = await import("crypto");
+  const { logAuditEvent } = await import("@/lib/audit");
+  
+  await logAuditEvent({
+    userId: actor.id,
+    action: "API_TOKEN_CREATED",
+    metadata: {
+      tokenId: record.id,
+      name: body.name,
+      scopes: body.scopes.join(","),
     },
   });
 

@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -32,41 +31,56 @@ export async function POST(req: Request) {
     }
 
     // Create org + member + first registry in a transaction
-    const result = await prisma.$transaction(async (tx) => {
-      const org = await tx.org.create({
-        data: {
-          name: firmName,
-          createdByClerkUserId: userId,
-          // includedActiveRegistries defaults to 5
-        },
-      });
+    const { transaction, create: createDb } = await import("@/lib/db");
+    const { randomUUID } = await import("crypto");
+    
+    const result = await transaction(async () => {
+      const orgId = randomUUID();
+      const now = new Date().toISOString();
+      
+      // Create organization
+      const org = await createDb("organizations", {
+        id: orgId,
+        name: firmName,
+        createdByClerkUserId: userId,
+        includedActiveRegistries: 5,
+        billingPlan: "FREE",
+        createdAt: now,
+        updatedAt: now,
+      } as Record<string, unknown>) as { id: string };
 
-      await tx.orgMember.create({
-        data: {
-          orgId: org.id,
-          clerkUserId: userId,
-          role: "admin",
-        },
-      });
+      // Create org member
+      await createDb("org_members", {
+        id: randomUUID(),
+        orgId: org.id,
+        clerkUserId: userId,
+        role: "OWNER",
+        createdAt: now,
+        updatedAt: now,
+      } as Record<string, unknown>);
 
-      const registry = await tx.registry.create({
-        data: {
-          orgId: org.id,
-          name: estateName,
-          status: "active",
-        },
-      });
+      // Create registry
+      const registryId = randomUUID();
+      const registry = await createDb("registries", {
+        id: registryId,
+        orgId: org.id,
+        name: estateName,
+        status: "active",
+        createdAt: now,
+        updatedAt: now,
+      } as Record<string, unknown>) as { id: string };
 
-      await tx.auditLog.create({
-        data: {
-          orgId: org.id,
-          registryId: registry.id,
-          actorClerkUserId: userId,
-          action: "signup_create_org_registry",
-          targetType: "registry",
-          targetId: registry.id,
-        },
-      });
+      // Audit log
+      await createDb("audit_logs", {
+        id: randomUUID(),
+        orgId: org.id,
+        registryId: registry.id,
+        actorClerkUserId: userId,
+        action: "signup_create_org_registry",
+        targetType: "registry",
+        targetId: registry.id,
+        createdAt: now,
+      } as Record<string, unknown>);
 
       return { orgId: org.id, registryId: registry.id };
     });

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireOrgMember } from "@/lib/authz";
-import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -24,19 +23,31 @@ export async function GET(req: NextRequest) {
 
     await requireOrgMember(orgId);
 
-    const regs = await prisma.registry.findMany({
+    const { findMany: findManyRegistries } = await import("@/lib/db");
+    
+    type RegistryRecord = {
+      id: string;
+      name: string;
+      status: string;
+      createdAt: string;
+      archivedAt: string | null;
+    };
+    
+    const regs = await findManyRegistries<RegistryRecord>("registries", {
       where: { orgId },
-      select: {
-        id: true,
-        name: true,
-        status: true,
-        createdAt: true,
-        archivedAt: true,
-      },
-      orderBy: { createdAt: "desc" },
+      orderBy: { column: "createdAt", ascending: false },
     });
 
-    return NextResponse.json({ ok: true, registries: regs });
+    return NextResponse.json({ 
+      ok: true, 
+      registries: (regs || []).map(r => ({
+        id: r.id,
+        name: r.name,
+        status: r.status,
+        createdAt: typeof r.createdAt === 'string' ? r.createdAt : new Date(r.createdAt).toISOString(),
+        archivedAt: r.archivedAt ? (typeof r.archivedAt === 'string' ? r.archivedAt : new Date(r.archivedAt).toISOString()) : null,
+      }))
+    });
   } catch (error) {
     console.error("Error in registries GET route:", error);
     const message = error instanceof Error ? error.message : "Internal server error";
@@ -68,13 +79,16 @@ export async function POST(req: NextRequest) {
 
     const { userId } = await requireOrgMember(orgId);
 
-    const org = await prisma.org.findUnique({
-      where: { id: orgId },
-      select: {
-        includedActiveRegistries: true,
-        stripeSubscriptionStatus: true,
-      },
-    });
+    const { findUnique: findUniqueOrg, count: countRegistries, create: createRegistry, create: createAudit } = await import("@/lib/db");
+    const { randomUUID } = await import("crypto");
+    
+    type OrgRecord = {
+      id: string;
+      includedActiveRegistries: number;
+      stripeSubscriptionStatus: string | null;
+    };
+    
+    const org = await findUniqueOrg<OrgRecord>("organizations", { id: orgId });
     
     if (!org) {
       return NextResponse.json(
@@ -83,12 +97,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const activeCount = await prisma.registry.count({
+    const activeCount = await countRegistries("registries", {
       where: { orgId, status: "active" },
     });
     
     const over = activeCount >= org.includedActiveRegistries;
-    const isPaid = PAID.has(org.stripeSubscriptionStatus);
+    const isPaid = org.stripeSubscriptionStatus && PAID.has(org.stripeSubscriptionStatus);
 
     if (over && !isPaid) {
       return NextResponse.json(
@@ -103,22 +117,28 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const registry = await prisma.registry.create({
-      data: { orgId, name, status: "active" },
-      select: { id: true },
-    });
+    const registryId = randomUUID();
+    const now = new Date().toISOString();
+    const registry = await createRegistry("registries", {
+      id: registryId,
+      orgId,
+      name,
+      status: "active",
+      createdAt: now,
+      updatedAt: now,
+    } as Record<string, unknown>) as { id: string };
 
-    await prisma.auditLog.create({
-      data: {
-        orgId,
-        registryId: registry.id,
-        actorClerkUserId: userId,
-        action: "registry_create",
-        targetType: "registry",
-        targetId: registry.id,
-        meta: { name },
-      },
-    });
+    await createAudit("audit_logs", {
+      id: randomUUID(),
+      orgId,
+      registryId: registry.id,
+      actorClerkUserId: userId,
+      action: "registry_create",
+      targetType: "registry",
+      targetId: registry.id,
+      meta: { name },
+      createdAt: now,
+    } as Record<string, unknown>);
 
     return NextResponse.json({ ok: true, registryId: registry.id });
   } catch (error) {

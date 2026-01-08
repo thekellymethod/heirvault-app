@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireRegistryAccess } from "@/lib/authz";
-import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -13,20 +12,36 @@ export async function GET(_: NextRequest, ctx: { params: Promise<{ id: string }>
     const { id } = await ctx.params;
     const { registry } = await requireRegistryAccess(id);
 
-    const full = await prisma.registry.findUnique({
-      where: { id: registry.id },
-      select: {
-        id: true,
-        orgId: true,
-        name: true,
-        status: true,
-        createdAt: true,
-        archivedAt: true,
-        policies: {
-          orderBy: { createdAt: "desc" },
-        },
-      },
+    const { findUnique: findUniqueRegistry, findMany: findManyPolicies } = await import("@/lib/db");
+    
+    type RegistryRecord = {
+      id: string;
+      orgId: string;
+      name: string;
+      status: string;
+      createdAt: string;
+      archivedAt: string | null;
+    };
+    
+    const fullRegistry = await findUniqueRegistry<RegistryRecord>("registries", { id: registry.id });
+    
+    if (!fullRegistry) {
+      return NextResponse.json(
+        { ok: false, message: "Registry not found." },
+        { status: 404 }
+      );
+    }
+    
+    // Fetch policies separately
+    const policies = await findManyPolicies("policies", {
+      where: { registryId: registry.id },
+      orderBy: { column: "createdAt", ascending: false },
     });
+    
+    const full = {
+      ...fullRegistry,
+      policies: policies || [],
+    };
 
     if (!full) {
       return NextResponse.json(
@@ -60,39 +75,44 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     const action = String(body?.action ?? "").trim(); // "archive" | "restore" | "rename"
     const name = String(body?.name ?? "").trim();
 
+    const { update: updateRegistry, create: createAudit, randomUUID } = await import("@/lib/db");
+    const { randomUUID: cryptoRandomUUID } = await import("crypto");
+    
     if (action === "archive") {
-      await prisma.registry.update({
-        where: { id: registry.id },
-        data: { status: "archived", archivedAt: new Date() },
-      });
-      await prisma.auditLog.create({
-        data: {
-          orgId: registry.orgId,
-          registryId: registry.id,
-          actorClerkUserId: userId,
-          action: "registry_archive",
-          targetType: "registry",
-          targetId: registry.id,
-        },
-      });
+      await updateRegistry("registries", { id: registry.id }, {
+        status: "archived",
+        archivedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      } as Record<string, unknown>);
+      await createAudit("audit_logs", {
+        id: cryptoRandomUUID(),
+        orgId: registry.orgId,
+        registryId: registry.id,
+        actorClerkUserId: userId,
+        action: "registry_archive",
+        targetType: "registry",
+        targetId: registry.id,
+        createdAt: new Date().toISOString(),
+      } as Record<string, unknown>);
       return NextResponse.json({ ok: true });
     }
 
     if (action === "restore") {
-      await prisma.registry.update({
-        where: { id: registry.id },
-        data: { status: "active", archivedAt: null },
-      });
-      await prisma.auditLog.create({
-        data: {
-          orgId: registry.orgId,
-          registryId: registry.id,
-          actorClerkUserId: userId,
-          action: "registry_restore",
-          targetType: "registry",
-          targetId: registry.id,
-        },
-      });
+      await updateRegistry("registries", { id: registry.id }, {
+        status: "active",
+        archivedAt: null,
+        updatedAt: new Date().toISOString(),
+      } as Record<string, unknown>);
+      await createAudit("audit_logs", {
+        id: cryptoRandomUUID(),
+        orgId: registry.orgId,
+        registryId: registry.id,
+        actorClerkUserId: userId,
+        action: "registry_restore",
+        targetType: "registry",
+        targetId: registry.id,
+        createdAt: new Date().toISOString(),
+      } as Record<string, unknown>);
       return NextResponse.json({ ok: true });
     }
 
@@ -103,21 +123,21 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
           { status: 400 }
         );
       }
-      await prisma.registry.update({
-        where: { id: registry.id },
-        data: { name },
-      });
-      await prisma.auditLog.create({
-        data: {
-          orgId: registry.orgId,
-          registryId: registry.id,
-          actorClerkUserId: userId,
-          action: "registry_rename",
-          targetType: "registry",
-          targetId: registry.id,
-          meta: { name },
-        },
-      });
+      await updateRegistry("registries", { id: registry.id }, {
+        name,
+        updatedAt: new Date().toISOString(),
+      } as Record<string, unknown>);
+      await createAudit("audit_logs", {
+        id: cryptoRandomUUID(),
+        orgId: registry.orgId,
+        registryId: registry.id,
+        actorClerkUserId: userId,
+        action: "registry_rename",
+        targetType: "registry",
+        targetId: registry.id,
+        meta: { name },
+        createdAt: new Date().toISOString(),
+      } as Record<string, unknown>);
       return NextResponse.json({ ok: true });
     }
 

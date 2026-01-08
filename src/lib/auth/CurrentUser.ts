@@ -53,27 +53,32 @@ export async function getOrCreateAppUser(): Promise<AppUser | null> {
   const initialRoles = isAdmin ? ["USER", "ADMIN"] : ["USER"];
 
   // First, check if user exists by Clerk ID
-  let existingUser = await prisma.user.findUnique({
-    where: { clerkId: userId },
-    select: { id: true, roles: true, email: true, clerkId: true },
-  });
+  const { findUnique: findUniqueUser, update: updateUser, create: createUser } = await import("@/lib/db");
+  const { getDb } = await import("@/lib/db");
+  
+  type UserRecord = {
+    id: string;
+    roles: string[];
+    email: string;
+    clerkId: string;
+  };
+  
+  let existingUser = await findUniqueUser<UserRecord>("users", { clerkId: userId });
 
   // If not found by Clerk ID, check if user exists by email (from pending application)
   // This links accounts when someone applies before signing in
   // Note: Email matching is case-insensitive - we normalize to lowercase
   if (!existingUser) {
-    // Use case-insensitive email lookup via raw SQL since Prisma's findUnique is case-sensitive
-    // Query by id only, then use Prisma to get full user object with proper types
-    const userByEmailResult = await prisma.$queryRawUnsafe(
-      `SELECT id FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1`,
-      email
-    ) as Array<{ id: string }>;
+    // Use case-insensitive email lookup via Supabase query
+    const db = getDb();
+    const { data: userByEmailResult } = await db
+      .from("users")
+      .select("id")
+      .ilike("email", email)
+      .limit(1);
 
-    const userByEmail = userByEmailResult.length > 0 
-      ? await prisma.user.findUnique({
-          where: { id: userByEmailResult[0].id },
-          select: { id: true, roles: true, email: true, clerkId: true },
-        })
+    const userByEmail = userByEmailResult && userByEmailResult.length > 0 
+      ? await findUniqueUser<UserRecord>("users", { id: userByEmailResult[0].id as string })
       : null;
 
     if (userByEmail) {
@@ -84,14 +89,11 @@ export async function getOrCreateAppUser(): Promise<AppUser | null> {
         // Link the Clerk account to the existing user account
         // Update clerkId from placeholder (pending_*) to actual Clerk ID
         // Also normalize email to lowercase for consistency
-        existingUser = await prisma.user.update({
-          where: { id: userByEmail.id },
-          data: {
-            clerkId: userId, // Link Clerk account
-            email: email, // Normalize email to lowercase
-          },
-          select: { id: true, roles: true, email: true, clerkId: true },
-        });
+        existingUser = await updateUser("users", { id: userByEmail.id }, {
+          clerkId: userId, // Link Clerk account
+          email: email, // Normalize email to lowercase
+          updatedAt: new Date().toISOString(),
+        } as any) as UserRecord;
         console.log(`[AUDIT] Linked Clerk account (${userId}) to existing user by email: ${email} (OAuth provider: ${cu?.externalAccounts?.[0]?.provider || 'unknown'})`);
       } else {
         // SECURITY: User exists with a different (non-placeholder) clerkId
@@ -134,15 +136,12 @@ export async function getOrCreateAppUser(): Promise<AppUser | null> {
       console.log(`[AUDIT] Removing ADMIN role from user: ${email} (email no longer in admin list)`);
     }
 
-    dbUser = await prisma.user.update({
-      where: { id: existingUser.id },
-      data: {
-        email,
-        roles: updatedRoles,
-        clerkId: userId, // Ensure clerkId is updated (in case it was a placeholder)
-      },
-      select: { id: true, clerkId: true, email: true, roles: true },
-    });
+    dbUser = await updateUser("users", { id: existingUser.id }, {
+      email,
+      roles: updatedRoles,
+      clerkId: userId, // Ensure clerkId is updated (in case it was a placeholder)
+      updatedAt: new Date().toISOString(),
+    } as any) as UserRecord;
 
     // Log admin bootstrap if admin was just added
     if (isAdmin && !existingUser.roles.includes("ADMIN") && dbUser.roles.includes("ADMIN")) {
@@ -150,10 +149,18 @@ export async function getOrCreateAppUser(): Promise<AppUser | null> {
     }
   } else {
     // Create new user
-    dbUser = await prisma.user.create({
-      data: { clerkId: userId, email, roles: initialRoles },
-      select: { id: true, clerkId: true, email: true, roles: true },
-    });
+    const { randomUUID } = await import("crypto");
+    const newUserId = randomUUID();
+    await createUser("users", {
+      id: newUserId,
+      clerkId: userId,
+      email,
+      roles: initialRoles,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    } as any);
+    
+    dbUser = await findUniqueUser<UserRecord>("users", { id: newUserId }) as UserRecord;
 
     // Log admin bootstrap if this is a new admin user
     if (isAdmin) {

@@ -44,14 +44,15 @@ export async function GET(
   try {
     const { receiptId } = await params;
 
-    const receipts = await prisma.$queryRawUnsafe<ReceiptRow[]>(
+    const { queryRaw } = await import("@/lib/db");
+    const receipts = await queryRaw<ReceiptRow[]>(
       `
       SELECT id, receipt_number, "clientId" as "clientId", submission_id, "createdAt"
       FROM receipts
       WHERE receipt_number = $1
       LIMIT 1
       `,
-      receiptId
+      [receiptId]
     );
 
     if (!receipts || receipts.length === 0) {
@@ -63,14 +64,14 @@ export async function GET(
     // Submission (optional)
     let submissionObj: Record<string, unknown> | null = null;
     if (receipt.submission_id) {
-      const subs = await prisma.$queryRawUnsafe<SubmissionRow[]>(
+      const subs = await queryRaw<SubmissionRow[]>(
         `
         SELECT submitted_data, "createdAt"
         FROM submissions
         WHERE id = $1
         LIMIT 1
         `,
-        receipt.submission_id
+        [receipt.submission_id]
       );
 
       const raw = subs?.[0]?.submitted_data ?? null;
@@ -87,14 +88,14 @@ export async function GET(
     const submissionPolicyData = asRecord(submissionObj?.policyData);
 
     // Client from DB
-    const clients = await prisma.$queryRawUnsafe<ClientRow[]>(
+    const clients = await queryRaw<ClientRow[]>(
       `
       SELECT "firstName", "lastName", email
       FROM clients
       WHERE id = $1
       LIMIT 1
       `,
-      receipt.clientId
+      [receipt.clientId]
     );
 
     const clientRow = clients?.[0] ?? null;
@@ -115,7 +116,7 @@ export async function GET(
       null;
 
     // Policy at/before receipt time (keeps it historically consistent)
-    const policies = await prisma.$queryRawUnsafe<PolicyRow[]>(
+    const policies = await queryRaw<PolicyRow[]>(
       `
       SELECT policy_number, policy_type, insurer_id, carrier_name_raw, "createdAt"
       FROM policies
@@ -124,8 +125,7 @@ export async function GET(
       ORDER BY "createdAt" DESC
       LIMIT 1
       `,
-      receipt.clientId,
-      receipt.createdAt
+      [receipt.clientId, receipt.createdAt]
     );
 
     const policyRow = policies?.[0] ?? null;
@@ -146,14 +146,14 @@ export async function GET(
 
     if (!insurerName) {
       if (policyRow?.insurer_id) {
-        const insurers = await prisma.$queryRawUnsafe<InsurerRow[]>(
+        const insurers = await queryRaw<InsurerRow[]>(
           `
           SELECT name
           FROM insurers
           WHERE id = $1
           LIMIT 1
           `,
-          policyRow.insurer_id
+          [policyRow.insurer_id]
         );
         insurerName = insurers?.[0]?.name ?? null;
       } else if (policyRow?.carrier_name_raw) {

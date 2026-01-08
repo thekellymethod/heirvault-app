@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -36,12 +35,17 @@ export async function POST(req: Request) {
     }
 
     // Membership check
-    const member = await prisma.orgMember.findUnique({
-      where: { orgId_clerkUserId: { orgId, clerkUserId: userId } },
-      select: { role: true },
-    });
+    const { findUnique: findUniqueOrg, count: countRegistries, create: createRegistry, getDb } = await import("@/lib/db");
+    
+    const db = getDb();
+    const { data: membersData } = await db
+      .from("org_members")
+      .select("*")
+      .eq("orgId", orgId)
+      .eq("clerkUserId", userId)
+      .limit(1);
 
-    if (!member) {
+    if (!membersData || membersData.length === 0) {
       return NextResponse.json(
         { ok: false, message: "Not a member of this org." },
         { status: 403 }
@@ -49,13 +53,13 @@ export async function POST(req: Request) {
     }
 
     // Get org plan + active count
-    const org = await prisma.org.findUnique({
-      where: { id: orgId },
-      select: {
-        includedActiveRegistries: true,
-        stripeSubscriptionStatus: true,
-      },
-    });
+    type OrgRecord = {
+      id: string;
+      includedActiveRegistries: number;
+      stripeSubscriptionStatus: string | null;
+    };
+    
+    const org = await findUniqueOrg<OrgRecord>("organizations", { id: orgId });
 
     if (!org) {
       return NextResponse.json(
@@ -64,12 +68,12 @@ export async function POST(req: Request) {
       );
     }
 
-    const activeCount = await prisma.registry.count({
+    const activeCount = await countRegistries("registries", {
       where: { orgId, status: "active" },
     });
 
     const overIncluded = activeCount >= org.includedActiveRegistries;
-    const isPaid = PAID_STATUSES.has(org.stripeSubscriptionStatus);
+    const isPaid = org.stripeSubscriptionStatus && PAID_STATUSES.has(org.stripeSubscriptionStatus);
 
     if (overIncluded && !isPaid) {
       return NextResponse.json(
@@ -84,10 +88,16 @@ export async function POST(req: Request) {
       );
     }
 
-    const registry = await prisma.registry.create({
-      data: { orgId, name, status: "active" },
-      select: { id: true },
-    });
+    const { randomUUID } = await import("crypto");
+    const now = new Date().toISOString();
+    const registry = await createRegistry("registries", {
+      id: randomUUID(),
+      orgId,
+      name,
+      status: "active",
+      createdAt: now,
+      updatedAt: now,
+    } as Record<string, unknown>) as { id: string };
 
     return NextResponse.json({
       ok: true,

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireOrgMember } from "@/lib/authz";
-import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -23,20 +22,25 @@ export async function GET(req: NextRequest) {
 
     await requireOrgMember(orgId);
 
-    const files = await prisma.fileAsset.findMany({
-      where: {
-        orgId,
-        ...(registryId ? { registryId } : {}),
-      },
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        originalName: true,
-        mimeType: true,
-        byteSize: true,
-        category: true,
-        createdAt: true,
-      },
+    const { findMany: findManyFiles } = await import("@/lib/db");
+    
+    type FileAssetRecord = {
+      id: string;
+      originalName: string;
+      mimeType: string;
+      byteSize: number;
+      category: string | null;
+      createdAt: string;
+    };
+    
+    const where: Record<string, unknown> = { orgId };
+    if (registryId) {
+      where.registryId = registryId;
+    }
+    
+    const files = await findManyFiles<FileAssetRecord>("file_assets", {
+      where,
+      orderBy: { column: "createdAt", ascending: false },
     });
 
     return NextResponse.json({
@@ -47,7 +51,7 @@ export async function GET(req: NextRequest) {
         mimeType: f.mimeType,
         byteSize: f.byteSize,
         category: f.category,
-        createdAt: f.createdAt.toISOString(),
+        createdAt: typeof f.createdAt === 'string' ? f.createdAt : new Date(f.createdAt).toISOString(),
       })),
     });
   } catch (error) {

@@ -1,7 +1,6 @@
 import "server-only";
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { uploadDocument } from "@/lib/storage";
+import { putObject } from "@/lib/storage";
 import { randomUUID } from "crypto";
 
 export const runtime = "nodejs";
@@ -37,12 +36,14 @@ export async function POST(req: NextRequest) {
     if (licenseFile && licenseFile.size > 0) {
       try {
         const arrayBuffer = await licenseFile.arrayBuffer();
-        const uploaded = await uploadDocument({
-          fileBuffer: arrayBuffer,
-          filename: licenseFile.name,
+        const buffer = Buffer.from(arrayBuffer);
+        const documentKey = `private/attorney-applications/${randomUUID()}-${licenseFile.name}`;
+        await putObject({
+          key: documentKey,
+          body: buffer,
           contentType: licenseFile.type || "application/pdf",
         });
-        licenseDocumentPath = uploaded.storagePath;
+        licenseDocumentPath = documentKey;
         licenseDocumentName = licenseFile.name;
       } catch (uploadError: unknown) {
         const message = uploadError instanceof Error ? uploadError.message : "Unknown error";
@@ -58,19 +59,58 @@ export async function POST(req: NextRequest) {
     // If user doesn't exist, create with placeholder clerkId
     // When they sign in later with Clerk (Apple, Google, Microsoft), their account will be linked via email
     // Use case-insensitive email lookup to handle different OAuth providers
-    const userByEmailResult = await prisma.$queryRawUnsafe<Array<{
-      id: string,
-    }>>(
-      `SELECT id FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1`,
-      email
-    );
+    const { findUnique: findUniqueUser, findMany: findManyProfiles, getDb, create: createDb, update: updateDb } = await import("@/lib/db");
+    const db = getDb();
+    
+    type UserRecord = {
+      id: string;
+      clerkId: string;
+      email: string;
+      firstName: string | null;
+      lastName: string | null;
+      phone: string | null;
+      barNumber: string | null;
+      roles: string[];
+    };
+    
+    type AttorneyProfileRecord = {
+      id: string;
+      userId: string;
+      licenseStatus: string;
+      licenseState: string | null;
+      lawFirm: string | null;
+      licenseDocumentPath: string | null;
+      licenseDocumentName: string | null;
+      appliedAt: string | null;
+    };
+    
+    // Case-insensitive email lookup
+    const { data: userByEmailResult } = await db
+      .from("users")
+      .select("id")
+      .ilike("email", email)
+      .limit(1);
 
-    let dbUser = userByEmailResult.length > 0 
-      ? await prisma.user.findUnique({
-          where: { id: userByEmailResult[0].id },
-          include: { attorneyProfile: true },
-        })
-      : null;
+    let dbUser: (UserRecord & { attorneyProfile: AttorneyProfileRecord | null }) | null = null;
+    
+    if (userByEmailResult && userByEmailResult.length > 0) {
+      const userId = userByEmailResult[0].id as string;
+      const foundUser = await findUniqueUser<UserRecord>("users", { id: userId });
+      
+      if (foundUser) {
+        // Fetch attorney profile separately
+        const profiles = await findManyProfiles<AttorneyProfileRecord>("attorney_profiles", {
+          where: { userId: foundUser.id },
+          limit: 1,
+        });
+        
+        const profile = (profiles && profiles.length > 0 ? profiles[0] : null) as AttorneyProfileRecord | null;
+        dbUser = {
+          ...foundUser,
+          attorneyProfile: profile,
+        } as unknown as (UserRecord & { attorneyProfile: AttorneyProfileRecord | null });
+      }
+    }
 
     // SECURITY: Check if resubmission is allowed BEFORE updating any personal information
     // This prevents unauthorized modification of user data via email enumeration
@@ -109,31 +149,42 @@ export async function POST(req: NextRequest) {
       // Create new user with placeholder clerkId
       // Format: pending_<uuid> to indicate they haven't signed in yet
       const placeholderClerkId = `pending_${randomUUID()}`;
-      dbUser = await prisma.user.create({
-        data: {
-          clerkId: placeholderClerkId,
-          email,
-          firstName,
-          lastName,
-          phone: phone || undefined,
-          barNumber,
-          roles: ["USER"], // Will be updated to include ATTORNEY when profile is created
-        },
-        include: { attorneyProfile: true },
-      });
+      const newUser = await createDb("users", {
+        id: randomUUID(),
+        clerkId: placeholderClerkId,
+        email,
+        firstName,
+        lastName,
+        phone: phone || null,
+        barNumber,
+        roles: ["USER"], // Will be updated to include ATTORNEY when profile is created
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }) as UserRecord;
+      
+      dbUser = {
+        ...newUser,
+        attorneyProfile: null,
+      };
     } else {
       // Only update personal information if we're processing the application
       // At this point, we know the user exists AND has a PENDING profile (checked above)
-      dbUser = await prisma.user.update({
-        where: { id: dbUser.id },
-        data: {
-          firstName: firstName || dbUser.firstName,
-          lastName: lastName || dbUser.lastName,
-          phone: phone || dbUser.phone,
-          barNumber: barNumber || dbUser.barNumber,
-        },
-        include: { attorneyProfile: true },
+      await updateDb("users", { id: dbUser.id }, {
+        firstName: firstName || dbUser.firstName,
+        lastName: lastName || dbUser.lastName,
+        phone: phone || dbUser.phone,
+        barNumber: barNumber || dbUser.barNumber,
+        updatedAt: new Date().toISOString(),
       });
+      
+      // Refetch user to get updated data
+      const updatedUser = await findUniqueUser<UserRecord>("users", { id: dbUser.id });
+      if (updatedUser) {
+        dbUser = {
+          ...updatedUser,
+          attorneyProfile: dbUser.attorneyProfile,
+        } as UserRecord & { attorneyProfile: AttorneyProfileRecord | null };
+      }
     }
 
     // Get the profile (should be null or PENDING at this point)
@@ -141,35 +192,30 @@ export async function POST(req: NextRequest) {
 
     // Create or update attorney profile with PENDING status
     const profile = existingProfile
-      ? await prisma.attorneyProfile.update({
-          where: { userId: dbUser.id },
-          data: {
-            licenseStatus: "PENDING",
-            licenseState: licenseState || undefined,
-            lawFirm: lawFirm || undefined,
-            licenseDocumentPath: licenseDocumentPath || undefined,
-            licenseDocumentName: licenseDocumentName || undefined,
-            appliedAt: new Date(), // Update application timestamp
-          },
-        })
-      : await prisma.attorneyProfile.create({
-          data: {
-            userId: dbUser.id,
-            licenseStatus: "PENDING",
-            licenseState: licenseState || undefined,
-            lawFirm: lawFirm || undefined,
-            licenseDocumentPath: licenseDocumentPath || undefined,
-            licenseDocumentName: licenseDocumentName || undefined,
-          },
-        });
+      ? await updateDb("attorney_profiles", { userId: dbUser.id }, {
+          licenseStatus: "PENDING",
+          licenseState: licenseState || null,
+          lawFirm: lawFirm || null,
+          licenseDocumentPath: licenseDocumentPath || null,
+          licenseDocumentName: licenseDocumentName || null,
+          appliedAt: new Date().toISOString(), // Update application timestamp
+        }) as AttorneyProfileRecord
+      : await createDb("attorney_profiles", {
+          id: randomUUID(),
+          userId: dbUser.id,
+          licenseStatus: "PENDING",
+          licenseState: licenseState || null,
+          lawFirm: lawFirm || null,
+          licenseDocumentPath: licenseDocumentPath || null,
+          licenseDocumentName: licenseDocumentName || null,
+          appliedAt: new Date().toISOString(),
+        }) as AttorneyProfileRecord;
 
     // Add ATTORNEY role if not already present
     if (!dbUser.roles.includes("ATTORNEY")) {
-      await prisma.user.update({
-        where: { id: dbUser.id },
-        data: {
-          roles: [...dbUser.roles, "ATTORNEY"],
-        },
+      await updateDb("users", { id: dbUser.id }, {
+        roles: [...dbUser.roles, "ATTORNEY"],
+        updatedAt: new Date().toISOString(),
       });
     }
 

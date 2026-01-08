@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { requireOrgMember } from "@/lib/authz";
 import { stripe } from "@/lib/stripe";
 
@@ -24,10 +23,14 @@ export async function POST(req: Request) {
 
     await requireOrgMember(orgId);
 
-    const org = await prisma.org.findUnique({
-      where: { id: orgId },
-      select: { stripeCustomerId: true },
-    });
+    const { findUnique: findUniqueOrg } = await import("@/lib/db");
+    
+    type OrgRecord = {
+      id: string;
+      stripeCustomerId: string | null;
+    };
+    
+    const org = await findUniqueOrg<OrgRecord>("organizations", { id: orgId });
 
     if (!org?.stripeCustomerId) {
       return NextResponse.json(

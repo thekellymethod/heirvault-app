@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { requireOrgMember } from "@/lib/authz";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
@@ -28,10 +27,16 @@ export async function POST(req: Request) {
 
     await requireOrgMember(orgId);
 
-    const file = await prisma.fileAsset.findUnique({
-      where: { id: fileId },
-      select: { orgId: true, bucket: true, storagePath: true },
-    });
+    const { findUnique: findUniqueFile } = await import("@/lib/db");
+    
+    type FileAssetRecord = {
+      id: string;
+      orgId: string;
+      bucket: string;
+      storagePath: string;
+    };
+    
+    const file = await findUniqueFile<FileAssetRecord>("file_assets", { id: fileId });
 
     if (!file || file.orgId !== orgId) {
       return NextResponse.json(

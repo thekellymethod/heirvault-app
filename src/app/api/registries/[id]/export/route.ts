@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireRegistryAccess } from "@/lib/authz";
-import { prisma } from "@/lib/prisma";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 
 export const dynamic = "force-dynamic";
@@ -14,27 +13,52 @@ export async function GET(_: NextRequest, ctx: { params: Promise<{ id: string }>
     const { id } = await ctx.params;
     const { registry } = await requireRegistryAccess(id);
 
-    const full = await prisma.registry.findUnique({
-      where: { id: registry.id },
-      select: {
-        id: true,
-        name: true,
-        createdAt: true,
-        org: { select: { name: true } },
-        policies: {
-          orderBy: { createdAt: "desc" },
-          select: {
-            carrier: true,
-            policyNumber: true,
-            insuredName: true,
-            beneficiary: true,
-            faceAmount: true,
-            status: true,
-            notes: true,
-          },
-        },
-      },
+    const { findUnique: findUniqueRegistry, findUnique: findUniqueOrg, findMany: findManyPolicies } = await import("@/lib/db");
+    
+    type RegistryRecord = {
+      id: string;
+      name: string;
+      createdAt: string;
+      orgId: string;
+    };
+    
+    type OrgRecord = {
+      id: string;
+      name: string;
+    };
+    
+    type PolicyRecord = {
+      carrier: string | null;
+      policyNumber: string | null;
+      insuredName: string | null;
+      beneficiary: string | null;
+      faceAmount: number | null;
+      status: string | null;
+      notes: string | null;
+    };
+    
+    const registryData = await findUniqueRegistry<RegistryRecord>("registries", { id: registry.id });
+    
+    if (!registryData) {
+      return NextResponse.json(
+        { ok: false, message: "Registry not found." },
+        { status: 404 }
+      );
+    }
+    
+    const org = await findUniqueOrg<OrgRecord>("organizations", { id: registryData.orgId });
+    const policies = await findManyPolicies<PolicyRecord>("policies", {
+      where: { registryId: registry.id },
+      orderBy: { column: "createdAt", ascending: false },
     });
+    
+    const full = {
+      id: registryData.id,
+      name: registryData.name,
+      createdAt: registryData.createdAt,
+      org: org ? { name: org.name } : { name: "Unknown" },
+      policies: policies || [],
+    };
 
     if (!full) {
       return NextResponse.json(

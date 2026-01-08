@@ -5,12 +5,11 @@ import { hashToken } from "@/lib/invites";
 import { putObject } from "@/lib/storage";
 import { auditLog } from "@/lib/audit";
 import {
-  // ChangeRequestStatus,
   DocumentClassificationStatus,
   DocumentSensitivity,
   UploaderType,
-} from "@prisma/client";
-import { rateLimit, clientIp } from "@/lib/security/rateLimit";
+} from "@/lib/db/enums";
+import { rateLimit, getClientIp } from "@/lib/security/rateLimit";
 import { validateUpload } from "@/lib/security/uploads";
 import crypto from "crypto";
 
@@ -28,25 +27,25 @@ function parseDocType(v: string): DocType {
 
 function classify(docType: DocType) {
   if (docType === "DRIVERS_LICENSE" || docType === "PASSPORT") {
-    return { sensitivityLevel: DocumentSensitivity.S4_HIGHLY_SENSITIVE, gov: true, tax: false, legal: false };
+    return { sensitivityLevel: DocumentSensitivity.RESTRICTED, gov: true, tax: false, legal: false };
   }
   if (docType.startsWith("TAX_")) {
-    return { sensitivityLevel: DocumentSensitivity.S4_HIGHLY_SENSITIVE, gov: false, tax: true, legal: false };
+    return { sensitivityLevel: DocumentSensitivity.RESTRICTED, gov: false, tax: true, legal: false };
   }
   if (["COURT_FILING", "DEMAND_LETTER", "CLAIM_SUMMARY"].includes(docType)) {
-    return { sensitivityLevel: DocumentSensitivity.S5_LEGAL_CASE, gov: false, tax: false, legal: true };
+    return { sensitivityLevel: DocumentSensitivity.RESTRICTED, gov: false, tax: false, legal: true };
   }
   if (["POLICY", "BENEFICIARY_DOC"].includes(docType)) {
-    return { sensitivityLevel: DocumentSensitivity.S3_CONFIDENTIAL, gov: false, tax: false, legal: false };
+    return { sensitivityLevel: DocumentSensitivity.CONFIDENTIAL, gov: false, tax: false, legal: false };
   }
-  return { sensitivityLevel: DocumentSensitivity.S2_INTERNAL, gov: false, tax: false, legal: false };
+  return { sensitivityLevel: DocumentSensitivity.PUBLIC, gov: false, tax: false, legal: false };
 }
 
 export async function POST(req: Request) {
   // Rate limiting
-  const ip = clientIp(req);
-  const rl = rateLimit(`upload:${ip}`, { limit: 30, windowMs: 60_000 });
-  if (!rl.ok) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  const ip = getClientIp(req);
+  const rl = rateLimit(`upload:${ip}`, 30, 60_000);
+  if (!rl.allowed) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
 
   const form = await req.formData();
   const token = form.get("token");
@@ -66,13 +65,31 @@ export async function POST(req: Request) {
   }
 
   const tokenHash = hashToken(token);
-  const cr = await prisma.change_requests.findUnique({
-    where: { tokenHash },
-    include: { clients: true },
-  });
+  const { findUnique: findUniqueChangeRequest, findUnique: findUniqueClient, getDb, create: createDb } = await import("@/lib/db");
+  
+  type ChangeRequestRecord = {
+    id: string;
+    tokenHash: string;
+    expiresAt: string | Date;
+    submissionCount: number;
+    maxSubmissions: number;
+    clientId: string;
+  };
+  
+  type ClientRecord = {
+    id: string;
+    orgId: string | null;
+  };
+  
+  const cr = await findUniqueChangeRequest<ChangeRequestRecord>("change_requests", { tokenHash });
   if (!cr) return NextResponse.json({ error: "Change request invalid" }, { status: 403 });
-  if (cr.expiresAt.getTime() < Date.now()) return NextResponse.json({ error: "Expired" }, { status: 403 });
+  const expiresAt = typeof cr.expiresAt === 'string' ? new Date(cr.expiresAt) : cr.expiresAt;
+  if (expiresAt.getTime() < Date.now()) return NextResponse.json({ error: "Expired" }, { status: 403 });
   if (cr.submissionCount >= cr.maxSubmissions) return NextResponse.json({ error: "Used" }, { status: 403 });
+  
+  // Fetch client separately
+  const client = await findUniqueClient<ClientRecord>("clients", { id: cr.clientId });
+  if (!client) return NextResponse.json({ error: "Client not found" }, { status: 404 });
 
   const docType = parseDocType(docTypeRaw);
   const c = classify(docType);
@@ -83,7 +100,7 @@ export async function POST(req: Request) {
     docType,
     file.name,
     "/api/public/change-request/upload",
-    cr.clients.orgId || null,
+    client.orgId || null,
     cr.clientId,
     null // Public upload, no user ID
   );
@@ -105,10 +122,17 @@ export async function POST(req: Request) {
   // This ensures "latest" supersedes old ones.
   const versionGroupId = `${cr.clientId}:${docType}`;
 
-  const prevLatest = await prisma.documents.findFirst({
-    where: { clientId: cr.clientId, versionGroupId: versionGroupId, supersededAt: null },
-    orderBy: { versionNumber: "desc" },
-  });
+  const db = getDb();
+  const { data: prevDocsData } = await db
+    .from("documents")
+    .select("*")
+    .eq("clientId", cr.clientId)
+    .eq("versionGroupId", versionGroupId)
+    .is("supersededAt", null)
+    .order("versionNumber", { ascending: false })
+    .limit(1);
+  
+  const prevLatest = prevDocsData && prevDocsData.length > 0 ? prevDocsData[0] as { versionNumber: number } : null;
   const nextVersion = (prevLatest?.versionNumber ?? 0) + 1;
 
   const buf = Buffer.from(await file.arrayBuffer());
@@ -126,29 +150,30 @@ export async function POST(req: Request) {
   const { getDocumentCategory } = await import("@/lib/documents/taxonomy");
   const documentCategory = getDocumentCategory(docType, null);
 
-  const _doc = await prisma.documents.create({
-    data: {
-      id: crypto.randomUUID(),
-      clientId: cr.clientId,
-      changeRequestId: cr.id,
-      fileName: file.name,
-      fileType: docType, // Stored as string in schema
-      fileSize: buf.length,
-      filePath: storageKey,
-      mimeType: file.type || "application/octet-stream",
-      documentHash: sha256,
-      sensitivityLevel: c.sensitivityLevel,
-      containsGovId: c.gov,
-      containsTaxData: c.tax,
-      containsCaseData: c.legal,
-      classificationStatus: DocumentClassificationStatus.PENDING_OCR,
-      uploadedVia: "CHANGE_REQUEST_UPLOAD",
-      documentCategory, // Store category if mapped
-      versionGroupId: versionGroupId,
-      versionNumber: nextVersion,
-      extractedData: { received: true },
-    },
-  });
+  const { randomUUID } = await import("crypto");
+  const _doc = await createDb("documents", {
+    id: randomUUID(),
+    clientId: cr.clientId,
+    changeRequestId: cr.id,
+    fileName: file.name,
+    fileType: docType, // Stored as string in schema
+    fileSize: buf.length,
+    filePath: storageKey,
+    mimeType: file.type || "application/octet-stream",
+    documentHash: sha256,
+    sensitivityLevel: c.sensitivityLevel,
+    containsGovId: c.gov,
+    containsTaxData: c.tax,
+    containsCaseData: c.legal,
+    classificationStatus: DocumentClassificationStatus.PENDING_OCR,
+    uploadedVia: "CHANGE_REQUEST_UPLOAD",
+    documentCategory, // Store category if mapped
+    versionGroupId: versionGroupId,
+    versionNumber: nextVersion,
+    extractedData: { received: true },
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  } as Record<string, unknown>);
 
   await auditLog({
     actorType: UploaderType.POLICYHOLDER,

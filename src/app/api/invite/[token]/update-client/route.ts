@@ -69,48 +69,54 @@ export async function POST(
     const clientId = typedInvite.clientId;
     const inviteClient = typedInvite.client;
 
-    // Update address - use raw SQL first
+    const { queryRaw, update: updateClient } = await import("@/lib/db");
+    
+    // Update address
     if (address) {
       try {
-        await prisma.$executeRaw`
+        await queryRaw(`
           UPDATE clients
           SET 
-            address_line1 = ${address.street || null},
-            city = ${address.city || null},
-            state = ${address.state || null},
-            postal_code = ${address.zipCode || null},
+            address_line1 = $1,
+            city = $2,
+            state = $3,
+            postal_code = $4,
             updated_at = NOW()
-          WHERE id = ${clientId}
-        `;
+          WHERE id = $5
+        `, [address.street || null, address.city || null, address.state || null, address.zipCode || null, clientId]);
       } catch (sqlError: unknown) {
         const sqlErrorMessage = sqlError instanceof Error ? sqlError.message : "Unknown error";
-        console.error("Update client: Raw SQL address update failed, trying Prisma:", sqlErrorMessage);
-        // Fallback to Prisma
+        console.error("Update client: SQL address update failed:", sqlErrorMessage);
+        // Try Supabase update as fallback
         try {
-          await prisma.clients.update({
-            where: { id: clientId },
-            data: {
-              addressLine1: address.street || null,
-              city: address.city || null,
-              state: address.state || null,
-              postalCode: address.zipCode || null,
-            },
-          });
-        } catch (prismaError: unknown) {
-          const prismaErrorMessage = prismaError instanceof Error ? prismaError.message : "Unknown error";
-          console.error("Update client: Prisma address update also failed:", prismaErrorMessage);
+          await updateClient("clients", { id: clientId }, {
+            addressLine1: address.street || null,
+            city: address.city || null,
+            state: address.state || null,
+            postalCode: address.zipCode || null,
+            updatedAt: new Date().toISOString(),
+          } as Record<string, unknown>);
+        } catch (updateError: unknown) {
+          const updateErrorMessage = updateError instanceof Error ? updateError.message : "Unknown error";
+          console.error("Update client: Supabase address update also failed:", updateErrorMessage);
           // Continue - address update is not critical
         }
       }
     }
 
-    // Update policies - use raw SQL first
+    // Update policies
     if (policies && Array.isArray(policies)) {
       try {
+        const { deleteRecord, create: createPolicy } = await import("@/lib/db");
+        
         // Delete existing policies
-        await prisma.$executeRaw`
-          DELETE FROM policies WHERE clientId = ${clientId}
-        `;
+        const existingPolicies = await queryRaw<Array<{ id: string }>>(`
+          SELECT id FROM policies WHERE "clientId" = $1
+        `, [clientId]);
+        
+        for (const existing of existingPolicies || []) {
+          await deleteRecord("policies", { id: existing.id });
+        }
 
         // Create new policies
         for (const policy of policies) {
@@ -120,9 +126,9 @@ export async function POST(
             let carrierNameRaw: string | null = null;
             
             try {
-              const insurerResult = await prisma.$queryRaw<Array<{ id: string }>>`
-                SELECT id FROM insurers WHERE LOWER(name) = LOWER(${policy.insurerName}) LIMIT 1
-              `;
+              const insurerResult = await queryRaw<Array<{ id: string }>>(`
+                SELECT id FROM insurers WHERE LOWER(name) = LOWER($1) LIMIT 1
+              `, [policy.insurerName]);
               
               if (insurerResult && insurerResult.length > 0) {
                 insurerId = insurerResult[0].id;
@@ -137,55 +143,72 @@ export async function POST(
               carrierNameRaw = policy.insurerName;
             }
 
-            // Create policy using raw SQL (with optional insurer_id and carrier_name_raw)
+            // Create policy
             const policyId = randomUUID();
-            await prisma.$executeRaw`
-              INSERT INTO policies (id, clientId, insurer_id, carrier_name_raw, policy_number, policy_type, createdAt, updated_at)
-              VALUES (${policyId}, ${clientId}, ${insurerId}, ${carrierNameRaw}, ${policy.policyNumber || null}, ${policy.policyType || null}, NOW(), NOW())
-            `;
+            const now = new Date().toISOString();
+            await createPolicy("policies", {
+              id: policyId,
+              clientId: clientId,
+              insurerId: insurerId,
+              carrierNameRaw: carrierNameRaw,
+              policyNumber: policy.policyNumber || null,
+              policyType: policy.policyType || null,
+              createdAt: now,
+              updatedAt: now,
+            } as Record<string, unknown>);
           }
         }
       } catch (sqlError: unknown) {
         const sqlErrorMessage = sqlError instanceof Error ? sqlError.message : "Unknown error";
-        console.error("Update client: Raw SQL policy update failed:", sqlErrorMessage);
-        // Fallback to Prisma (but this will likely also fail due to model name issues)
+        console.error("Update client: Policy update failed:", sqlErrorMessage);
       }
     }
 
-    // Update beneficiaries - use raw SQL first
+    // Update beneficiaries
     if (beneficiaries && Array.isArray(beneficiaries)) {
       try {
+        const { deleteRecord, create: createBeneficiary } = await import("@/lib/db");
+        
         // Delete existing beneficiaries
-        await prisma.$executeRaw`
-          DELETE FROM beneficiaries WHERE clientId = ${clientId}
-        `;
+        const existingBeneficiaries = await queryRaw<Array<{ id: string }>>(`
+          SELECT id FROM beneficiaries WHERE "clientId" = $1
+        `, [clientId]);
+        
+        for (const existing of existingBeneficiaries || []) {
+          await deleteRecord("beneficiaries", { id: existing.id });
+        }
 
         // Create new beneficiaries
         for (const beneficiary of beneficiaries) {
           if (beneficiary.firstName && beneficiary.lastName) {
             const beneficiaryId = randomUUID();
-            await prisma.$executeRaw`
-              INSERT INTO beneficiaries (id, clientId, firstName, lastName, relationship, createdAt, updated_at)
-              VALUES (${beneficiaryId}, ${clientId}, ${beneficiary.firstName}, ${beneficiary.lastName}, ${beneficiary.relationship || null}, NOW(), NOW())
-            `;
+            const now = new Date().toISOString();
+            await createBeneficiary("beneficiaries", {
+              id: beneficiaryId,
+              clientId: clientId,
+              firstName: beneficiary.firstName,
+              lastName: beneficiary.lastName,
+              relationship: beneficiary.relationship || null,
+              createdAt: now,
+              updatedAt: now,
+            } as Record<string, unknown>);
           }
         }
       } catch (sqlError: unknown) {
         const sqlErrorMessage = sqlError instanceof Error ? sqlError.message : "Unknown error";
-        console.error("Update client: Raw SQL beneficiary update failed:", sqlErrorMessage);
-        // Fallback to Prisma (but this will likely also fail)
+        console.error("Update client: Beneficiary update failed:", sqlErrorMessage);
       }
     }
 
-    // Log audit event - use the audit function which already handles raw SQL
+    // Log audit event
     try {
       const { logAuditEvent } = await import("@/lib/audit");
       await logAuditEvent({
         action: AuditAction.CLIENT_UPDATED,
-        resourceType: "client",
-        resourceId: clientId,
-        details: { source: "update portal" },
-        userId: null,
+        metadata: {
+          source: "update portal",
+          clientId: clientId,
+        },
       });
     } catch (auditError: unknown) {
       const auditErrorMessage = auditError instanceof Error ? auditError.message : "Unknown error";
@@ -214,7 +237,7 @@ export async function POST(
       lastName: string | null;
     } | null = null;
     try {
-      const accessResult = await prisma.$queryRaw<Array<{
+      const accessResult = await queryRaw<Array<{
         attorney_id: string,
         attorney_email: string,
         attorney_firstName: string | null;
@@ -227,12 +250,12 @@ export async function POST(
         org_state: string | null;
         org_postal_code: string | null;
         org_phone: string | null;
-      }>>`
+      }>>(`
         SELECT 
           aca.attorney_id,
           u.email as attorney_email,
-          u.firstName as attorney_firstName,
-          u.lastName as attorney_lastName,
+          u."firstName" as attorney_firstName,
+          u."lastName" as attorney_lastName,
           o.id as org_id,
           o.name as org_name,
           o.address_line1 as org_address_line1,
@@ -241,13 +264,13 @@ export async function POST(
           o.state as org_state,
           o.postal_code as org_postal_code,
           o.phone as org_phone
-        FROM attorneyClientAccess aca
+        FROM attorney_client_access aca
         INNER JOIN users u ON u.id = aca.attorney_id
         LEFT JOIN org_members om ON om.user_id = aca.attorney_id
         LEFT JOIN organizations o ON o.id = om.organization_id
-        WHERE aca.clientId = ${clientId} AND aca.is_active = true
+        WHERE aca."clientId" = $1 AND aca.is_active = true
         LIMIT 1
-      `;
+      `, [clientId]);
       
       if (accessResult && accessResult.length > 0) {
         const row = accessResult[0];
@@ -296,7 +319,7 @@ export async function POST(
     } | null = null;
     try {
       const [clientResult, policiesResult] = await Promise.all([
-        prisma.$queryRaw<Array<{
+        queryRaw<Array<{
           id: string,
           firstName: string,
           lastName: string,
@@ -304,12 +327,12 @@ export async function POST(
           phone: string | null;
           dateOfBirth: Date | null;
           createdAt: Date;
-        }>>`
-          SELECT id, firstName, lastName, email, phone, dateOfBirth, createdAt
+        }>>(`
+          SELECT id, "firstName", "lastName", email, phone, "dateOfBirth", "createdAt"
           FROM clients
-          WHERE id = ${clientId}
-        `,
-        prisma.$queryRaw<Array<{
+          WHERE id = $1
+        `, [clientId]),
+        queryRaw<Array<{
           id: string,
           policy_number: string | null;
           policy_type: string | null;
@@ -317,7 +340,7 @@ export async function POST(
           insurer_name: string | null;
           insurer_contact_phone: string | null;
           insurer_contact_email: string | null;
-        }>>`
+        }>>(`
           SELECT 
             p.id,
             p.policy_number,
@@ -328,8 +351,8 @@ export async function POST(
             i.contact_email as insurer_contact_email
           FROM policies p
           LEFT JOIN insurers i ON i.id = p.insurer_id
-          WHERE p.clientId = ${clientId}
-        `,
+          WHERE p."clientId" = $1
+        `, [clientId]),
       ]);
       
       if (clientResult && clientResult.length > 0) {

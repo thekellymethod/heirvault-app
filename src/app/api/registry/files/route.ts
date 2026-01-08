@@ -7,17 +7,10 @@ export async function GET(req: Request) {
 
   if (!registryId) return new NextResponse("Missing registryId", { status: 400 });
 
-  const files = await prisma.clientFileAsset.findMany({
+  const { findMany: findManyFiles } = await import("@/lib/db");
+  const files = await findManyFiles("client_file_assets", {
     where: { registryId },
-    orderBy: { createdAt: "desc" },
-    select: {
-      id: true,
-      originalName: true,
-      mimeType: true,
-      sizeBytes: true,
-      status: true,
-      createdAt: true,
-    },
+    orderBy: { column: "createdAt", ascending: false },
   });
 
   return NextResponse.json({ files });

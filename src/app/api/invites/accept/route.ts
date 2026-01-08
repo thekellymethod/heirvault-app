@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
 import { auth } from '@clerk/nextjs/server'
 import { logAuditEvent } from '@/lib/audit'
 import { randomUUID } from 'crypto'
@@ -25,11 +24,19 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const invite = await prisma.client_invites.findUnique({
-      where: { token },
-      include: { clients: true },
-    })
-
+    const { findUnique: findUniqueInvite, findUnique: findUniqueClient, findUnique: findUniqueUser, findMany: findManyOrgMembers, findMany: findManyAccess, create: createAccess, update: updateClient, update: updateInvite, update: updateAccess } = await import("@/lib/db");
+    
+    type InviteRecord = {
+      id: string;
+      token: string;
+      clientId: string;
+      expiresAt: string | Date;
+      usedAt: string | Date | null;
+      invitedByUserId: string | null;
+    };
+    
+    const invite = await findUniqueInvite<InviteRecord>("client_invites", { token });
+    
     if (!invite) {
       return NextResponse.json(
         { error: 'Invalid token' },
@@ -37,17 +44,27 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const now = new Date()
-    if (invite.usedAt || invite.expiresAt < now) {
+    // Fetch client separately
+    const client = await findUniqueClient("clients", { id: invite.clientId });
+    if (!client) {
+      return NextResponse.json(
+        { error: 'Client not found' },
+        { status: 404 }
+      )
+    }
+
+    const now = new Date();
+    const expiresAt = typeof invite.expiresAt === 'string' ? new Date(invite.expiresAt) : invite.expiresAt;
+    const usedAt = invite.usedAt ? (typeof invite.usedAt === 'string' ? new Date(invite.usedAt) : invite.usedAt) : null;
+    
+    if (usedAt || (expiresAt && expiresAt < now)) {
       return NextResponse.json(
         { error: 'Invite expired or already used' },
         { status: 400 }
       )
     }
 
-    const user = await prisma.user.findUnique({
-      where: { clerkId: userId },
-    })
+    const user = await findUniqueUser("users", { clerkId: userId });
 
     if (!user) {
       return NextResponse.json(
@@ -56,64 +73,88 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    type UserRecord = {
+      id: string;
+      clerkId: string;
+    };
+    
+    type OrgMemberRecord = {
+      id: string;
+      userId: string;
+      organizationId: string;
+    };
+    
+    type AccessRecord = {
+      id: string;
+      attorneyId: string;
+      clientId: string;
+      organizationId: string;
+      isActive: boolean;
+    };
+    
+    const dbUser = user as UserRecord;
+    
     // Link the client to this user (using userId field, not primaryUserId)
-    await prisma.clients.update({
-      where: { id: invite.clientId },
-      data: {
-        userId: user.id,
-      },
-    })
+    await updateClient("clients", { id: invite.clientId }, {
+      userId: dbUser.id,
+      updatedAt: now.toISOString(),
+    } as Record<string, unknown>);
 
     // Mark invite used
-    await prisma.client_invites.update({
-      where: { id: invite.id },
-      data: {
-        usedAt: now,
-      },
-    })
+    await updateInvite("client_invites", { id: invite.id }, {
+      usedAt: now.toISOString(),
+      updatedAt: now.toISOString(),
+    } as Record<string, unknown>);
 
     // Grant attorney access via AttorneyClientAccess
     if (invite.invitedByUserId) {
-      const orgMember = await prisma.org_members.findFirst({
+      const orgMembers = await findManyOrgMembers<OrgMemberRecord>("org_members", {
         where: { userId: invite.invitedByUserId },
-      })
+        limit: 1,
+      });
 
-      if (orgMember) {
+      if (orgMembers && orgMembers.length > 0) {
+        const orgMember = orgMembers[0];
         // Check if access already exists
-        const existingAccess = await prisma.attorneyClientAccess.findFirst({
+        const existingAccesses = await findManyAccess<AccessRecord>("attorney_client_access", {
           where: {
             attorneyId: invite.invitedByUserId,
             clientId: invite.clientId,
             organizationId: orgMember.organizationId,
           },
-        })
+          limit: 1,
+        });
+
+        const existingAccess = existingAccesses && existingAccesses.length > 0 ? existingAccesses[0] : null;
 
         if (!existingAccess) {
-          await prisma.attorneyClientAccess.create({
-            data: {
-              id: randomUUID(),
-              attorneyId: invite.invitedByUserId,
-              clientId: invite.clientId,
-              organizationId: orgMember.organizationId,
-              isActive: true,
-            },
-          })
+          await createAccess("attorney_client_access", {
+            id: randomUUID(),
+            attorneyId: invite.invitedByUserId,
+            clientId: invite.clientId,
+            organizationId: orgMember.organizationId,
+            isActive: true,
+            createdAt: now.toISOString(),
+            updatedAt: now.toISOString(),
+          } as Record<string, unknown>);
         } else if (!existingAccess.isActive) {
           // Reactivate if it was revoked
-          await prisma.attorneyClientAccess.update({
-            where: { id: existingAccess.id },
-            data: { isActive: true, revokedAt: null },
-          })
+          await updateAccess("attorney_client_access", { id: existingAccess.id }, {
+            isActive: true,
+            revokedAt: null,
+            updatedAt: now.toISOString(),
+          } as Record<string, unknown>);
         }
       }
     }
 
     await logAuditEvent({
       action: 'INVITE_ACCEPTED',
-      resourceType: 'client_invite',
-      resourceId: invite.id,
-      details: { clientId: invite.clientId, userId: user.id },
-      userId: user.id,
+      metadata: {
+        clientId: invite.clientId,
+        userId: dbUser.id,
+        inviteId: invite.id,
+      },
     })
 
     return NextResponse.json({ ok: true })

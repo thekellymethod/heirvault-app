@@ -7,10 +7,13 @@ import { makeReceiptNumber } from "@/lib/security";
 import { makeChangeReceiptPdf } from "@/lib/pdf/changeReceipt";
 import { putObject } from "@/lib/storage";
 import { sendEmail } from "@/lib/email";
-import { ArtifactType, ChangeRequestStatus, UploaderType, DocumentClassificationStatus } from "@prisma/client";
+import { ChangeRequestStatus, UploaderType, DocumentClassificationStatus } from "@/lib/db/enums";
 import { requiredDocTypesForChangeRequest } from "@/lib/rules/requiredDocs";
-import { rateLimit, clientIp } from "@/lib/security/rateLimit";
-import crypto from "crypto";
+import { rateLimit, getClientIp } from "@/lib/security/rateLimit";
+
+const ArtifactType = {
+  RECEIPT_PDF: "RECEIPT_PDF",
+} as const;
 
 function labelDocType(dt: string) {
   switch (dt) {
@@ -30,7 +33,7 @@ function labelDocType(dt: string) {
 function labelRequestType(rt: string) {
   return rt.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
 }
-function friendlyStatus(cs: DocumentClassificationStatus) {
+function friendlyStatus(cs: string) {
   if (cs === DocumentClassificationStatus.APPROVED || cs === DocumentClassificationStatus.AUTO_ACCEPTED) return "Accepted";
   if (cs === DocumentClassificationStatus.NEEDS_REVIEW) return "Pending Review";
   return "Received";
@@ -38,26 +41,62 @@ function friendlyStatus(cs: DocumentClassificationStatus) {
 
 export async function POST(req: Request) {
   // Rate limiting
-  const ip = clientIp(req);
-  const rl = rateLimit(`submit:${ip}`, { limit: 10, windowMs: 60_000 });
-  if (!rl.ok) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  const ip = getClientIp(req);
+  const rl = rateLimit(`submit:${ip}`, 10, 60_000);
+  if (!rl.allowed) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
 
   const { token } = await req.json().catch(() => ({}));
   if (!token || typeof token !== "string") return NextResponse.json({ error: "Invalid token" }, { status: 400 });
 
   const tokenHash = hashToken(token);
-  const cr = await prisma.change_requests.findUnique({
-    where: { tokenHash },
-    include: { clients: true, documents: { orderBy: { createdAt: "asc" } } },
-  });
-
+  const { findUnique: findUniqueChangeRequest, findUnique: findUniqueClient, update: updateChangeRequest, getDb } = await import("@/lib/db");
+  
+  type ChangeRequestRecord = {
+    id: string;
+    tokenHash: string;
+    expiresAt: string | Date;
+    submissionCount: number;
+    maxSubmissions: number;
+    clientId: string;
+    requestType: string;
+    note: string | null;
+    status: string;
+  };
+  
+  type ClientRecord = {
+    id: string;
+    firstName: string | null;
+    lastName: string | null;
+    email: string | null;
+  };
+  
+  const cr = await findUniqueChangeRequest<ChangeRequestRecord>("change_requests", { tokenHash });
+  
   if (!cr) return NextResponse.json({ error: "Invalid" }, { status: 403 });
-  if (cr.expiresAt.getTime() < Date.now()) return NextResponse.json({ error: "Expired" }, { status: 403 });
+  const expiresAt = typeof cr.expiresAt === 'string' ? new Date(cr.expiresAt) : cr.expiresAt;
+  if (expiresAt.getTime() < Date.now()) return NextResponse.json({ error: "Expired" }, { status: 403 });
   if (cr.submissionCount >= cr.maxSubmissions) return NextResponse.json({ error: "Used" }, { status: 403 });
+  
+  // Fetch client separately
+  const client = await findUniqueClient<ClientRecord>("clients", { id: cr.clientId });
+  if (!client) return NextResponse.json({ error: "Client not found" }, { status: 404 });
+  
+  // Fetch documents separately
+  const db = getDb();
+  const { data: docsData } = await db
+    .from("documents")
+    .select("*")
+    .eq("changeRequestId", cr.id)
+    .order("createdAt", { ascending: true });
+  
+  const documents = (docsData || []) as Array<{
+    fileType: string;
+    classificationStatus: string;
+  }>;
 
   // Required docs validation
   const required = requiredDocTypesForChangeRequest(cr.requestType);
-  const hasAny = (types: string[]) => cr.documents.some(d => types.includes(d.fileType));
+  const hasAny = (types: string[]) => documents.some(d => types.includes(d.fileType));
   const missing: string[] = [];
 
   for (const dt of required) {
@@ -72,7 +111,7 @@ export async function POST(req: Request) {
       if (!hasAny(["DRIVERS_LICENSE", "PASSPORT"])) missing.push("Government ID");
       continue;
     }
-    if (!cr.documents.some(d => d.fileType === dt)) {
+    if (!documents.some(d => d.fileType === dt)) {
       missing.push(dt);
     }
   }
@@ -84,14 +123,12 @@ export async function POST(req: Request) {
     );
   }
 
-  await prisma.change_requests.update({
-    where: { id: cr.id },
-    data: {
-      submissionCount: { increment: 1 },
-      status: ChangeRequestStatus.SUBMITTED,
-      submittedAt: new Date(),
-    },
-  });
+  await updateChangeRequest("change_requests", { id: cr.id }, {
+    submissionCount: cr.submissionCount + 1,
+    status: ChangeRequestStatus.SUBMITTED,
+    submittedAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  } as Record<string, unknown>);
 
   await auditLog({
     actorType: UploaderType.POLICYHOLDER,
@@ -103,9 +140,9 @@ export async function POST(req: Request) {
   });
 
   const receiptNumber = makeReceiptNumber();
-  const clientName = `${cr.clients.firstName ?? ""} ${cr.clients.lastName ?? ""}`.trim() || "Policyholder";
+  const clientName = `${client.firstName ?? ""} ${client.lastName ?? ""}`.trim() || "Policyholder";
 
-  const items = cr.documents.map(d => ({
+  const items = documents.map(d => ({
     docTypeLabel: labelDocType(d.fileType),
     statusLabel: friendlyStatus(d.classificationStatus),
   }));
@@ -122,25 +159,28 @@ export async function POST(req: Request) {
   const artifactKey = `private/artifacts/${cr.clientId}/change-${cr.id}-receipt-${receiptNumber}.pdf`;
   const { sha256: _sha256 } = await putObject({ key: artifactKey, body: pdfBuf, contentType: "application/pdf" });
 
-  const artifact = await prisma.artifacts.create({
-    data: {
-      id: crypto.randomUUID(),
-      type: ArtifactType.RECEIPT_PDF,
-      clientId: cr.clientId,
-      fileName: `HeirVault-Change-Receipt-${receiptNumber}.pdf`,
-      filePath: artifactKey,
-      fileSize: pdfBuf.length,
-      mimeType: "application/pdf",
-    },
-  });
+  const { create: createDb, update: updateChangeRequest2 } = await import("@/lib/db");
+  const { randomUUID } = await import("crypto");
+  
+  const artifact = await createDb("artifacts", {
+    id: randomUUID(),
+    type: ArtifactType.RECEIPT_PDF,
+    clientId: cr.clientId,
+    fileName: `HeirVault-Change-Receipt-${receiptNumber}.pdf`,
+    filePath: artifactKey,
+    fileSize: pdfBuf.length,
+    mimeType: "application/pdf",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  } as Record<string, unknown>) as { id: string };
 
-  await prisma.change_requests.update({
-    where: { id: cr.id },
-    data: { receiptArtifactId: artifact.id },
-  });
+  await updateChangeRequest2("change_requests", { id: cr.id }, {
+    receiptArtifactId: artifact.id,
+    updatedAt: new Date().toISOString(),
+  } as Record<string, unknown>);
 
   await sendEmail({
-    to: cr.clients.email!,
+    to: client.email!,
     subject: "Change Request Receipt",
     html: `
       <p>Your change request has been received.</p>

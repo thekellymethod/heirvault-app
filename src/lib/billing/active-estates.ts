@@ -38,44 +38,42 @@ export async function getActiveEstateCount(
   const effectiveAt = new Date();
 
   // Get all clients for this organization that are not archived
-  const clients = await prisma.clients.findMany({
+  const { findMany: findManyClients, count: countDb } = await import("@/lib/db");
+  
+  type ClientRecord = {
+    id: string;
+    orgId: string | null;
+    archivedAt: string | null;
+  };
+  
+  const clients = await findManyClients<ClientRecord>("clients", {
     where: {
       orgId: organizationId,
       archivedAt: null, // Only non-archived clients
     },
-    select: {
-      id: true,
-      _count: {
-        select: {
-          policies: true,
-          documents: true,
-          attorneyClientAccess: {
-            where: {
-              isActive: true,
-              revokedAt: null,
-            },
-          },
-        },
-      },
-    },
   });
 
-  // Filter to only clients that meet "active" criteria
-  const activeEstates = clients.filter((client) => {
-    const { _count } = client;
+  // For each client, check if it meets "active" criteria
+  const activeEstates = [];
+  for (const client of clients) {
+    // Count policies
+    const policiesCount = await countDb("policies", { clientId: client.id });
     
-    // Has at least one policy
-    const hasPolicy = _count.policies > 0;
+    // Count documents
+    const documentsCount = await countDb("documents", { clientId: client.id });
     
-    // Has at least one document
-    const hasDocument = _count.documents > 0;
+    // Count active attorney access
+    const accessCount = await countDb("attorney_client_access", {
+      clientId: client.id,
+      isActive: true,
+      revokedAt: null,
+    });
     
-    // Has at least one active attorney access
-    const hasActiveAccess = _count.attorneyClientAccess > 0;
-
-    // Active if any of the above is true
-    return hasPolicy || hasDocument || hasActiveAccess;
-  });
+    // Active if any of the above is > 0
+    if (policiesCount > 0 || documentsCount > 0 || accessCount > 0) {
+      activeEstates.push(client);
+    }
+  }
 
   return {
     organizationId,
@@ -92,37 +90,34 @@ export async function isActiveEstate(
   clientId: string,
   organizationId: string
 ): Promise<boolean> {
-  const client = await prisma.clients.findFirst({
-    where: {
-      id: clientId,
-      orgId: organizationId,
-      archivedAt: null,
-    },
-    select: {
-      id: true,
-      _count: {
-        select: {
-          policies: true,
-          documents: true,
-          attorneyClientAccess: {
-            where: {
-              isActive: true,
-              revokedAt: null,
-            },
-          },
-        },
-      },
-    },
+  const { findUnique, count: countDb } = await import("@/lib/db");
+  
+  type ClientRecord = {
+    id: string;
+    orgId: string | null;
+    archivedAt: string | null;
+  };
+  
+  const client = await findUnique<ClientRecord>("clients", {
+    id: clientId,
+    orgId: organizationId,
+    archivedAt: null,
   });
 
   if (!client) return false;
 
-  const { _count } = client;
-  return (
-    _count.policies > 0 ||
-    _count.documents > 0 ||
-    _count.attorneyClientAccess > 0
-  );
+  // Count policies, documents, and active access
+  const [policiesCount, documentsCount, accessCount] = await Promise.all([
+    countDb("policies", { clientId }),
+    countDb("documents", { clientId }),
+    countDb("attorney_client_access", {
+      clientId,
+      isActive: true,
+      revokedAt: null,
+    }),
+  ]);
+
+  return policiesCount > 0 || documentsCount > 0 || accessCount > 0;
 }
 
 /**

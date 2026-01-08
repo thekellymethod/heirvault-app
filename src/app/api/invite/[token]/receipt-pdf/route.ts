@@ -114,7 +114,8 @@ export async function GET(
     // Policies (raw SQL because your lookup may not eager-load policies)
     let policies: ReceiptPolicy[] = [];
     try {
-      const policiesResult = await prisma.$queryRaw<PolicyRow[]>`
+      const { queryRaw } = await import("@/lib/db");
+      const policiesResult = await queryRaw<PolicyRow[]>(`
         SELECT
           p.id,
           p.policy_number,
@@ -124,8 +125,8 @@ export async function GET(
           i.contact_email as insurer_contact_email
         FROM policies p
         INNER JOIN insurers i ON i.id = p.insurer_id
-        WHERE p.client_id = ${clientId}
-      `;
+        WHERE p."clientId" = $1
+      `, [clientId]);
 
       policies = (policiesResult ?? []).map((p) => ({
         id: p.id,
@@ -147,7 +148,7 @@ export async function GET(
     let organization: ReceiptOrganization = null;
     try {
       // Adjust table names/columns if yours differ.
-      const accessResult = await prisma.$queryRaw<OrgRow[]>`
+      const accessResult = await queryRaw<OrgRow[]>(`
         SELECT
           o.id as org_id,
           o.name as org_name,
@@ -160,9 +161,9 @@ export async function GET(
         FROM attorney_client_access aca
         LEFT JOIN org_members om ON om.user_id = aca.attorney_id
         LEFT JOIN organizations o ON o.id = om.organization_id
-        WHERE aca.client_id = ${clientId} AND aca.is_active = true
+        WHERE aca."clientId" = $1 AND aca.is_active = true
         LIMIT 1
-      `;
+      `, [clientId]);
 
       if (accessResult?.length) {
         const row = accessResult[0];

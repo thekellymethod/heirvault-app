@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 ;
 import { requireVerifiedAttorney } from "@/lib/auth/guards";
 import { auditLog } from "@/lib/audit";
-import { ChangeRequestStatus, UploaderType } from "@prisma/client";
+import { ChangeRequestStatus, UploaderType } from "@/lib/db/enums";
 
 export async function POST(_: Request, ctx: { params: Promise<{ id: string }> }) {
   const user = await requireVerifiedAttorney();
@@ -11,18 +11,31 @@ export async function POST(_: Request, ctx: { params: Promise<{ id: string }> })
 
   const { id } = await ctx.params;
 
-  const cr = await prisma.change_requests.update({
-    where: { id },
-    data: { status: ChangeRequestStatus.APPROVED },
+  const { update: updateChangeRequest, findUnique: findUniqueChangeRequest } = await import("@/lib/db");
+  
+  type ChangeRequestRecord = {
+    id: string;
+    clientId: string;
+  };
+  
+  // First get the change request to get clientId
+  const existingCr = await findUniqueChangeRequest<ChangeRequestRecord>("change_requests", { id });
+  if (!existingCr) {
+    return NextResponse.json({ error: "Change request not found" }, { status: 404 });
+  }
+
+  await updateChangeRequest("change_requests", { id }, {
+    status: ChangeRequestStatus.APPROVED,
+    updatedAt: new Date().toISOString(),
   });
 
   await auditLog({
-    actorType: user.roles.includes("ADMIN") ? UploaderType.ADMIN : UploaderType.ATTORNEY,
+    actorType: user.roles.includes("ADMIN") ? UploaderType.SYSTEM : UploaderType.ATTORNEY,
     actorId: user.id,
-    clientId: cr.clientId,
+    clientId: existingCr.clientId,
     inviteId: null,
     action: "CHANGE_REQUEST_APPROVED",
-    metadata: { changeRequestId: cr.id },
+    metadata: { changeRequestId: existingCr.id },
   });
 
   return NextResponse.json({ ok: true });

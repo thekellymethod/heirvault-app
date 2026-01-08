@@ -31,30 +31,50 @@ export async function POST(
 
     // If not a test code, do normal lookup
     if (!invite) {
-      const prismaInvite = await prisma.client_invites.findUnique({
-        where: { token },
-        include: { clients: true },
-      });
+      const { findUnique: findUniqueInvite, findUnique: findUniqueClient } = await import("@/lib/db");
       
-      if (prismaInvite) {
-        // Transform Prisma result to match expected type
-        invite = {
-          id: prismaInvite.id,
-          clientId: prismaInvite.clientId,
-          email: prismaInvite.email,
-          token: prismaInvite.token,
-          expiresAt: prismaInvite.expiresAt,
-          usedAt: prismaInvite.usedAt,
-          createdAt: prismaInvite.createdAt,
-          client: {
-            id: prismaInvite.clients.id,
-            firstName: prismaInvite.clients.firstName,
-            lastName: prismaInvite.clients.lastName,
-            email: prismaInvite.clients.email,
-            phone: prismaInvite.clients.phone,
-            dateOfBirth: prismaInvite.clients.dateOfBirth,
-          },
-        };
+      type InviteRecord = {
+        id: string;
+        clientId: string;
+        email: string;
+        token: string;
+        expiresAt: string | Date;
+        usedAt: string | Date | null;
+        createdAt: string | Date;
+      };
+      
+      const inviteRecord = await findUniqueInvite<InviteRecord>("client_invites", { token });
+      
+      if (inviteRecord) {
+        const client = await findUniqueClient<{
+          id: string;
+          firstName: string;
+          lastName: string;
+          email: string;
+          phone: string | null;
+          dateOfBirth: Date | null;
+        }>("clients", { id: inviteRecord.clientId });
+        
+        if (client) {
+          // Transform to match expected type
+          invite = {
+            id: inviteRecord.id,
+            clientId: inviteRecord.clientId,
+            email: inviteRecord.email,
+            token: inviteRecord.token,
+            expiresAt: typeof inviteRecord.expiresAt === 'string' ? new Date(inviteRecord.expiresAt) : inviteRecord.expiresAt,
+            usedAt: inviteRecord.usedAt ? (typeof inviteRecord.usedAt === 'string' ? new Date(inviteRecord.usedAt) : inviteRecord.usedAt) : null,
+            createdAt: typeof inviteRecord.createdAt === 'string' ? new Date(inviteRecord.createdAt) : inviteRecord.createdAt,
+            client: {
+              id: client.id,
+              firstName: client.firstName,
+              lastName: client.lastName,
+              email: client.email,
+              phone: client.phone,
+              dateOfBirth: client.dateOfBirth,
+            },
+          };
+        }
       }
     }
 

@@ -37,7 +37,8 @@ export async function GET(req: NextRequest) {
         const searchPattern = `%${q.replace(/'/g, "''")}%`;
         const archivedClause = archived ? "AND ci.used_at IS NOT NULL" : "";
         
-        const invitesResult = await prisma.$queryRawUnsafe<Array<{
+        const { queryRaw } = await import("@/lib/db");
+        const invitesResult = await queryRaw<Array<{
           id: string,
           clientId: string,
           token: string,
@@ -51,27 +52,27 @@ export async function GET(req: NextRequest) {
         }>>(`
           SELECT 
             ci.id,
-            ci.clientId,
+            ci."clientId",
             ci.token,
             ci.email,
             ci.expires_at,
             ci.used_at,
-            ci.createdAt,
-            c.firstName,
-            c.lastName,
+            ci."createdAt",
+            c."firstName",
+            c."lastName",
             c.phone
           FROM client_invites ci
-          INNER JOIN clients c ON c.id = ci.clientId
+          INNER JOIN clients c ON c.id = ci."clientId"
           WHERE 
             (LOWER(ci.token) LIKE LOWER($1) OR
              LOWER(ci.email) LIKE LOWER($1) OR
-             LOWER(c.firstName) LIKE LOWER($1) OR
-             LOWER(c.lastName) LIKE LOWER($1))
+             LOWER(c."firstName") LIKE LOWER($1) OR
+             LOWER(c."lastName") LIKE LOWER($1))
             ${archivedClause}
-          ORDER BY ci.createdAt DESC
+          ORDER BY ci."createdAt" DESC
           LIMIT $2
           OFFSET $3
-        `, searchPattern, limit, offset);
+        `, [searchPattern, limit, offset]);
 
         invites = invitesResult.map(row => ({
           id: row.id,
@@ -89,7 +90,7 @@ export async function GET(req: NextRequest) {
       } else {
         // Get all invites if no search query
         const archivedClause = archived ? "WHERE ci.used_at IS NOT NULL" : "";
-        const invitesResult = await prisma.$queryRawUnsafe<Array<{
+        const invitesResult = await queryRaw<Array<{
           id: string,
           clientId: string,
           token: string,
@@ -103,22 +104,22 @@ export async function GET(req: NextRequest) {
         }>>(`
           SELECT 
             ci.id,
-            ci.clientId,
+            ci."clientId",
             ci.token,
             ci.email,
             ci.expires_at,
             ci.used_at,
-            ci.createdAt,
-            c.firstName,
-            c.lastName,
+            ci."createdAt",
+            c."firstName",
+            c."lastName",
             c.phone
           FROM client_invites ci
-          INNER JOIN clients c ON c.id = ci.clientId
+          INNER JOIN clients c ON c.id = ci."clientId"
           ${archivedClause}
-          ORDER BY ci.createdAt DESC
+          ORDER BY ci."createdAt" DESC
           LIMIT $1
           OFFSET $2
-        `, limit, offset);
+        `, [limit, offset]);
 
         invites = invitesResult.map(row => ({
           id: row.id,
@@ -137,11 +138,11 @@ export async function GET(req: NextRequest) {
 
       // Get total count for pagination
       const archivedClause = archived ? "WHERE ci.used_at IS NOT NULL" : "";
-      const countResult = await prisma.$queryRawUnsafe<Array<{ count: number }>>(`
+      const countResult = await queryRaw<Array<{ count: number }>>(`
         SELECT COUNT(*)::int as count
         FROM client_invites ci
         ${archivedClause}
-      `);
+      `, []);
 
       const total = Number(countResult[0]?.count || 0);
 
@@ -185,12 +186,13 @@ export async function POST(req: NextRequest) {
     }
 
     try {
+      const { queryRaw } = await import("@/lib/db");
       // Archive by marking as used
-      await prisma.$executeRawUnsafe(`
+      await queryRaw(`
         UPDATE client_invites
         SET used_at = NOW(), updated_at = NOW()
         WHERE token = $1 AND used_at IS NULL
-      `, token);
+      `, [token]);
 
       return NextResponse.json({ success: true });
     } catch (sqlError: unknown) {

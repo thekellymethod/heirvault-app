@@ -9,7 +9,7 @@
 - ✅ **UI/UX Improvements Complete** - Loading skeletons, toast notifications, pagination, keyboard shortcuts, and mobile responsiveness
 - ✅ **Form Validation Enhancement** - Complete validation system with client-side validation, input sanitization, and consistent error messages
 - ✅ **Performance Optimizations** - API pagination, database query optimization, simple caching, and component lazy loading
-- ✅ **Supabase Migration Progress** - Core library files migrated from Prisma to Supabase (9 files, 32 instances removed)
+- ✅ **Supabase Migration Progress** - Core library files and API routes migrated from Prisma to Supabase (20 core files, 23 API routes complete)
 
 ---
 
@@ -127,9 +127,9 @@ HeirVault is a **secure, private registry** where attorneys can manage client li
 - ✅ Supabase integration for all database operations
 - ✅ Connection pooling configured
 - ✅ **Supabase Migration In Progress** (January 2025)
-  - ✅ Core library files migrated (9 files, 32 instances)
+  - ✅ Core library files migrated (20 files complete)
   - ✅ Database helper functions complete
-  - ⚠️ API routes migration in progress (~140 files remaining)
+  - ✅ API routes migration in progress (23 routes complete, ~117 files remaining)
 
 ### Storage
 - ✅ Supabase Storage integration
@@ -535,13 +535,11 @@ HeirVault is a **secure, private registry** where attorneys can manage client li
 ### Immediate (Before Launch)
 1. ✅ **Clean up debug pages** - **COMPLETED** ✅
 2. ✅ **Remove TODO comments** - **COMPLETED** ✅
-3. ✅ **Supabase migration (core libraries)** - **COMPLETED** ✅ (9 files migrated)
-4. **Verify production environment variables** (30 min)
-5. **Manual testing of critical flows** (2-4 hours)
-6. **Configure domain and DNS** (1 hour)
-7. ⚠️ **Complete Supabase migration** (optional, can continue post-launch)
-   - API routes migration (~140 files)
-   - Remaining core library files (~19 files)
+3. ✅ **Supabase migration (core libraries)** - **COMPLETED** ✅ (20 files migrated)
+4. ⚠️ **Continue Supabase migration (API routes)** - **IN PROGRESS** (23 routes complete, ~117 remaining)
+5. **Verify production environment variables** (30 min)
+6. **Manual testing of critical flows** (2-4 hours)
+7. **Configure domain and DNS** (1 hour)
 
 ### Post-Launch (High Value)
 1. ✅ **Enhanced error handling & toasts** - **PARTIALLY COMPLETE** (foundation done, can expand)
@@ -589,8 +587,8 @@ You can deploy now with confidence. The remaining items are:
 All critical features are implemented and working. The remaining 1% consists of:
 - ✅ Cleanup tasks - **COMPLETED**
 - ✅ UI/UX improvements - **COMPLETED** (100%)
-- ✅ Supabase migration (core libraries) - **COMPLETED** (9 files, 32 instances)
-- ⚠️ Supabase migration (API routes) - In progress (~140 files remaining)
+- ✅ Supabase migration (core libraries) - **COMPLETED** (20 files)
+- ⚠️ Supabase migration (API routes) - **IN PROGRESS** (23 routes complete, ~117 remaining)
 - Optional enhancements (pagination on more pages, additional keyboard shortcuts)
 - Test coverage improvements (recommended but not blocking)
 
@@ -603,7 +601,7 @@ All critical features are implemented and working. The remaining 1% consists of:
 - **Admin detection** checks both `role` enum field and `roles` array for admin status
 - **Billing** can be enabled/disabled via `BILLING_ENABLED` feature flag
 - **Test codes** are automatically created when accessed (no pre-population needed)
-- **Supabase Migration**: Core library files (9 files) have been migrated from Prisma to Supabase. API routes migration is in progress and can continue post-launch without blocking deployment.
+- **Supabase Migration**: Core library files (20 files) and 23 API routes have been migrated from Prisma to Supabase. API routes migration continues (~117 files remaining) and can continue post-launch without blocking deployment.
 
 ---
 
@@ -612,6 +610,6 @@ All critical features are implemented and working. The remaining 1% consists of:
 - ✅ Debug/Test pages cleanup completed (January 2025)
 - ✅ TODO comments cleanup completed (January 2025)
 - ✅ UI/UX improvements: Loading skeletons, toast notifications, empty states (January 2025)
-- ✅ Supabase migration: Core library files migrated (9 files, 32 Prisma instances removed) (January 2025)
+- ✅ Supabase migration: Core library files (20 files) and 23 API routes migrated (January 2025)
 
 **Next Review:** After production deployment

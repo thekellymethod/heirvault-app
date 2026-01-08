@@ -9,31 +9,21 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     await requireAuth();
     const { id } = await params;
 
-    const prismaInsurer = await prisma.insurers.findUnique({
-      where: { id },
-      select: {
-        id: true,
-        name: true,
-        contactPhone: true,
-        contactEmail: true,
-        website: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
+    const { findUnique: findUniqueInsurer } = await import("@/lib/db");
+    const prismaInsurer = await findUniqueInsurer("insurers", { id });
 
     if (!prismaInsurer) {
       return NextResponse.json({ error: "Insurer not found" }, { status: 404 });
     }
 
     const insurer = {
-      id: prismaInsurer.id,
-      name: prismaInsurer.name,
-      contactPhone: prismaInsurer.contactPhone,
-      contactEmail: prismaInsurer.contactEmail,
-      website: prismaInsurer.website,
-      createdAt: prismaInsurer.createdAt,
-      updatedAt: prismaInsurer.updatedAt,
+      id: (prismaInsurer as any).id,
+      name: (prismaInsurer as any).name,
+      contactPhone: (prismaInsurer as any).contactPhone,
+      contactEmail: (prismaInsurer as any).contactEmail,
+      website: (prismaInsurer as any).website,
+      createdAt: (prismaInsurer as any).createdAt,
+      updatedAt: (prismaInsurer as any).updatedAt,
     };
 
     if (!insurer) return NextResponse.json({ error: "Insurer not found" }, { status: 404 });
@@ -63,25 +53,25 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     }
 
     // Check if insurer exists
-    const exists = await prisma.insurers.findUnique({
-      where: { id },
-      select: { id: true },
-    });
+    const { findUnique: findUniqueInsurer, update: updateInsurer } = await import("@/lib/db");
+    const exists = await findUniqueInsurer("insurers", { id });
     
     if (!exists) {
       return NextResponse.json({ error: "Insurer not found" }, { status: 404 });
     }
 
     // Update insurer
-    const updated = await prisma.insurers.update({
-      where: { id },
-      data: {
-        ...(name !== undefined ? { name } : {}),
-        contactPhone: contactPhone,
-        contactEmail: contactEmail,
-        website: website,
-      },
-    });
+    const updateData: Record<string, unknown> = {
+      contactPhone: contactPhone,
+      contactEmail: contactEmail,
+      website: website,
+      updatedAt: new Date().toISOString(),
+    };
+    if (name !== undefined) {
+      updateData.name = name;
+    }
+    
+    const updated = await updateInsurer("insurers", { id }, updateData) as any;
 
     return NextResponse.json({ ok: true, insurerId: updated.id }, { status: 200 });
   } catch (error: unknown) {
@@ -99,10 +89,8 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
     const { id } = await params;
 
     // Check if insurer exists
-    const exists = await prisma.insurers.findUnique({
-      where: { id },
-      select: { id: true },
-    });
+    const { findUnique: findUniqueInsurer, deleteRecord } = await import("@/lib/db");
+    const exists = await findUniqueInsurer("insurers", { id });
     
     if (!exists) {
       return NextResponse.json({ error: "Insurer not found" }, { status: 404 });
@@ -111,7 +99,7 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
     try {
       // NOTE: This will fail if policies reference the insurer (FK constraint).
       // That's good: it prevents accidental data loss. We surface the error cleanly.
-      await prisma.insurers.delete({ where: { id } });
+      await deleteRecord("insurers", { id });
     } catch (prismaError: unknown) {
       const errorMessage = prismaError instanceof Error ? prismaError.message : "Unknown error";
       const isFk = typeof errorMessage === "string" && errorMessage.toLowerCase().includes("foreign key");

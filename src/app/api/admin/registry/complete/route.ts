@@ -21,11 +21,28 @@ export async function POST(req: Request) {
   const { registryId } = await req.json();
   if (!registryId) return new NextResponse("Missing registryId", { status: 400 });
 
-  const registry = await prisma.clientRegistry.findUnique({
-    where: { id: registryId },
-    include: { files: { orderBy: { createdAt: "desc" } } },
-  });
+  const { findUnique: findUniqueRegistry, findMany: findManyFiles } = await import("@/lib/db");
+  
+  type RegistryRecord = {
+    id: string;
+    clientName: string | null;
+    clientEmail: string;
+  };
+  
+  type FileRecord = {
+    originalName: string;
+    status: string;
+    createdAt: string;
+  };
+  
+  const registry = await findUniqueRegistry<RegistryRecord>("client_registries", { id: registryId });
   if (!registry) return new NextResponse("Registry not found", { status: 404 });
+  
+  // Fetch files separately
+  const files = await findManyFiles<FileRecord>("client_file_assets", {
+    where: { registryId },
+    orderBy: { column: "createdAt", ascending: false },
+  });
 
   // Build PDF
   const pdfBytes = await buildRegistrySummaryPdfBytes({
@@ -33,10 +50,10 @@ export async function POST(req: Request) {
     clientName: registry.clientName ?? "",
     clientEmail: registry.clientEmail,
     completedAt: new Date(),
-    files: registry.files.map((f) => ({
+    files: (files || []).map((f) => ({
       originalName: f.originalName,
       status: f.status,
-      createdAt: f.createdAt,
+      createdAt: new Date(f.createdAt),
     })),
   });
 
@@ -59,15 +76,14 @@ export async function POST(req: Request) {
   }
 
   // Mark complete and store PDF reference
-  await prisma.clientRegistry.update({
-    where: { id: registryId },
-    data: {
-      status: "COMPLETE",
-      completedAt: new Date(),
-      summaryBucket: bucket,
-      summaryPath: path,
-    },
-  });
+  const { update: updateRegistry } = await import("@/lib/db");
+  await updateRegistry("client_registries", { id: registryId }, {
+    status: "COMPLETE",
+    completedAt: new Date().toISOString(),
+    summaryBucket: bucket,
+    summaryPath: path,
+    updatedAt: new Date().toISOString(),
+  } as Record<string, unknown>);
 
   // Generate signed URL for client email (valid for 30 days)
   const { data: urlData, error: urlError } = await supabaseAdmin.storage

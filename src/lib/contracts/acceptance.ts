@@ -25,17 +25,20 @@ export interface ContractAcceptanceInput {
 export async function recordContractAcceptance(
   input: ContractAcceptanceInput
 ): Promise<void> {
-  await prisma.contract_acceptances.create({
-    data: {
-      id: crypto.randomUUID(),
-      organizationId: input.organizationId,
-      userId: input.userId,
-      tier: input.tier,
-      contractVersion: CONTRACT_VERSION,
-      jurisdiction: input.jurisdiction ?? null,
-      ipAddress: input.ipAddress ?? null,
-      userAgent: input.userAgent ?? null,
-    },
+  const { create } = await import("@/lib/db");
+  const { randomUUID } = await import("crypto");
+  
+  await create("contract_acceptances", {
+    id: randomUUID(),
+    organizationId: input.organizationId,
+    userId: input.userId,
+    tier: input.tier,
+    contractVersion: CONTRACT_VERSION,
+    jurisdiction: input.jurisdiction ?? null,
+    ipAddress: input.ipAddress ?? null,
+    userAgent: input.userAgent ?? null,
+    acceptedAt: new Date().toISOString(),
+    createdAt: new Date().toISOString(),
   });
 
   // Emit billing event for contract acceptance
@@ -57,37 +60,67 @@ export async function hasAcceptedContract(
   tier: TierType,
   contractVersion: string = CONTRACT_VERSION
 ): Promise<boolean> {
-  const acceptance = await prisma.contract_acceptances.findUnique({
-    where: {
-      organizationId_tier_contractVersion: {
-        organizationId,
-        tier,
-        contractVersion,
-      },
-    },
-  });
+  const { getDb } = await import("@/lib/db");
+  const db = getDb();
+  
+  // Find by composite key (organizationId, tier, contractVersion)
+  const { data: acceptances } = await db
+    .from("contract_acceptances")
+    .select("*")
+    .eq("organizationId", organizationId)
+    .eq("tier", tier)
+    .eq("contractVersion", contractVersion)
+    .limit(1);
 
-  return acceptance !== null;
+  return acceptances !== null && acceptances.length > 0;
 }
 
 /**
  * Get all contract acceptances for an organization
  */
 export async function getContractAcceptances(organizationId: string) {
-  return prisma.contract_acceptances.findMany({
+  const { findMany: findManyAcceptances, findUnique: findUniqueUser } = await import("@/lib/db");
+  
+  type ContractAcceptanceRecord = {
+    id: string;
+    organizationId: string;
+    userId: string;
+    tier: string;
+    contractVersion: string;
+    acceptedAt: string;
+    [key: string]: unknown;
+  };
+  
+  const acceptances = await findManyAcceptances<ContractAcceptanceRecord>("contract_acceptances", {
     where: { organizationId },
-    orderBy: { acceptedAt: "desc" },
-    include: {
-      users: {
-        select: {
-          id: true,
-          email: true,
-          firstName: true,
-          lastName: true,
-        },
-      },
-    },
+    orderBy: { column: "acceptedAt", ascending: false },
   });
+
+  // Fetch user details for each acceptance
+  const acceptancesWithUsers = await Promise.all(
+    acceptances.map(async (acceptance) => {
+      type UserRecord = {
+        id: string;
+        email: string;
+        firstName: string | null;
+        lastName: string | null;
+      };
+      
+      const user = await findUniqueUser<UserRecord>("users", { id: acceptance.userId });
+      
+      return {
+        ...acceptance,
+        users: user ? {
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+        } : null,
+      };
+    })
+  );
+
+  return acceptancesWithUsers;
 }
 
 /**
@@ -103,7 +136,6 @@ export async function requireBaseTierAcceptance(
     const { HttpError } = await import("@/lib/permissions/guard");
     throw new HttpError(
       403,
-      "BASE_TIER_CONTRACT_REQUIRED",
       "Base Tier contract acceptance is required to access the dashboard."
     );
   }

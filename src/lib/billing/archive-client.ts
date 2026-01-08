@@ -6,7 +6,7 @@
  */
 
 ;
-import { writeAuditLog } from "@/lib/db";
+import { logAuditEvent } from "@/lib/audit";
 import { trackActiveEstateCount } from "./active-estates-tracker";
 
 /**
@@ -18,11 +18,20 @@ export async function archiveClient(
   organizationId: string,
   userId?: string
 ): Promise<void> {
-  const client = await prisma.clients.findFirst({
-    where: {
-      id: clientId,
-      orgId: organizationId,
-    },
+  const { findUnique, update: updateDb } = await import("@/lib/db");
+  
+  type ClientRecord = {
+    id: string;
+    orgId: string | null;
+    archivedAt: string | null;
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
+  
+  const client = await findUnique<ClientRecord>("clients", {
+    id: clientId,
+    orgId: organizationId,
   });
 
   if (!client) {
@@ -34,18 +43,19 @@ export async function archiveClient(
     return;
   }
 
-  await prisma.clients.update({
-    where: { id: clientId },
-    data: { archivedAt: new Date() },
+  await updateDb("clients", { id: clientId }, {
+    archivedAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
   });
 
-  await writeAuditLog({
+  await logAuditEvent({
     action: "CLIENT_UPDATED",
-    message: `Client archived: ${client.firstName} ${client.lastName} (${client.email})`,
     userId: userId || null,
-    orgId: organizationId,
     clientId,
-    policyId: null,
+    metadata: {
+      message: `Client archived: ${client.firstName} ${client.lastName} (${client.email})`,
+      orgId: organizationId,
+    },
   });
 
   // Track active estate count change
@@ -61,11 +71,20 @@ export async function unarchiveClient(
   organizationId: string,
   userId?: string
 ): Promise<void> {
-  const client = await prisma.clients.findFirst({
-    where: {
-      id: clientId,
-      orgId: organizationId,
-    },
+  const { findUnique, update: updateDb } = await import("@/lib/db");
+  
+  type ClientRecord = {
+    id: string;
+    orgId: string | null;
+    archivedAt: string | null;
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
+  
+  const client = await findUnique<ClientRecord>("clients", {
+    id: clientId,
+    orgId: organizationId,
   });
 
   if (!client) {
@@ -77,18 +96,19 @@ export async function unarchiveClient(
     return;
   }
 
-  await prisma.clients.update({
-    where: { id: clientId },
-    data: { archivedAt: null },
+  await updateDb("clients", { id: clientId }, {
+    archivedAt: null,
+    updatedAt: new Date().toISOString(),
   });
 
-  await writeAuditLog({
+  await logAuditEvent({
     action: "CLIENT_UPDATED",
-    message: `Client unarchived: ${client.firstName} ${client.lastName} (${client.email})`,
     userId: userId || null,
-    orgId: organizationId,
     clientId,
-    policyId: null,
+    metadata: {
+      message: `Client unarchived: ${client.firstName} ${client.lastName} (${client.email})`,
+      orgId: organizationId,
+    },
   });
 
   // Track active estate count change
@@ -99,10 +119,18 @@ export async function unarchiveClient(
  * Check if client is archived
  */
 export async function isClientArchived(clientId: string): Promise<boolean> {
-  const client = await prisma.clients.findUnique({
-    where: { id: clientId },
-    select: { archivedAt: true },
-  });
+  const { findUnique } = await import("@/lib/db");
+  
+  type ClientRecord = {
+    id: string;
+    archivedAt: string | null;
+  };
+  
+  const client = await findUnique<ClientRecord>("clients", { id: clientId });
 
-  return client?.archivedAt !== null;
+  if (!client) {
+    return false;
+  }
+
+  return client.archivedAt !== null && client.archivedAt !== undefined;
 }
