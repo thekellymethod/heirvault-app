@@ -103,7 +103,10 @@ export async function POST(req: NextRequest) {
     requireRole(principal, [UserRole.attorney]);
     
     const { org, orgId } = await getOrgContext(principal);
-    await requireRegistryActive(org);
+    await requireRegistryActive({
+      billingStatus: org.billingStatus,
+      currentPeriodEnd: org.currentPeriodEnd ? (typeof org.currentPeriodEnd === 'string' ? new Date(org.currentPeriodEnd) : org.currentPeriodEnd) : null,
+    });
 
     // Get user's organization for client creation
     const { findMany: findManyDb } = await import("@/lib/db");

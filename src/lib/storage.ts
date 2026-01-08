@@ -53,3 +53,22 @@ export async function signGetUrl(params: {
 
   return getSignedUrl(s3, cmd, { expiresIn: params.expiresInSeconds });
 }
+
+export async function uploadDocument(params: {
+  fileBuffer: ArrayBuffer;
+  filename: string;
+  contentType: string;
+}): Promise<{ key: string; sha256: string }> {
+  const buffer = Buffer.from(params.fileBuffer);
+  const sha256 = crypto.createHash("sha256").update(buffer).digest("hex");
+  const key = `documents/${sha256}/${params.filename}`;
+
+  await s3.send(new PutObjectCommand({
+    Bucket: process.env.S3_BUCKET!,
+    Key: key,
+    Body: buffer,
+    ContentType: params.contentType,
+  }));
+
+  return { key, sha256 };
+}

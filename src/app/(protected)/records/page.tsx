@@ -18,7 +18,8 @@ export default async function RecordsPage() {
   const user = await requireVerifiedAttorneyWithClerkId();
 
   // Fetch only registries this user has permission to access
-  const authorizedRegistries = await listAuthorizedRegistries(user.clerkId, 100);
+  // Note: listAuthorizedRegistries takes userId (database ID), not clerkId
+  const authorizedRegistries = await listAuthorizedRegistries(user.id);
   
   // Transform to RegistrySummary format
   const registries = await Promise.all(
@@ -35,7 +36,7 @@ export default async function RecordsPage() {
           ? {
               id: latestVersion.id,
               createdAt: new Date(latestVersion.createdAt),
-              submittedBy: latestVersion.submitted_by,
+              submittedBy: latestVersion.submittedBy,
             }
           : null,
         versionCount: versions.length,

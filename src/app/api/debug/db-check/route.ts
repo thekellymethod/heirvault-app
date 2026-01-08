@@ -25,7 +25,9 @@ export async function GET() {
       ) as exists;
     `, []);
 
-    if (!tableExists[0]?.exists) {
+    type TableExistsResult = { exists: boolean };
+    const tableExistsRecord = (tableExists && tableExists.length > 0) ? (tableExists[0] as unknown as TableExistsResult) : null;
+    if (!tableExistsRecord?.exists) {
       return NextResponse.json({ 
         ok: false, 
         error: "users table does not exist",
@@ -93,14 +95,16 @@ export async function GET() {
       ORDER BY a.attname, ix.indisunique DESC NULLS LAST;
     `, []);
 
+    type ColumnInfo = { column_name: string; data_type: string; is_nullable: string };
+    const columnsArray: ColumnInfo[] = (columnInfo || []) as unknown as ColumnInfo[];
     const hasUniqueConstraint = uniqueConstraints.length > 0;
-    const clerkIdColumn = columnInfo.find(c => c.column_name === 'clerkId');
-    const clerk_idColumn = columnInfo.find(c => c.column_name === 'clerk_id');
+    const clerkIdColumn = columnsArray.find((c) => c.column_name === 'clerkId');
+    const clerk_idColumn = columnsArray.find((c) => c.column_name === 'clerk_id');
 
     return NextResponse.json({ 
       ok: true,
-      tableExists: tableExists[0]?.exists,
-      columns: columnInfo,
+      tableExists: tableExistsRecord?.exists ?? false,
+      columns: columnsArray,
       uniqueConstraints,
       allIndexes,
       summary: {

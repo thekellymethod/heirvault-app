@@ -20,31 +20,24 @@ export async function GET(_req: NextRequest, { params }: Params) {
     });
   }
 
-  const { user, orgMember } = ctx;
+  const { user, org: orgContext, orgMember } = ctx;
   const { id } = await params;
 
   // Get client data using Supabase
   const { queryRaw } = await import("@/lib/db");
-  const clientData = await queryRaw<Array<{
-    id: string,
-    firstName: string,
-    lastName: string,
-    email: string,
-    phone: string | null;
-    dateOfBirth: Date | null;
-    createdAt: Date;
-  }>>(`
+  type ClientData = { id: string; firstName: string; lastName: string; email: string; phone: string | null; dateOfBirth: Date | null; createdAt: Date };
+  const clientDataResult = await queryRaw<Array<ClientData>>(`
     SELECT id, "firstName", "lastName", email, phone, "dateOfBirth", "createdAt"
     FROM clients
     WHERE id = $1
     LIMIT 1
   `, [id]);
 
-  if (!clientData || clientData.length === 0) {
+  if (!clientDataResult || clientDataResult.length === 0) {
     return new NextResponse("Not found", { status: 404 })
   }
 
-  const clientRow = clientData[0];
+  const clientRow = (clientDataResult[0] as unknown) as ClientData;
 
   // Get policies with insurers and beneficiaries
   const policiesData = await queryRaw<Array<{
@@ -71,15 +64,12 @@ export async function GET(_req: NextRequest, { params }: Params) {
   `, [id]);
 
   // Get beneficiaries for each policy
-  const policyIds = policiesData.map((p) => p.id);
-  const policy_beneficiariesData = policyIds.length > 0
-    ? await queryRaw<Array<{
-        policy_id: string,
-        beneficiary_id: string,
-        beneficiary_firstName: string,
-        beneficiary_lastName: string,
-        beneficiary_relationship: string | null;
-      }>>(`
+  type PolicyData = { id: string; policy_number: string | null; policy_type: string | null; insurer_id: string; insurer_name: string; insurer_contact_phone: string | null; insurer_contact_email: string | null };
+  const policiesArray: PolicyData[] = (policiesData || []) as unknown as PolicyData[];
+  const policyIds = policiesArray.map((p) => p.id);
+  type PolicyBeneficiaryData = { policy_id: string; beneficiary_id: string; beneficiary_firstName: string; beneficiary_lastName: string; beneficiary_relationship: string | null };
+  const policy_beneficiariesResult = policyIds.length > 0
+    ? await queryRaw<Array<PolicyBeneficiaryData>>(`
         SELECT 
           pb.policy_id,
           b.id as beneficiary_id,
@@ -91,6 +81,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
         WHERE pb.policy_id = ANY($1::uuid[])
       `, [policyIds])
     : [];
+  const policy_beneficiariesData = (policy_beneficiariesResult || []) as unknown as PolicyBeneficiaryData[];
 
   // Get all beneficiaries for the client
   const beneficiariesData = await queryRaw<Array<{
@@ -108,15 +99,19 @@ export async function GET(_req: NextRequest, { params }: Params) {
     ORDER BY "createdAt" DESC
   `, [id]);
 
-  await audit(AuditAction.CLIENT_SUMMARY_PDF_DOWNLOADED, {
+  await audit({
+    actorType: "ATTORNEY",
+    actorId: user.id,
     clientId: id,
-    message: `Summary PDF downloaded for ${clientRow.firstName} ${clientRow.lastName}`,
-    userId: user.id,
-    orgId: orgMember?.organizations?.id || orgMember?.organizationId || null,
+    action: AuditAction.CLIENT_SUMMARY_PDF_DOWNLOADED,
+    metadata: {
+      message: `Summary PDF downloaded for ${clientRow.firstName} ${clientRow.lastName}`,
+      orgId: orgContext?.id || orgMember?.organizations?.id || null,
+    },
   });
 
   // Map policies with their beneficiaries
-  const policies = policiesData.map((p) => ({
+  const policies = policiesArray.map((p) => ({
     id: p.id,
     insurer: {
       name: p.insurer_name,
@@ -141,7 +136,9 @@ export async function GET(_req: NextRequest, { params }: Params) {
   }));
 
   // Map beneficiaries
-  const beneficiaries = beneficiariesData.map((b) => ({
+  type BeneficiaryData = { id: string; firstName: string; lastName: string; relationship: string | null; email: string | null; phone: string | null; notes: string | null };
+  const beneficiariesArray: BeneficiaryData[] = (beneficiariesData || []) as unknown as BeneficiaryData[];
+  const beneficiaries = beneficiariesArray.map((b) => ({
     id: b.id,
     firstName: b.firstName,
     lastName: b.lastName,
@@ -165,7 +162,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const pdfStream = await renderToStream(
     ClientRegistrySummaryPDF({
       client,
-      firmName: orgMember?.organizations?.name || orgMember?.organizations?.name || undefined,
+      firmName: orgContext?.name || orgMember?.organizations?.name || undefined,
       generatedAt: new Date(),
     }),
   )

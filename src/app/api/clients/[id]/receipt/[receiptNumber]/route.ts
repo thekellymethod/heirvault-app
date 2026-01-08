@@ -37,41 +37,29 @@ export async function GET(
       return NextResponse.json({ error: "Receipt not found" }, { status: 404 });
     }
 
-    const receipt = receiptData[0];
+    type ReceiptData = { id: string; receipt_number: string; clientId: string; createdAt: Date };
+    const receipt = (receiptData[0] as unknown) as ReceiptData;
 
     // Get client data
-    const clientData = await queryRaw<Array<{
-      id: string,
-      firstName: string,
-      lastName: string,
-      email: string,
-      phone: string | null;
-      dateOfBirth: Date | null;
-      createdAt: Date;
-    }>>(`
+    type ClientData = { id: string; firstName: string; lastName: string; email: string; phone: string | null; dateOfBirth: Date | null; createdAt: Date };
+    const clientDataResult = await queryRaw<Array<ClientData>>(`
       SELECT id, "firstName", "lastName", email, phone, "dateOfBirth", "createdAt"
       FROM clients
       WHERE id = $1
       LIMIT 1
     `, [clientId]);
 
-    if (!clientData || clientData.length === 0) {
+    if (!clientDataResult || clientDataResult.length === 0) {
       return NextResponse.json({ error: "Client not found" }, { status: 404 });
     }
 
-    const client = clientData[0];
+    const client = (clientDataResult[0] as unknown) as ClientData;
 
     // CRITICAL: Get policies that existed at the time the receipt was created
     // This preserves historical accuracy - policies added/modified after receipt creation
     // will not appear in the receipt PDF, ensuring it matches the receipt hash
-    const policies = await queryRaw<Array<{
-      id: string,
-      policy_number: string | null;
-      policy_type: string | null;
-      insurer_name: string,
-      insurer_contact_phone: string | null;
-      insurer_contact_email: string | null;
-    }>>(`
+    type PolicyData = { id: string; policy_number: string | null; policy_type: string | null; insurer_name: string; insurer_contact_phone: string | null; insurer_contact_email: string | null };
+    const policiesResult = await queryRaw<Array<PolicyData>>(`
       SELECT 
         p.id,
         p.policy_number,
@@ -85,6 +73,7 @@ export async function GET(
         AND p."createdAt" <= $2
       ORDER BY p."createdAt" ASC
     `, [clientId, receipt.createdAt]);
+    const policies = (policiesResult || []) as unknown as PolicyData[];
 
     // Get organization info if available
     let organization = null;
@@ -107,7 +96,8 @@ export async function GET(
       `, [clientId]);
 
       if (orgData && orgData.length > 0) {
-        organization = orgData[0];
+        type OrgData = { name: string; address_line1: string | null; address_line2: string | null; city: string | null; state: string | null; postal_code: string | null; phone: string | null };
+        organization = (orgData[0] as unknown) as OrgData;
       }
     } catch (error) {
       // Organization info is optional

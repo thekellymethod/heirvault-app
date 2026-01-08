@@ -1,6 +1,6 @@
 import { requireAttorney } from "@/lib/auth";
 import { requireAccessRegistry } from "@/lib/permissions";
-import { getRegistryById, getRegistryVersions, getDocumentsForRegistry } from "@/lib/db";
+import { getRegistryById, getRegistryVersions, getDocumentsForRegistry, type RegistryVersion, type Document as DbDocument } from "@/lib/db";
 import { logAccess } from "@/lib/audit";
 import styles from "./page.module.css";
 
@@ -40,10 +40,10 @@ export default async function RecordDetailPage({ params }: { params: { id: strin
       <div className={styles.versionsGrid}>
         {versions.map((v) => (
           <div key={v.id} className={styles.versionCard}>
-            <div><strong>{v.submitted_by}</strong> — {new Date(v.createdAt).toLocaleString()}</div>
+            <div><strong>{v.submittedBy}</strong> — {new Date(v.createdAt).toLocaleString()}</div>
             <div className={styles.hash}>hash: {v.hash}</div>
             <pre className={styles.jsonContent}>
-              {JSON.stringify(v.data_json, null, 2)}
+              {JSON.stringify(v.dataJson, null, 2)}
             </pre>
           </div>
         ))}
@@ -51,11 +51,11 @@ export default async function RecordDetailPage({ params }: { params: { id: strin
 
       <h2 className={styles.sectionTitle}>Documents</h2>
       <div className={styles.documentsGrid}>
-        {docs.map((d) => (
+        {docs.map((d: DbDocument) => (
           <div key={d.id} className={styles.documentCard}>
-            <div><strong>{d.content_type}</strong> — {Math.round(d.size_bytes / 1024)} KB</div>
-            <div className={styles.metadata}>sha256: {d.sha256}</div>
-            <div className={styles.metadata}>path: {d.storage_path}</div>
+            <div><strong>{d.mimeType}</strong> — {Math.round(d.fileSize / 1024)} KB</div>
+            <div className={styles.metadata}>sha256: {d.documentHash}</div>
+            <div className={styles.metadata}>path: {d.filePath}</div>
           </div>
         ))}
       </div>

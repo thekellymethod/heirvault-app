@@ -86,7 +86,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   try {
     const { id: clientId } = await ctx.params;
 
-    const { findUnique: findUniqueClient, create: createPolicy, findUnique: findUniqueInsurer, findUnique: findUniqueClientForEmail } = await import("@/lib/db");
+    const { findUnique: findUniqueClient, create: createPolicy, findUnique: findUniqueInsurer } = await import("@/lib/db");
     
     // Verify client exists
     const clientExists = await findUniqueClient("clients", { id: clientId });
@@ -109,7 +109,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
     const policyId = randomUUID();
     const now = new Date().toISOString();
-    const policy = await createPolicy("policies", {
+    type PolicyRecord = { id: string; carrierNameRaw: string | null; policyNumber: string | null; policyType: string | null };
+    const policyResult = await createPolicy<PolicyRecord>("policies", {
       id: policyId,
       clientId: clientId,
       insurerId: insurerId || null,
@@ -127,39 +128,43 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       : null;
 
     // Send email notification to client (if email exists)
+    const policyRecord = policyResult as PolicyRecord;
     try {
-      const client = await findUniqueClientForEmail("clients", { id: clientId });
+      type ClientRecord = { id: string; email: string; firstName: string; lastName: string };
+      const client = await findUniqueClient<ClientRecord>("clients", { id: clientId });
 
       if (client && client.email) {
-        const { orgMember } = await getCurrentUserWithOrg();
+        const { org } = await getCurrentUserWithOrg();
         const baseUrl = process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin;
         const dashboardUrl = `${baseUrl}/dashboard/clients/${clientId}`;
-        const firmName = orgMember?.organizations?.name || undefined;
-        const insurerName = insurer?.name || policy.carrierNameRaw || "Unknown";
+        const firmName = org?.name || undefined;
+        type InsurerRecord = { id: string; name: string };
+        const insurerName = (insurer as InsurerRecord | null)?.name || policyRecord.carrierNameRaw || "Unknown";
 
         await sendPolicyAddedEmail({
           to: client.email,
           clientName: `${client.firstName} ${client.lastName}`,
           insurerName,
-          policyNumber: policy.policyNumber || undefined,
-          policyType: policy.policyType || undefined,
+          policyNumber: policyRecord.policyNumber || undefined,
+          policyType: policyRecord.policyType || undefined,
           firmName,
           dashboardUrl,
-        }).catch((emailError) => {
+        }).catch((emailError: unknown) => {
           console.error("Error sending policy added email:", emailError);
           // Don't fail the request if email fails
         });
       }
-    } catch (emailError) {
+    } catch (emailError: unknown) {
       console.error("Error sending policy added email:", emailError);
       // Don't fail the request if email fails
     }
 
+    type InsurerRecord = { id: string; name: string };
     return NextResponse.json({
       policy: {
-        ...policy,
-        insurer: insurer ? { id: insurer.id, name: insurer.name } : null,
-        carrierNameRaw: policy.carrierNameRaw,
+        ...policyResult,
+        insurer: insurer ? { id: (insurer as InsurerRecord).id, name: (insurer as InsurerRecord).name } : null,
+        carrierNameRaw: policyRecord?.carrierNameRaw || null,
       },
     }, { status: 201 });
   } catch (error: unknown) {

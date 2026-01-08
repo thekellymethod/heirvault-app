@@ -17,13 +17,25 @@ export default async function AdminConsolePage() {
       <AdminBanner />
       <div className="mx-auto max-w-5xl px-6 py-10">
         <div className="mb-6">
-          <Link
-            href="/admin"
-            className="inline-flex items-center gap-2 text-sm text-zinc-400 hover:text-zinc-200 transition-colors mb-4"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Return to Admin Dashboard
-          </Link>
+          <div className="flex items-center justify-between mb-4">
+            <Link
+              href="/admin"
+              className="inline-flex items-center gap-2 text-sm text-zinc-400 hover:text-zinc-200 transition-colors"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Return to Admin Dashboard
+            </Link>
+            <div className="flex items-center gap-3">
+              <Link
+                href="/admin"
+                className="text-sm text-zinc-400 hover:text-zinc-200 transition-colors"
+              >
+                Dashboard
+              </Link>
+              <span className="text-zinc-600">|</span>
+              <span className="text-sm text-zinc-300 font-medium">Console</span>
+            </div>
+          </div>
           <h1 className="text-2xl font-semibold tracking-tight">Admin Console</h1>
           <p className="mt-2 text-sm text-zinc-400">
             Restricted command palette. Whitelisted actions only. Every command is audited.

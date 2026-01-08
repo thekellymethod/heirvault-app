@@ -7,7 +7,7 @@ export async function sendEmail(params: {
   to: string;
   subject: string;
   html: string;
-  attachments?: Array<{ filename: string; content: Buffer }>;
+  attachments?: Array<{ filename: string; content: Buffer; contentType?: string }>;
 }) {
   const from = process.env.EMAIL_FROM!;
   await resend.emails.send({
@@ -75,6 +75,37 @@ ${opts.summaryPdfUrl}
 This PDF contains a summary of all uploaded policy documents. Please save this document for your records.
 
 If you have any questions or need to make updates, please contact us.
+
+— HeirVault`,
+  });
+}
+
+export async function sendPolicyAddedEmail(opts: {
+  to: string;
+  clientName?: string;
+  insurerName?: string;
+  policyNumber?: string;
+  policyType?: string;
+  firmName?: string;
+  dashboardUrl?: string;
+}) {
+  const nameLine = opts.clientName ? `Hello ${opts.clientName},` : `Hello,`;
+  const policyInfo = opts.policyNumber 
+    ? `Policy Number: ${opts.policyNumber}${opts.policyType ? ` (${opts.policyType})` : ""}`
+    : "A new policy";
+  const insurerInfo = opts.insurerName ? `\nInsurer: ${opts.insurerName}` : "";
+  const firmInfo = opts.firmName ? `\n\nFirm: ${opts.firmName}` : "";
+  const dashboardLink = opts.dashboardUrl ? `\n\nView in dashboard: ${opts.dashboardUrl}` : "";
+
+  await resend.emails.send({
+    from: process.env.MAIL_FROM || process.env.EMAIL_FROM || "HeirVault <support@heirvault.app>",
+    to: opts.to,
+    subject: "HeirVault: New Policy Added to Your Registry",
+    text: `${nameLine}
+
+${policyInfo} has been added to your HeirVault registry.${insurerInfo}${firmInfo}${dashboardLink}
+
+You can view and manage your policies in your HeirVault dashboard.
 
 — HeirVault`,
   });

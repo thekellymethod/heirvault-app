@@ -35,7 +35,10 @@ export async function requireAdmin() {
   }
 
   // Check Clerk public metadata first (primary source of truth)
-  const isAdminInClerk = clerkUser.publicMetadata?.role === "admin";
+  // Handle both "role" and "user.role" formats for backward compatibility
+  const publicMetadata = (clerkUser.publicMetadata || {}) as Record<string, unknown>;
+  const clerkRole = (publicMetadata.role || (publicMetadata as Record<string, unknown>)["user.role"] || null) as string | null;
+  const isAdminInClerk = clerkRole === "admin";
   
   if (isAdminInClerk) {
     // User is admin via Clerk metadata - return the database user

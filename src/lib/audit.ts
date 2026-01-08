@@ -45,3 +45,29 @@ export async function logAuditEvent(params: {
     metadata: params.metadata,
   });
 }
+
+// Alias for backward compatibility
+export const audit = auditLog;
+
+// Export AuditAction for backward compatibility
+export { AuditAction } from "@/lib/db";
+
+// Log access function for registry access logging
+export async function logAccess(params: {
+  userId?: string | null;
+  registryId: string | null;
+  action: string;
+  metadata?: Record<string, unknown>;
+}): Promise<void> {
+  const { create } = await import("@/lib/db");
+  const { randomUUID } = await import("crypto");
+  
+  await create("access_logs", {
+    id: randomUUID(),
+    registryId: params.registryId,
+    userId: params.userId ?? null,
+    action: params.action,
+    metadata: params.metadata ?? null,
+    timestamp: new Date().toISOString(),
+  });
+}

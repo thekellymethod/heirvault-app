@@ -203,55 +203,64 @@ export function AdminDashboard({ admin: _admin }: AdminDashboardProps) {
         <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
           {/* Header */}
           <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="font-display text-3xl font-bold text-ink-900 mb-2">
-                Administration
-              </h1>
-              <p className="text-slateui-600">
-                System governance, approvals, credential reviews, and compliance management.
-              </p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="font-display text-3xl font-bold text-ink-900 mb-2">
+                  Administration
+                </h1>
+                <p className="text-slateui-600">
+                  System governance, approvals, credential reviews, and compliance management.
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <Link href="/audit">
+                  <Button variant="outline">
+                    <Eye className="h-4 w-4 mr-2" />
+                    View Audit Trail
+                  </Button>
+                </Link>
+                <Link href="/admin/console">
+                  <Button variant="outline">
+                    <FileText className="h-4 w-4 mr-2" />
+                    Admin Console
+                  </Button>
+                </Link>
+                <Link href="/admin/tokens">
+                  <Button variant="outline">
+                    <Key className="h-4 w-4 mr-2" />
+                    API Tokens
+                  </Button>
+                </Link>
+              </div>
             </div>
-            <div className="flex items-center gap-3">
-              <Link href="/audit">
-                <Button variant="outline">
-                  <Eye className="h-4 w-4 mr-2" />
-                  View Audit Trail
-                </Button>
+            
+            {/* Navigation Breadcrumb */}
+            <div className="flex items-center gap-2 text-sm text-slateui-600 mt-4">
+              <Link href="/admin" className="hover:text-ink-900 transition-colors font-medium">
+                Dashboard
               </Link>
-              <Link href="/admin/console">
-                <Button variant="outline">
-                  <FileText className="h-4 w-4 mr-2" />
-                  Admin Console
-                </Button>
-              </Link>
-              <Link href="/admin/tokens">
-                <Button variant="outline">
-                  <Key className="h-4 w-4 mr-2" />
-                  API Tokens
-                </Button>
-              </Link>
-            </div>
-          </div>
-        </div>
-
-        {/* Security Notice */}
-        <div className="card p-4 mb-6 bg-red-50 border-red-200">
-          <div className="flex items-start gap-2">
-            <Shield className="h-5 w-5 text-red-600 mt-0.5" />
-            <div>
-              <p className="text-sm font-medium text-ink-900 mb-1">
-                Admin-Only Access
-              </p>
-              <p className="text-sm text-slateui-600">
-                This page is restricted to administrators only. All actions are logged for audit purposes.
-              </p>
+              <span>/</span>
+              <span className="text-ink-900">Admin</span>
             </div>
           </div>
-        </div>
 
-        {/* Tabs */}
-        <div className="border-b border-slateui-200 mb-6">
+          {/* Security Notice */}
+          <div className="card p-4 mb-6 bg-red-50 border-red-200">
+            <div className="flex items-start gap-2">
+              <Shield className="h-5 w-5 text-red-600 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-ink-900 mb-1">
+                  Admin-Only Access
+                </p>
+                <p className="text-sm text-slateui-600">
+                  This page is restricted to administrators only. All actions are logged for audit purposes.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Tabs */}
+          <div className="border-b border-slateui-200 mb-6">
           <nav className="flex space-x-8">
             <button
               onClick={() => setActiveTab("overview")}
@@ -309,29 +318,29 @@ export function AdminDashboard({ admin: _admin }: AdminDashboardProps) {
               Manual Upload
             </button>
           </nav>
-        </div>
-
-        {/* Error/Success Messages */}
-        {error && (
-          <div className="card p-4 mb-6 bg-red-50 border-red-200">
-            <div className="flex items-center gap-2 text-red-700">
-              <AlertCircle className="h-5 w-5" />
-              <span className="text-sm">{error}</span>
-            </div>
           </div>
-        )}
 
-        {success && (
-          <div className="card p-4 mb-6 bg-green-50 border-green-200">
-            <div className="flex items-center gap-2 text-green-700">
-              <CheckCircle className="h-5 w-5" />
-              <span className="text-sm">{success}</span>
+          {/* Error/Success Messages */}
+          {error && (
+            <div className="card p-4 mb-6 bg-red-50 border-red-200">
+              <div className="flex items-center gap-2 text-red-700">
+                <AlertCircle className="h-5 w-5" />
+                <span className="text-sm">{error}</span>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Tab Content */}
-        {activeTab === "overview" && (
+          {success && (
+            <div className="card p-4 mb-6 bg-green-50 border-green-200">
+              <div className="flex items-center gap-2 text-green-700">
+                <CheckCircle className="h-5 w-5" />
+                <span className="text-sm">{success}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Tab Content */}
+          {activeTab === "overview" && (
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <Link href="/audit">
@@ -410,9 +419,9 @@ export function AdminDashboard({ admin: _admin }: AdminDashboardProps) {
               </div>
             </div>
           </div>
-        )}
+          )}
 
-        {activeTab === "approvals" && (
+          {activeTab === "approvals" && (
           <div className="space-y-6">
             {/* Filter */}
             <div className="card p-4">
@@ -562,10 +571,10 @@ export function AdminDashboard({ admin: _admin }: AdminDashboardProps) {
               </div>
             </div>
           </div>
-        )}
+          )}
 
-        {activeTab === "credentials" && (
-          <div className="card p-6">
+          {activeTab === "credentials" && (
+            <div className="card p-6">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-xl font-semibold text-ink-900">Pending Attorney Applications</h2>
               <div className="flex items-center gap-2">
@@ -706,9 +715,9 @@ export function AdminDashboard({ admin: _admin }: AdminDashboardProps) {
               </div>
             )}
           </div>
-        )}
+          )}
 
-        {activeTab === "compliance" && (
+          {activeTab === "compliance" && (
           <div className="card p-6">
             <div className="text-center py-12 text-slateui-500">
               <Scale className="h-12 w-12 mx-auto mb-4 text-slateui-400" />
@@ -723,11 +732,11 @@ export function AdminDashboard({ admin: _admin }: AdminDashboardProps) {
               </Link>
             </div>
           </div>
-        )}
+          )}
 
-        {activeTab === "manual-upload" && (
-          <ManualUpload />
-        )}
+          {activeTab === "manual-upload" && (
+            <ManualUpload />
+          )}
         </div>
       </div>
     </div>

@@ -132,19 +132,147 @@ export async function findMany<T>(
 }
 
 /**
+ * Check if a table exists (for debugging)
+ */
+export async function tableExists(table: string): Promise<boolean> {
+  try {
+    // Try to query the table with a limit 0 to check if it exists
+    const { error } = await supabaseAdmin
+      .from(table)
+      .select('*', { count: 'exact', head: true })
+      .limit(0);
+    
+    // If error is about table not existing, return false
+    if (error) {
+      const errorMessage = String(error.message || error).toLowerCase();
+      if (errorMessage.includes('does not exist') || errorMessage.includes('relation') || errorMessage.includes('42P01')) {
+        return false;
+      }
+      // Other errors might mean table exists but there's a different issue
+      return true;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Validate data before inserting into users table
+ */
+function validateUserData(data: Record<string, unknown>): { valid: boolean; errors: string[] } {
+  const errors: string[] = [];
+  
+  // Required fields
+  if (!data.id || typeof data.id !== 'string') {
+    errors.push('id is required and must be a string (UUID)');
+  }
+  
+  if (!data.clerkId || typeof data.clerkId !== 'string') {
+    errors.push('clerkId is required and must be a string');
+  }
+  
+  if (!data.email || typeof data.email !== 'string') {
+    errors.push('email is required and must be a string');
+  } else {
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(data.email)) {
+      errors.push('email must be a valid email address');
+    }
+  }
+  
+  // Roles validation
+  if (data.roles !== undefined) {
+    if (!Array.isArray(data.roles)) {
+      errors.push('roles must be an array');
+    } else {
+      // Validate each role is a string
+      const invalidRoles = data.roles.filter(r => typeof r !== 'string');
+      if (invalidRoles.length > 0) {
+        errors.push(`roles array contains non-string values: ${JSON.stringify(invalidRoles)}`);
+      }
+    }
+  }
+  
+  // Validate UUID format for id
+  if (data.id && typeof data.id === 'string') {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(data.id)) {
+      errors.push(`id must be a valid UUID format, got: ${data.id}`);
+    }
+  }
+  
+  return {
+    valid: errors.length === 0,
+    errors,
+  };
+}
+
+/**
  * Helper for create operations
  */
 export async function create<T>(table: string, data: Partial<T>): Promise<T> {
   // Ensure id is included if provided (for tables that require explicit IDs)
   const insertData = { ...data };
   
-  // Log the data being inserted for debugging (especially for users table)
+  // For users table, validate and prepare data
   if (table === "users") {
-    const hasId = (insertData as Record<string, unknown>).id;
-    if (!hasId) {
-      console.error(`[DB] Warning: Creating user without id field. Data:`, JSON.stringify(insertData, null, 2));
-    } else {
-      console.log(`[DB] Creating user with id: ${hasId}`);
+    const userData = insertData as Record<string, unknown>;
+    
+    // Validate required fields
+    const validation = validateUserData(userData);
+    if (!validation.valid) {
+      const errorMessage = `[DB] User data validation failed: ${validation.errors.join(', ')}`;
+      console.error(errorMessage);
+      console.error(`[DB] Invalid user data:`, JSON.stringify(userData, null, 2));
+      throw new Error(errorMessage);
+    }
+    
+    // Ensure roles is properly formatted as an array
+    if (userData.roles && Array.isArray(userData.roles)) {
+      // Filter out any null/undefined values and ensure all are strings
+      userData.roles = userData.roles.filter((r): r is string => typeof r === 'string');
+      console.log(`[DB] Creating user with id: ${userData.id}, email: ${userData.email}, roles: ${JSON.stringify(userData.roles)}`);
+    } else if (userData.roles === undefined || userData.roles === null) {
+      // Default to empty array if roles is not provided
+      userData.roles = [];
+      console.log(`[DB] Creating user with id: ${userData.id}, email: ${userData.email}, roles: [] (default)`);
+    }
+    
+    // Remove any undefined values to avoid issues with Supabase
+    Object.keys(userData).forEach(key => {
+      if (userData[key] === undefined) {
+        delete userData[key];
+      }
+    });
+    
+    // ALWAYS ensure createdAt and updatedAt are set (required by database)
+    // Database uses snake_case: created_at and updated_at
+    // Force set these values to ensure they're never null or undefined
+    const now = new Date().toISOString();
+    
+    // Check if values exist and are valid (not null, not undefined, not empty string)
+    const hasCreatedAt = userData.created_at && userData.created_at !== null && userData.created_at !== '';
+    const hasCreatedAtCamel = userData.createdAt && userData.createdAt !== null && userData.createdAt !== '';
+    const hasUpdatedAt = userData.updated_at && userData.updated_at !== null && userData.updated_at !== '';
+    const hasUpdatedAtCamel = userData.updatedAt && userData.updatedAt !== null && userData.updatedAt !== '';
+    
+    // Always set snake_case versions
+    userData.created_at = hasCreatedAt ? userData.created_at : (hasCreatedAtCamel ? userData.createdAt : now);
+    userData.updated_at = hasUpdatedAt ? userData.updated_at : (hasUpdatedAtCamel ? userData.updatedAt : now);
+    
+    // Remove camelCase versions to avoid confusion
+    delete userData.createdAt;
+    delete userData.updatedAt;
+    
+    // Log to verify values are set
+    console.log(`[DB] User data before insert - created_at: ${userData.created_at}, updated_at: ${userData.updated_at}`);
+    
+    // Verify table exists (only log, don't fail)
+    const exists = await tableExists(table);
+    if (!exists) {
+      console.warn(`[DB] Warning: Table ${table} may not exist. This might cause an error.`);
     }
   }
   
@@ -155,10 +283,50 @@ export async function create<T>(table: string, data: Partial<T>): Promise<T> {
     .single();
 
   if (error) {
-    // Log the error for debugging
-    console.error(`[DB] Create error on table ${table}:`, error);
+    // Log the error for debugging - extract all error properties
+    // Supabase errors have specific properties we need to extract
+    const errorDetails: Record<string, unknown> = {};
+    
+    // Extract standard Supabase error properties
+    if (error && typeof error === 'object') {
+      errorDetails.message = (error as any).message || String(error);
+      errorDetails.code = (error as any).code;
+      errorDetails.details = (error as any).details;
+      errorDetails.hint = (error as any).hint;
+      
+      // Try to get all enumerable properties
+      for (const key in error) {
+        if (error.hasOwnProperty(key)) {
+          errorDetails[key] = (error as any)[key];
+        }
+      }
+    } else {
+      errorDetails.error = String(error);
+    }
+    
+    console.error(`[DB] Create error on table ${table}:`, JSON.stringify(errorDetails, null, 2));
+    console.error(`[DB] Error type:`, typeof error);
+    console.error(`[DB] Error constructor:`, error?.constructor?.name);
     console.error(`[DB] Insert data was:`, JSON.stringify(insertData, null, 2));
-    throw error;
+    
+    // Also try to stringify the error directly
+    try {
+      console.error(`[DB] Error stringified:`, JSON.stringify(error, Object.getOwnPropertyNames(error)));
+    } catch (e) {
+      console.error(`[DB] Could not stringify error:`, e);
+    }
+    
+    // Create a more descriptive error message
+    const errorMessage = errorDetails.message || errorDetails.error || 'Unknown database error';
+    const errorCode = errorDetails.code || 'UNKNOWN';
+    const enhancedError = new Error(
+      `Failed to create record in ${table}: ${errorMessage} (code: ${errorCode})`
+    ) as Error & { code?: string; details?: unknown; hint?: string };
+    enhancedError.code = errorCode as string;
+    enhancedError.details = errorDetails.details;
+    enhancedError.hint = errorDetails.hint as string;
+    
+    throw enhancedError;
   }
   return result as T;
 }

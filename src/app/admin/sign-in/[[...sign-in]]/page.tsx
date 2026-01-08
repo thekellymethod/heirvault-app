@@ -2,28 +2,55 @@
 
 import { SignIn, SignOutButton, useAuth } from "@clerk/nextjs";
 import { Logo } from "@/components/Logo";
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, useRef } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Shield, AlertCircle, ArrowLeft, LogOut } from "lucide-react";
 
 export default function AdminSignInPage() {
   const { isSignedIn, isLoaded, userId } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [adminCheckError, setAdminCheckError] = useState<string | null>(null);
   const [isCheckingAdmin, setIsCheckingAdmin] = useState(false);
   const [showSignInForm, setShowSignInForm] = useState(true);
+  const hasCheckedRef = useRef(false); // Prevent multiple checks
+
+  // Check for error parameter in URL
+  useEffect(() => {
+    const errorParam = searchParams.get("error");
+    if (errorParam === "auth_failed") {
+      setAdminCheckError("Authentication failed. There may be a database error. Please try signing out and signing in again.");
+      setShowSignInForm(false);
+      hasCheckedRef.current = true; // Prevent auto-check
+    } else if (errorParam === "not_admin") {
+      setAdminCheckError("This account does not have administrator privileges. Check the diagnostic page for details.");
+      setShowSignInForm(false);
+      hasCheckedRef.current = true; // Prevent auto-check
+    }
+  }, [searchParams]);
 
   // Check admin status if already signed in, but don't auto-redirect immediately
   useEffect(() => {
-    if (isLoaded && isSignedIn && !adminCheckError) {
+    // Skip if we've already checked or if there's an error
+    if (hasCheckedRef.current || adminCheckError) {
+      return;
+    }
+
+    if (isLoaded && isSignedIn) {
+      hasCheckedRef.current = true; // Mark as checked to prevent loops
       setIsCheckingAdmin(true);
       // Check if user is admin
       fetch("/api/debug/whoami")
-        .then((res) => res.json())
+        .then((res) => {
+          if (!res.ok) {
+            throw new Error(`HTTP ${res.status}`);
+          }
+          return res.json();
+        })
         .then((data) => {
           setIsCheckingAdmin(false);
           if (data.isAdmin) {
-            // User is admin - redirect to admin dashboard
+            // User is admin - redirect to admin dashboard (not console)
             router.push("/admin");
           } else {
             // Not an admin - show error but allow them to sign out and try again
@@ -31,15 +58,28 @@ export default function AdminSignInPage() {
             setShowSignInForm(false);
           }
         })
-        .catch(() => {
+        .catch((error) => {
           setIsCheckingAdmin(false);
-          setAdminCheckError("Unable to verify admin status.");
+          console.error("[AdminSignIn] Error checking admin status:", error);
+          // Check if it's a database/creation error
+          const errorMessage = error?.message || String(error);
+          const isDbError = errorMessage.includes("database") || 
+                           errorMessage.includes("create") || 
+                           errorMessage.includes("insert") ||
+                           errorMessage.includes("DB");
+          
+          if (isDbError) {
+            setAdminCheckError("Database error occurred while creating your account. Please contact support or try signing out and signing in again.");
+          } else {
+            setAdminCheckError("Unable to verify admin status. Please try signing out and signing in again.");
+          }
           setShowSignInForm(false);
         });
     } else if (isLoaded && !isSignedIn) {
       // Not signed in - show sign-in form
       setShowSignInForm(true);
       setAdminCheckError(null);
+      hasCheckedRef.current = false; // Reset when signed out
     }
   }, [isLoaded, isSignedIn, adminCheckError, router]);
 
@@ -106,12 +146,22 @@ export default function AdminSignInPage() {
               <p className="text-xs text-slate-500 mb-4">
                 Please sign out and sign in with an administrator account.
               </p>
-              <SignOutButton redirectUrl="/admin/sign-in">
-                <button className="inline-flex items-center gap-2 rounded-xl bg-red-600 hover:bg-red-700 text-white px-4 py-2 text-sm font-semibold transition shadow-md hover:shadow-lg">
-                  <LogOut className="h-4 w-4" />
-                  Sign Out and Try Again
-                </button>
-              </SignOutButton>
+              <div className="space-y-2">
+                <a
+                  href="/api/debug/admin-diagnostic"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-block text-xs text-blue-600 hover:text-blue-700 underline"
+                >
+                  View Diagnostic Information →
+                </a>
+                <SignOutButton redirectUrl="/admin/sign-in">
+                  <button className="inline-flex items-center gap-2 rounded-xl bg-red-600 hover:bg-red-700 text-white px-4 py-2 text-sm font-semibold transition shadow-md hover:shadow-lg">
+                    <LogOut className="h-4 w-4" />
+                    Sign Out and Try Again
+                  </button>
+                </SignOutButton>
+              </div>
             </div>
           </div>
         )}
@@ -133,6 +183,7 @@ export default function AdminSignInPage() {
               afterSignInUrl="/admin"
               redirectUrl="/admin"
               fallbackRedirectUrl="/admin"
+              forceRedirectUrl="/admin"
               appearance={{
                 elements: {
                   rootBox: "mx-auto w-full",

@@ -20,7 +20,7 @@ export async function GET(req: NextRequest, { params }: Params) {
     });
   }
 
-  const { user, orgMember } = ctx;
+  const { user, org, orgMember } = ctx;
   const { id } = await params;
 
   // Get query parameters for optional probate-specific fields
@@ -32,26 +32,19 @@ export async function GET(req: NextRequest, { params }: Params) {
   const { queryRaw } = await import("@/lib/db");
   
   // Get client data using raw SQL
-  const clientData = await queryRaw<Array<{
-    id: string,
-    firstName: string,
-    lastName: string,
-    email: string,
-    phone: string | null;
-    dateOfBirth: Date | null;
-    createdAt: Date;
-  }>>(`
+  type ClientData = { id: string; firstName: string; lastName: string; email: string; phone: string | null; dateOfBirth: Date | null; createdAt: Date };
+  const clientDataResult = await queryRaw<Array<ClientData>>(`
     SELECT id, "firstName", "lastName", email, phone, "dateOfBirth", "createdAt"
     FROM clients
     WHERE id = $1
     LIMIT 1
   `, [id]);
 
-  if (!clientData || clientData.length === 0) {
+  if (!clientDataResult || clientDataResult.length === 0) {
     return new NextResponse("Not found", { status: 404 });
   }
 
-  const client = clientData[0];
+  const client: ClientData = (clientDataResult[0] as unknown as ClientData);
 
   // Get policies with insurers and beneficiaries
   const policiesData = await queryRaw<Array<{
@@ -80,7 +73,9 @@ export async function GET(req: NextRequest, { params }: Params) {
   `, [id]);
 
   // Get beneficiaries for each policy
-  const policyIds = policiesData.map((p) => p.id);
+  type PolicyData = { id: string; policy_number: string | null; policy_type: string | null; verificationStatus: string; insurer_id: string; insurer_name: string; insurer_contact_phone: string | null; insurer_contact_email: string | null };
+  const policiesArray: PolicyData[] = (policiesData || []) as unknown as PolicyData[];
+  const policyIds = policiesArray.map((p) => p.id);
   const policy_beneficiariesData = policyIds.length > 0
     ? await queryRaw<Array<{
         policy_id: string,
@@ -122,15 +117,19 @@ export async function GET(req: NextRequest, { params }: Params) {
   `, [id]);
 
   // Log the PDF download
-  await audit(AuditAction.CLIENT_SUMMARY_PDF_DOWNLOADED, {
+  await audit({
+    actorType: "ATTORNEY",
+    actorId: user.id,
     clientId: id,
-    message: `Probate summary PDF downloaded for ${client.firstName} ${client.lastName}`,
-    userId: user.id,
-    orgId: orgMember?.organizations?.id || orgMember?.organizationId || null,
+    action: AuditAction.CLIENT_SUMMARY_PDF_DOWNLOADED,
+    metadata: {
+      message: `Probate summary PDF downloaded for ${client.firstName} ${client.lastName}`,
+      orgId: org?.id || null,
+    },
   });
 
   // Map policies with their beneficiaries
-  const policies = policiesData.map((p) => ({
+  const policies = policiesArray.map((p) => ({
     id: p.id,
     insurer: {
       name: p.insurer_name,
@@ -140,7 +139,7 @@ export async function GET(req: NextRequest, { params }: Params) {
     policyNumber: p.policy_number,
     policyType: p.policy_type,
     verificationStatus: p.verificationStatus,
-    beneficiaries: policy_beneficiariesData
+    beneficiaries: ((policy_beneficiariesData || []) as unknown as Array<{ policy_id: string; beneficiary_id: string; beneficiary_firstName: string; beneficiary_lastName: string; beneficiary_relationship: string | null; beneficiary_email: string | null; beneficiary_phone: string | null }>)
       .filter((pb) => pb.policy_id === p.id)
       .map((pb) => ({
         beneficiary: {
@@ -155,7 +154,9 @@ export async function GET(req: NextRequest, { params }: Params) {
   }));
 
   // Map beneficiaries
-  const beneficiaries = beneficiariesData.map((b) => ({
+  type BeneficiaryData = { id: string; firstName: string; lastName: string; relationship: string | null; email: string | null; phone: string | null; dateOfBirth: Date | null };
+  const beneficiariesArray: BeneficiaryData[] = (beneficiariesData || []) as unknown as BeneficiaryData[];
+  const beneficiaries = beneficiariesArray.map((b) => ({
     id: b.id,
     firstName: b.firstName,
     lastName: b.lastName,
@@ -177,7 +178,7 @@ export async function GET(req: NextRequest, { params }: Params) {
       },
       policies,
       beneficiaries,
-      firmName: orgMember?.organizations?.name,
+      firmName: org?.name || orgMember?.organizations?.name,
       generatedAt: new Date(),
       executorName,
       executorContact,

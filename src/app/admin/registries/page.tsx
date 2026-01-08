@@ -1,15 +1,20 @@
 // Prisma removed - database access needs to be implemented
 import AdminRegistriesTable from "./table";
+import { findMany } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminRegistriesPage() {
-  const registries = await prisma.clientRegistry.findMany({
-    orderBy: { createdAt: "desc" },
-    include: {
-      files: { orderBy: { createdAt: "desc" } },
-    },
+  // Get registries using Supabase
+  const registriesData = await findMany("registry_records", {
+    orderBy: { column: "createdAt", ascending: false },
   });
+  
+  // Transform to expected format
+  const registries = (registriesData || []).map((reg: any) => ({
+    ...reg,
+    files: [], // TODO: Fetch files separately if needed
+  }));
 
   return (
     <div style={{ maxWidth: 1100, margin: "40px auto", padding: 16 }}>

@@ -22,7 +22,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     );
   }
 
-  const { user, orgMember } = ctx;
+  const { user, org, orgMember } = ctx;
   const { id } = await params;
   const body = await req.json();
   const { email } = body;
@@ -57,7 +57,8 @@ export async function POST(req: NextRequest, { params }: Params) {
       return NextResponse.json({ error: "Client not found" }, { status: 404 });
     }
 
-    const clientRow = clientData[0];
+    type ClientData = { id: string; firstName: string; lastName: string; email: string; phone: string | null; dateOfBirth: Date | null; createdAt: Date };
+    const clientRow = (clientData[0] as unknown) as ClientData;
 
     // Get policies with insurers
     const policiesData = await queryRaw<Array<{
@@ -86,17 +87,12 @@ export async function POST(req: NextRequest, { params }: Params) {
     `, [id]);
 
     // Get policy beneficiaries
-    const policyIds = policiesData.map((p) => p.id);
-    const policyBeneficiariesData = policyIds.length > 0
-      ? await queryRaw<Array<{
-          policy_id: string;
-          beneficiary_id: string;
-          beneficiary_firstName: string;
-          beneficiary_lastName: string;
-          beneficiary_relationship: string | null;
-          beneficiary_email: string | null;
-          beneficiary_phone: string | null;
-        }>>(`
+    type PolicyData = { id: string; policy_number: string | null; policy_type: string | null; insurer_id: string; insurer_name: string; insurer_contact_phone: string | null; insurer_contact_email: string | null; insurer_website: string | null };
+    const policiesArray: PolicyData[] = (policiesData || []) as unknown as PolicyData[];
+    const policyIds = policiesArray.map((p) => p.id);
+    type PolicyBeneficiaryData = { policy_id: string; beneficiary_id: string; beneficiary_firstName: string; beneficiary_lastName: string; beneficiary_relationship: string | null; beneficiary_email: string | null; beneficiary_phone: string | null };
+    const policyBeneficiariesResult = policyIds.length > 0
+      ? await queryRaw<Array<PolicyBeneficiaryData>>(`
           SELECT 
             pb.policy_id,
             b.id as beneficiary_id,
@@ -110,6 +106,7 @@ export async function POST(req: NextRequest, { params }: Params) {
           WHERE pb.policy_id = ANY($1::uuid[])
         `, [policyIds])
       : [];
+    const policyBeneficiariesData = (policyBeneficiariesResult || []) as unknown as PolicyBeneficiaryData[];
 
     // Get all beneficiaries
     const beneficiariesData = await queryRaw<Array<{
@@ -126,6 +123,9 @@ export async function POST(req: NextRequest, { params }: Params) {
       ORDER BY "createdAt" DESC
     `, [id]);
 
+    type BeneficiaryData = { id: string; firstName: string; lastName: string; relationship: string | null; email: string | null; phone: string | null };
+    const beneficiariesArray: BeneficiaryData[] = (beneficiariesData || []) as unknown as BeneficiaryData[];
+    
     const client = {
       id: clientRow.id,
       firstName: clientRow.firstName,
@@ -134,7 +134,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       phone: clientRow.phone,
       dateOfBirth: clientRow.dateOfBirth,
       createdAt: clientRow.createdAt,
-      beneficiaries: beneficiariesData.map(b => ({
+      beneficiaries: beneficiariesArray.map((b) => ({
         id: b.id,
         firstName: b.firstName,
         lastName: b.lastName,
@@ -143,7 +143,7 @@ export async function POST(req: NextRequest, { params }: Params) {
         phone: b.phone,
         notes: null,
       })),
-      policies: policiesData.map(p => ({
+      policies: policiesArray.map(p => ({
         id: p.id,
         policyNumber: p.policy_number,
         policyType: p.policy_type,
@@ -153,7 +153,7 @@ export async function POST(req: NextRequest, { params }: Params) {
           contactEmail: p.insurer_contact_email,
           website: p.insurer_website,
         },
-        policy_beneficiaries: policyBeneficiariesData
+        policy_beneficiaries: (policyBeneficiariesData || [])
           .filter((pb) => pb.policy_id === p.id)
           .map((pb) => ({
             beneficiaries: {
@@ -208,7 +208,7 @@ export async function POST(req: NextRequest, { params }: Params) {
             })),
           })),
         },
-        firmName: orgMember?.organizations.name,
+        firmName: org?.name || orgMember?.organizations?.name,
         generatedAt: new Date(),
       })
     );
@@ -266,10 +266,14 @@ export async function POST(req: NextRequest, { params }: Params) {
       ],
     });
 
-    await audit(AuditAction.CLIENT_SUMMARY_PDF_DOWNLOADED, {
+    await audit({
+      actorType: "ATTORNEY",
+      actorId: user.id,
       clientId: client.id,
-      message: `Summary PDF emailed to ${email} for ${client.firstName} ${client.lastName}`,
-      userId: user.id,
+      action: AuditAction.CLIENT_SUMMARY_PDF_DOWNLOADED,
+      metadata: {
+        message: `Summary PDF emailed to ${email} for ${client.firstName} ${client.lastName}`,
+      },
     });
 
     return NextResponse.json({

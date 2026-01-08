@@ -51,7 +51,8 @@ export async function GET(
       return NextResponse.json({ error: "Client not found" }, { status: 404 });
     }
 
-    const client = clientData[0];
+    type ClientData = { id: string; firstName: string; lastName: string; email: string; createdAt: Date };
+    const client = (clientData[0] as unknown) as ClientData;
 
     // Get all receipts
     const receipts = await queryRaw<Array<{
@@ -89,6 +90,11 @@ export async function GET(
       LIMIT 1000
     `, [clientId]);
 
+    type ReceiptData = { receipt_number: string; createdAt: Date; email_sent: boolean; email_sent_at: Date | null };
+    type AuditLogData = { action: string; message: string; createdAt: Date; user_email: string | null; user_firstName: string | null; user_lastName: string | null };
+    const receiptsArray: ReceiptData[] = (receipts || []) as unknown as ReceiptData[];
+    const auditLogsArray: AuditLogData[] = (auditLogs || []) as unknown as AuditLogData[];
+    
     const reportData = {
       client: {
         id: client.id,
@@ -96,13 +102,13 @@ export async function GET(
         email: client.email,
         createdAt: client.createdAt,
       },
-      receipts: (receipts || []).map((r: typeof receipts[number]) => ({
+      receipts: receiptsArray.map((r) => ({
         receiptNumber: r.receipt_number,
         createdAt: r.createdAt,
         emailSent: r.email_sent,
         emailSentAt: r.email_sent_at,
       })),
-      auditLog: (auditLogs || []).map((log: typeof auditLogs[number]) => ({
+      auditLog: auditLogsArray.map((log) => ({
         action: log.action,
         message: log.message,
         actor: log.user_email 

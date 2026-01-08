@@ -17,7 +17,10 @@ export async function isAdmin(user?: AppUserWithRoles): Promise<boolean> {
   try {
     // First check Clerk public metadata (authoritative source)
     const clerkUser = await currentUser();
-    if (clerkUser?.publicMetadata?.role === "admin") {
+    // Handle both "role" and "user.role" formats for backward compatibility
+    const publicMetadata = (clerkUser?.publicMetadata || {}) as Record<string, unknown>;
+    const clerkRole = (publicMetadata.role || (publicMetadata as Record<string, unknown>)["user.role"] || null) as string | null;
+    if (clerkRole === "admin") {
       return true;
     }
 

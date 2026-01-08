@@ -159,7 +159,7 @@ export default function PrivacyPolicyPage() {
             </section>
           </div>
         </div>
-      </div>
+      </article>
     </main>
   );
 }

@@ -76,21 +76,22 @@ export async function GET(
     // Generate hashes for receipts
     // CRITICAL: Each receipt must use only the policies that existed at the time it was created
     // This ensures historical hash immutability for legal defensibility
+    type ReceiptData = { id: string; receipt_number: string; clientId: string; createdAt: Date; email_sent: boolean; email_sent_at: Date | null };
+    const receiptsArray: ReceiptData[] = (receipts || []) as unknown as ReceiptData[];
     const receiptsWithHashes = await Promise.all(
-      receipts.map(async (receipt) => {
+      receiptsArray.map(async (receipt) => {
         // Query only policies that existed at the time this receipt was created
         // This preserves historical accuracy - policies added/modified after receipt creation
         // will not affect the receipt's hash
-        const policiesAtReceiptTime = await queryRaw<Array<{
-          id: string,
-          policy_number: string | null;
-        }>>(`
+        type PolicyData = { id: string; policy_number: string | null };
+        const policiesAtReceiptTimeResult = await queryRaw<Array<PolicyData>>(`
           SELECT id, policy_number
           FROM policies
           WHERE "clientId" = $1
             AND "createdAt" <= $2
           ORDER BY "createdAt" ASC
         `, [clientId, receipt.createdAt]);
+        const policiesAtReceiptTime = (policiesAtReceiptTimeResult || []) as unknown as PolicyData[];
 
         const hash = generateReceiptHash({
           receiptId: receipt.receipt_number,
@@ -111,7 +112,9 @@ export async function GET(
     );
 
     // Generate hashes for audit logs
-    const auditLogsWithHashes = auditLogs.map((log, _index) => {
+    type AuditLogData = { id: string; user_id: string | null; org_id: string | null; clientId: string | null; policy_id: string | null; action: string; message: string; createdAt: Date; user_email: string | null; user_firstName: string | null; user_lastName: string | null };
+    const auditLogsArray: AuditLogData[] = (auditLogs || []) as unknown as AuditLogData[];
+    const auditLogsWithHashes = auditLogsArray.map((log, _index) => {
       const hash = generateAuditHash({
         id: log.id,
         action: log.action,

@@ -60,26 +60,27 @@ async function fixDatabase() {
         AND indexname = 'users_clerkId_key'
     `, []);
 
-    if (verifyIndex.length > 0) {
-      results.push(`✅ Verified: ${verifyIndex[0].indexdef}`);
+    type IndexInfo = { indexname: string; indexdef: string };
+    const verifyIndexArray: IndexInfo[] = (verifyIndex || []) as unknown as IndexInfo[];
+    if (verifyIndexArray.length > 0) {
+      results.push(`✅ Verified: ${verifyIndexArray[0]?.indexdef || 'unknown'}`);
     } else {
       results.push("⚠️ Warning: Could not verify constraint creation");
     }
 
     // Also check if the column exists
-    const columnCheck = await queryRaw<Array<{
-      column_name: string,
-      data_type: string,
-    }>>(`
+    type ColumnCheck = { column_name: string; data_type: string };
+    const columnCheckResult = await queryRaw<Array<ColumnCheck>>(`
       SELECT column_name, data_type
       FROM information_schema.columns
       WHERE table_schema = 'public' 
         AND table_name = 'users'
         AND column_name IN ('clerkId', 'clerk_id')
     `, []);
+    const columnCheckArray: ColumnCheck[] = (columnCheckResult || []) as unknown as ColumnCheck[];
 
-    if (columnCheck.length > 0) {
-      results.push(`✅ Found column: ${columnCheck[0].column_name} (${columnCheck[0].data_type})`);
+    if (columnCheckArray.length > 0) {
+      results.push(`✅ Found column: ${columnCheckArray[0]?.column_name || 'unknown'} (${columnCheckArray[0]?.data_type || 'unknown'})`);
     } else {
       results.push("⚠️ Warning: Could not find clerkId or clerk_id column");
     }
