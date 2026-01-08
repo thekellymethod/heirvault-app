@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 ;
 import { requireAdmin } from "@/lib/auth/guards";
-import { audit } from "@/lib/audit";
+import { logAuditEvent } from "@/lib/audit";
 import { AuditAction } from "@/lib/db/enums";
-import { randomBytes } from "crypto";
-import { sendClientInviteEmail } from "@/lib/email";
+import { randomBytes, randomUUID } from "crypto";
+import { sendClientInviteEmail } from "@/lib/email/notifications";
 
 /**
  * Generate a new invitation code for a policyholder (admin only)
@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
         LIMIT 1
       `, [normalizedEmail]);
 
-      if (clientResult && clientResult.length > 0) {
+      if (clientResult && clientResult.length > 0 && clientResult[0]) {
         client = clientResult[0];
       }
     } catch (sqlError: unknown) {
@@ -86,10 +86,8 @@ export async function POST(req: NextRequest) {
           lastName: string,
         }>("clients", { email: normalizedEmail });
         
-        const createdClientResult = createdClient ? [createdClient] : [];
-
-        if (createdClientResult && createdClientResult.length > 0) {
-          client = createdClientResult[0];
+        if (createdClient) {
+          client = createdClient;
         } else {
           return NextResponse.json(
             { error: "Failed to create client" },
@@ -107,15 +105,25 @@ export async function POST(req: NextRequest) {
 
       // Audit log client creation
       try {
-        await audit(AuditAction.CLIENT_CREATED, {
-          message: `Admin ${admin.email} created new client ${client.id} via invite generation`,
+        await logAuditEvent({
           userId: admin.id,
+          action: AuditAction.CLIENT_CREATED,
           clientId: client.id,
+          metadata: {
+            message: `Admin ${admin.email} created new client ${client.id} via invite generation`,
+          },
         });
       } catch (auditError: unknown) {
         const auditErrorMessage = auditError instanceof Error ? auditError.message : String(auditError);
         console.error("Generate invite: Client creation audit logging failed:", auditErrorMessage);
       }
+    }
+
+    if (!client) {
+      return NextResponse.json(
+        { error: "Failed to create or find client" },
+        { status: 500 }
+      );
     }
 
     // Generate invite token
@@ -136,7 +144,8 @@ export async function POST(req: NextRequest) {
       // Insert invite
       const inviteId = randomUUID();
       const inviteNow = new Date().toISOString();
-      await createClient("client_invites", {
+      const { create: createInvite } = await import("@/lib/db");
+      await createInvite("client_invites", {
         id: inviteId,
         clientId: client.id,
         token,
@@ -155,17 +164,15 @@ export async function POST(req: NextRequest) {
         expiresAt: string;
         createdAt: string;
       }>("client_invites", { token });
-      
-      const createdInviteResult = createdInvite ? [{
-        id: createdInvite.id,
-        token: createdInvite.token,
-        email: createdInvite.email,
-        expires_at: new Date(createdInvite.expiresAt),
-        createdAt: new Date(createdInvite.createdAt),
-      }] : [];
 
-      if (createdInviteResult && createdInviteResult.length > 0) {
-        invite = createdInviteResult[0];
+      if (createdInvite) {
+        invite = {
+          id: createdInvite.id,
+          token: createdInvite.token,
+          email: createdInvite.email,
+          expires_at: new Date(createdInvite.expiresAt),
+          createdAt: new Date(createdInvite.createdAt),
+        };
       } else {
         return NextResponse.json(
           { error: "Failed to create invite" },
@@ -201,12 +208,22 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    if (!invite) {
+      return NextResponse.json(
+        { error: "Failed to create invite" },
+        { status: 500 }
+      );
+    }
+
     // Audit log invite creation
     try {
-      await audit(AuditAction.INVITE_CREATED, {
-        message: `Admin ${admin.email} generated invite code ${invite.token} for client ${client.id}`,
+      await logAuditEvent({
         userId: admin.id,
+        action: AuditAction.INVITE_CREATED,
         clientId: client.id,
+        metadata: {
+          message: `Admin ${admin.email} generated invite code ${invite.token} for client ${client.id}`,
+        },
       });
     } catch (auditError: unknown) {
       const auditErrorMessage = auditError instanceof Error ? auditError.message : String(auditError);

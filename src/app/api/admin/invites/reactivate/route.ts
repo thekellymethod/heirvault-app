@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 ;
 import { requireAdmin } from "@/lib/auth/guards";
-import { audit } from "@/lib/audit";
+import { logAuditEvent } from "@/lib/audit";
 import { AuditAction } from "@/lib/db/enums";
 
 /**

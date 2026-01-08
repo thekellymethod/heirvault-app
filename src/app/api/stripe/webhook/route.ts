@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { stripe } from "@/lib/stripe";
-import { prisma } from "@/lib/prisma";
 import { sendEngagementEmail } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
@@ -72,21 +71,29 @@ export async function POST(req: Request) {
             const clientName = session.metadata?.clientName || null;
 
             if (clientEmail) {
+              const { findUnique: findUniqueRegistry, create: createRegistry, update: updateRegistry } = await import("@/lib/db");
+              const { randomUUID } = await import("crypto");
+              
               // idempotent upsert
-              const registry = await prisma.clientRegistry.upsert({
-                where: { stripeCheckoutSessionId: session.id },
-                create: {
-                  clientEmail,
-                  clientName: clientName ?? undefined,
-                  stripeCheckoutSessionId: session.id,
-                  stripePaymentIntentId: (session.payment_intent as string) || null,
-                },
-                update: {
-                  clientEmail,
-                  clientName: clientName ?? undefined,
-                  stripePaymentIntentId: (session.payment_intent as string) || null,
-                },
-              });
+              const existing = await findUniqueRegistry("client_registries", { stripeCheckoutSessionId: session.id });
+              const now = new Date().toISOString();
+              
+              const registry = existing
+                ? await updateRegistry("client_registries", { id: existing.id }, {
+                    clientEmail,
+                    clientName: clientName ?? null,
+                    stripePaymentIntentId: (session.payment_intent as string) || null,
+                    updatedAt: now,
+                  } as Record<string, unknown>)
+                : await createRegistry("client_registries", {
+                    id: randomUUID(),
+                    clientEmail,
+                    clientName: clientName ?? null,
+                    stripeCheckoutSessionId: session.id,
+                    stripePaymentIntentId: (session.payment_intent as string) || null,
+                    createdAt: now,
+                    updatedAt: now,
+                  } as Record<string, unknown>) as { id: string };
 
               const appUrl = process.env.NEXT_PUBLIC_APP_URL!;
               const uploadLink = `${appUrl}/upload?session_id=${session.id}`;
@@ -102,13 +109,12 @@ export async function POST(req: Request) {
 
           // Handle org subscription (existing logic)
           if (orgId) {
-            await prisma.org.update({
-              where: { id: orgId },
-              data: {
-                stripeCustomerId: customerId || undefined,
-                stripeSubscriptionId: subscriptionId || undefined,
-              },
-            });
+            const { update: updateOrg } = await import("@/lib/db");
+            await updateOrg("organizations", { id: orgId }, {
+              stripeCustomerId: customerId || null,
+              stripeSubscriptionId: subscriptionId || null,
+              updatedAt: new Date().toISOString(),
+            } as Record<string, unknown>);
           }
           break;
         }
@@ -120,60 +126,67 @@ export async function POST(req: Request) {
           const customerId = String(sub.customer);
           const subscriptionId = sub.id;
 
-          const org = await prisma.org.findFirst({
+          const { findMany: findManyOrgs, update: updateOrg } = await import("@/lib/db");
+          
+          const orgs = await findManyOrgs("organizations", {
             where: { stripeCustomerId: customerId },
-            select: { id: true },
+            limit: 1,
           });
           
+          const org = orgs && orgs.length > 0 ? (orgs[0] as { id: string }) : null;
           if (!org) break;
 
           const status = normalizeStatus(sub.status);
-          const periodEnd = sub.current_period_end ? new Date(sub.current_period_end * 1000) : null;
+          const periodEnd = sub.current_period_end ? new Date(sub.current_period_end * 1000).toISOString() : null;
           const hasPm = await hasDefaultPaymentMethod(customerId);
 
-          await prisma.org.update({
-            where: { id: org.id },
-            data: {
-              stripeSubscriptionId: subscriptionId,
-              stripeSubscriptionStatus: status,
-              stripeCurrentPeriodEnd: periodEnd,
-              stripeHasPaymentMethod: hasPm,
-            },
-          });
+          await updateOrg("organizations", { id: org.id }, {
+            stripeSubscriptionId: subscriptionId,
+            stripeSubscriptionStatus: status,
+            stripeCurrentPeriodEnd: periodEnd,
+            stripeHasPaymentMethod: hasPm,
+            updatedAt: new Date().toISOString(),
+          } as Record<string, unknown>);
           break;
         }
 
         case "invoice.payment_failed": {
           const invoice = event.data.object as Stripe.Invoice;
           const customerId = String(invoice.customer || "");
-          const org = await prisma.org.findFirst({
+          const { findMany: findManyOrgs, update: updateOrg } = await import("@/lib/db");
+          
+          const orgs = await findManyOrgs("organizations", {
             where: { stripeCustomerId: customerId },
-            select: { id: true },
+            limit: 1,
           });
           
+          const org = orgs && orgs.length > 0 ? (orgs[0] as { id: string }) : null;
           if (!org) break;
 
-          await prisma.org.update({
-            where: { id: org.id },
-            data: { stripeSubscriptionStatus: "past_due" },
-          });
+          await updateOrg("organizations", { id: org.id }, {
+            stripeSubscriptionStatus: "past_due",
+            updatedAt: new Date().toISOString(),
+          } as Record<string, unknown>);
           break;
         }
 
         case "invoice.paid": {
           const invoice = event.data.object as Stripe.Invoice;
           const customerId = String(invoice.customer || "");
-          const org = await prisma.org.findFirst({
+          const { findMany: findManyOrgs, update: updateOrg } = await import("@/lib/db");
+          
+          const orgs = await findManyOrgs("organizations", {
             where: { stripeCustomerId: customerId },
-            select: { id: true },
+            limit: 1,
           });
           
+          const org = orgs && orgs.length > 0 ? (orgs[0] as { id: string }) : null;
           if (!org) break;
 
-          await prisma.org.update({
-            where: { id: org.id },
-            data: { stripeSubscriptionStatus: "active" },
-          });
+          await updateOrg("organizations", { id: org.id }, {
+            stripeSubscriptionStatus: "active",
+            updatedAt: new Date().toISOString(),
+          } as Record<string, unknown>);
           break;
         }
 

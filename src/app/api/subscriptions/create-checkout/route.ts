@@ -37,12 +37,11 @@ export async function POST(req: NextRequest) {
 
       customerId = customer.id;
 
-      await prisma.organizations.update({
-        where: { id: org.id },
-        data: {
-          stripeCustomerId: customerId,
-        },
-      });
+      const { update: updateOrg } = await import("@/lib/db");
+      await updateOrg("organizations", { id: org.id }, {
+        stripeCustomerId: customerId,
+        updatedAt: new Date().toISOString(),
+      } as Record<string, unknown>);
     }
 
     // Determine price ID based on billing plan

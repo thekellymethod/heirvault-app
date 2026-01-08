@@ -39,11 +39,15 @@ export async function POST(req: Request) {
 
     const customerId = subscription.customer as string;
 
+    const { findMany: findManyOrgs, update: updateOrg } = await import("@/lib/db");
+    
     // Look up org by stripe_customer_id
-    const org = await prisma.organizations.findFirst({
+    const orgs = await findManyOrgs("organizations", {
       where: { stripeCustomerId: customerId },
+      limit: 1,
     });
 
+    const org = orgs && orgs.length > 0 ? (orgs[0] as { id: string }) : null;
     if (!org) {
       console.warn("No organization found for customer", customerId);
       return new NextResponse("OK", { status: 200 });
@@ -58,14 +62,12 @@ export async function POST(req: Request) {
 
     const status = subscription.status; // "active", "past_due", etc.
 
-    await prisma.organizations.update({
-      where: { id: org.id },
-      data: {
-        billingPlan: plan,
-        stripeSubscriptionId: subscription.id,
-        billingStatus: status,
-      },
-    });
+    await updateOrg("organizations", { id: org.id }, {
+      billingPlan: plan,
+      stripeSubscriptionId: subscription.id,
+      billingStatus: status,
+      updatedAt: new Date().toISOString(),
+    } as Record<string, unknown>);
   }
 
   return new NextResponse("OK", { status: 200 });

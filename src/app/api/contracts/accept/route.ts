@@ -26,20 +26,30 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const { findMany: findManyMembers, findUnique: findUniqueOrg } = await import("@/lib/db");
+    
     // Get user's organization
-    const membership = await prisma.org_members.findFirst({
+    const memberships = await findManyMembers("org_members", {
       where: { userId: principal.dbUserId },
-      include: { organizations: true },
+      limit: 1,
     });
 
-    if (!membership) {
+    if (!memberships || memberships.length === 0) {
       return NextResponse.json(
         { error: "No organization found. Please complete onboarding first." },
         { status: 403 }
       );
     }
 
-    const org = membership.organizations;
+    const membership = memberships[0] as { organizationId: string };
+    const org = await findUniqueOrg<{ id: string; jurisdiction: string | null }>("organizations", { id: membership.organizationId });
+    
+    if (!org) {
+      return NextResponse.json(
+        { error: "Organization not found." },
+        { status: 404 }
+      );
+    }
 
     // Get IP and user agent for audit
     const headersList = await headers();

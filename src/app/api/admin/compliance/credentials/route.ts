@@ -34,13 +34,13 @@ export async function GET() {
       ORDER BY email ASC
     `, []);
 
-    const credentials = attorneysResult.map((attorney) => ({
+    const credentials = (attorneysResult || []).map((attorney) => ({
       id: attorney.id,
       email: attorney.email,
       name: `${attorney.firstName || ""} ${attorney.lastName || ""}`.trim() || attorney.email,
       barNumber: attorney.bar_number,
       status: attorney.bar_number ? ("verified" as const) : ("pending" as const),
-      lastVerified: attorney.bar_number ? attorney.updated_at.toISOString() : null,
+      lastVerified: attorney.bar_number ? (typeof attorney.updated_at === 'string' ? attorney.updated_at : new Date(attorney.updated_at).toISOString()) : null,
     }));
 
     return NextResponse.json({ credentials });

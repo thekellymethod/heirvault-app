@@ -33,12 +33,12 @@ export async function GET() {
       ),
     ]);
 
-    const totalUsers = Number(totalUsersResult[0]?.count || 0);
-    const totalClients = Number(totalClientsResult[0]?.count || 0);
-    const totalPolicies = Number(totalPoliciesResult[0]?.count || 0);
-    const totalOrganizations = Number(totalOrganizationsResult[0]?.count || 0);
-    const activeAttorneys = Number(activeAttorneysResult[0]?.count || 0);
-    const recentActivity = Number(recentActivityResult[0]?.count || 0);
+    const totalUsers = Number((totalUsersResult && totalUsersResult[0])?.count || 0);
+    const totalClients = Number((totalClientsResult && totalClientsResult[0])?.count || 0);
+    const totalPolicies = Number((totalPoliciesResult && totalPoliciesResult[0])?.count || 0);
+    const totalOrganizations = Number((totalOrganizationsResult && totalOrganizationsResult[0])?.count || 0);
+    const activeAttorneys = Number((activeAttorneysResult && activeAttorneysResult[0])?.count || 0);
+    const recentActivity = Number((recentActivityResult && recentActivityResult[0])?.count || 0);
 
     return NextResponse.json({
       totalUsers,
