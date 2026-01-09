@@ -7,7 +7,7 @@ import { makeReceiptNumber } from "@/lib/security";
 import { makeChangeReceiptPdf } from "@/lib/pdf/changeReceipt";
 import { putObject } from "@/lib/storage";
 import { sendEmail } from "@/lib/email";
-import { ChangeRequestStatus, UploaderType, DocumentClassificationStatus } from "@/lib/db/enums";
+import { ChangeRequestStatus, UploaderType, DocumentClassificationStatus, type ChangeRequestType } from "@/lib/db/enums";
 import { requiredDocTypesForChangeRequest } from "@/lib/rules/requiredDocs";
 import { rateLimit, getClientIp } from "@/lib/security/rateLimit";
 
@@ -95,7 +95,7 @@ export async function POST(req: Request) {
   }>;
 
   // Required docs validation
-  const required = requiredDocTypesForChangeRequest(cr.requestType);
+  const required = requiredDocTypesForChangeRequest(cr.requestType as ChangeRequestType);
   const hasAny = (types: string[]) => documents.some(d => types.includes(d.fileType));
   const missing: string[] = [];
 

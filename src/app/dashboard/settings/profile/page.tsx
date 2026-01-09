@@ -1,5 +1,4 @@
 import { auth } from "@clerk/nextjs/server";
-;
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/utils/clerk";
 import { ProfileForm } from "./ProfileForm";
@@ -34,10 +33,12 @@ export default async function ProfilePage() {
   } | null = null;
   
   try {
-    // Try raw SQL first - it's more reliable when Prisma client is broken
-    const rawResult = await prisma.$queryRaw<Array<{
-      organization_id: string,
-      org_name: string,
+    // Use queryRaw from db library (Supabase-based)
+    const { queryRaw } = await import("@/lib/db");
+
+    type OrgRow = {
+      organization_id: string;
+      org_name: string;
       address_line1: string | null;
       address_line2: string | null;
       city: string | null;
@@ -45,7 +46,9 @@ export default async function ProfilePage() {
       postal_code: string | null;
       country: string | null;
       phone: string | null;
-    }>>`
+    };
+
+    const rawResult = await queryRaw<OrgRow>(`
       SELECT 
         o.id as organization_id,
         o.name as org_name,
@@ -58,23 +61,25 @@ export default async function ProfilePage() {
         o.phone
       FROM org_members om
       INNER JOIN organizations o ON o.id = om.organization_id
-      WHERE om.user_id = ${currentUser.id}
+      WHERE om.user_id = $1
       LIMIT 1
-    `;
+    `, [currentUser.id]);
     
     if (rawResult && rawResult.length > 0) {
       const row = rawResult[0];
-      organization = {
-        id: row.organization_id,
-        name: row.org_name,
-        addressLine1: row.address_line1,
-        addressLine2: row.address_line2,
-        city: row.city,
-        state: row.state,
-        postalCode: row.postal_code,
-        country: row.country,
-        phone: row.phone,
-      };
+      if (row) {
+        organization = {
+          id: row.organization_id,
+          name: row.org_name,
+          addressLine1: row.address_line1,
+          addressLine2: row.address_line2,
+          city: row.city,
+          state: row.state,
+          postalCode: row.postal_code,
+          country: row.country,
+          phone: row.phone,
+        };
+      }
     }
   } catch (sqlError: unknown) {
     const sqlErrorMessage = sqlError instanceof Error ? sqlError.message : "Unknown error";

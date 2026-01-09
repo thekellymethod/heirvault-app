@@ -1,4 +1,3 @@
-;
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { XCircle } from "lucide-react";
@@ -15,93 +14,70 @@ export default async function InviteUpdatePage({ params }: Props) {
   // Try to get or create test invite first
   let invite: Awaited<ReturnType<typeof getOrCreateTestInvite>> | Awaited<ReturnType<typeof lookupClientInvite>> | null = await getOrCreateTestInvite(token);
 
-  // If not a test code, do normal lookup - use raw SQL first
+  // If not a test code, do normal lookup
   if (!invite) {
     try {
-      // Try raw SQL first
-      const rawResult = await prisma.$queryRaw<Array<{
-        id: string,
-        clientId: string,
-        email: string,
-        token: string,
+      const { queryRaw } = await import("@/lib/db");
+
+      type InviteRow = {
+        id: string;
+        clientId: string;
+        email: string;
+        token: string;
         expires_at: Date;
         used_at: Date | null;
         createdAt: Date;
-        firstName: string,
-        lastName: string,
+        firstName: string;
+        lastName: string;
         phone: string | null;
         dateOfBirth: Date | null;
-      }>>`
+      };
+
+      const rawResult = await queryRaw<InviteRow>(`
         SELECT 
           ci.id,
-          ci.client_id as "clientId",
+          ci."clientId" as "clientId",
           ci.email,
           ci.token,
           ci.expires_at,
           ci.used_at,
-          ci.createdAt,
-          c.firstName,
-          c.lastName,
+          ci."createdAt",
+          c."firstName",
+          c."lastName",
           c.phone,
-          c.dateOfBirth
+          c."dateOfBirth"
         FROM client_invites ci
-        INNER JOIN clients c ON c.id = ci.client_id
-        WHERE ci.token = ${token}
+        INNER JOIN clients c ON c.id = ci."clientId"
+        WHERE ci.token = $1
         LIMIT 1
-      `;
+      `, [token]);
 
       if (rawResult && rawResult.length > 0) {
         const row = rawResult[0];
-        invite = {
-          id: row.id,
-          clientId: row.clientId,
-          email: row.email,
-          token: row.token,
-          expiresAt: row.expires_at,
-          usedAt: row.used_at,
-          createdAt: row.createdAt,
-          client: {
-            id: row.clientId,
-            firstName: row.firstName,
-            lastName: row.lastName,
+        if (row) {
+          invite = {
+            id: row.id,
+            clientId: row.clientId,
             email: row.email,
-            phone: row.phone,
-            dateOfBirth: row.dateOfBirth,
-          },
-        };
+            token: row.token,
+            expiresAt: row.expires_at,
+            usedAt: row.used_at,
+            createdAt: row.createdAt,
+            client: {
+              id: row.clientId,
+              firstName: row.firstName,
+              lastName: row.lastName,
+              email: row.email,
+              phone: row.phone,
+              dateOfBirth: row.dateOfBirth,
+            },
+          };
+        }
       }
     } catch (sqlError: unknown) {
       const message = sqlError instanceof Error ? sqlError.message : "Unknown error";
-      console.error("Invite update page: Raw SQL failed, trying Prisma:", message);
-      // Fallback to Prisma
-      try {
-        // Try both possible model names
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        if ((prisma as any).client_invites) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const prismaInvite = await (prisma as any).client_invites.findUnique({
-            where: { token },
-            include: { clients: true },
-          });
-          if (prismaInvite) {
-            invite = {
-              ...prismaInvite,
-              client: prismaInvite.clients,
-            };
-          }
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } else if ((prisma as any).clientInvite) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          invite = await (prisma as any).clientInvite.findUnique({
-            where: { token },
-            include: { client: true },
-          });
-        }
-      } catch (prismaError: unknown) {
-        const prismaMessage = prismaError instanceof Error ? prismaError.message : "Unknown error";
-        console.error("Invite update page: Prisma also failed:", prismaMessage);
-        // invite remains null
-      }
+      console.error("Invite update page: Query failed:", message);
+      // invite remains null
     }
   }
 

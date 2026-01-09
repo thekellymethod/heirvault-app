@@ -19,7 +19,7 @@ function normalizeStatus(status: Stripe.Subscription.Status): string {
 
 async function hasDefaultPaymentMethod(customerId: string): Promise<boolean> {
   const customer = await stripe.customers.retrieve(customerId);
-  if ((customer as any).deleted) return false;
+  if (customer.deleted) return false;
 
   const dpm = (customer as Stripe.Customer).invoice_settings?.default_payment_method;
   if (dpm) return true;
@@ -49,9 +49,10 @@ export async function POST(req: Request) {
     let event: Stripe.Event;
     try {
       event = stripe.webhooks.constructEvent(rawBody, sig, secret);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Unknown error";
       return NextResponse.json(
-        { ok: false, message: `Webhook signature error: ${err?.message}` },
+        { ok: false, message: `Webhook signature error: ${errorMessage}` },
         { status: 400 }
       );
     }
@@ -75,25 +76,29 @@ export async function POST(req: Request) {
               const { randomUUID } = await import("crypto");
               
               // idempotent upsert
-              const existing = await findUniqueRegistry("client_registries", { stripeCheckoutSessionId: session.id });
+              const existing = await findUniqueRegistry<{ id: string }>("client_registries", { stripeCheckoutSessionId: session.id });
               const now = new Date().toISOString();
               
-              const registry = existing
-                ? await updateRegistry("client_registries", { id: existing.id }, {
-                    clientEmail,
-                    clientName: clientName ?? null,
-                    stripePaymentIntentId: (session.payment_intent as string) || null,
-                    updatedAt: now,
-                  } as Record<string, unknown>)
-                : await createRegistry("client_registries", {
-                    id: randomUUID(),
-                    clientEmail,
-                    clientName: clientName ?? null,
-                    stripeCheckoutSessionId: session.id,
-                    stripePaymentIntentId: (session.payment_intent as string) || null,
-                    createdAt: now,
-                    updatedAt: now,
-                  } as Record<string, unknown>) as { id: string };
+              let registry: { id: string };
+              if (existing) {
+                await updateRegistry<{ id: string }>("client_registries", { id: existing.id }, {
+                  clientEmail,
+                  clientName: clientName ?? null,
+                  stripePaymentIntentId: (session.payment_intent as string) || null,
+                  updatedAt: now,
+                } as Record<string, unknown>);
+                registry = existing;
+              } else {
+                registry = await createRegistry<{ id: string }>("client_registries", {
+                  id: randomUUID(),
+                  clientEmail,
+                  clientName: clientName ?? null,
+                  stripeCheckoutSessionId: session.id,
+                  stripePaymentIntentId: (session.payment_intent as string) || null,
+                  createdAt: now,
+                  updatedAt: now,
+                } as Record<string, unknown>);
+              }
 
               const appUrl = process.env.NEXT_PUBLIC_APP_URL!;
               const uploadLink = `${appUrl}/upload?session_id=${session.id}`;
@@ -102,7 +107,7 @@ export async function POST(req: Request) {
                 to: clientEmail,
                 clientName: clientName ?? undefined,
                 uploadLink,
-                registryId: registry.id,
+                registryId: String(registry.id),
               });
             }
           }
@@ -137,7 +142,9 @@ export async function POST(req: Request) {
           if (!org) break;
 
           const status = normalizeStatus(sub.status);
-          const periodEnd = sub.current_period_end ? new Date(sub.current_period_end * 1000).toISOString() : null;
+          const periodEnd = (sub as Stripe.Subscription & { current_period_end?: number }).current_period_end 
+            ? new Date((sub as Stripe.Subscription & { current_period_end: number }).current_period_end * 1000).toISOString() 
+            : null;
           const hasPm = await hasDefaultPaymentMethod(customerId);
 
           await updateOrg("organizations", { id: org.id }, {
@@ -195,10 +202,11 @@ export async function POST(req: Request) {
       }
 
       return NextResponse.json({ ok: true });
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Webhook handler error";
       console.error("Webhook handler error:", err);
       return NextResponse.json(
-        { ok: false, message: err?.message || "Webhook handler error" },
+        { ok: false, message: errorMessage },
         { status: 500 }
       );
     }

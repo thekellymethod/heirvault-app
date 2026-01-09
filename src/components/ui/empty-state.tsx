@@ -81,11 +81,11 @@ export function EmptyListState({
  */
 export function EmptySearchState({
   searchQuery,
-  onClear,
+  onClearAction,
   clearHref,
 }: {
   searchQuery?: string,
-  onClear?: () => void;
+  onClearAction?: () => void;
   clearHref?: string,
 }) {
   return (
@@ -97,10 +97,10 @@ export function EmptySearchState({
           : "Start by searching for something."
       }
       action={
-        onClear || clearHref
+        onClearAction || clearHref
           ? {
               label: "Clear search",
-              onClick: onClear,
+              onClick: onClearAction,
               href: clearHref,
             }
           : undefined

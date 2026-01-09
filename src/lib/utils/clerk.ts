@@ -180,10 +180,28 @@ export async function getCurrentUser(): Promise<DbUser | null> {
 /**
  * Require authentication for server components/pages.
  * Returns the authenticated attorney user or throws an Error("Unauthorized").
+ * 
+ * IMPORTANT: This function only checks Clerk authentication, not database presence.
+ * Database errors (schema mismatches, missing rows) should NOT result in "Unauthorized".
+ * They should be handled separately as profile provisioning issues.
  */
 export async function requireAuth(): Promise<NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>> {
+  // First check Clerk authentication (this is the source of truth for auth)
+  const { userId } = await auth();
+  if (!userId) {
+    throw new Error(UNAUTHORIZED_ERROR);
+  }
+
+  // Try to get user from database, but don't throw Unauthorized on DB errors
   const user = await getCurrentUser();
-  if (!user) throw new Error(UNAUTHORIZED_ERROR);
+  
+  // If user doesn't exist in DB, that's a provisioning issue, not an auth issue
+  // But for now, we'll still throw to maintain backward compatibility
+  // TODO: Consider returning a partial user object or redirecting to onboarding
+  if (!user) {
+    console.error("requireAuth: User authenticated via Clerk but not found in database. This may be a schema mismatch or provisioning issue.");
+    throw new Error(UNAUTHORIZED_ERROR);
+  }
 
   // Enforce attorney role
   if (user.role !== "attorney") {
@@ -196,7 +214,13 @@ export async function requireAuth(): Promise<NonNullable<Awaited<ReturnType<type
       );
       user.role = updated.role as Role;
     } catch (error: unknown) {
-      console.error("requireAuth: Error forcing attorney role:", error);
+      // Don't throw on DB errors - just log and continue with default role
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error("requireAuth: Error forcing attorney role (non-fatal):", errorMessage);
+      // Check if it's a schema error
+      if (errorMessage.includes("column") || errorMessage.includes("schema cache") || errorMessage.includes("Could not find")) {
+        console.error("requireAuth: This appears to be a schema mismatch error. Check that column names match (snake_case vs camelCase).");
+      }
       user.role = "attorney";
     }
   }

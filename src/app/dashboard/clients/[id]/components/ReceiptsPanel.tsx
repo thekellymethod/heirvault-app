@@ -9,7 +9,7 @@ type Receipt = {
   artifactId?: string;
 };
 
-export default function ReceiptsPanel({ receipts, onOpen }: { receipts: Receipt[]; onOpen: (id: string) => void }) {
+export default function ReceiptsPanel({ receipts, onOpenAction }: { receipts: Receipt[]; onOpenAction: (id: string) => void }) {
   return (
     <div className="rounded-2xl border p-5">
       <div className="font-semibold mb-3">Receipts</div>
@@ -23,7 +23,7 @@ export default function ReceiptsPanel({ receipts, onOpen }: { receipts: Receipt[
               </div>
             </div>
             {r.artifactId && (
-              <button className="px-3 py-1 rounded-lg border text-sm" onClick={() => onOpen(r.artifactId)}>
+              <button className="px-3 py-1 rounded-lg border text-sm" onClick={() => onOpenAction(r.artifactId!)}>
                 Open PDF
               </button>
             )}

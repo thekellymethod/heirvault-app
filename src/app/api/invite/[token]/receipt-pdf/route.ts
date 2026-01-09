@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-;
 import { renderToStream } from "@react-pdf/renderer";
 import { ClientReceiptPDF } from "@/pdfs/ClientReceiptPDF";
 import { getOrCreateTestInvite } from "@/lib/test-invites";
@@ -147,7 +146,8 @@ export async function GET(
     let organization: ReceiptOrganization = null;
     try {
       // Adjust table names/columns if yours differ.
-      const accessResult = await queryRaw<OrgRow[]>(`
+      const { queryRaw: queryRawOrg } = await import("@/lib/db");
+      const accessResult = await queryRawOrg<OrgRow>(`
         SELECT
           o.id as org_id,
           o.name as org_name,

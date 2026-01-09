@@ -1,14 +1,35 @@
-;
-
 export async function ClientActivityFeed({ clientId }: { clientId: string }) {
-  const logs = await prisma.audit_logs.findMany({
-    where: { clientId:clientId },
-    orderBy: { createdAt: "desc" },
-    take: 50,
-    include: {
-      users: true,
-    },
-  });
+  const { queryRaw } = await import("@/lib/db");
+
+  type AuditLogRow = {
+    id: string;
+    action: string;
+    message: string | null;
+    createdAt: Date;
+    user_email: string | null;
+  };
+
+  const logsResult = await queryRaw<AuditLogRow>(`
+    SELECT 
+      al.id,
+      al.action,
+      al.message,
+      al."createdAt",
+      u.email as user_email
+    FROM audit_logs al
+    LEFT JOIN users u ON u.id = al."userId"
+    WHERE al."clientId" = $1
+    ORDER BY al."createdAt" DESC
+    LIMIT 50
+  `, [clientId]);
+
+  const logs = (logsResult || []).map((log: AuditLogRow) => ({
+    id: log.id,
+    action: log.action,
+    message: log.message,
+    createdAt: log.createdAt,
+    users: log.user_email ? { email: log.user_email } : null,
+  }));
 
   if (logs.length === 0) {
     return (
@@ -24,7 +45,7 @@ export async function ClientActivityFeed({ clientId }: { clientId: string }) {
         Recent activity
       </h2>
       <div className="space-y-2 rounded-xl border border-slate-800 bg-slate-950/60 p-4">
-        {logs.map((log) => (
+        {logs.map((log: { id: string; action: string; message: string | null; createdAt: Date; users: { email: string } | null }) => (
           <div
             key={log.id}
             className="flex items-start justify-between border-b border-slate-800/50 pb-2 last:border-b-0 last:pb-0"

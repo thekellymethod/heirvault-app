@@ -5,9 +5,9 @@ import { getCurrentUserWithOrg } from "@/lib/authz";
 
 export async function POST(req: NextRequest) {
   try {
-    const { user, orgMember } = await getCurrentUserWithOrg();
+    const { user, org } = await getCurrentUserWithOrg();
 
-    if (!user || !orgMember) {
+    if (!user || !org) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -21,24 +21,31 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const org = orgMember.organizations;
+    // Fetch full organization record to get stripeCustomerId
+    const { findUnique: findUniqueOrg } = await import("@/lib/db");
+    type OrgRecord = { id: string; name: string; stripeCustomerId: string | null };
+    const fullOrg = await findUniqueOrg<OrgRecord>("organizations", { id: org.id });
+    
+    if (!fullOrg) {
+      return NextResponse.json({ error: "Organization not found" }, { status: 404 });
+    }
 
     // Get or create Stripe customer
-    let customerId = org.stripeCustomerId;
+    let customerId = fullOrg.stripeCustomerId;
 
     if (!customerId) {
       const customer = await stripe.customers.create({
         email: user.email,
-        name: org.name,
+        name: fullOrg.name,
         metadata: {
-          organizationId: org.id,
+          organizationId: fullOrg.id,
         },
       });
 
       customerId = customer.id;
 
       const { update: updateOrg } = await import("@/lib/db");
-      await updateOrg("organizations", { id: org.id }, {
+      await updateOrg("organizations", { id: fullOrg.id }, {
         stripeCustomerId: customerId,
         updatedAt: new Date().toISOString(),
       } as Record<string, unknown>);
@@ -71,12 +78,12 @@ export async function POST(req: NextRequest) {
       success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/settings/billing?success=true`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/settings/billing?canceled=true`,
       metadata: {
-        organizationId: org.id,
+        organizationId: fullOrg.id,
         billingPlan,
       },
       subscription_data: {
         metadata: {
-          organizationId: org.id,
+          organizationId: fullOrg.id,
           billingPlan,
         },
       },

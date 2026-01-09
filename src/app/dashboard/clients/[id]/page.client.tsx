@@ -323,7 +323,7 @@ export default function ClientPageClient({ params }: { params: Promise<{ id: str
             kind: r.kind,
             artifactId: r.artifactId,
           }))}
-          onOpen={openReceipt}
+          onOpenAction={openReceipt}
         />
       )}
     </div>

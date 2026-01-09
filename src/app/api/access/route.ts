@@ -155,13 +155,26 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
   try {
     // Require admin authentication
-    await requireAdmin();
+    const admin = await requireAdmin();
+
+    // Step A: Add diagnostic logging
+    console.log("[ADMIN DASH DEBUG /api/access]", {
+      userId: admin.id,
+      isAdmin: true,
+      accessRequestsMapSize: accessRequests.size,
+    });
 
     const { searchParams } = new URL(req.url);
     const statusFilter = searchParams.get("status");
 
     // Get all requests
     let requests = Array.from(accessRequests.values());
+    
+    // Step B: Add row-count logging
+    console.log("[ADMIN DASH QUERY COUNTS /api/access]", {
+      totalRequests: requests.length,
+      filteredByStatus: statusFilter,
+    });
 
     // Filter by status if provided
     if (statusFilter && ["PENDING", "APPROVED", "REJECTED"].includes(statusFilter)) {

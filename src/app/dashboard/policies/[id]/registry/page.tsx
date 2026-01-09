@@ -1,4 +1,3 @@
-;
 import { requireAuth } from "@/lib/utils/clerk";
 import { RegistryRecordView } from "./_components/RegistryRecordView";
 import { redirect } from "next/navigation";
@@ -24,25 +23,29 @@ export default async function RegistryRecordPage({ params }: Props) {
 
   // Get policy with all related data
   // Use LEFT JOIN for insurers to support unresolved insurers (lazy insurers)
-  const policy = await prisma.$queryRawUnsafe<Array<{
-    id: string,
+  const { queryRaw } = await import("@/lib/db");
+
+  type PolicyRow = {
+    id: string;
     policy_number: string | null;
     policy_type: string | null;
-    verification_status: string,
+    verification_status: string;
     verified_at: Date | null;
     verified_by_user_id: string | null;
     verification_notes: string | null;
     document_hash: string | null;
     createdAt: Date;
     updated_at: Date;
-    client_id: string,
+    client_id: string;
     insurer_id: string | null;
     carrier_name_raw: string | null;
     insurer_name: string | null;
-    client_firstName: string,
-    client_lastName: string,
-    client_email: string,
-  }>>(`
+    client_firstName: string;
+    client_lastName: string;
+    client_email: string;
+  };
+
+  const policy = await queryRaw<PolicyRow>(`
     SELECT 
       p.id,
       p.policy_number,
@@ -58,88 +61,99 @@ export default async function RegistryRecordPage({ params }: Props) {
       p.insurer_id,
       p.carrier_name_raw,
       i.name as insurer_name,
-      c.firstName as client_firstName,
-      c.lastName as client_lastName,
+      c."firstName" as client_firstName,
+      c."lastName" as client_lastName,
       c.email as client_email
     FROM policies p
     LEFT JOIN insurers i ON i.id = p.insurer_id
-    INNER JOIN clients c ON c.id = p.client_id
+    INNER JOIN clients c ON c.id = p."clientId"
     WHERE p.id = $1
     LIMIT 1
-  `, id);
+  `, [id]);
 
   if (!policy || policy.length === 0) {
     redirect("/dashboard/policies");
   }
 
   const policyData = policy[0];
+  if (!policyData) {
+    redirect("/dashboard/policies");
+  }
 
   // Get all documents
-  const documents = await prisma.$queryRawUnsafe<Array<{
-    id: string,
-    file_name: string,
-    file_type: string,
+  type DocumentRow = {
+    id: string;
+    file_name: string;
+    file_type: string;
     file_size: number;
-    file_path: string,
-    document_hash: string,
+    file_path: string;
+    document_hash: string;
     verified_at: Date | null;
     createdAt: Date;
-  }>>(`
+  };
+
+  const documents = await queryRaw<DocumentRow>(`
     SELECT 
       id, file_name, file_type, file_size, file_path, document_hash,
-      verified_at, createdAt
+      verified_at, "createdAt"
     FROM documents
     WHERE policy_id = $1
-    ORDER BY createdAt DESC
-  `, id);
+    ORDER BY "createdAt" DESC
+  `, [id]);
 
   // Get submission history
-  const submissions = await prisma.$queryRawUnsafe<Array<{
-    id: string,
-    status: string,
-    submission_type: string,
+  type SubmissionRow = {
+    id: string;
+    status: string;
+    submission_type: string;
     createdAt: Date;
     processed_at: Date | null;
-  }>>(`
+  };
+
+  const submissions = await queryRaw<SubmissionRow>(`
     SELECT 
-      id, status, submission_type, createdAt, processed_at
+      id, status, submission_type, "createdAt", processed_at
     FROM submissions
-    WHERE client_id = $1
-    ORDER BY createdAt DESC
-  `, policyData.client_id);
+    WHERE "clientId" = $1
+    ORDER BY "createdAt" DESC
+  `, [policyData.client_id]);
 
   // Get access logs (audit logs for this policy)
-  const accessLogs = await prisma.$queryRawUnsafe<Array<{
-    id: string,
-    action: string,
-    message: string,
+  type AccessLogRow = {
+    id: string;
+    action: string;
+    message: string;
     user_id: string | null;
     user_firstName: string | null;
     user_lastName: string | null;
     createdAt: Date;
-  }>>(`
+  };
+
+  const accessLogs = await queryRaw<AccessLogRow>(`
     SELECT 
-      al.id, al.action, al.message, al.user_id, al.createdAt,
-      u.firstName as user_firstName, u.lastName as user_lastName
+      al.id, al.action, al.message, al.user_id, al."createdAt",
+      u."firstName" as user_firstName, u."lastName" as user_lastName
     FROM audit_logs al
     LEFT JOIN users u ON u.id = al.user_id
-    WHERE al.policy_id = $1 OR al.client_id = $2
-    ORDER BY al.createdAt DESC
+    WHERE al.policy_id = $1 OR al."clientId" = $2
+    ORDER BY al."createdAt" DESC
     LIMIT 50
-  `, id, policyData.client_id);
+  `, [id, policyData.client_id]);
 
   // Get receipts
-  const receipts = await prisma.$queryRawUnsafe<Array<{
-    id: string,
-    receipt_number: string,
+  type ReceiptRow = {
+    id: string;
+    receipt_number: string;
     createdAt: Date;
-  }>>(`
+  };
+
+  const receipts = await queryRaw<ReceiptRow>(`
     SELECT 
-      id, receipt_number, createdAt
+      id, receipt_number, "createdAt"
     FROM receipts
-    WHERE client_id = $1
-    ORDER BY createdAt DESC
-  `, policyData.client_id);
+    WHERE "clientId" = $1
+    ORDER BY "createdAt" DESC
+  `, [policyData.client_id]);
 
   return (
     <RegistryRecordView
@@ -168,7 +182,7 @@ export default async function RegistryRecordPage({ params }: Props) {
           : null,
         carrierNameRaw: policyData.carrier_name_raw,
       }}
-      documents={documents.map(d => ({
+      documents={(documents || []).map((d: DocumentRow) => ({
         id: d.id,
         fileName: d.file_name,
         fileType: d.file_type,
@@ -178,14 +192,14 @@ export default async function RegistryRecordPage({ params }: Props) {
         verifiedAt: d.verified_at,
         createdAt: d.createdAt,
       }))}
-      submissions={submissions.map(s => ({
+      submissions={(submissions || []).map((s: SubmissionRow) => ({
         id: s.id,
         status: s.status,
         submissionType: s.submission_type,
         createdAt: s.createdAt,
         processedAt: s.processed_at,
       }))}
-      accessLogs={accessLogs.map(a => ({
+      accessLogs={(accessLogs || []).map((a: AccessLogRow) => ({
         id: a.id,
         action: a.action,
         message: a.message,
@@ -195,7 +209,7 @@ export default async function RegistryRecordPage({ params }: Props) {
           : null,
         createdAt: a.createdAt,
       }))}
-      receipts={receipts.map(r => ({
+      receipts={(receipts || []).map((r: ReceiptRow) => ({
         id: r.id,
         receiptNumber: r.receipt_number,
         createdAt: r.createdAt,

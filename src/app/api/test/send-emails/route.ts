@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { sendEmail } from "@/lib/email";
+import { sendEmail } from "@/lib/email/send";
 
 export async function GET() {
   const to = process.env.TEST_EMAIL_TO || "";

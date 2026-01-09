@@ -1,44 +1,57 @@
+// src/app/dashboard/analytics/page.tsx
 import { auth } from "@clerk/nextjs/server";
-;
 import { redirect } from "next/navigation";
 import { getCurrentUserWithOrg } from "@/lib/authz";
 
-interface InviteRow {
-  id: string,
-  clientId: string,
-  email: string,
-  token: string,
-  createdAt: Date;
-  used_at: Date | null;
-  firstName: string,
-  lastName: string,
-}
+export const runtime = "nodejs";
 
-interface RecentInvite {
-  id: string,
-  clientId: string,
-  email: string,
-  token: string,
+type CountRow = { count: string | number | bigint };
+
+type InviteSqlRow = {
+  id: string;
+  clientId: string;
+  email: string;
+  token: string;
+  createdAt: Date | string;
+  usedAt: Date | string | null;
+  firstName: string | null;
+  lastName: string | null;
+};
+
+type RecentInvite = {
+  id: string;
+  clientId: string;
+  email: string;
+  token: string;
   createdAt: Date;
   usedAt: Date | null;
   client: {
-    id: string,
-    firstName: string,
-    lastName: string,
+    id: string;
+    firstName: string;
+    lastName: string;
   };
-}
+};
+
+const toNumber = (v: CountRow["count"] | undefined): number => {
+  if (v === undefined || v === null) return 0;
+  if (typeof v === "number") return v;
+  if (typeof v === "bigint") return Number(v);
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+};
+
+const toDate = (v: Date | string): Date => (v instanceof Date ? v : new Date(v));
 
 export default async function AnalyticsPage() {
-  // Clerk middleware handles authentication - no need for manual redirects
+  // Ensure Clerk auth context is present (middleware may already enforce auth)
   await auth();
 
   const { user, orgMember } = await getCurrentUserWithOrg();
   if (!user) redirect("/dashboard");
 
-  // Get organization ID - handle both possible field names (optional)
-  const orgId = orgMember ? ((orgMember as { organizationId?: string }).organizationId || orgMember.organizations?.id) : null;
+  // ✅ OrgMemberRecord has organizationId, not organizations
+  const orgId = orgMember?.organizationId ?? null;
 
-  // Use raw SQL for queries to avoid Prisma client issues
   let clientCount = 0;
   let policyCount = 0;
   let activePolicyCount = 0;
@@ -46,181 +59,171 @@ export default async function AnalyticsPage() {
   let recentInvites: RecentInvite[] = [];
 
   try {
-    // Get counts using raw SQL - if no org, show user's own data via AttorneyClientAccess
-    const [clientResult, policyResult, activePolicyResult, beneficiaryResult, invitesResult] = await Promise.all([
-      orgId 
-        ? prisma.$queryRaw<Array<{ count: bigint }>>`
-            SELECT COUNT(*) as count FROM clients WHERE org_id = ${orgId}
-          `
-        : prisma.$queryRaw<Array<{ count: bigint }>>`
-            SELECT COUNT(DISTINCT aca.client_id) as count 
-            FROM attorneyClientAccess aca
-            WHERE aca.attorney_id = ${user.id} AND aca.is_active = true
-          `,
+    const { queryRaw } = await import("@/lib/db");
+
+    const [
+      clientResult,
+      policyResult,
+      activePolicyResult,
+      beneficiaryResult,
+      invitesResult,
+    ] = await Promise.all([
+      // Clients
       orgId
-        ? prisma.$queryRaw<Array<{ count: bigint }>>`
-            SELECT COUNT(*) as count 
-            FROM policies p
-            INNER JOIN clients c ON c.id = p.client_id
-            WHERE c.org_id = ${orgId}
-          `
-        : prisma.$queryRaw<Array<{ count: bigint }>>`
-            SELECT COUNT(*) as count 
-            FROM policies p
-            INNER JOIN attorneyClientAccess aca ON aca.client_id = p.client_id
-            WHERE aca.attorney_id = ${user.id} AND aca.is_active = true
-          `,
+        ? queryRaw<CountRow>(
+            `
+            SELECT COUNT(*)::bigint as count
+            FROM clients
+            WHERE org_id = $1
+            `,
+            [orgId]
+          )
+        : queryRaw<CountRow>(
+            `
+            SELECT COUNT(DISTINCT aca.client_id)::bigint as count
+            FROM attorney_client_access aca
+            WHERE aca.attorney_id = $1 AND aca.is_active = true
+            `,
+            [user.id]
+          ),
+
+      // Policies
       orgId
-        ? prisma.$queryRaw<Array<{ count: bigint }>>`
-            SELECT COUNT(*) as count 
+        ? queryRaw<CountRow>(
+            `
+            SELECT COUNT(*)::bigint as count
             FROM policies p
-            INNER JOIN clients c ON c.id = p.client_id
-            WHERE c.org_id = ${orgId} AND p.status = 'ACTIVE'
-          `
-        : prisma.$queryRaw<Array<{ count: bigint }>>`
-            SELECT COUNT(*) as count 
+            INNER JOIN clients c ON c.id = p."clientId"
+            WHERE c.org_id = $1
+            `,
+            [orgId]
+          )
+        : queryRaw<CountRow>(
+            `
+            SELECT COUNT(*)::bigint as count
             FROM policies p
-            INNER JOIN attorneyClientAccess aca ON aca.client_id = p.client_id
-            WHERE aca.attorney_id = ${user.id} AND aca.is_active = true AND p.status = 'ACTIVE'
-          `,
+            INNER JOIN attorney_client_access aca ON aca.client_id = p."clientId"
+            WHERE aca.attorney_id = $1 AND aca.is_active = true
+            `,
+            [user.id]
+          ),
+
+      // Active policies (NOTE: adjust column name if your schema differs)
       orgId
-        ? prisma.$queryRaw<Array<{ count: bigint }>>`
-            SELECT COUNT(*) as count 
+        ? queryRaw<CountRow>(
+            `
+            SELECT COUNT(*)::bigint as count
+            FROM policies p
+            INNER JOIN clients c ON c.id = p."clientId"
+            WHERE c.org_id = $1 AND p.status = 'ACTIVE'
+            `,
+            [orgId]
+          )
+        : queryRaw<CountRow>(
+            `
+            SELECT COUNT(*)::bigint as count
+            FROM policies p
+            INNER JOIN attorney_client_access aca ON aca.client_id = p."clientId"
+            WHERE aca.attorney_id = $1 AND aca.is_active = true AND p.status = 'ACTIVE'
+            `,
+            [user.id]
+          ),
+
+      // Beneficiaries
+      orgId
+        ? queryRaw<CountRow>(
+            `
+            SELECT COUNT(*)::bigint as count
             FROM beneficiaries b
-            INNER JOIN clients c ON c.id = b.client_id
-            WHERE c.org_id = ${orgId}
-          `
-        : prisma.$queryRaw<Array<{ count: bigint }>>`
-            SELECT COUNT(*) as count 
+            INNER JOIN clients c ON c.id = b."clientId"
+            WHERE c.org_id = $1
+            `,
+            [orgId]
+          )
+        : queryRaw<CountRow>(
+            `
+            SELECT COUNT(*)::bigint as count
             FROM beneficiaries b
-            INNER JOIN attorneyClientAccess aca ON aca.client_id = b.client_id
-            WHERE aca.attorney_id = ${user.id} AND aca.is_active = true
-          `,
+            INNER JOIN attorney_client_access aca ON aca.client_id = b."clientId"
+            WHERE aca.attorney_id = $1 AND aca.is_active = true
+            `,
+            [user.id]
+          ),
+
+      // Recent invites
       orgId
-        ? prisma.$queryRaw<Array<InviteRow>>`
-            SELECT 
-              ci.id,
-              ci.client_id,
-              ci.email,
-              ci.token,
-              ci.createdAt,
-              ci.used_at,
-              c.firstName,
-              c.lastName
+        ? queryRaw<InviteSqlRow>(
+            `
+            SELECT
+              ci.id                         as "id",
+              ci.client_id                  as "clientId",
+              ci.email                      as "email",
+              ci.token                      as "token",
+              ci."createdAt"                as "createdAt",
+              ci.used_at                    as "usedAt",
+              c."firstName"                 as "firstName",
+              c."lastName"                  as "lastName"
             FROM client_invites ci
             INNER JOIN clients c ON c.id = ci.client_id
-            WHERE c.org_id = ${orgId}
-            ORDER BY ci.createdAt DESC
+            WHERE c.org_id = $1
+            ORDER BY ci."createdAt" DESC
             LIMIT 10
-          `
-        : prisma.$queryRaw<Array<InviteRow>>`
-            SELECT 
-              ci.id,
-              ci.client_id,
-              ci.email,
-              ci.token,
-              ci.createdAt,
-              ci.used_at,
-              c.firstName,
-              c.lastName
+            `,
+            [orgId]
+          )
+        : queryRaw<InviteSqlRow>(
+            `
+            SELECT
+              ci.id                         as "id",
+              ci.client_id                  as "clientId",
+              ci.email                      as "email",
+              ci.token                      as "token",
+              ci."createdAt"                as "createdAt",
+              ci.used_at                    as "usedAt",
+              c."firstName"                 as "firstName",
+              c."lastName"                  as "lastName"
             FROM client_invites ci
             INNER JOIN clients c ON c.id = ci.client_id
-            INNER JOIN attorneyClientAccess aca ON aca.client_id = c.id
-            WHERE aca.attorney_id = ${user.id} AND aca.is_active = true
-            ORDER BY ci.createdAt DESC
+            INNER JOIN attorney_client_access aca ON aca.client_id = c.id
+            WHERE aca.attorney_id = $1 AND aca.is_active = true
+            ORDER BY ci."createdAt" DESC
             LIMIT 10
-          `,
+            `,
+            [user.id]
+          ),
     ]);
 
-    clientCount = Number(clientResult[0]?.count || 0);
-    policyCount = Number(policyResult[0]?.count || 0);
-    activePolicyCount = Number(activePolicyResult[0]?.count || 0);
-    beneficiaryCount = Number(beneficiaryResult[0]?.count || 0);
-    
-    recentInvites = invitesResult.map((inv: InviteRow) => ({
+    clientCount = toNumber(clientResult[0]?.count);
+    policyCount = toNumber(policyResult[0]?.count);
+    activePolicyCount = toNumber(activePolicyResult[0]?.count);
+    beneficiaryCount = toNumber(beneficiaryResult[0]?.count);
+
+    recentInvites = invitesResult.map((inv: InviteSqlRow): RecentInvite => ({
       id: inv.id,
       clientId: inv.clientId,
       email: inv.email,
       token: inv.token,
-      createdAt: inv.createdAt,
-      usedAt: inv.used_at,
+      createdAt: toDate(inv.createdAt),
+      usedAt: inv.usedAt ? toDate(inv.usedAt) : null,
       client: {
         id: inv.clientId,
-        firstName: inv.firstName,
-        lastName: inv.lastName,
+        firstName: inv.firstName ?? "",
+        lastName: inv.lastName ?? "",
       },
     }));
-  } catch (sqlError: unknown) {
-    const errorMessage = sqlError instanceof Error ? sqlError.message : "Unknown error";
-    console.error("Analytics page: Raw SQL failed, trying Prisma:", errorMessage);
-    // Fallback to Prisma
-    try {
-      const [
-        clientCountResult,
-        policyCountResult,
-        activePolicyCountResult,
-        beneficiaryCountResult,
-        recentInvitesResult,
-      ] = await Promise.all([
-        orgId ? prisma.clients.count({ where: { orgId: orgId } }) : prisma.attorneyClientAccess.count({ where: { attorneyId: user.id, isActive: true } }),
-        orgId ? prisma.policies.count({
-          where: { clients: { orgId: orgId } },
-        }) : prisma.policies.count({
-          where: { clients: { attorneyClientAccess: { some: { attorneyId: user.id, isActive: true } } } },
-        }),
-        orgId ? prisma.policies.count({
-          where: { clients: { orgId: orgId } },
-        }) : prisma.policies.count({
-          where: { clients: { attorneyClientAccess: { some: { attorneyId: user.id, isActive: true } } } },
-        }),
-        orgId ? prisma.beneficiaries.count({
-          where: { clients: { orgId: orgId } },
-        }) : prisma.beneficiaries.count({
-          where: { clients: { attorneyClientAccess: { some: { attorneyId: user.id, isActive: true } } } },
-        }),
-        orgId ? prisma.client_invites.findMany({
-          where: { clients: { orgId: orgId } },
-          include: { clients: true },
-          orderBy: { createdAt: "desc" },
-          take: 10,
-        }) : prisma.client_invites.findMany({
-          where: { clients: { attorneyClientAccess: { some: { attorneyId: user.id, isActive: true } } } },
-          include: { clients: true },
-          orderBy: { createdAt: "desc" },
-          take: 10,
-        }),
-      ]);
-      
-      clientCount = clientCountResult;
-      policyCount = policyCountResult;
-      activePolicyCount = activePolicyCountResult;
-      beneficiaryCount = beneficiaryCountResult;
-      recentInvites = recentInvitesResult.map((inv) => ({
-        id: inv.id,
-        clientId: inv.clientId,
-        email: inv.email,
-        token: inv.token,
-        createdAt: inv.createdAt,
-        usedAt: inv.usedAt,
-        client: {
-          id: inv.clientId,
-          firstName: inv.clients.firstName,
-          lastName: inv.clients.lastName,
-        },
-      }));
-    } catch (prismaError: unknown) {
-      const errorMessage = prismaError instanceof Error ? prismaError.message : "Unknown error";
-      console.error("Analytics page: Prisma also failed:", errorMessage);
-      // Use defaults (0 counts, empty array)
-    }
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    console.error("Analytics page: SQL failed:", message);
+    // Leave defaults (0, empty list)
   }
+
+  const completion =
+    clientCount === 0 ? null : Math.round((activePolicyCount / Math.max(clientCount, 1)) * 100);
 
   return (
     <main className="p-8 mx-auto max-w-5xl space-y-6">
       <section>
-        <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
-          Firm analytics
-        </h1>
+        <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Firm analytics</h1>
         <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
           Overview of registries managed under your firm.
         </p>
@@ -233,30 +236,28 @@ export default async function AnalyticsPage() {
             {clientCount}
           </div>
         </div>
+
         <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
           <div className="text-[11px] text-slate-600 dark:text-slate-400">Policies</div>
           <div className="mt-1 text-2xl font-semibold text-slate-900 dark:text-slate-100">
             {policyCount}
           </div>
           <div className="mt-1 text-[11px] text-slate-600 dark:text-slate-400">
-            Active:{" "}
-            <span className="text-gold-500">{activePolicyCount}</span>
+            Active: <span className="text-gold-500">{activePolicyCount}</span>
           </div>
         </div>
+
         <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
           <div className="text-[11px] text-slate-600 dark:text-slate-400">Beneficiaries</div>
           <div className="mt-1 text-2xl font-semibold text-slate-900 dark:text-slate-100">
             {beneficiaryCount}
           </div>
         </div>
+
         <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
           <div className="text-[11px] text-slate-600 dark:text-slate-400">Completion</div>
           <div className="mt-1 text-xl font-semibold text-gold-500">
-            {clientCount === 0
-              ? "—"
-              : `${Math.round(
-                  (activePolicyCount / Math.max(clientCount, 1)) * 100,
-                )}%`}
+            {completion === null ? "—" : `${completion}%`}
           </div>
           <div className="mt-1 text-[11px] text-slate-600 dark:text-slate-400">
             Approx. active policies per client
@@ -294,11 +295,7 @@ export default async function AnalyticsPage() {
                       hour: "2-digit",
                       minute: "2-digit",
                     })}
-                    {inv.usedAt && (
-                      <span className="ml-1 text-gold-500">
-                        · accepted
-                      </span>
-                    )}
+                    {inv.usedAt && <span className="ml-1 text-gold-500">· accepted</span>}
                   </div>
                 </li>
               ))}
@@ -309,4 +306,3 @@ export default async function AnalyticsPage() {
     </main>
   );
 }
-

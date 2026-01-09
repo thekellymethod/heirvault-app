@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { EmptyListState, EmptySearchState } from "@/components/ui/empty-state";
@@ -53,11 +53,7 @@ export default function BeneficiariesPageClient() {
     initialPage: page,
   });
 
-  useEffect(() => {
-    loadBeneficiaries();
-  }, []);
-
-  async function loadBeneficiaries() {
+  const loadBeneficiaries = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -103,7 +99,11 @@ export default function BeneficiariesPageClient() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [searchTerm, sortBy]);
+
+  useEffect(() => {
+    loadBeneficiaries();
+  }, [loadBeneficiaries]);
 
   const handlePageChange = (newPage: number) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -295,7 +295,9 @@ export default function BeneficiariesPageClient() {
                 {paginatedItems.map((b) => (
                   <MobileCard
                     key={b.id}
-                    onClick={() => router.push(`/dashboard/clients/${b.client.id}`)}
+                    onClickAction={() => {
+                      router.push(`/dashboard/clients/${b.client.id}`);
+                    }}
                   >
                     <div className="space-y-3">
                       <div>

@@ -16,17 +16,17 @@ export async function POST(req: Request) {
   const clientEmail = session.customer_email || session.metadata?.clientEmail;
   if (!clientEmail) return new NextResponse("Missing customer email", { status: 400 });
 
-  const { upsert: upsertRegistry, findUnique: findUniqueRegistry } = await import("@/lib/db");
+  const { findUnique: findUniqueRegistry, create: createRegistry, update: updateRegistry } = await import("@/lib/db");
   const { randomUUID } = await import("crypto");
   
   // Check if registry exists
-  const existing = await findUniqueRegistry("client_registries", { stripeCheckoutSessionId: session.id });
+  const existing = await findUniqueRegistry<{ id: string }>("client_registries", { stripeCheckoutSessionId: session.id });
   
-  let registry;
+  let registry: { id: string };
   if (existing) {
     registry = existing;
   } else {
-    registry = await upsertRegistry("client_registries", {
+    registry = await createRegistry("client_registries", {
       id: randomUUID(),
       clientEmail,
       clientName: session.metadata?.clientName || null,
@@ -34,9 +34,7 @@ export async function POST(req: Request) {
       stripePaymentIntentId: (session.payment_intent as string) || null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-    } as Record<string, unknown>, {
-      where: { stripeCheckoutSessionId: session.id },
-    });
+    } as Record<string, unknown>) as { id: string };
   }
 
   return NextResponse.json({ registryId: registry.id });

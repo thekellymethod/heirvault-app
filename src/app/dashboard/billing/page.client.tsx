@@ -1,7 +1,7 @@
 // src/app/dashboard/billing/page.client.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, createElement } from "react";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import Script from "next/script";
@@ -84,10 +84,10 @@ function BillingClientInner() {
           </p>
           <div className="flex flex-col gap-3">
             <div id="stripe-buy-button-container">
-              <stripe-buy-button
-                buy-button-id="buy_btn_1SizHqICdoRswaDqc9D4reJy"
-                publishable-key="pk_live_51SJHsUICdoRswaDqab95zqlZGVQuCyG4DFHgIXBW8CnWM7zWGxM4cn1qj7ZMPGtcEqxhmNFJ4NaS4bGQdnjZWI9200Fijnyn5b"
-              />
+              {createElement("stripe-buy-button" as any, {
+                "buy-button-id": "buy_btn_1SizHqICdoRswaDqc9D4reJy",
+                "publishable-key": "pk_live_51SJHsUICdoRswaDqab95zqlZGVQuCyG4DFHgIXBW8CnWM7zWGxM4cn1qj7ZMPGtcEqxhmNFJ4NaS4bGQdnjZWI9200Fijnyn5b",
+              })}
             </div>
             <div className="text-xs text-slate-700 border-t pt-3">
               <p className="font-medium mb-1 text-slate-900">Test Payment:</p>

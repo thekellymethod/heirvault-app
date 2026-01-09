@@ -228,7 +228,7 @@ export default function ClientsPageClient() {
                 {paginatedItems.map((c) => (
                   <MobileCard
                     key={c.id}
-                    onClick={() => router.push(`/dashboard/clients/${c.id}`)}
+                    onClickAction={() => router.push(`/dashboard/clients/${c.id}`)}
                   >
                     <div className="space-y-3">
                       <div>

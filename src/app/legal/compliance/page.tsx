@@ -1,9 +1,10 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { Logo } from "@/components/Logo";
 import { ArrowLeft, Shield, Lock, CheckCircle, FileText, AlertTriangle } from "lucide-react";
-import { generateMetadata as genMeta } from "@/lib/seo";
+import { generateMetadata } from "@/lib/seo";
 
-export const metadata = genMeta({
+export const metadata: Metadata = generateMetadata({
   title: "Security & Compliance Standards",
   description:
     "HeirVault adheres to industry-leading security and compliance standards including NIST CSF, ISO/IEC 27001, SOC 2, CIS Controls, and GDPR. Learn about our security posture and compliance certifications.",

@@ -288,7 +288,7 @@ export default function PoliciesPageClient() {
                 {paginatedItems.map((p) => (
                   <MobileCard
                     key={p.id}
-                    onClick={() => router.push(`/dashboard/policies/${p.id}`)}
+                    onClickAction={() => router.push(`/dashboard/policies/${p.id}`)}
                   >
                     <div className="space-y-3">
                       <div>

@@ -1,4 +1,3 @@
-;
 import { requireAuth } from "@/lib/utils/clerk";
 import { assertAttorneyCanAccessClient } from "@/lib/authz";
 import { DocumentVerificationView } from "./_components/DocumentVerificationView";
@@ -27,20 +26,29 @@ export default async function DocumentVerificationPage({ params }: Props) {
 
   // First, get only the client_id to verify access
   // This prevents unauthorized access to policy data
-  const policyClient = await prisma.$queryRawUnsafe<Array<{
-    clientId: string,
-  }>>(`
-    SELECT client_id as "clientId"
+  const { queryRaw } = await import("@/lib/db");
+
+  type PolicyClientRow = {
+    clientId: string;
+  };
+
+  const policyClient = await queryRaw<PolicyClientRow>(`
+    SELECT "clientId"
     FROM policies
     WHERE id = $1
     LIMIT 1
-  `, id);
+  `, [id]);
 
   if (!policyClient || policyClient.length === 0) {
     redirect("/dashboard/policies");
   }
 
-  const clientId = policyClient[0].clientId;
+  const policyClientRow = policyClient[0];
+  if (!policyClientRow) {
+    redirect("/dashboard/policies");
+  }
+
+  const clientId = policyClientRow.clientId;
 
   // CRITICAL: Verify attorney has access to this client before proceeding
   // This prevents any authenticated user from accessing any policy's data
@@ -52,25 +60,27 @@ export default async function DocumentVerificationPage({ params }: Props) {
   }
 
   // Now that access is verified, fetch the full policy data
-  const policy = await prisma.$queryRawUnsafe<Array<{
-    id: string,
+  type PolicyRow = {
+    id: string;
     policy_number: string | null;
     policy_type: string | null;
-    verification_status: string,
+    verification_status: string;
     verified_at: Date | null;
     verified_by_user_id: string | null;
     verification_notes: string | null;
     document_hash: string | null;
     createdAt: Date;
     updated_at: Date;
-    clientId:string,
+    clientId: string;
     insurer_id: string | null;
     carrier_name_raw: string | null;
     insurer_name: string | null;
-    client_firstName: string,
-    client_lastName: string,
-    client_email: string,
-  }>>(`
+    client_firstName: string;
+    client_lastName: string;
+    client_email: string;
+  };
+
+  const policy = await queryRaw<PolicyRow>(`
     SELECT 
       p.id,
       p.policy_number,
@@ -80,27 +90,30 @@ export default async function DocumentVerificationPage({ params }: Props) {
       p.verified_by_user_id,
       p.verification_notes,
       p.document_hash,
-      p.createdAt,
+      p."createdAt",
       p.updated_at,
-      p.client_id as "clientId",
+      p."clientId" as "clientId",
       p.insurer_id,
       p.carrier_name_raw,
       i.name as insurer_name,
-      c.firstName as client_firstName,
-      c.lastName as client_lastName,
+      c."firstName" as client_firstName,
+      c."lastName" as client_lastName,
       c.email as client_email
     FROM policies p
     LEFT JOIN insurers i ON i.id = p.insurer_id
-    INNER JOIN clients c ON c.id = p.client_id
+    INNER JOIN clients c ON c.id = p."clientId"
     WHERE p.id = $1
     LIMIT 1
-  `, id);
+  `, [id]);
 
   if (!policy || policy.length === 0) {
     redirect("/dashboard/policies");
   }
 
   const policyData = policy[0];
+  if (!policyData) {
+    redirect("/dashboard/policies");
+  }
 
   // Check if current user is admin
   let isAdmin = false;
@@ -113,46 +126,50 @@ export default async function DocumentVerificationPage({ params }: Props) {
   }
 
   // Get documents for this policy
-  const documents = await prisma.$queryRawUnsafe<Array<{
-    id: string,
-    file_name: string,
-    file_type: string,
+  type DocumentRow = {
+    id: string;
+    file_name: string;
+    file_type: string;
     file_size: number;
-    file_path: string,
-    mime_type: string,
+    file_path: string;
+    mime_type: string;
     extracted_data: unknown;
     ocr_confidence: number | null;
-    document_hash: string,
+    document_hash: string;
     verified_at: Date | null;
     verified_by_user_id: string | null;
     verification_notes: string | null;
     createdAt: Date;
-  }>>(`
+  };
+
+  const documents = await queryRaw<DocumentRow>(`
     SELECT 
       id, file_name, file_type, file_size, file_path, mime_type,
       extracted_data, ocr_confidence, document_hash,
-      verified_at, verified_by_user_id, verification_notes, createdAt
+      verified_at, verified_by_user_id, verification_notes, "createdAt"
     FROM documents
     WHERE policy_id = $1
-    ORDER BY createdAt DESC
-  `, id);
+    ORDER BY "createdAt" DESC
+  `, [id]);
 
   // Get submission history
-  const submissions = await prisma.$queryRawUnsafe<Array<{
-    id: string,
-    status: string,
-    submission_type: string,
+  type SubmissionRow = {
+    id: string;
+    status: string;
+    submission_type: string;
     submitted_data: unknown;
     createdAt: Date;
     processed_at: Date | null;
-  }>>(`
+  };
+
+  const submissions = await queryRaw<SubmissionRow>(`
     SELECT 
-      id, status, submission_type, submitted_data, createdAt, processed_at
+      id, status, submission_type, submitted_data, "createdAt", processed_at
     FROM submissions
-    WHERE client_id = $1
-    ORDER BY createdAt DESC
+    WHERE "clientId" = $1
+    ORDER BY "createdAt" DESC
     LIMIT 10
-  `, policyData.clientId);
+  `, [policyData.clientId]);
 
   return (
     <DocumentVerificationView
@@ -179,7 +196,7 @@ export default async function DocumentVerificationPage({ params }: Props) {
         } : null,
         carrierNameRaw: policyData.carrier_name_raw,
       }}
-      documents={documents.map((d: typeof documents[0]) => ({
+      documents={(documents || []).map((d: DocumentRow) => ({
         id: d.id,
         fileName: d.file_name,
         fileType: d.file_type,
@@ -194,7 +211,7 @@ export default async function DocumentVerificationPage({ params }: Props) {
         verificationNotes: d.verification_notes,
         createdAt: d.createdAt,
       }))}
-      submissions={submissions.map((s: typeof submissions[0]) => ({
+      submissions={(submissions || []).map((s: SubmissionRow) => ({
         id: s.id,
         status: s.status,
         submissionType: s.submission_type,

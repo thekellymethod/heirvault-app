@@ -97,7 +97,7 @@ export default function AuditClient() {
         <div className="text-2xl font-semibold">Audit Explorer (Admin)</div>
         {err && <div className="text-red-600">{err}</div>}
 
-      <div className="rounded-2xl border p-5 space-y-3">
+        <div className="rounded-2xl border p-5 space-y-3">
         <div className="font-semibold">Audit Logs</div>
         <div className="flex flex-col gap-2">
           <input
@@ -132,9 +132,9 @@ export default function AuditClient() {
           ))}
           {!logs.length && <div className="text-sm text-slate-500">No results.</div>}
         </div>
-      </div>
+        </div>
 
-      <div className="rounded-2xl border p-5 space-y-3">
+        <div className="rounded-2xl border p-5 space-y-3">
         <div className="font-semibold">Document Access Events</div>
         <div className="flex flex-col gap-2">
           <input
@@ -162,6 +162,7 @@ export default function AuditClient() {
             </div>
           ))}
           {!events.length && <div className="text-sm text-slate-500">No results.</div>}
+        </div>
         </div>
       </div>
     </div>

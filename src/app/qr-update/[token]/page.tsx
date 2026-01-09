@@ -1,4 +1,3 @@
-;
 import { QRUpdateForm } from "./_components/QRUpdateForm";
 import Link from "next/link";
 import { QrCode } from "lucide-react";
@@ -43,11 +42,13 @@ export default async function QRUpdatePage({ params }: Props) {
   const clientId = invite.clientId as string;
 
   // Get current client data with policies and beneficiaries
-  const clientData = await prisma.$queryRawUnsafe<Array<{
-    id: string,
-    firstName: string,
-    lastName: string,
-    email: string,
+  const { queryRaw } = await import("@/lib/db");
+
+  type ClientRow = {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
     phone: string | null;
     dateOfBirth: Date | null;
     address_line1: string | null;
@@ -56,14 +57,16 @@ export default async function QRUpdatePage({ params }: Props) {
     state: string | null;
     postal_code: string | null;
     country: string | null;
-  }>>(`
+  };
+
+  const clientData = await queryRaw<ClientRow>(`
     SELECT 
-      id, firstName, lastName, email, phone, dateOfBirth,
+      id, "firstName", "lastName", email, phone, "dateOfBirth",
       address_line1, address_line2, city, state, postal_code, country
     FROM clients
     WHERE id = $1
     LIMIT 1
-  `, clientId);
+  `, [clientId]);
 
   if (!clientData || clientData.length === 0) {
     redirect("/error?type=not_found");
@@ -72,12 +75,14 @@ export default async function QRUpdatePage({ params }: Props) {
   const client = clientData[0];
 
   // Get current policies
-  const policies = await prisma.$queryRawUnsafe<Array<{
-    id: string,
+  type PolicyRow = {
+    id: string;
     policy_number: string | null;
     policy_type: string | null;
-    insurer_name: string,
-  }>>(`
+    insurer_name: string;
+  };
+
+  const policies = await queryRaw<PolicyRow>(`
     SELECT 
       p.id,
       p.policy_number,
@@ -85,35 +90,41 @@ export default async function QRUpdatePage({ params }: Props) {
       i.name as insurer_name
     FROM policies p
     INNER JOIN insurers i ON i.id = p.insurer_id
-    WHERE p.client_id = $1
-    ORDER BY p.createdAt DESC
-  `, clientId);
+    WHERE p."clientId" = $1
+    ORDER BY p."createdAt" DESC
+  `, [clientId]);
 
   // Get current beneficiaries
-  const beneficiaries = await prisma.$queryRawUnsafe<Array<{
-    id: string,
-    firstName: string,
-    lastName: string,
+  type BeneficiaryRow = {
+    id: string;
+    firstName: string;
+    lastName: string;
     relationship: string | null;
     email: string | null;
     phone: string | null;
     dateOfBirth: Date | null;
-  }>>(`
+  };
+
+  const beneficiaries = await queryRaw<BeneficiaryRow>(`
     SELECT 
-      id, firstName, lastName, relationship, email, phone, dateOfBirth
+      id, "firstName", "lastName", relationship, email, phone, "dateOfBirth"
     FROM beneficiaries
-    WHERE client_id = $1
-    ORDER BY createdAt DESC
-  `, clientId);
+    WHERE "clientId" = $1
+    ORDER BY "createdAt" DESC
+  `, [clientId]);
 
   // Get version history count
-  const versionCount = await prisma.$queryRawUnsafe<Array<{ count: number }>>(`
+  type VersionCountRow = {
+    count: number;
+  };
+
+  const versionCount = await queryRaw<VersionCountRow>(`
     SELECT COUNT(*)::int as count
     FROM client_versions
-    WHERE client_id = $1
-  `, clientId);
+    WHERE "clientId" = $1
+  `, [clientId]);
 
-  const versionNumber = (versionCount[0]?.count || 0) + 1;
+  const versionNumber = (versionCount && versionCount.length > 0 && versionCount[0] ? versionCount[0].count : 0) + 1;
 
   return (
     <main className="min-h-screen bg-paper-50 py-6 sm:py-12 overflow-x-hidden">

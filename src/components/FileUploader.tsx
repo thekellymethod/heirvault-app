@@ -17,7 +17,7 @@ type Props = {
   registryId?: string;
   policyId?: string;
   category?: string; // "policies" | "proofs" | "uploads"
-  onUploaded?: (item: UploadedItem) => void;
+  onUploadedAction?: (item: UploadedItem) => void;
   autoLoad?: boolean; // Load existing files on mount
 };
 
@@ -28,7 +28,7 @@ export function FileUploader({
   registryId,
   policyId,
   category = "uploads",
-  onUploaded,
+  onUploadedAction,
   autoLoad = true,
 }: Props) {
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -149,7 +149,7 @@ export function FileUploader({
       };
 
       setItems((prev) => [newItem, ...prev]);
-      onUploaded?.(newItem);
+      onUploadedAction?.(newItem);
 
       setProgress(100);
       resetInput();

@@ -144,7 +144,13 @@ export async function POST(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   try {
-    await requireAdmin();
+    const admin = await requireAdmin();
+
+    // Step A: Add diagnostic logging
+    console.log("[ADMIN DASH DEBUG /api/admin/attorneys/verify]", {
+      userId: admin.id,
+      isAdmin: true,
+    });
 
     const { searchParams } = new URL(req.url);
     const status = searchParams.get("status");
@@ -171,6 +177,13 @@ export async function GET(req: NextRequest) {
     const profiles = await findManyProfiles<AttorneyProfileRecord>("attorney_profiles", {
       where,
       orderBy: { column: "appliedAt", ascending: false },
+    });
+    
+    // Step B: Add row-count logging after query
+    console.log("[ADMIN DASH QUERY COUNTS /api/admin/attorneys/verify]", {
+      profiles: profiles?.length ?? 0,
+      statusFilter: status,
+      whereClause: where,
     });
 
     // Fetch users for each profile

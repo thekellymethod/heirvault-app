@@ -171,6 +171,12 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
       return NextResponse.json({ error: "Invitation has expired" }, { status: 400 });
     }
 
+    // Import db helpers once at the top
+    const db = await import("@/lib/db");
+    const queryRaw = db.queryRaw;
+    const createRow = db.create;
+    const updateRow = db.update;
+
     // Payload (JSON or FormData)
     let file: File | null = null;
     let policyDataRaw: string | null = null;
@@ -210,10 +216,8 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
         const arrayBuffer = await file.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
         const documentHash = generateDocumentHash(buffer);
-
-        const { queryRaw, create: createDocument, create: createAudit } = await import("@/lib/db");
         
-        const existingDoc = await queryRaw<DocumentRow[]>(`
+        const existingDoc = await queryRaw<DocumentRow>(`
           SELECT id, "clientId", policy_id, extracted_data, ocr_confidence
           FROM documents
           WHERE document_hash = $1 AND "clientId" = $2
@@ -242,7 +246,7 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
             extractedData = null;
           }
         } else {
-          const otherClientDoc = await queryRaw<Array<{ id: string, clientId: string }>>(`
+          const otherClientDoc = await queryRaw<{ id: string; clientId: string }>(`
             SELECT id, "clientId"
             FROM documents
             WHERE document_hash = $1 AND "clientId" != $2
@@ -269,7 +273,7 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
             insurerEmail: ocrResult.insurerEmail,
           };
 
-          const { storagePath } = await uploadDocument({
+          const { key } = await uploadDocument({
             fileBuffer: arrayBuffer,
             filename: file.name,
             contentType: file.type,
@@ -277,13 +281,13 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
 
           const documentId = randomUUID();
 
-          await createDocument("documents", {
+          await createRow("documents", {
             id: documentId,
             clientId: clientId,
             fileName: file.name,
             fileType: file.type,
             fileSize: file.size,
-            filePath: storagePath,
+            filePath: key,
             mimeType: file.type,
             uploadedVia: "invite",
             extractedData: extractedData ? extractedData : null,
@@ -296,6 +300,7 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
           archivedDocument = { id: documentId, clientId: clientId, policyId: null, fileName: file.name };
         }
 
+        const { create: createAudit } = await import("@/lib/db");
         await createAudit("audit_logs", {
           id: randomUUID(),
           action: AuditAction.DOCUMENT_UPLOADED,
@@ -316,7 +321,7 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
           const buffer = Buffer.from(fileArrayBuffer);
           const documentHash = generateDocumentHash(buffer);
 
-          const existingDoc = await queryRaw<Array<{ id: string, clientId: string, policy_id: string | null }>>(`
+          const existingDoc = await queryRaw<{ id: string; clientId: string; policy_id: string | null }>(`
             SELECT id, "clientId", policy_id
             FROM documents
             WHERE document_hash = $1 AND "clientId" = $2
@@ -331,20 +336,20 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
               fileName: file.name,
             };
           } else {
-            const { storagePath } = await uploadDocument({
+            const { key } = await uploadDocument({
               fileBuffer: fileArrayBuffer,
               filename: file.name,
               contentType: file.type,
             });
 
             const documentId = randomUUID();
-            await createDocument("documents", {
+            await createRow("documents", {
               id: documentId,
               clientId: clientId,
               fileName: file.name,
               fileType: file.type,
               fileSize: file.size,
-              filePath: storagePath,
+              filePath: key,
               mimeType: file.type,
               uploadedVia: "invite",
               extractedData: null,
@@ -386,7 +391,7 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
     const insurerName = typeof finalPolicyData.insurerName === "string" ? finalPolicyData.insurerName : null;
     if (insurerName) {
       try {
-        const insurerRows = await queryRaw<Array<{ id: string }>>(
+        const insurerRows = await queryRaw<{ id: string }>(
           `SELECT id FROM insurers WHERE LOWER(name) = LOWER($1) LIMIT 1`,
           [insurerName]
         );
@@ -405,9 +410,7 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
 
     if (insurerName && !isChangeRequest) {
       try {
-        const { findMany: findManyPolicies, create: createPolicy } = await import("@/lib/db");
-        
-        const existing = await queryRaw<Array<{ id: string }>>(`
+        const existing = await queryRaw<{ id: string }>(`
           SELECT id
           FROM policies
           WHERE "clientId" = $1
@@ -424,7 +427,7 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
         } else {
           policyId = randomUUID();
           const now = new Date().toISOString();
-          await createPolicy("policies", {
+          await createRow("policies", {
             id: policyId,
             clientId: clientId,
             insurerId: insurerId,
@@ -444,9 +447,8 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
     // CRITICAL: Only update documents that belong to the current client to prevent cross-client corruption
     if (archivedDocument?.id && policyId && archivedDocument.clientId === clientId) {
       try {
-        const { update: updateDocument } = await import("@/lib/db");
-        await updateDocument("documents", { id: archivedDocument.id }, {
-          policyId: policyId,
+        await updateRow("documents", { id: archivedDocument.id }, {
+          policy_id: policyId,
           updatedAt: new Date().toISOString(),
         } as Record<string, unknown>);
       } catch (e: unknown) {
@@ -458,10 +460,15 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
     if (archivedDocument) {
       try {
         const { audit } = await import("@/lib/audit");
-        await audit(AuditAction.DOCUMENT_PROCESSED, {
+        await audit({
+          actorType: "POLICYHOLDER",
+          actorId: null,
           clientId: clientId,
-          policyId: policyId ?? undefined,
-          message: `Document processed: ${archivedDocument.fileName ?? "unknown"} (OCR: ${extractedData ? "success" : "failed"})`,
+          action: AuditAction.DOCUMENT_PROCESSED,
+          metadata: {
+            policyId: policyId ?? undefined,
+            message: `Document processed: ${archivedDocument.fileName ?? "unknown"} (OCR: ${extractedData ? "success" : "failed"})`,
+          },
         });
       } catch (e: unknown) {
         console.error("Audit failed:", e);
@@ -524,8 +531,7 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
           driversLicense,
         });
 
-        const { update: updateClient } = await import("@/lib/db");
-        await updateClient("clients", { id: clientId }, {
+        await updateRow("clients", { id: clientId }, {
           firstName,
           lastName,
           email,
@@ -546,8 +552,7 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
     // Mark invite used (first submission only)
     if (!inviteUsedAt && !isChangeRequest) {
       try {
-        const { update: updateInvite } = await import("@/lib/db");
-        await updateInvite("client_invites", { id: inviteId }, {
+        await updateRow("client_invites", { id: inviteId }, {
           usedAt: now.toISOString(),
           updatedAt: new Date().toISOString(),
         } as Record<string, unknown>);
@@ -574,7 +579,7 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
       | null = null;
 
     try {
-      const access = await queryRaw<AttorneyAccessRow[]>(`
+      const access = await queryRaw<AttorneyAccessRow>(`
         SELECT
           aca.attorney_id,
           u.email as attorney_email,
@@ -625,13 +630,13 @@ export async function POST(req: NextRequest, { params }: { params: RouteParams }
 
     try {
       const [clients, pols] = await Promise.all([
-        queryRaw<ClientRow[]>(`
+        queryRaw<ClientRow>(`
           SELECT id, "firstName", "lastName", email, phone, "dateOfBirth", "createdAt"
           FROM clients
           WHERE id = $1
           LIMIT 1
         `, [clientId]),
-        queryRaw<PolicyRow[]>(`
+        queryRaw<PolicyRow>(`
           SELECT
             p.id,
             p.policy_number,

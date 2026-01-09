@@ -13,11 +13,13 @@ export async function requireOrgMember(orgId: string) {
   const { findUnique } = await import("@/lib/db");
   
   // Get user from database to get their ID
+  // Database has clerkId (camelCase) - it's in the known camelCase list, so it won't be converted
   type UserRecord = { id: string; clerkId: string };
   const user = await findUnique<UserRecord>("users", { clerkId: userId });
   if (!user) throw new Error("UNAUTHENTICATED");
   
-  type OrgMemberRecord = { id: string; userId: string; organizationId: string; role: string };
+  // Database uses snake_case: user_id, organization_id
+  type OrgMemberRecord = { id: string; user_id: string; organization_id: string; role: string };
   const member = await findUnique<OrgMemberRecord>("org_members", { 
     organizationId: orgId,
     userId: user.id,
@@ -30,18 +32,21 @@ export async function requireRegistryAccess(registryId: string) {
   const userId = await requireUserId();
   const { findUnique } = await import("@/lib/db");
   
-  type RegistryRecord = { id: string; orgId: string };
+  // Database uses snake_case: org_id
+  type RegistryRecord = { id: string; org_id: string };
   const reg = await findUnique<RegistryRecord>("registries", { id: registryId });
   if (!reg) throw new Error("NOT_FOUND");
 
   // Get user from database to get their ID
+  // Database has clerkId (camelCase) - it's in the known camelCase list, so it won't be converted
   type UserRecord = { id: string; clerkId: string };
   const user = await findUnique<UserRecord>("users", { clerkId: userId });
   if (!user) throw new Error("UNAUTHENTICATED");
 
-  type OrgMemberRecord = { id: string; userId: string; organizationId: string; role: string };
+  // Database uses snake_case: user_id, organization_id
+  type OrgMemberRecord = { id: string; user_id: string; organization_id: string; role: string };
   const member = await findUnique<OrgMemberRecord>("org_members", {
-    organizationId: reg.orgId,
+    organizationId: reg.org_id,
     userId: user.id,
   });
   if (!member) throw new Error("FORBIDDEN");
@@ -54,18 +59,20 @@ export async function getCurrentUserWithOrg() {
   const userId = await requireUserId();
   const { findUnique } = await import("@/lib/db");
   
+  // Database has clerkId (camelCase) - it's in the known camelCase list, so it won't be converted
   type UserRecord = { id: string; clerkId: string; email: string };
   const user = await findUnique<UserRecord>("users", { clerkId: userId });
   if (!user) throw new Error("UNAUTHENTICATED");
   
-  type OrgMemberRecord = { id: string; userId: string; organizationId: string; role: string };
+  // Database uses snake_case: user_id, organization_id
+  type OrgMemberRecord = { id: string; user_id: string; organization_id: string; role: string };
   const member = await findUnique<OrgMemberRecord>("org_members", { userId: user.id });
   if (!member) {
     return { user, org: null, role: null, orgMember: null };
   }
   
   type OrgRecord = { id: string; name: string };
-  const org = await findUnique<OrgRecord>("organizations", { id: member.organizationId });
+  const org = await findUnique<OrgRecord>("organizations", { id: member.organization_id });
   return { user, org, role: member.role, orgMember: member };
 }
 
@@ -87,13 +94,14 @@ export async function requireAttorneyOrOwner(clientId?: string) {
   if (clientId) {
     // Check if user is attorney with access to this client
     const { findUnique } = await import("@/lib/db");
-    type ClientRecord = { id: string; orgId: string | null };
+    // Database uses snake_case: org_id
+    type ClientRecord = { id: string; org_id: string | null };
     const client = await findUnique<ClientRecord>("clients", { id: clientId });
     
     if (!client) throw new Error("NOT_FOUND");
     
     // Check if client belongs to user's org
-    if (org && client.orgId === org.id) {
+    if (org && client.org_id === org.id) {
       return { user, org, orgMember: { organizations: org, role: role || "" } };
     }
     

@@ -60,13 +60,13 @@ export async function canAccessRegistry({
   }
 
   // SYSTEM can access all registries (internal use)
-  if (user.role === "SYSTEM") {
+  if (user.roles.includes("SYSTEM")) {
     const registry = await getRegistryById(registryId);
     return registry !== null;
   }
 
   // ATTORNEY: Check if registry is in authorized list
-  if (user.role === "ATTORNEY") {
+  if (user.roles.includes("ATTORNEY")) {
     const authorizedRegistries = await listAuthorizedRegistries(user.id);
     return authorizedRegistries.some((registry) => registry.id === registryId);
   }
@@ -118,17 +118,17 @@ export async function requireAccessRegistry({
  */
 export function canSearch({ user }: { user: User }): boolean {
   // ADMIN can search
-  if (user.role === "ADMIN") {
+  if (user.roles.includes("ADMIN")) {
     return true;
   }
 
   // SYSTEM can search (internal use)
-  if (user.role === "SYSTEM") {
+  if (user.roles.includes("SYSTEM")) {
     return true;
   }
 
   // ATTORNEY can search (results limited to authorized registries)
-  if (user.role === "ATTORNEY") {
+  if (user.roles.includes("ATTORNEY")) {
     return true;
   }
 

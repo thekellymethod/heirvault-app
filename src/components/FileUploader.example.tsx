@@ -20,7 +20,7 @@ export function RegistryFilesPage({ orgId, registryId }: { orgId: string; regist
         registryId={registryId}
         category="policies"
         autoLoad={true}
-        onUploaded={(item) => {
+        onUploadedAction={(item) => {
           console.log("File uploaded:", item);
         }}
       />
@@ -63,7 +63,7 @@ export function GeneralUploadPage({ orgId }: { orgId: string }) {
         orgId={orgId}
         category="uploads"
         autoLoad={false}
-        onUploaded={(item) => {
+        onUploadedAction={(item) => {
           // Handle upload completion
           alert(`Uploaded: ${item.originalName}`);
         }}

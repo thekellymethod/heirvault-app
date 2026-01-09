@@ -31,19 +31,20 @@ export async function GET(req: NextRequest) {
     const db = getDb();
     
     // Build query with Supabase query builder for date filtering
-    let countQuery = db.from("billing_events_ledger").select("*", { count: "exact", head: true }).eq("organizationId", organizationId);
-    let eventsQuery = db.from("billing_events_ledger").select("*").eq("organizationId", organizationId);
+    // Database uses snake_case: organization_id, event_type, created_at, created_by_user_id
+    let countQuery = db.from("billing_events_ledger").select("*", { count: "exact", head: true }).eq("organization_id", organizationId);
+    let eventsQuery = db.from("billing_events_ledger").select("*").eq("organization_id", organizationId);
 
     if (eventType) {
-      countQuery = countQuery.eq("eventType", eventType);
-      eventsQuery = eventsQuery.eq("eventType", eventType);
+      countQuery = countQuery.eq("event_type", eventType);
+      eventsQuery = eventsQuery.eq("event_type", eventType);
     }
 
     if (since) {
       try {
         const sinceDate = new Date(since).toISOString();
-        countQuery = countQuery.gte("createdAt", sinceDate);
-        eventsQuery = eventsQuery.gte("createdAt", sinceDate);
+        countQuery = countQuery.gte("created_at", sinceDate);
+        eventsQuery = eventsQuery.gte("created_at", sinceDate);
       } catch {
         // Invalid date, ignore
       }
@@ -53,18 +54,19 @@ export async function GET(req: NextRequest) {
     const { count: totalCount } = await countQuery;
     const total = totalCount || 0;
 
-    // Get events (ordered by createdAt desc, most recent first)
+    // Get events (ordered by created_at desc, most recent first)
+    // Database returns snake_case column names
     type BillingEventRecord = {
       id: string;
-      organizationId: string;
-      eventType: string;
-      eventPayload: Record<string, unknown>;
-      createdAt: string;
-      createdByUserId: string | null;
+      organization_id: string;
+      event_type: string;
+      event_payload: Record<string, unknown>;
+      created_at: string;
+      created_by_user_id: string | null;
     };
     
     const { data: eventsData } = await eventsQuery
-      .order("createdAt", { ascending: false })
+      .order("created_at", { ascending: false })
       .range((page - 1) * limit, page * limit - 1);
     
     const events = (eventsData || []) as BillingEventRecord[];
@@ -72,25 +74,25 @@ export async function GET(req: NextRequest) {
     // Fetch users for each event
     const eventsWithUsers = await Promise.all(
       (events || []).map(async (event) => {
-        const user = event.createdByUserId
+        const user = event.created_by_user_id
           ? await findUniqueUser<{
               id: string;
               email: string;
-              firstName: string | null;
-              lastName: string | null;
-            }>("users", { id: event.createdByUserId })
+              first_name: string | null;
+              last_name: string | null;
+            }>("users", { id: event.created_by_user_id })
           : null;
         
         return {
           id: event.id,
-          eventType: event.eventType,
-          eventPayload: event.eventPayload,
-          createdAt: typeof event.createdAt === 'string' ? event.createdAt : new Date(event.createdAt).toISOString(),
+          eventType: event.event_type,
+          eventPayload: event.event_payload,
+          createdAt: typeof event.created_at === 'string' ? event.created_at : new Date(event.created_at).toISOString(),
           createdBy: user
             ? {
                 id: user.id,
                 email: user.email,
-                name: `${user.firstName || ""} ${user.lastName || ""}`.trim() || null,
+                name: `${user.first_name || ""} ${user.last_name || ""}`.trim() || null,
               }
             : null,
         };

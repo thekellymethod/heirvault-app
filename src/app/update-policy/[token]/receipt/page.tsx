@@ -47,38 +47,6 @@ export default function ReceiptPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    // First try to get from sessionStorage (if just submitted)
-    if (receiptId) {
-      const stored = sessionStorage.getItem(`receipt_${receiptId}`);
-      if (stored) {
-        try {
-          const data = JSON.parse(stored);
-          setReceiptData({
-            receiptId: receiptId || data.receiptId,
-            ...data,
-          });
-          setLoading(false);
-          // Clean up sessionStorage
-          sessionStorage.removeItem(`receipt_${receiptId}`);
-          return;
-        } catch (_e) {
-          // Invalid stored data, continue to fetch
-        }
-      }
-    }
-
-    if (receiptId && token) {
-      fetchReceipt();
-    } else if (receiptId) {
-      // Try to fetch from receipt endpoint
-      fetchReceiptById();
-    } else {
-      setError("Receipt ID is required");
-      setLoading(false);
-    }
-  }, [receiptId, token, fetchReceipt, fetchReceiptById]);
-
   const fetchReceipt = useCallback(async () => {
     try {
       const res = await fetch(`/api/invite/${token}/receipt`);
@@ -126,6 +94,38 @@ export default function ReceiptPage() {
       setLoading(false);
     }
   }, [receiptId]);
+
+  useEffect(() => {
+    // First try to get from sessionStorage (if just submitted)
+    if (receiptId) {
+      const stored = sessionStorage.getItem(`receipt_${receiptId}`);
+      if (stored) {
+        try {
+          const data = JSON.parse(stored);
+          setReceiptData({
+            receiptId: receiptId || data.receiptId,
+            ...data,
+          });
+          setLoading(false);
+          // Clean up sessionStorage
+          sessionStorage.removeItem(`receipt_${receiptId}`);
+          return;
+        } catch (_e) {
+          // Invalid stored data, continue to fetch
+        }
+      }
+    }
+
+    if (receiptId && token) {
+      fetchReceipt();
+    } else if (receiptId) {
+      // Try to fetch from receipt endpoint
+      fetchReceiptById();
+    } else {
+      setError("Receipt ID is required");
+      setLoading(false);
+    }
+  }, [receiptId, token, fetchReceipt, fetchReceiptById]);
 
   const handleDownloadPDF = async () => {
     if (!receiptData || !token) return;

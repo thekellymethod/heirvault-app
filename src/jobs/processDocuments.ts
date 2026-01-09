@@ -1,5 +1,4 @@
 // src/jobs/processDocuments.ts
-;
 import { textractDetectText } from "@/lib/textractOcr";
 import { blocksToText, parseEntitiesFromText } from "@/lib/textractParse";
 import { scoreDocument } from "@/lib/confidence";
@@ -43,8 +42,10 @@ async function readObjectBytes(key: string): Promise<Buffer> {
   return Buffer.concat(chunks);
 }
 
+type SensitivityLevel = string; // Can be DocumentSensitivity enum value or legacy S3/S4/S5 values
+
 function shouldForceReviewStrong(params: {
-  sensitivity: DocumentSensitivity;
+  sensitivity: SensitivityLevel;
   score: number;
   nameMatch: boolean;
   dobMatch: boolean;
@@ -52,11 +53,11 @@ function shouldForceReviewStrong(params: {
   carrierMatch: boolean;
   docType: string;
 }) {
-  // S5 legal-case: always review
-  if (params.sensitivity === DocumentSensitivity.S5_LEGAL_CASE) return true;
+  // S5 legal-case: always review (legacy sensitivity level)
+  if (params.sensitivity === "S5_LEGAL_CASE" || params.sensitivity === DocumentSensitivity.RESTRICTED) return true;
 
-  // S4: require very high score AND identity corroboration
-  if (params.sensitivity === DocumentSensitivity.S4_HIGHLY_SENSITIVE) {
+  // S4: require very high score AND identity corroboration (legacy sensitivity level)
+  if (params.sensitivity === "S4_HIGHLY_SENSITIVE" || params.sensitivity === DocumentSensitivity.RESTRICTED) {
     // For government IDs: require name + DOB match; for tax docs at least one corroboration
     const isGovId = params.docType === "DRIVERS_LICENSE" || params.docType === "PASSPORT";
     if (isGovId) return !(params.score >= 90 && params.nameMatch && params.dobMatch);
@@ -64,8 +65,8 @@ function shouldForceReviewStrong(params: {
     return !(params.score >= 90 && (params.nameMatch || params.dobMatch));
   }
 
-  // S3: normal documents
-  if (params.sensitivity === DocumentSensitivity.S3_CONFIDENTIAL) {
+  // S3: normal documents (legacy sensitivity level maps to CONFIDENTIAL)
+  if (params.sensitivity === "S3_CONFIDENTIAL" || params.sensitivity === DocumentSensitivity.CONFIDENTIAL) {
     // If policy document: accept when policy+carrier match even if score slightly lower
     const isPolicy = params.docType === "POLICY";
     if (isPolicy) {
@@ -83,30 +84,76 @@ function shouldForceReviewStrong(params: {
 export async function processPendingDocuments(params: { limit?: number } = {}) {
   const limit = params.limit ?? 10;
 
-  const docs = await prisma.documents.findMany({
-    where: { classificationStatus: DocumentClassificationStatus.PENDING_OCR },
-    orderBy: { createdAt: "asc" },
-    take: limit,
-    include: { 
-      clients: true,
-      // Note: documents doesn't have inviteId directly, but we can find via uploadedVia
+  const { queryRaw, findMany: findManyDocs } = await import("@/lib/db");
+
+  type DocumentRow = {
+    id: string;
+    clientId: string;
+    filePath: string;
+    fileType: string;
+    sensitivityLevel: string;
+    classificationStatus: string;
+    uploadedVia: string;
+    createdAt: Date;
+    client_firstName: string | null;
+    client_lastName: string | null;
+    client_dateOfBirth: Date | null;
+  };
+
+  const docsResult = await queryRaw<DocumentRow>(`
+    SELECT 
+      d.id,
+      d."clientId",
+      d.file_path as "filePath",
+      d.file_type as "fileType",
+      d.sensitivity_level as "sensitivityLevel",
+      d.classification_status as "classificationStatus",
+      d.uploaded_via as "uploadedVia",
+      d."createdAt",
+      c."firstName" as client_firstName,
+      c."lastName" as client_lastName,
+      c."dateOfBirth" as client_dateOfBirth
+    FROM documents d
+    INNER JOIN clients c ON c.id = d."clientId"
+    WHERE d.classification_status = $1
+    ORDER BY d."createdAt" ASC
+    LIMIT $2
+  `, [DocumentClassificationStatus.PENDING_OCR, limit]);
+
+  const docs = (docsResult || []).map((row) => ({
+    id: row.id,
+    clientId: row.clientId,
+    filePath: row.filePath,
+    fileType: row.fileType,
+    sensitivityLevel: row.sensitivityLevel,
+    classificationStatus: row.classificationStatus,
+    uploadedVia: row.uploadedVia,
+    createdAt: row.createdAt,
+    clients: {
+      firstName: row.client_firstName,
+      lastName: row.client_lastName,
+      dateOfBirth: row.client_dateOfBirth,
     },
-  });
+  }));
 
   const results: Array<{ id: string; status: string }> = [];
 
   for (const doc of docs) {
     try {
       // Find invite if this was uploaded via invite
-      const invite = doc.uploadedVia === "CLIENT_INVITE_UPLOAD"
-        ? await prisma.client_invites.findFirst({
-            where: {
-              clientId: doc.clientId,
-              createdAt: { lte: doc.createdAt },
-            },
-            orderBy: { createdAt: "desc" },
-          })
-        : null;
+      let invite: { id: string } | null = null;
+      if (doc.uploadedVia === "CLIENT_INVITE_UPLOAD") {
+        const inviteResult = await queryRaw<{ id: string; createdAt: Date }>(`
+          SELECT id, "createdAt"
+          FROM client_invites
+          WHERE "clientId" = $1 AND "createdAt" <= $2
+          ORDER BY "createdAt" DESC
+          LIMIT 1
+        `, [doc.clientId, doc.createdAt]);
+        if (inviteResult && inviteResult.length > 0) {
+          invite = { id: inviteResult[0].id };
+        }
+      }
 
       await auditLog({
         actorType: UploaderType.SYSTEM,
@@ -127,10 +174,14 @@ export async function processPendingDocuments(params: { limit?: number } = {}) {
       const entities = parseEntitiesFromText(text);
 
       // Load latest expected policy for this client (if any)
-      const expectedPolicy = await prisma.expected_policies.findFirst({
-        where: { clientId: doc.clientId },
-        orderBy: { createdAt: "desc" },
-      });
+      const expectedPolicyResult = await queryRaw<{ policyNumber: string | null; carrierName: string | null; carrierAlias: string | null }>(`
+        SELECT policy_number as "policyNumber", carrier_name as "carrierName", carrier_alias as "carrierAlias"
+        FROM expected_policies
+        WHERE "clientId" = $1
+        ORDER BY "createdAt" DESC
+        LIMIT 1
+      `, [doc.clientId]);
+      const expectedPolicy = expectedPolicyResult && expectedPolicyResult.length > 0 ? expectedPolicyResult[0] : null;
 
       const expectedName = `${doc.clients.firstName ?? ""} ${doc.clients.lastName ?? ""}`.trim();
       const extractedName = entities.policyholderName ?? null;
@@ -171,116 +222,101 @@ export async function processPendingDocuments(params: { limit?: number } = {}) {
       });
       const nextStatus = needsReview ? DocumentClassificationStatus.NEEDS_REVIEW : DocumentClassificationStatus.AUTO_ACCEPTED;
 
-      await prisma.$transaction(async (tx) => {
-        // Store extracted entities in document_extractions (using entityType/entityValue structure)
-        // Also store in extractedData JSON for convenience
-        const extractionData = {
-          policyholderName: entities.policyholderName ?? null,
-          policyNumberMasked: entities.policyNumberMasked ?? null,
-          carrier: entities.carrier ?? null,
-          dob: entities.dob ?? null,
-          idNumberLast4: entities.idNumberLast4 ?? null,
-          beneficiaries: entities.beneficiaries ?? [],
-          rawTextPreview: entities.rawTextPreview ?? "",
-          matches: {
-            nameSimilarity: nameSim,
-            nameMatch: isNameMatch,
-            dobMatch: isDobMatch,
-            policyNumberMatch: isPolicyNumberMatch,
-            carrierMatch: isCarrierMatch,
-          },
-        };
+      // Store extracted entities in document_extractions (using entityType/entityValue structure)
+      // Also store in extractedData JSON for convenience
+      const extractionData = {
+        policyholderName: entities.policyholderName ?? null,
+        policyNumberMasked: entities.policyNumberMasked ?? null,
+        carrier: entities.carrier ?? null,
+        dob: entities.dob ?? null,
+        idNumberLast4: entities.idNumberLast4 ?? null,
+        beneficiaries: entities.beneficiaries ?? [],
+        rawTextPreview: entities.rawTextPreview ?? "",
+        matches: {
+          nameSimilarity: nameSim,
+          nameMatch: isNameMatch,
+          dobMatch: isDobMatch,
+          policyNumberMatch: isPolicyNumberMatch,
+          carrierMatch: isCarrierMatch,
+        },
+      };
 
-        // Delete old extractions for this document
-        await tx.document_extractions.deleteMany({
-          where: { documentId: doc.id },
-        });
+      const { create: createExtraction, create: createBeneficiary, update: updateDocument } = await import("@/lib/db");
 
-        // Create new document_extractions records
-        if (entities.policyNumberMasked) {
-          await tx.document_extractions.create({
-            data: {
-              id: crypto.randomUUID(),
-              documentId: doc.id,
-              entityType: "policy_number",
-              entityValue: entities.policyNumberMasked,
-              confidence: 0.8,
-            },
-          });
+      // Delete old extractions for this document
+      await queryRaw(`DELETE FROM document_extractions WHERE "documentId" = $1`, [doc.id]);
+
+      // Create new document_extractions records
+      if (entities.policyNumberMasked) {
+        await createExtraction("document_extractions", {
+          id: crypto.randomUUID(),
+          documentId: doc.id,
+          entityType: "policy_number",
+          entityValue: entities.policyNumberMasked,
+          confidence: 0.8,
+        } as Record<string, unknown>);
+      }
+
+      if (entities.carrier) {
+        await createExtraction("document_extractions", {
+          id: crypto.randomUUID(),
+          documentId: doc.id,
+          entityType: "carrier",
+          entityValue: entities.carrier,
+          confidence: 0.7,
+        } as Record<string, unknown>);
+      }
+
+      if (entities.idNumberLast4) {
+        await createExtraction("document_extractions", {
+          id: crypto.randomUUID(),
+          documentId: doc.id,
+          entityType: "id_number_last4",
+          entityValue: entities.idNumberLast4,
+          confidence: 0.9,
+        } as Record<string, unknown>);
+      }
+
+      // Store beneficiary names as extractions too
+      if (entities.beneficiaries?.length) {
+        for (const b of entities.beneficiaries) {
+          await createExtraction("document_extractions", {
+            id: crypto.randomUUID(),
+            documentId: doc.id,
+            entityType: "beneficiary_name",
+            entityValue: b.fullName,
+            confidence: 0.7,
+          } as Record<string, unknown>);
         }
+      }
 
-        if (entities.carrier) {
-          await tx.document_extractions.create({
-            data: {
+      // Store numeric score internally, but do not expose it to policyholders
+      await updateDocument("documents", { id: doc.id }, {
+        classificationStatus: nextStatus,
+        confidenceScore: score,
+        extractedData: extractionData, // Store in JSON field for convenience
+        ocrConfidence: 0.85, // Placeholder OCR confidence
+      } as Record<string, unknown>);
+
+      // Create beneficiaries (very conservative)
+      if (entities.beneficiaries?.length) {
+        for (const b of entities.beneficiaries) {
+          // Parse fullName into firstName/lastName
+          const nameParts = b.fullName.trim().split(/\s+/);
+          const firstName = nameParts[0] || "";
+          const lastName = nameParts.slice(1).join(" ") || "";
+
+          if (firstName && lastName) {
+            await createBeneficiary("beneficiaries", {
               id: crypto.randomUUID(),
-              documentId: doc.id,
-              entityType: "carrier",
-              entityValue: entities.carrier,
-              confidence: 0.7,
-            },
-          });
-        }
-
-        if (entities.idNumberLast4) {
-          await tx.document_extractions.create({
-            data: {
-              id: crypto.randomUUID(),
-              documentId: doc.id,
-              entityType: "id_number_last4",
-              entityValue: entities.idNumberLast4,
-              confidence: 0.9,
-            },
-          });
-        }
-
-        // Store beneficiary names as extractions too
-        if (entities.beneficiaries?.length) {
-          for (const b of entities.beneficiaries) {
-            await tx.document_extractions.create({
-              data: {
-                id: crypto.randomUUID(),
-                documentId: doc.id,
-                entityType: "beneficiary_name",
-                entityValue: b.fullName,
-                confidence: 0.7,
-              },
-            });
+              clientId: doc.clientId,
+              firstName: firstName,
+              lastName: lastName,
+              verificationStatus: "PENDING",
+            } as Record<string, unknown>);
           }
         }
-
-        // Store numeric score internally, but do not expose it to policyholders
-        await tx.documents.update({
-          where: { id: doc.id },
-          data: {
-            classificationStatus: nextStatus,
-            confidenceScore: score,
-            extractedData: extractionData, // Store in JSON field for convenience
-            ocrConfidence: 0.85, // Placeholder OCR confidence
-          },
-        });
-
-        // Create beneficiaries (very conservative)
-        if (entities.beneficiaries?.length) {
-          for (const b of entities.beneficiaries) {
-            // Parse fullName into firstName/lastName
-            const nameParts = b.fullName.trim().split(/\s+/);
-            const firstName = nameParts[0] || "";
-            const lastName = nameParts.slice(1).join(" ") || "";
-
-            if (firstName && lastName) {
-              await tx.beneficiaries.create({
-                data: {
-                  id: crypto.randomUUID(),
-                  clientId: doc.clientId,
-                  firstName: firstName,
-                  lastName: lastName,
-                  verificationStatus: "PENDING",
-                },
-              });
-            }
-          }
-        }
-      });
+      }
 
       await auditLog({
         actorType: UploaderType.SYSTEM,
@@ -316,22 +352,27 @@ export async function processPendingDocuments(params: { limit?: number } = {}) {
       }
 
       results.push({ id: doc.id, status: nextStatus });
-    } catch (err) {
-      const _error = err as Error;
-      await prisma.documents.update({
-        where: { id: doc.id },
-        data: { classificationStatus: DocumentClassificationStatus.NEEDS_REVIEW },
-      });
+    } catch (err: unknown) {
+      const error = err as Error;
+      const { update: updateDocument } = await import("@/lib/db");
+      
+      await updateDocument("documents", { id: doc.id }, {
+        classificationStatus: DocumentClassificationStatus.NEEDS_REVIEW,
+      } as Record<string, unknown>);
 
-      const invite = doc.uploadedVia === "CLIENT_INVITE_UPLOAD"
-        ? await prisma.client_invites.findFirst({
-            where: {
-              clientId: doc.clientId,
-              createdAt: { lte: doc.createdAt },
-            },
-            orderBy: { createdAt: "desc" },
-          })
-        : null;
+      let invite: { id: string } | null = null;
+      if (doc.uploadedVia === "CLIENT_INVITE_UPLOAD") {
+        const inviteResult = await queryRaw<{ id: string }>(`
+          SELECT id
+          FROM client_invites
+          WHERE "clientId" = $1 AND "createdAt" <= $2
+          ORDER BY "createdAt" DESC
+          LIMIT 1
+        `, [doc.clientId, doc.createdAt]);
+        if (inviteResult && inviteResult.length > 0) {
+          invite = { id: inviteResult[0].id };
+        }
+      }
 
       await auditLog({
         actorType: UploaderType.SYSTEM,
@@ -339,7 +380,7 @@ export async function processPendingDocuments(params: { limit?: number } = {}) {
         clientId: doc.clientId,
         inviteId: invite?.id ?? null,
         action: "OCR_FAILED",
-        metadata: { documentId: doc.id, message: String(err?.message ?? err) },
+        metadata: { documentId: doc.id, message: error?.message ?? String(err) },
       });
 
       results.push({ id: doc.id, status: "FAILED_TO_REVIEW" });

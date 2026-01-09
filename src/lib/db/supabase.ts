@@ -47,6 +47,55 @@ export function arrayResult<T>(response: { data: T[] | null; error: unknown }): 
 }
 
 /**
+ * Convert camelCase to snake_case for database column names
+ * Examples: userId -> user_id, organizationId -> organization_id, firstName -> first_name
+ */
+function camelToSnake(str: string): string {
+  return str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+}
+
+/**
+ * Known camelCase columns that exist in the database (should NOT be converted)
+ * These columns are camelCase in the database schema itself
+ */
+const CAMEL_CASE_COLUMNS: Record<string, string[]> = {
+  users: ['clerkId'], // users.clerkId is camelCase in DB
+  attorney_profiles: ['userId', 'licenseStatus', 'verifiedAt', 'appliedAt'], // These are camelCase
+  api_tokens: ['createdById', 'createdAt', 'expiresAt', 'revokedAt', 'lastUsedAt', 'lastUsedIp', 'lastUsedPath'],
+  audit_logs: ['createdAt'], // audit_logs.createdAt is camelCase
+  documents: ['createdAt'], // documents.createdAt is camelCase
+};
+
+/**
+ * Convert a where clause object from camelCase to snake_case keys
+ * This allows code to use camelCase while database uses snake_case
+ * 
+ * Special handling: Some tables have camelCase columns (like users.clerkId),
+ * so we check if the column exists as camelCase before converting.
+ */
+function convertWhereToSnakeCase(where: Record<string, unknown>, table: string): Record<string, unknown> {
+  const converted: Record<string, unknown> = {};
+  const knownCamelCase = CAMEL_CASE_COLUMNS[table] || [];
+  
+  for (const [key, value] of Object.entries(where)) {
+    // If key is already snake_case, keep it as-is
+    if (key.includes('_')) {
+      converted[key] = value;
+    }
+    // If key is in the known camelCase list for this table, keep it as camelCase
+    else if (knownCamelCase.includes(key)) {
+      converted[key] = value;
+    }
+    // Otherwise, convert camelCase to snake_case
+    else {
+      const snakeKey = camelToSnake(key);
+      converted[snakeKey] = value;
+    }
+  }
+  return converted;
+}
+
+/**
  * Helper for upsert operations
  * Note: Supabase upsert requires the conflict column to be a unique constraint
  */
@@ -70,6 +119,8 @@ export async function upsert<T>(
 
 /**
  * Helper for findUnique operations (by ID or unique field)
+ * Automatically converts camelCase keys to snake_case for database queries
+ * (except for known camelCase columns like users.clerkId)
  */
 export async function findUnique<T>(
   table: string,
@@ -77,7 +128,10 @@ export async function findUnique<T>(
 ): Promise<T | null> {
   let query = supabaseAdmin.from(table).select("*");
 
-  for (const [key, value] of Object.entries(where)) {
+  // Convert camelCase keys to snake_case for database columns
+  // Pass table name to check for known camelCase columns
+  const snakeWhere = convertWhereToSnakeCase(where, table);
+  for (const [key, value] of Object.entries(snakeWhere)) {
     query = query.eq(key, value);
   }
 
@@ -93,6 +147,7 @@ export async function findUnique<T>(
 
 /**
  * Helper for findMany operations
+ * Automatically converts camelCase keys to snake_case for database queries
  */
 export async function findMany<T>(
   table: string,
@@ -106,13 +161,20 @@ export async function findMany<T>(
   let query = supabaseAdmin.from(table).select("*");
 
   if (options?.where) {
-    for (const [key, value] of Object.entries(options.where)) {
+    // Convert camelCase keys to snake_case for database columns
+    // Pass table name to check for known camelCase columns
+    const snakeWhere = convertWhereToSnakeCase(options.where, table);
+    for (const [key, value] of Object.entries(snakeWhere)) {
       query = query.eq(key, value);
     }
   }
 
   if (options?.orderBy) {
-    query = query.order(options.orderBy.column, {
+    // Convert column name to snake_case if needed
+    const snakeColumn = options.orderBy.column.includes('_') 
+      ? options.orderBy.column 
+      : camelToSnake(options.orderBy.column);
+    query = query.order(snakeColumn, {
       ascending: options.orderBy.ascending ?? true,
     });
   }
@@ -211,63 +273,62 @@ function validateUserData(data: Record<string, unknown>): { valid: boolean; erro
 
 /**
  * Helper for create operations
+ * Automatically converts camelCase keys to snake_case for database columns
  */
 export async function create<T>(table: string, data: Partial<T>): Promise<T> {
-  // Ensure id is included if provided (for tables that require explicit IDs)
-  const insertData = { ...data };
+  // Convert all camelCase keys to snake_case for database columns
+  const insertData = { ...data } as Record<string, unknown>;
+  const snakeInsertData: Record<string, unknown> = {};
   
   // For users table, validate and prepare data
   if (table === "users") {
-    const userData = insertData as Record<string, unknown>;
-    
     // Validate required fields
-    const validation = validateUserData(userData);
+    const validation = validateUserData(insertData);
     if (!validation.valid) {
       const errorMessage = `[DB] User data validation failed: ${validation.errors.join(', ')}`;
       console.error(errorMessage);
-      console.error(`[DB] Invalid user data:`, JSON.stringify(userData, null, 2));
+      console.error(`[DB] Invalid user data:`, JSON.stringify(insertData, null, 2));
       throw new Error(errorMessage);
     }
     
     // Ensure roles is properly formatted as an array
-    if (userData.roles && Array.isArray(userData.roles)) {
+    if (insertData.roles && Array.isArray(insertData.roles)) {
       // Filter out any null/undefined values and ensure all are strings
-      userData.roles = userData.roles.filter((r): r is string => typeof r === 'string');
-      console.log(`[DB] Creating user with id: ${userData.id}, email: ${userData.email}, roles: ${JSON.stringify(userData.roles)}`);
-    } else if (userData.roles === undefined || userData.roles === null) {
+      insertData.roles = insertData.roles.filter((r): r is string => typeof r === 'string');
+      console.log(`[DB] Creating user with id: ${insertData.id}, email: ${insertData.email}, roles: ${JSON.stringify(insertData.roles)}`);
+    } else if (insertData.roles === undefined || insertData.roles === null) {
       // Default to empty array if roles is not provided
-      userData.roles = [];
-      console.log(`[DB] Creating user with id: ${userData.id}, email: ${userData.email}, roles: [] (default)`);
+      insertData.roles = [];
+      console.log(`[DB] Creating user with id: ${insertData.id}, email: ${insertData.email}, roles: [] (default)`);
     }
     
     // Remove any undefined values to avoid issues with Supabase
-    Object.keys(userData).forEach(key => {
-      if (userData[key] === undefined) {
-        delete userData[key];
+    Object.keys(insertData).forEach(key => {
+      if (insertData[key] === undefined) {
+        delete insertData[key];
       }
     });
     
     // ALWAYS ensure createdAt and updatedAt are set (required by database)
     // Database uses snake_case: created_at and updated_at
-    // Force set these values to ensure they're never null or undefined
     const now = new Date().toISOString();
     
     // Check if values exist and are valid (not null, not undefined, not empty string)
-    const hasCreatedAt = userData.created_at && userData.created_at !== null && userData.created_at !== '';
-    const hasCreatedAtCamel = userData.createdAt && userData.createdAt !== null && userData.createdAt !== '';
-    const hasUpdatedAt = userData.updated_at && userData.updated_at !== null && userData.updated_at !== '';
-    const hasUpdatedAtCamel = userData.updatedAt && userData.updatedAt !== null && userData.updatedAt !== '';
+    const hasCreatedAt = insertData.created_at && insertData.created_at !== null && insertData.created_at !== '';
+    const hasCreatedAtCamel = insertData.createdAt && insertData.createdAt !== null && insertData.createdAt !== '';
+    const hasUpdatedAt = insertData.updated_at && insertData.updated_at !== null && insertData.updated_at !== '';
+    const hasUpdatedAtCamel = insertData.updatedAt && insertData.updatedAt !== null && insertData.updatedAt !== '';
     
     // Always set snake_case versions
-    userData.created_at = hasCreatedAt ? userData.created_at : (hasCreatedAtCamel ? userData.createdAt : now);
-    userData.updated_at = hasUpdatedAt ? userData.updated_at : (hasUpdatedAtCamel ? userData.updatedAt : now);
+    insertData.created_at = hasCreatedAt ? insertData.created_at : (hasCreatedAtCamel ? insertData.createdAt : now);
+    insertData.updated_at = hasUpdatedAt ? insertData.updated_at : (hasUpdatedAtCamel ? insertData.updatedAt : now);
     
     // Remove camelCase versions to avoid confusion
-    delete userData.createdAt;
-    delete userData.updatedAt;
+    delete insertData.createdAt;
+    delete insertData.updatedAt;
     
     // Log to verify values are set
-    console.log(`[DB] User data before insert - created_at: ${userData.created_at}, updated_at: ${userData.updated_at}`);
+    console.log(`[DB] User data before insert - created_at: ${insertData.created_at}, updated_at: ${insertData.updated_at}`);
     
     // Verify table exists (only log, don't fail)
     const exists = await tableExists(table);
@@ -276,9 +337,27 @@ export async function create<T>(table: string, data: Partial<T>): Promise<T> {
     }
   }
   
+  // Convert all keys to snake_case, but preserve known camelCase columns
+  const knownCamelCase = CAMEL_CASE_COLUMNS[table] || [];
+  for (const [key, value] of Object.entries(insertData)) {
+    // If key is already snake_case, keep it
+    if (key.includes('_')) {
+      snakeInsertData[key] = value;
+    }
+    // If key is in the known camelCase list for this table, keep it as camelCase
+    else if (knownCamelCase.includes(key)) {
+      snakeInsertData[key] = value;
+    }
+    // Otherwise, convert camelCase to snake_case
+    else {
+      const snakeKey = camelToSnake(key);
+      snakeInsertData[snakeKey] = value;
+    }
+  }
+  
   const { data: result, error } = await supabaseAdmin
     .from(table)
-    .insert(insertData as Record<string, unknown>)
+    .insert(snakeInsertData)
     .select()
     .single();
 
@@ -333,34 +412,32 @@ export async function create<T>(table: string, data: Partial<T>): Promise<T> {
 
 /**
  * Helper for update operations
+ * Automatically converts camelCase keys to snake_case for database queries
  */
 export async function update<T>(
   table: string,
   where: Record<string, unknown>,
   data: Partial<T>
 ): Promise<T> {
-  // Convert camelCase to snake_case for timestamp fields (like create does)
+  // Convert all camelCase keys to snake_case for database columns
   const updateData = { ...data } as Record<string, unknown>;
+  const snakeUpdateData: Record<string, unknown> = {};
   
-  // Handle timestamp field conversion (camelCase -> snake_case)
-  if (updateData.updatedAt !== undefined) {
-    updateData.updated_at = updateData.updatedAt;
-    delete updateData.updatedAt;
-  }
-  if (updateData.createdAt !== undefined) {
-    updateData.created_at = updateData.createdAt;
-    delete updateData.createdAt;
+  for (const [key, value] of Object.entries(updateData)) {
+    const snakeKey = key.includes('_') ? key : camelToSnake(key);
+    snakeUpdateData[snakeKey] = value;
   }
   
   // Supabase pattern: update() first, then chain filters
   let query = supabaseAdmin
     .from(table)
-    .update(updateData as Record<string, unknown>)
+    .update(snakeUpdateData)
     .select();
 
-  // Apply where filters after update
-  // Type assertion needed because Supabase types don't properly reflect the chaining
-  for (const [key, value] of Object.entries(where)) {
+  // Convert where clause keys to snake_case
+  // Pass table name to check for known camelCase columns
+  const snakeWhere = convertWhereToSnakeCase(where, table);
+  for (const [key, value] of Object.entries(snakeWhere)) {
     query = (query as any).eq(key, value);
   }
 
@@ -372,6 +449,7 @@ export async function update<T>(
 
 /**
  * Helper for delete operations
+ * Automatically converts camelCase keys to snake_case for database queries
  */
 export async function deleteRecord<T>(
   table: string,
@@ -379,7 +457,10 @@ export async function deleteRecord<T>(
 ): Promise<T> {
   let query = supabaseAdmin.from(table).delete().select();
 
-  for (const [key, value] of Object.entries(where)) {
+  // Convert where clause keys to snake_case
+  // Pass table name to check for known camelCase columns
+  const snakeWhere = convertWhereToSnakeCase(where, table);
+  for (const [key, value] of Object.entries(snakeWhere)) {
     query = query.eq(key, value);
   }
 
@@ -391,6 +472,7 @@ export async function deleteRecord<T>(
 
 /**
  * Helper for count operations
+ * Automatically converts camelCase keys to snake_case for database queries
  */
 export async function count(
   table: string,
@@ -399,7 +481,10 @@ export async function count(
   let query = supabaseAdmin.from(table).select("*", { count: "exact", head: true });
 
   if (where) {
-    for (const [key, value] of Object.entries(where)) {
+    // Convert where clause keys to snake_case
+    // Pass table name to check for known camelCase columns
+    const snakeWhere = convertWhereToSnakeCase(where, table);
+    for (const [key, value] of Object.entries(snakeWhere)) {
       if (value === null || value === undefined) {
         query = query.is(key, null);
       } else if (value && typeof value === 'object' && 'in' in value) {

@@ -42,19 +42,19 @@ export function DesktopTable({
  */
 export function MobileCard({
   children,
-  onClick,
+  onClickAction,
   className,
 }: {
   children: React.ReactNode;
-  onClick?: () => void;
+  onClickAction?: () => void;
   className?: string;
 }) {
   return (
     <div
-      onClick={onClick}
+      onClick={onClickAction}
       className={cn(
         "p-4 border border-slateui-200 rounded-lg mb-3 bg-white",
-        onClick && "cursor-pointer hover:bg-slateui-50 transition-colors",
+        onClickAction && "cursor-pointer hover:bg-slateui-50 transition-colors",
         className
       )}
     >

@@ -2,7 +2,8 @@ import "server-only";
 import { auth, currentUser } from "@clerk/nextjs/server";
 // Prisma removed - database access needs to be implemented
 
-export type { AppUser } from "./types";
+import type { AppUser } from "./types";
+export type { AppUser };
 
 // Local HttpError class to avoid circular dependency with guards.ts
 class HttpError extends Error {

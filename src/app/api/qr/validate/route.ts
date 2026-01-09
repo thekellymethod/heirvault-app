@@ -46,8 +46,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Verify client exists
-    const { queryRaw, findUnique } = await import("@/lib/db");
-    const clientExists = await queryRaw<Array<{ id: string }>>(`
+    const { queryRaw } = await import("@/lib/db");
+    const clientExists = await queryRaw<{ id: string }>(`
       SELECT id FROM clients WHERE id = $1 LIMIT 1
     `, [clientId]);
 
@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
     let inviteToken: string | null = null;
 
     // Check test invites
-    const testInvites = await queryRaw<Array<{ token: string }>>(`
+    const testInvites = await queryRaw<{ token: string }>(`
       SELECT token FROM client_invites 
       WHERE "clientId" = $1 
         AND (expires_at > NOW() OR expires_at IS NULL)
@@ -72,10 +72,13 @@ export async function POST(req: NextRequest) {
     `, [clientId]);
 
     if (testInvites && testInvites.length > 0) {
-      inviteToken = testInvites[0].token;
+      const firstInvite = testInvites[0];
+      if (firstInvite) {
+        inviteToken = firstInvite.token;
+      }
     } else {
       // Check regular invites
-      const regularInvites = await queryRaw<Array<{ token: string }>>(`
+      const regularInvites = await queryRaw<{ token: string }>(`
         SELECT token FROM client_invites 
         WHERE "clientId" = $1 
           AND expires_at > NOW()
@@ -84,7 +87,10 @@ export async function POST(req: NextRequest) {
       `, [clientId]);
 
       if (regularInvites && regularInvites.length > 0) {
-        inviteToken = regularInvites[0].token;
+        const firstInvite = regularInvites[0];
+        if (firstInvite) {
+          inviteToken = firstInvite.token;
+        }
       }
     }
 
@@ -96,10 +102,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Verify the invite token is valid
-    let invite = await getOrCreateTestInvite(inviteToken);
-    if (!invite) {
-      invite = await lookupClientInvite(inviteToken) as { id: string; clientId: string; email: string; token: string; expiresAt: Date; usedAt: Date | null; createdAt: Date; client: { id: string; firstName: string; lastName: string; email: string; phone: string | null; dateOfBirth: Date | null; }; };
-    }
+    // Note: We don't need to convert dates since we only check clientId
+    const invite = await getOrCreateTestInvite(inviteToken) || await lookupClientInvite(inviteToken);
 
     if (!invite || invite.clientId !== clientId) {
       return NextResponse.json(

@@ -214,17 +214,17 @@ export default function ConsoleClient() {
   return (
     <div className="space-y-4">
       {/* Mode Toggle */}
-      <div className="flex gap-2 border-b border-zinc-800">
+      <div className="flex gap-2 border-b border-slateui-200">
         <button
           onClick={() => {
             setMode("command");
             setCurrentPlan(null);
             setConfirmed(false);
           }}
-          className={`px-4 py-2 text-sm font-medium ${
+          className={`px-4 py-2 text-sm font-medium transition-colors ${
             mode === "command"
-              ? "border-b-2 border-zinc-100 text-zinc-100"
-              : "text-zinc-400 hover:text-zinc-200"
+              ? "border-b-2 border-gold-600 text-ink-900"
+              : "text-slateui-600 hover:text-ink-900"
           }`}
           type="button"
         >
@@ -236,10 +236,10 @@ export default function ConsoleClient() {
             setCurrentPlan(null);
             setConfirmed(false);
           }}
-          className={`px-4 py-2 text-sm font-medium ${
+          className={`px-4 py-2 text-sm font-medium transition-colors ${
             mode === "nl"
-              ? "border-b-2 border-zinc-100 text-zinc-100"
-              : "text-zinc-400 hover:text-zinc-200"
+              ? "border-b-2 border-gold-600 text-ink-900"
+              : "text-slateui-600 hover:text-ink-900"
           }`}
           type="button"
         >
@@ -253,7 +253,7 @@ export default function ConsoleClient() {
             {PRESETS.map((p, i) => (
               <button
                 key={i}
-                className="rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-1.5 text-xs text-zinc-200 hover:bg-zinc-900"
+                className="rounded-lg border border-slateui-200 bg-white px-3 py-1.5 text-xs text-ink-900 hover:bg-slateui-50 transition-colors font-mono"
                 onClick={() => {
                   setCmd(p.cmd);
                   setArgsText(JSON.stringify(p.args, null, 2));
@@ -267,13 +267,13 @@ export default function ConsoleClient() {
 
           <div className="grid gap-3 md:grid-cols-2">
             <div>
-              <label htmlFor="command-input" className="mb-1 block text-xs text-zinc-400">Command</label>
+              <label htmlFor="command-input" className="mb-1 block text-xs text-slateui-600 font-medium">Command</label>
               <input
                 id="command-input"
                 value={cmd}
                 onChange={(e) => setCmd(e.target.value)}
-                className="w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-zinc-600"
-                placeholder='e.g. "db:health"'
+                className="w-full rounded-lg border border-slateui-200 bg-white px-3 py-2 text-sm text-ink-900 outline-none focus:border-gold-600 focus:ring-1 focus:ring-gold-600"
+                placeholder='e.g. "attorney:verify"'
                 aria-label="Command input"
               />
             </div>
@@ -282,7 +282,7 @@ export default function ConsoleClient() {
               <button
                 disabled={busy}
                 onClick={() => runCommand()}
-                className="w-full rounded-lg bg-zinc-100 px-4 py-2 text-sm font-medium text-zinc-950 disabled:opacity-60"
+                className="w-full rounded-lg bg-gold-600 px-4 py-2 text-sm font-medium text-ink-900 hover:bg-gold-500 disabled:opacity-60 transition-colors"
                 type="button"
               >
                 {busy ? "Running…" : "Run"}
@@ -290,40 +290,40 @@ export default function ConsoleClient() {
             </div>
 
             <div className="md:col-span-2">
-              <label className="mb-1 block text-xs text-zinc-400">Args (JSON)</label>
+              <label className="mb-1 block text-xs text-slateui-600 font-medium">Args (JSON)</label>
               <textarea
                 value={argsText}
                 onChange={(e) => setArgsText(e.target.value)}
                 rows={6}
                 aria-label="Command arguments (JSON)"
-                placeholder='Enter arguments as JSON (e.g., {"limit": 10})'
-                className="w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 font-mono text-xs text-zinc-100 outline-none focus:border-zinc-600"
+                placeholder='Enter arguments as JSON (e.g., {"userId": "user_123"})'
+                className="w-full rounded-lg border border-slateui-200 bg-white px-3 py-2 font-mono text-xs text-ink-900 outline-none focus:border-gold-600 focus:ring-1 focus:ring-gold-600"
                 spellCheck={false}
               />
-              {hint && <p className="mt-2 text-xs text-red-400">{hint}</p>}
+              {hint && <p className="mt-2 text-xs text-red-600">{hint}</p>}
             </div>
           </div>
         </>
       ) : (
         <>
           <div>
-            <label className="mb-1 block text-xs text-zinc-400">Natural Language Request</label>
+            <label className="mb-1 block text-xs text-slateui-600 font-medium">Natural Language Request</label>
             <textarea
               value={nlText}
               onChange={(e) => setNlText(e.target.value)}
               rows={4}
               aria-label="Natural language command"
-              placeholder='e.g., "Who am I?" or "Check database health" or "Lookup attorney john@example.com"'
-              className="w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-zinc-600"
+              placeholder='e.g., "Verify attorney license for user_123" or "List all users"'
+              className="w-full rounded-lg border border-slateui-200 bg-white px-3 py-2 text-sm text-ink-900 outline-none focus:border-gold-600 focus:ring-1 focus:ring-gold-600"
             />
-            {hint && <p className="mt-2 text-xs text-red-400">{hint}</p>}
+            {hint && <p className="mt-2 text-xs text-red-600">{hint}</p>}
           </div>
 
           <div className="flex gap-2">
             <button
               disabled={planning}
               onClick={generatePlan}
-              className="rounded-lg bg-zinc-100 px-4 py-2 text-sm font-medium text-zinc-950 disabled:opacity-60"
+              className="rounded-lg bg-gold-600 px-4 py-2 text-sm font-medium text-ink-900 hover:bg-gold-500 disabled:opacity-60 transition-colors"
               type="button"
             >
               {planning ? "Generating Plan…" : "Generate Plan"}
@@ -332,11 +332,11 @@ export default function ConsoleClient() {
 
           {/* Plan Display */}
           {currentPlan && (
-            <div className="rounded-lg border border-zinc-800 bg-zinc-900/30 p-4">
+            <div className="rounded-lg border border-slateui-200 bg-slateui-50 p-4">
               <div className="mb-3 flex items-center justify-between">
-                <h3 className="text-sm font-medium text-zinc-100">Proposed Plan</h3>
+                <h3 className="text-sm font-medium text-ink-900">Proposed Plan</h3>
                 {currentPlan.confidence > 0 && (
-                  <span className="text-xs text-zinc-400">
+                  <span className="text-xs text-slateui-600">
                     Confidence: {Math.round(currentPlan.confidence * 100)}%
                   </span>
                 )}
@@ -345,23 +345,23 @@ export default function ConsoleClient() {
               {currentPlan.cmd ? (
                 <>
                   <div className="mb-2 space-y-1">
-                    <div className="font-mono text-xs text-zinc-200">
-                      <span className="text-zinc-500">Command:</span> {currentPlan.cmd}
+                    <div className="font-mono text-xs text-ink-900">
+                      <span className="text-slateui-600">Command:</span> {currentPlan.cmd}
                     </div>
                     {Object.keys(currentPlan.args).length > 0 && (
-                      <div className="font-mono text-xs text-zinc-200">
-                        <span className="text-zinc-500">Args:</span> {JSON.stringify(currentPlan.args, null, 2)}
+                      <div className="font-mono text-xs text-ink-900">
+                        <span className="text-slateui-600">Args:</span> {JSON.stringify(currentPlan.args, null, 2)}
                       </div>
                     )}
                   </div>
 
                   {currentPlan.explanation && (
-                    <div className="mb-2 text-xs text-zinc-300">{currentPlan.explanation}</div>
+                    <div className="mb-2 text-xs text-slateui-600">{currentPlan.explanation}</div>
                   )}
 
                   {currentPlan.safetyFlags.length > 0 && (
-                    <div className="mb-2 text-xs text-yellow-400">
-                      Safety Flags: {currentPlan.safetyFlags.join(", ")}
+                    <div className="mb-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2">
+                      <strong>Safety Flags:</strong> {currentPlan.safetyFlags.join(", ")}
                     </div>
                   )}
 
@@ -372,10 +372,10 @@ export default function ConsoleClient() {
                         id="confirm-write"
                         checked={confirmed}
                         onChange={(e) => setConfirmed(e.target.checked)}
-                        className="rounded border-zinc-700 bg-zinc-950"
+                        className="rounded border-slateui-300 bg-white text-gold-600 focus:ring-gold-600"
                         aria-label="Confirm write operation"
                       />
-                      <label htmlFor="confirm-write" className="text-xs text-zinc-300">
+                      <label htmlFor="confirm-write" className="text-xs text-slateui-600">
                         I confirm this write operation
                       </label>
                     </div>
@@ -384,26 +384,26 @@ export default function ConsoleClient() {
                   <button
                     disabled={busy || (currentPlan.requiresConfirm && !confirmed)}
                     onClick={executePlan}
-                    className="w-full rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+                    className="w-full rounded-lg bg-gold-600 px-4 py-2 text-sm font-medium text-ink-900 hover:bg-gold-500 disabled:opacity-60 transition-colors"
                     type="button"
                   >
                     {busy ? "Executing…" : "Execute Plan"}
                   </button>
                 </>
               ) : (
-                <div className="text-xs text-zinc-400">{currentPlan.explanation || "No valid command found."}</div>
+                <div className="text-xs text-slateui-600">{currentPlan.explanation || "No valid command found."}</div>
               )}
             </div>
           )}
         </>
       )}
 
-      <div className="rounded-xl border border-zinc-800 bg-zinc-950/60">
-        <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-3">
-          <div className="text-sm font-medium">History</div>
+      <div className="rounded-xl border border-slateui-200 bg-white">
+        <div className="flex items-center justify-between border-b border-slateui-200 px-4 py-3">
+          <div className="text-sm font-medium text-ink-900">History</div>
           <button
             type="button"
-            className="rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-1.5 text-xs text-zinc-200 hover:bg-zinc-900"
+            className="rounded-lg border border-slateui-200 bg-white px-3 py-1.5 text-xs text-ink-900 hover:bg-slateui-50 transition-colors"
             onClick={() => setHistory([])}
           >
             Clear
@@ -412,30 +412,30 @@ export default function ConsoleClient() {
 
         <div className="max-h-[520px] overflow-auto p-4">
           {history.length === 0 ? (
-            <div className="text-sm text-zinc-400">No commands executed yet.</div>
+            <div className="text-sm text-slateui-600">No commands executed yet.</div>
           ) : (
             <div className="space-y-4">
               {history.map((h) => (
-                <div key={h.id} className="rounded-lg border border-zinc-800 bg-zinc-900/30 p-3">
+                <div key={h.id} className="rounded-lg border border-slateui-200 bg-slateui-50 p-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="font-mono text-xs text-zinc-200">
-                      <span className="text-zinc-500">$</span> {h.cmd}{" "}
-                      <span className="text-zinc-500">{Object.keys(h.args || {}).length ? JSON.stringify(h.args) : ""}</span>
+                    <div className="font-mono text-xs text-ink-900">
+                      <span className="text-slateui-600">$</span> {h.cmd}{" "}
+                      <span className="text-slateui-600">{Object.keys(h.args || {}).length ? JSON.stringify(h.args) : ""}</span>
                     </div>
-                    <div className="text-[11px] text-zinc-500">
+                    <div className="text-[11px] text-slateui-600">
                       {new Date(h.ts).toLocaleString()}
                     </div>
                   </div>
 
                   <div className="mt-2">
                     {!h.res ? (
-                      <div className="text-xs text-zinc-400">Running…</div>
+                      <div className="text-xs text-slateui-600">Running…</div>
                     ) : h.res.ok ? (
-                      <pre className="mt-2 overflow-auto rounded-lg border border-zinc-800 bg-zinc-950 p-3 text-xs text-zinc-100">
+                      <pre className="mt-2 overflow-auto rounded-lg border border-slateui-200 bg-ink-900 p-3 text-xs text-paper-100">
                         {JSON.stringify(h.res, null, 2)}
                       </pre>
                     ) : (
-                      <pre className="mt-2 overflow-auto rounded-lg border border-red-900/60 bg-red-950/30 p-3 text-xs text-red-200">
+                      <pre className="mt-2 overflow-auto rounded-lg border border-red-300 bg-red-50 p-3 text-xs text-red-900">
                         {JSON.stringify(h.res, null, 2)}
                       </pre>
                     )}

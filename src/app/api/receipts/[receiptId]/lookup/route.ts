@@ -35,17 +35,17 @@ export async function GET(
     } | null = null;
     try {
       const { queryRaw } = await import("@/lib/db");
-      const rawResult = await queryRaw<Array<{
-        id: string,
-        clientId: string,
-        email: string,
-        token: string,
+      const rawResult = await queryRaw<{
+        id: string;
+        clientId: string;
+        email: string;
+        token: string;
         expires_at: Date;
         used_at: Date | null;
         createdAt: Date;
-        firstName: string,
-        lastName: string,
-      }>>(`
+        firstName: string;
+        lastName: string;
+      }>(`
         SELECT 
           ci.id,
           ci."clientId",
@@ -65,19 +65,21 @@ export async function GET(
 
       if (rawResult && rawResult.length > 0) {
         const row = rawResult[0];
-        invite = {
-          id: row.id,
-          clientId: row.clientId,
-          email: row.email,
-          token: row.token,
-          expiresAt: row.expires_at,
-          usedAt: row.used_at,
-          createdAt: row.createdAt,
-          client: {
-            firstName: row.firstName,
-            lastName: row.lastName,
-          },
-        };
+        if (row) {
+          invite = {
+            id: row.id,
+            clientId: row.clientId,
+            email: row.email,
+            token: row.token,
+            expiresAt: row.expires_at,
+            usedAt: row.used_at,
+            createdAt: row.createdAt,
+            client: {
+              firstName: row.firstName,
+              lastName: row.lastName,
+            },
+          };
+        }
       }
     } catch (sqlError: unknown) {
       const sqlErrorMessage = sqlError instanceof Error ? sqlError.message : "Unknown error";

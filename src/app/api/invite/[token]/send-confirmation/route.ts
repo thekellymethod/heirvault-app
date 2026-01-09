@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-;
 import { sendEmail } from "@/lib/email";
 import { getOrCreateTestInvite } from "@/lib/test-invites";
 
@@ -56,39 +55,38 @@ export async function POST(
         }>("clients", { id: inviteRecord.clientId });
         
         if (client) {
-          // Transform to match expected type
+          // Transform to match expected type (string dates)
+          const expiresAtStr = typeof inviteRecord.expiresAt === 'string' 
+            ? inviteRecord.expiresAt 
+            : (inviteRecord.expiresAt instanceof Date ? inviteRecord.expiresAt.toISOString() : new Date().toISOString());
+          const usedAtStr = inviteRecord.usedAt 
+            ? (typeof inviteRecord.usedAt === 'string' 
+                ? inviteRecord.usedAt 
+                : (inviteRecord.usedAt instanceof Date ? inviteRecord.usedAt.toISOString() : null))
+            : null;
+          const createdAtStr = typeof inviteRecord.createdAt === 'string'
+            ? inviteRecord.createdAt
+            : (inviteRecord.createdAt instanceof Date ? inviteRecord.createdAt.toISOString() : new Date().toISOString());
+          const dateOfBirthStr = client.dateOfBirth
+            ? (client.dateOfBirth instanceof Date ? client.dateOfBirth.toISOString() : (typeof client.dateOfBirth === 'string' ? client.dateOfBirth : null))
+            : null;
+
           invite = {
             id: inviteRecord.id,
             clientId: inviteRecord.clientId,
             email: inviteRecord.email,
             token: inviteRecord.token,
-            expiresAt: typeof inviteRecord.expiresAt === 'string' ? new Date(inviteRecord.expiresAt) : inviteRecord.expiresAt,
-            usedAt: inviteRecord.usedAt ? (typeof inviteRecord.usedAt === 'string' ? new Date(inviteRecord.usedAt) : inviteRecord.usedAt) : null,
-            createdAt: typeof inviteRecord.createdAt === 'string' ? new Date(inviteRecord.createdAt) : inviteRecord.createdAt,
+            expiresAt: expiresAtStr,
+            usedAt: usedAtStr,
+            createdAt: createdAtStr,
             client: {
               id: client.id,
               firstName: client.firstName,
               lastName: client.lastName,
               email: client.email,
               phone: client.phone,
-              dateOfBirth: client.dateOfBirth,
+              dateOfBirth: dateOfBirthStr,
             },
-          } as {
-            id: string;
-            clientId: string;
-            email: string;
-            token: string;
-            expiresAt: Date;
-            usedAt: Date | null;
-            createdAt: Date;
-            client: {
-              id: string;
-              firstName: string;
-              lastName: string;
-              email: string;
-              phone: string | null;
-              dateOfBirth: Date | null;
-            };
           };
         }
       }

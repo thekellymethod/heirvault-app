@@ -1,9 +1,10 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { Logo } from "@/components/Logo";
 import { ArrowLeft } from "lucide-react";
-import { generateMetadata as genMeta } from "@/lib/seo";
+import { generateMetadata } from "@/lib/seo";
 
-export const metadata = genMeta({
+export const metadata: Metadata = generateMetadata({
   title: "Privacy Policy",
   description:
     "HeirVault Privacy Policy - Learn how we collect, use, and protect your life insurance policy information. Enterprise-grade security and compliance.",

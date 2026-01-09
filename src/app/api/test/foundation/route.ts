@@ -110,16 +110,15 @@ export async function GET() {
     };
     const versionDataString = JSON.stringify(versionData);
     const versionHash = await sha256String(versionDataString);
-    const newVersion = await appendRegistryVersion({
-      registry_id: registry.id,
-      submitted_by: "SYSTEM",
-      data_json: versionData,
+    const newVersion = await appendRegistryVersion(registry.id, {
+      dataJson: versionData,
+      submittedBy: "SYSTEM",
       hash: versionHash,
     });
     results.version = {
       appended: true,
       versionId: newVersion.id,
-      registryId: newVersion.registry_id,
+      registryId: newVersion.registryId,
       hash: newVersion.hash,
     };
 

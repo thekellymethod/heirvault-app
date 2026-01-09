@@ -9,34 +9,56 @@ import { CreateClientButton } from "@/components/CreateClientButton";
 export default async function ClientsPage() {
   const user = await requireAuth();
 
-  // Use Prisma to fetch clients
-  const accessRecords = await prisma.attorneyClientAccess.findMany({
-    where: {
-      attorneyId: user.id,
-      isActive: true,
-    },
-    include: {
-      clients: true,
-    },
-    orderBy: {
-      grantedAt: 'desc',
-    },
-  }).catch((error) => {
+  // Fetch clients via attorney_client_access join
+  const { queryRaw } = await import("@/lib/db");
+  
+  let clientList: Array<{
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string | null;
+    updatedAt: string;
+    createdAt: string;
+  }> = [];
+
+  try {
+    const accessRecords = await queryRaw<{
+      client_id: string;
+      client_firstName: string;
+      client_lastName: string;
+      client_email: string;
+      client_phone: string | null;
+      client_updatedAt: string;
+      client_createdAt: string;
+    }>(`
+      SELECT 
+        c.id as client_id,
+        c."firstName" as client_firstName,
+        c."lastName" as client_lastName,
+        c.email as client_email,
+        c.phone as client_phone,
+        c."updatedAt" as client_updatedAt,
+        c."createdAt" as client_createdAt
+      FROM attorney_client_access aca
+      INNER JOIN clients c ON c.id = aca."clientId"
+      WHERE aca.attorney_id = $1 AND aca.is_active = true
+      ORDER BY aca.granted_at DESC
+    `, [user.id]);
+
+    clientList = accessRecords.map((r) => ({
+      id: r.client_id,
+      firstName: r.client_firstName,
+      lastName: r.client_lastName,
+      email: r.client_email,
+      phone: r.client_phone,
+      updatedAt: r.client_updatedAt,
+      createdAt: r.client_createdAt,
+    }));
+  } catch (error: unknown) {
     console.error("ClientsPage error:", error);
-    return null;
-  });
-
-  if (!accessRecords) notFound();
-
-  const clientList = accessRecords.map((r) => ({
-    id: r.clientId,
-    firstName: r.clientId,
-    lastName: r.clientId,
-    email: r.clientId,
-    phone: r.clientId,
-    updatedAt: r.clientId,
-    createdAt: r.clientId,
-  }));
+    notFound();
+  }
 
   return (
     <div className="space-y-6">
@@ -71,7 +93,15 @@ export default async function ClientsPage() {
           />
         ) : (
           <div className="divide-y divide-slateui-200">
-            {clientList.map((c) => (
+            {clientList.map((c: {
+              id: string;
+              firstName: string;
+              lastName: string;
+              email: string;
+              phone: string | null;
+              updatedAt: string;
+              createdAt: string;
+            }) => (
               <Link
                 key={c.id}
                 href={`/dashboard/clients/${c.id}`}

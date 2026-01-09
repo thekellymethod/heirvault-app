@@ -1,5 +1,4 @@
 import Link from "next/link";
-;
 import { getCurrentUserWithOrg } from "@/lib/authz";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -18,47 +17,101 @@ export default async function OrganizationDetailPage({
   }
 
   // Verify user is a member of this organization
-  const membership = await prisma.org_members.findFirst({
-    where: {
-      userId: currentUser.id,
-      organizationId: orgId,
-    },
-    include: {
-      organizations: true,
-    },
-  });
+  const { queryRaw } = await import("@/lib/db");
+  
+  type MembershipRow = {
+    membership_id: string;
+    membership_role: string;
+    membership_createdAt: Date;
+    org_id: string;
+    org_name: string;
+    org_slug: string;
+    org_createdAt: Date;
+  };
 
-  if (!membership) {
+  const membershipResult = await queryRaw<MembershipRow>(`
+    SELECT
+      om.id as membership_id,
+      om.role as membership_role,
+      om.createdAt as membership_createdAt,
+      o.id as org_id,
+      o.name as org_name,
+      o.slug as org_slug,
+      o.createdAt as org_createdAt
+    FROM org_members om
+    INNER JOIN organizations o ON o.id = om.organization_id
+    WHERE om.user_id = $1 AND om.organization_id = $2
+    LIMIT 1
+  `, [currentUser.id, orgId]);
+
+  if (!membershipResult || membershipResult.length === 0) {
     redirect("/dashboard/organizations");
   }
+
+  const membershipRow = membershipResult[0];
+  if (!membershipRow) {
+    redirect("/dashboard/organizations");
+  }
+
+  const membership = {
+    id: membershipRow.membership_id,
+    role: membershipRow.membership_role,
+    createdAt: membershipRow.membership_createdAt,
+    organizations: {
+      id: membershipRow.org_id,
+      name: membershipRow.org_name,
+      slug: membershipRow.org_slug,
+      createdAt: membershipRow.org_createdAt,
+    },
+  };
 
   const isOwner = membership.role === "OWNER";
   const canManageMembers = isOwner || membership.role === "ATTORNEY";
 
   // Get all members of this organization
-  const members = await prisma.org_members.findMany({
-    where: { organizationId: orgId },
-    include: {
-      users: {
-        select: {
-          id: true,
-          email: true,
-          firstName: true,
-          lastName: true,
-        },
-      },
-    },
-    orderBy: { createdAt: 'desc' },
-  });
+  type MemberRow = {
+    membership_id: string;
+    membership_role: string;
+    membership_createdAt: Date;
+    user_id: string;
+    user_email: string;
+    user_firstName: string | null;
+    user_lastName: string | null;
+  };
 
-  const membersList = members.map((m) => ({
-    id: m.users.id,
-    email: m.users.email,
-    firstName: m.users.firstName,
-    lastName: m.users.lastName,
-    role: m.role,
-    joinedAt: m.createdAt,
-    isCurrentUser: m.users.id === currentUser.id,
+  const membersResult = await queryRaw<MemberRow>(`
+    SELECT
+      om.id as membership_id,
+      om.role as membership_role,
+      om.createdAt as membership_createdAt,
+      u.id as user_id,
+      u.email as user_email,
+      u."firstName" as user_firstName,
+      u."lastName" as user_lastName
+    FROM org_members om
+    INNER JOIN users u ON u.id = om.user_id
+    WHERE om.organization_id = $1
+    ORDER BY om.createdAt DESC
+  `, [orgId]);
+
+  type MemberListItem = {
+    id: string;
+    email: string;
+    firstName: string | null;
+    lastName: string | null;
+    role: string;
+    joinedAt: Date;
+    isCurrentUser: boolean;
+  };
+
+  const membersList: MemberListItem[] = (membersResult || []).map((m: MemberRow): MemberListItem => ({
+    id: m.user_id,
+    email: m.user_email,
+    firstName: m.user_firstName,
+    lastName: m.user_lastName,
+    role: m.membership_role,
+    joinedAt: m.membership_createdAt,
+    isCurrentUser: m.user_id === currentUser.id,
   }));
 
   return (
@@ -139,7 +192,7 @@ export default async function OrganizationDetailPage({
         </div>
 
         <div className="divide-y divide-slateui-200">
-          {membersList.map((member) => (
+          {membersList.map((member: MemberListItem) => (
             <div
               key={member.id}
               className="px-4 py-4 hover:bg-slateui-50 transition-colors"

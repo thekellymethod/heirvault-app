@@ -121,7 +121,7 @@ export async function POST(req: NextRequest) {
       if (!matchedField || matchedField === "decedentName") {
         const versions = await getRegistryVersions(registry.id);
         const latestVersion = versions.length > 0 ? versions[0] : null;
-        data = latestVersion?.data_json as Record<string, unknown> | undefined;
+        data = latestVersion?.dataJson as Record<string, unknown> | undefined;
 
         // If not matched on registry record, check version data
         if (!matchedField && data) {

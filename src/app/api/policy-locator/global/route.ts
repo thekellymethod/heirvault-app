@@ -59,43 +59,47 @@ export async function GET(req: NextRequest) {
     const db = getDb();
     
     // Build query for clients
+    // Database uses snake_case: first_name, last_name, date_of_birth
     let clientQuery = db
       .from("clients")
       .select("*")
-      .ilike("firstName", `%${firstName}%`)
-      .ilike("lastName", `%${lastName}%`);
+      .ilike("first_name", `%${firstName}%`)
+      .ilike("last_name", `%${lastName}%`);
     
     if (dateOfBirth) {
-      clientQuery = clientQuery.eq("dateOfBirth", dateOfBirth.toISOString());
+      clientQuery = clientQuery.eq("date_of_birth", dateOfBirth.toISOString().split('T')[0]); // date_of_birth is a date type
     }
     
     const { data: clientsData } = await clientQuery.limit(100);
+    // Database returns snake_case column names
     const clients = (clientsData || []) as Array<{
       id: string;
-      firstName: string;
-      lastName: string;
+      first_name: string;
+      last_name: string;
       email: string;
-      dateOfBirth: string | null;
+      date_of_birth: string | null;
     }>;
     
     // Fetch policies for each client
     const clientsWithPolicies = await Promise.all(
       clients.map(async (client) => {
+        // Database uses snake_case: client_id, policy_number, policy_type, insurer_id
         let policyQuery = db
           .from("policies")
           .select("*")
-          .eq("clientId", client.id);
+          .eq("client_id", client.id);
         
         if (policyNumberParam) {
-          policyQuery = policyQuery.ilike("policyNumber", `%${policyNumberParam}%`);
+          policyQuery = policyQuery.ilike("policy_number", `%${policyNumberParam}%`);
         }
         
         const { data: policiesData } = await policyQuery;
+        // Database returns snake_case column names
         const policies = (policiesData || []) as Array<{
           id: string;
-          policyNumber: string | null;
-          policyType: string | null;
-          insurerId: string | null;
+          policy_number: string | null;
+          policy_type: string | null;
+          insurer_id: string | null;
         }>;
         
         // Fetch insurers for policies
@@ -122,12 +126,15 @@ export async function GET(req: NextRequest) {
             );
             
             return {
-              ...policy,
+              id: policy.id,
+              policy_number: policy.policy_number,
+              policy_type: policy.policy_type,
+              insurer_id: policy.insurer_id,
               insurers: insurer && insurer.length > 0 ? { name: (insurer[0] as any).name } : null,
               policy_beneficiaries: beneficiaries.filter((b: any) => b !== null).map((b: any) => ({
                 beneficiaries: {
-                  firstName: b.firstName,
-                  lastName: b.lastName,
+                  first_name: b.first_name,
+                  last_name: b.last_name,
                   relationship: b.relationship,
                 },
               })),
@@ -136,7 +143,11 @@ export async function GET(req: NextRequest) {
         );
         
         return {
-          ...client,
+          id: client.id,
+          first_name: client.first_name,
+          last_name: client.last_name,
+          email: client.email,
+          date_of_birth: client.date_of_birth,
           policies: policiesWithInsurers,
         };
       })
@@ -145,20 +156,20 @@ export async function GET(req: NextRequest) {
     const results: PolicyLocatorResult[] = clientsWithPolicies.flatMap((client: any) =>
       (client.policies || []).map((policy: any) => {
         const beneficiaries = (policy.policy_beneficiaries || []).map((pb: any) => ({
-          firstName: pb.beneficiaries?.firstName || "",
-          lastName: pb.beneficiaries?.lastName || "",
+          firstName: pb.beneficiaries?.first_name || "",
+          lastName: pb.beneficiaries?.last_name || "",
           relationship: pb.beneficiaries?.relationship || null,
         }));
 
         return {
           id: policy.id,
-          policyNumber: policy.policyNumber ?? null,
-          policyType: policy.policyType ?? null,
+          policyNumber: policy.policy_number ?? null,
+          policyType: policy.policy_type ?? null,
           insurerName: policy.insurers?.name ?? null,
           client: {
             id: client.id,
-            firstName: client.firstName,
-            lastName: client.lastName,
+            firstName: client.first_name,
+            lastName: client.last_name,
             email: client.email,
           },
           beneficiaries,
@@ -170,14 +181,15 @@ export async function GET(req: NextRequest) {
     try {
       const { findMany: findManyMembers, create: createAudit } = await import("@/lib/db");
       
+      // Database uses snake_case: user_id, organization_id
       type OrgMemberRecord = {
         id: string;
-        userId: string;
-        organizationId: string;
+        user_id: string;
+        organization_id: string;
       };
       
       const memberships = await findManyMembers<OrgMemberRecord>("org_members", {
-        where: { userId: user.id },
+        where: { userId: user.id }, // findMany converts camelCase to snake_case
         limit: 1,
       });
 
@@ -192,8 +204,8 @@ export async function GET(req: NextRequest) {
         }${proofOfDeathCertNumber ? ` | Death Cert: ${proofOfDeathCertNumber}` : ""} | Results: ${
           results.length
         }`,
-        userId: user.id,
-        orgId: member?.organizationId ?? null,
+        userId: user.id, // create() converts camelCase to snake_case
+        orgId: member?.organization_id ?? null,
         createdAt: new Date().toISOString(),
       } as any);
     } catch (auditError: unknown) {

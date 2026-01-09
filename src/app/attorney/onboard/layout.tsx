@@ -14,10 +14,9 @@ export default async function AttorneyOnboardLayout({ children }: LayoutProps) {
   if (!userId) redirect("/attorney/sign-in");
 
   // Must be provisioned in DB (your single gate is /attorney/sign-up/complete)
-  const dbUser = await prisma.user.findUnique({
-    where: { clerkId: userId },
-    select: { id: true },
-  });
+  const { findUnique } = await import("@/lib/db");
+  type UserRecord = { id: string; clerkId: string };
+  const dbUser = await findUnique<UserRecord>("users", { clerkId: userId });
 
   if (!dbUser) redirect("/attorney/sign-up/complete");
 

@@ -1,5 +1,4 @@
 import Link from "next/link";
-;
 import { requireAuth } from "@/lib/utils/clerk";
 import { getCurrentUserWithOrg } from "@/lib/authz";
 import { Button } from "@/components/ui/button";
@@ -13,20 +12,89 @@ export default async function OrganizationsPage() {
   }
 
   // Get all organizations the user is a member of
-  const userMemberships = await prisma.org_members.findMany({
-    where: { userId: currentUser.id },
-    include: {
-      organizations: true,
+  const { queryRaw } = await import("@/lib/db");
+
+  type MembershipRow = {
+    membership_id: string;
+    membership_role: string;
+    membership_createdAt: Date;
+    membership_organizationId: string;
+    org_id: string;
+    org_name: string;
+    org_slug: string;
+    org_createdAt: Date;
+    org_updatedAt: Date;
+  };
+
+  const userMembershipsResult = await queryRaw<MembershipRow>(`
+    SELECT
+      om.id as membership_id,
+      om.role as membership_role,
+      om.createdAt as membership_createdAt,
+      om.organization_id as membership_organizationId,
+      o.id as org_id,
+      o.name as org_name,
+      o.slug as org_slug,
+      o.createdAt as org_createdAt,
+      o.updated_at as org_updatedAt
+    FROM org_members om
+    INNER JOIN organizations o ON o.id = om.organization_id
+    WHERE om.user_id = $1
+    ORDER BY om.createdAt DESC
+  `, [currentUser.id]);
+
+  type Membership = {
+    id: string;
+    role: string;
+    createdAt: Date;
+    organizationId: string;
+    organizations: {
+      id: string;
+      name: string;
+      slug: string;
+      createdAt: Date;
+      updatedAt: Date;
+    };
+  };
+
+  const userMemberships: Membership[] = (userMembershipsResult || []).map((row: MembershipRow): Membership => ({
+    id: row.membership_id,
+    role: row.membership_role,
+    createdAt: row.membership_createdAt,
+    organizationId: row.membership_organizationId,
+    organizations: {
+      id: row.org_id,
+      name: row.org_name,
+      slug: row.org_slug,
+      createdAt: row.org_createdAt,
+      updatedAt: row.org_updatedAt,
     },
-    orderBy: { createdAt: 'desc' },
-  });
+  }));
 
   // Get member counts for each organization
-  const orgsWithCounts = await Promise.all(
-    userMemberships.map(async (membership) => {
-      const memberCount = await prisma.org_members.count({
-        where: { organizationId: membership.organizationId },
-      });
+  type OrgWithCount = {
+    id: string;
+    name: string;
+    slug: string;
+    createdAt: Date;
+    updatedAt: Date;
+    role: string;
+    memberCount: number;
+    joinedAt: Date;
+  };
+
+  const orgsWithCounts: OrgWithCount[] = await Promise.all(
+    userMemberships.map(async (membership: Membership): Promise<OrgWithCount> => {
+      type CountRow = { count: bigint };
+      const countResult = await queryRaw<CountRow>(`
+        SELECT COUNT(*)::bigint as count
+        FROM org_members
+        WHERE organization_id = $1
+      `, [membership.organizationId]);
+
+      const memberCount = countResult && countResult.length > 0 && countResult[0]
+        ? Number(countResult[0].count)
+        : 0;
 
       return {
         id: membership.organizations.id,
@@ -77,7 +145,7 @@ export default async function OrganizationsPage() {
           </div>
 
           <div className="divide-y divide-slateui-200">
-            {orgsWithCounts.map((org) => (
+            {orgsWithCounts.map((org: OrgWithCount) => (
               <div
                 key={org.id}
                 className="px-4 py-4 hover:bg-slateui-50 transition-colors"

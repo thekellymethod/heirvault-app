@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-;
 import { requireAuth } from "@/lib/utils/clerk";
 import { assertAttorneyCanAccessClient } from "@/lib/authz";
 import { ReceiptsAuditTrailView } from "./_components/ReceiptsAuditTrailView";
@@ -18,27 +17,36 @@ export default async function ReceiptsAuditTrailPage({
   await assertAttorneyCanAccessClient(clientId);
 
   // Get client info
-  const client = await prisma.$queryRawUnsafe<Array<{
-    id: string,
-    firstName: string,
-    lastName: string,
-    email: string,
-  }>>(`
-    SELECT id, firstName, lastName, email
+  const { queryRaw } = await import("@/lib/db");
+
+  type ClientRow = {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
+
+  const client = await queryRaw<ClientRow>(`
+    SELECT id, "firstName", "lastName", email
     FROM clients
     WHERE id = $1
     LIMIT 1
-  `, clientId);
+  `, [clientId]);
 
   if (!client || client.length === 0) {
+    redirect("/dashboard/clients");
+  }
+
+  const clientRow = client[0];
+  if (!clientRow) {
     redirect("/dashboard/clients");
   }
 
   return (
     <ReceiptsAuditTrailView 
       clientId={clientId}
-      clientName={`${client[0].firstName} ${client[0].lastName}`}
-      clientEmail={client[0].email}
+      clientName={`${clientRow.firstName} ${clientRow.lastName}`}
+      clientEmail={clientRow.email}
     />
   );
 }

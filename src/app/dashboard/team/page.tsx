@@ -1,8 +1,8 @@
 import { auth } from "@clerk/nextjs/server";
-import { prisma, type OrgMember, type User } from "@/lib/db";
-import type { OrgRole } from "@prisma/client";
 import { redirect } from "next/navigation";
 import { TeamManagement } from "./TeamManagement";
+
+type OrgRole = "OWNER" | "ATTORNEY" | "STAFF";
 
 export default async function TeamPage() {
   // Clerk middleware handles authentication - no need for manual redirects
@@ -18,26 +18,30 @@ export default async function TeamPage() {
   let organizationId: string | null = null;
 
   try {
-    const userResult = await prisma.$queryRaw<Array<{
-      user_id: string,
-      user_email: string,
+    const { queryRaw } = await import("@/lib/db");
+
+    type UserRow = {
+      user_id: string;
+      user_email: string;
       user_firstName: string | null;
       user_lastName: string | null;
       org_id: string | null;
       org_role: string | null;
-    }>>`
+    };
+
+    const userResult = await queryRaw<UserRow>(`
       SELECT 
         u.id as user_id,
         u.email as user_email,
-        u.firstName as user_firstName,
-        u.lastName as user_lastName,
+        u."firstName" as user_firstName,
+        u."lastName" as user_lastName,
         om.organization_id as org_id,
         om.role as org_role
       FROM users u
       LEFT JOIN org_members om ON om.user_id = u.id
-      WHERE u."clerkId" = ${userId}
+      WHERE u."clerkId" = $1
       LIMIT 1
-    `;
+    `, [userId]);
 
     if (userResult && userResult.length > 0) {
       const row = userResult[0];
@@ -82,40 +86,55 @@ export default async function TeamPage() {
     );
   }
 
-  // Use raw SQL as primary method since Prisma client may have issues
-  type TeamMember = OrgMember & {
-    user: Pick<User, "id" | "email" | "firstName" | "lastName">;
+  // Use raw SQL as primary method
+  type TeamMember = {
+    id: string;
+    userId: string;
+    organizationId: string;
+    role: OrgRole;
+    createdAt: Date;
+    updatedAt: Date;
+    user: {
+      id: string;
+      email: string;
+      firstName: string | null;
+      lastName: string | null;
+    };
   };
   let members: TeamMember[] = [];
   try {
-    const rawMembers = await prisma.$queryRaw<Array<{
-      id: string,
-      user_id: string,
-      organization_id: string,
-      role: string,
+    const { queryRaw } = await import("@/lib/db");
+
+    type MemberRow = {
+      id: string;
+      user_id: string;
+      organization_id: string;
+      role: string;
       createdAt: Date;
       updated_at: Date;
-      user_email: string,
+      user_email: string;
       user_firstName: string | null;
       user_lastName: string | null;
-    }>>`
+    };
+
+    const rawMembers = await queryRaw<MemberRow>(`
       SELECT 
         om.id,
         om.user_id,
         om.organization_id,
         om.role,
-        om.createdAt,
+        om."createdAt",
         om.updated_at,
         u.email as user_email,
-        u.firstName as user_firstName,
-        u.lastName as user_lastName
+        u."firstName" as user_firstName,
+        u."lastName" as user_lastName
       FROM org_members om
       INNER JOIN users u ON u.id = om.user_id
-      WHERE om.organization_id = ${organizationId}
-      ORDER BY om.createdAt ASC
-    `;
+      WHERE om.organization_id = $1
+      ORDER BY om."createdAt" ASC
+    `, [organizationId]);
 
-      members = rawMembers.map(m => ({
+      members = (rawMembers || []).map((m: MemberRow): TeamMember => ({
         id: m.id,
         userId: m.user_id,
         organizationId: m.organization_id,
@@ -144,7 +163,7 @@ export default async function TeamPage() {
       <p className="text-sm text-slateui-600">
         Manage who has access to this firm&apos;s clients and registries.
       </p>
-      <TeamManagement members={members as Parameters<typeof TeamManagement>[0]['members']} currentUserId={user.id} />
+      <TeamManagement members={members} currentUserId={user.id} />
     </main>
   );
 }

@@ -35,8 +35,9 @@ export default async function OrgSettingsPage() {
   } | null = null;
   
   try {
-    // Try raw SQL first - it's more reliable when Prisma client is broken
-    const rawResult = await prisma.$queryRaw<Array<{
+    // Use queryRaw from db library (Supabase-based)
+    const { queryRaw } = await import("@/lib/db");
+    const rawResult = await queryRaw<{
       organization_id: string
       org_name: string
       org_role: string
@@ -51,7 +52,7 @@ export default async function OrgSettingsPage() {
       org_logo_url: string | null
       org_createdAt: Date
       org_updated_at: Date
-    }>>`
+    }>(`
       SELECT 
         om.organization_id,
         o.name as org_name,
@@ -69,9 +70,9 @@ export default async function OrgSettingsPage() {
         o.updated_at as org_updated_at
       FROM org_members om
       INNER JOIN organizations o ON o.id = om.organization_id
-      WHERE om.user_id = ${currentUser.id}
+      WHERE om.user_id = $1
       LIMIT 1
-    `
+    `, [currentUser.id])
     
     if (rawResult && rawResult.length > 0) {
       const row = rawResult[0]
