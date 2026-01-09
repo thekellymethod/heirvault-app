@@ -8,7 +8,7 @@ import { logAuditEvent } from "@/lib/audit";
 export type Actor = {
   id: string;
   clerkId?: string;
-  email: string;
+  email: string | null;
   roles: string[];
 };
 
