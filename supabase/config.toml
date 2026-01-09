@@ -1,0 +1,57 @@
+# Supabase CLI Configuration
+# This file configures the Supabase CLI for local development and migrations
+
+[project]
+# Project reference ID (found in Supabase dashboard > Settings > General)
+# Leave empty for local development
+id = ""
+
+[auth]
+# Enable email authentication
+enable_signup = true
+# Site URL for email links
+site_url = "http://localhost:3000"
+# Additional redirect URLs
+additional_redirect_urls = ["https://localhost:3000"]
+
+[api]
+# API port for local development
+port = 54321
+# Schema to expose
+schemas = ["public", "storage", "graphql_public"]
+# Extra search path
+extra_search_path = ["public", "extensions"]
+# Maximum rows returned
+max_rows = 1000
+
+[db]
+# Database port for local development
+port = 54322
+# Major version of Postgres
+major_version = 15
+
+[studio]
+# Studio port for local development
+port = 54323
+# Enable API proxy
+api_url = "http://localhost:54321"
+
+[inbucket]
+# Inbucket port for local email testing
+port = 54324
+# SMTP port
+smtp_port = 54325
+# POP3 port
+pop3_port = 54326
+
+[storage]
+# File size limit (in bytes)
+file_size_limit = 52428800  # 50MB
+
+[edge_runtime]
+# Enable edge functions
+enabled = false
+
+[functions]
+# Functions directory
+directory = "./functions"

@@ -79,6 +79,14 @@ export const CATEGORY_DEFINITIONS: Record<DocumentCategoryType, {
       "Letter of Intent",
     ],
   },
+  OTHER: {
+    label: "Other",
+    description: "Documents that do not fit the primary categories yet",
+    examples: [
+      "Miscellaneous correspondence",
+      "Unclassified attachments",
+    ],
+  },
 };
 
 /**

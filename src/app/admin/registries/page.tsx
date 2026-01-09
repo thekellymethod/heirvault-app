@@ -11,7 +11,7 @@ export default async function AdminRegistriesPage() {
   });
   
   // Transform to expected format
-  const registries = (registriesData || []).map((reg: any) => ({
+  const registries = (registriesData || []).map((reg: Record<string, unknown>) => ({
     ...reg,
     files: [], // TODO: Fetch files separately if needed
   }));

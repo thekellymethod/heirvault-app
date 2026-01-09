@@ -2,12 +2,7 @@ import "server-only";
 import { auth, currentUser } from "@clerk/nextjs/server";
 // Prisma removed - database access needs to be implemented
 
-export type AppUser = {
-  id: string,
-  clerkId: string,
-  email: string,
-  roles: string[];
-};
+export type { AppUser } from "./types";
 
 // Local HttpError class to avoid circular dependency with guards.ts
 class HttpError extends Error {
@@ -89,10 +84,10 @@ export async function getOrCreateAppUser(): Promise<AppUser | null> {
         // Link the Clerk account to the existing user account
         // Update clerkId from placeholder (pending_*) to actual Clerk ID
         // Also normalize email to lowercase for consistency
+        // Note: updated_at is auto-updated by database trigger, don't include it
         existingUser = await updateUser("users", { id: userByEmail.id }, {
           clerkId: userId, // Link Clerk account
           email: email, // Normalize email to lowercase
-          updatedAt: new Date().toISOString(),
         } as Record<string, unknown>) as UserRecord;
         console.log(`[AUDIT] Linked Clerk account (${userId}) to existing user by email: ${email} (OAuth provider: ${cu?.externalAccounts?.[0]?.provider || 'unknown'})`);
       } else {
@@ -136,11 +131,11 @@ export async function getOrCreateAppUser(): Promise<AppUser | null> {
       console.log(`[AUDIT] Removing ADMIN role from user: ${email} (email no longer in admin list)`);
     }
 
+    // Note: updated_at is auto-updated by database trigger, don't include it
     dbUser = await updateUser("users", { id: existingUser.id }, {
       email,
       roles: updatedRoles,
       clerkId: userId, // Ensure clerkId is updated (in case it was a placeholder)
-      updatedAt: new Date().toISOString(),
     } as Record<string, unknown>) as UserRecord;
 
     // Log admin bootstrap if admin was just added

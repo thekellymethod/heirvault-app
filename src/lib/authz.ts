@@ -61,12 +61,12 @@ export async function getCurrentUserWithOrg() {
   type OrgMemberRecord = { id: string; userId: string; organizationId: string; role: string };
   const member = await findUnique<OrgMemberRecord>("org_members", { userId: user.id });
   if (!member) {
-    return { user, org: null, role: null };
+    return { user, org: null, role: null, orgMember: null };
   }
   
   type OrgRecord = { id: string; name: string };
   const org = await findUnique<OrgRecord>("organizations", { id: member.organizationId });
-  return { user, org, role: member.role };
+  return { user, org, role: member.role, orgMember: member };
 }
 
 // Require attorney or owner access

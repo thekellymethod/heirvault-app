@@ -135,13 +135,13 @@ export default function SignInPage() {
           </p>
           <div className="mt-3 space-y-1">
             <p className="text-xs text-slateui-500">
-              <a href="/attorney/sign-in" className="text-ink-900 hover:text-ink-800 font-medium underline">
+              <Link href="/attorney/sign-in" className="text-ink-900 hover:text-ink-800 font-medium underline">
                 Attorney sign in
-              </a>
+              </Link>
               {" • "}
-              <a href="/admin/sign-in" className="text-ink-900 hover:text-ink-800 font-medium underline">
+              <Link href="/admin/sign-in" className="text-ink-900 hover:text-ink-800 font-medium underline">
                 Administrator sign in
-              </a>
+              </Link>
             </p>
           </div>
         </div>

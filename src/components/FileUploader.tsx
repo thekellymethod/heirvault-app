@@ -66,8 +66,9 @@ export function FileUploader({
 
       const data = (await res.json()) as { ok: true; files: UploadedItem[] };
       setItems(data.files);
-    } catch (e: any) {
-      setErr(e?.message || "Failed to load files.");
+    } catch (e: unknown) {
+      const errorMessage = e instanceof Error ? e.message : "Failed to load files.";
+      setErr(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -152,8 +153,9 @@ export function FileUploader({
 
       setProgress(100);
       resetInput();
-    } catch (e: any) {
-      setErr(e?.message || "Upload failed.");
+    } catch (e: unknown) {
+      const errorMessage = e instanceof Error ? e.message : "Upload failed.";
+      setErr(errorMessage);
       resetInput();
     } finally {
       setBusy(false);

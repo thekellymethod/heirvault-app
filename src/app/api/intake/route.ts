@@ -33,10 +33,9 @@ export async function POST(req: Request) {
     };
 
     const versionHash = await sha256String(JSON.stringify(data_json));
-    const version = await appendRegistryVersion({
-      registry_id: registry.id,
-      submitted_by: "INTAKE",
-      data_json,
+    const version = await appendRegistryVersion(registry.id, {
+      dataJson: data_json,
+      submittedBy: "INTAKE",
       hash: versionHash,
     });
 
@@ -50,13 +49,19 @@ export async function POST(req: Request) {
         contentType: file.type || "application/octet-stream",
       });
 
-      await addDocumentRow({
-        registry_version_id: version.id,
-        storage_path: uploaded.storagePath,
+      // Create registry document using generic create function
+      const { create } = await import("@/lib/db");
+      const { randomUUID } = await import("crypto");
+      await create("documents", {
+        id: randomUUID(),
+        registryVersionId: version.id,
+        storage_path: uploaded.key,
         content_type: file.type || "application/octet-stream",
-        size_bytes: uploaded.sizeBytes,
+        size_bytes: file.size,
         sha256: uploaded.sha256,
-      });
+        fileName: file.name || "document",
+        createdAt: new Date(),
+      } as Record<string, unknown>);
 
       await logAccess({
         userId: null,

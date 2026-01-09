@@ -117,13 +117,13 @@ export default function HomePage() {
             </li>
           </ul>
           <p className="text-white/70 mb-4">
-            Firms waste time chasing carriers. Families don't know what exists. Policy proof gets buried in document clutter.
+            Firms waste time chasing carriers. Families don&apos;t know what exists. Policy proof gets buried in document clutter.
           </p>
           <div className="rounded-2xl border border-[#EAB308]/30 bg-[#EAB308]/10 p-6">
             <p className="text-white/90 font-semibold">
               <strong className="text-[#EAB308]">HeirVault solves one specific problem:</strong>
               <br />
-              Knowing <strong>what policies exist</strong>, <strong>what's verified</strong>, and <strong>what's missing</strong>—per estate.
+              Knowing <strong>what policies exist</strong>, <strong>what&apos;s verified</strong>, and <strong>what&apos;s missing</strong>—per estate.
             </p>
           </div>
         </div>
@@ -426,7 +426,7 @@ export default function HomePage() {
             </li>
           </ul>
           <p className="text-white/70 italic">
-            Security isn't a marketing claim—it's built into the architecture.
+            Security isn&apos;t a marketing claim—it&apos;s built into the architecture.
           </p>
         </div>
       </section>
@@ -435,7 +435,7 @@ export default function HomePage() {
       <section className="mx-auto max-w-6xl px-5 py-14">
         <div className="rounded-3xl border border-white/10 bg-white/5 p-8 md:p-12 text-center">
           <h2 className="text-2xl font-semibold tracking-tight mb-4" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
-            Who it's for
+            Who it&apos;s for
           </h2>
           <p className="text-lg text-white/80 mb-6">
             HeirVault is built for:

@@ -6,7 +6,7 @@ export { supabaseAdmin as db } from "@/lib/supabaseAdmin";
 
 // Export enum types
 export type DocumentCategory = typeof import("./enums").DocumentCategory[keyof typeof import("./enums").DocumentCategory];
-export type ChangeRequestType = typeof import("./enums").ChangeRequestType[keyof typeof import("./enums").ChangeRequestType];
+export type { ChangeRequestType } from "./enums";
 export type ChangeRequestStatus = typeof import("./enums").ChangeRequestStatus[keyof typeof import("./enums").ChangeRequestStatus];
 export type BillingPlan = typeof import("./enums").BillingPlan[keyof typeof import("./enums").BillingPlan];
 

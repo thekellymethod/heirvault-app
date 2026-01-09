@@ -339,10 +339,23 @@ export async function update<T>(
   where: Record<string, unknown>,
   data: Partial<T>
 ): Promise<T> {
+  // Convert camelCase to snake_case for timestamp fields (like create does)
+  const updateData = { ...data } as Record<string, unknown>;
+  
+  // Handle timestamp field conversion (camelCase -> snake_case)
+  if (updateData.updatedAt !== undefined) {
+    updateData.updated_at = updateData.updatedAt;
+    delete updateData.updatedAt;
+  }
+  if (updateData.createdAt !== undefined) {
+    updateData.created_at = updateData.createdAt;
+    delete updateData.createdAt;
+  }
+  
   // Supabase pattern: update() first, then chain filters
   let query = supabaseAdmin
     .from(table)
-    .update(data as Record<string, unknown>)
+    .update(updateData as Record<string, unknown>)
     .select();
 
   // Apply where filters after update

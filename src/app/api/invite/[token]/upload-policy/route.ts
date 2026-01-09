@@ -4,7 +4,7 @@ import { renderToStream } from "@react-pdf/renderer";
 import { randomUUID } from "crypto";
 import { AuditAction } from "@/lib/db/enums";
 import { ClientReceiptPDF } from "@/pdfs/ClientReceiptPDF";
-import { sendAttorneyNotificationEmail, sendClientReceiptEmail } from "@/lib/email";
+import { sendAttorneyNotificationEmail, sendClientReceiptEmail } from "@/lib/email/notifications";
 import { extractPolicyData } from "@/lib/ocr";
 import { uploadDocument } from "@/lib/storage";
 import { getOrCreateTestInvite } from "@/lib/test-invites";

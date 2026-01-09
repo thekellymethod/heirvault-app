@@ -1,4 +1,4 @@
-import { type AppUser } from "@/lib/auth";
+import { type AppUser } from "@/lib/auth/CurrentUser";
 import { HttpError } from "@/lib/errors";
 import { isAdmin } from "@/lib/admin";
 import { getRegistryById, listAuthorizedRegistries } from "@/lib/db";

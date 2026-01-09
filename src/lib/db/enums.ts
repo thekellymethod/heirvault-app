@@ -98,7 +98,16 @@ export const ChangeRequestType = {
   UPDATE_BENEFICIARY: "UPDATE_BENEFICIARY",
   REMOVE_BENEFICIARY: "REMOVE_BENEFICIARY",
   UPDATE_CLIENT_INFO: "UPDATE_CLIENT_INFO",
+  // Additional change request types referenced in code
+  ID_UPDATE: "ID_UPDATE",
+  POLICY_UPDATE: "POLICY_UPDATE",
+  BENEFICIARY_UPDATE: "BENEFICIARY_UPDATE",
+  TAX_UPDATE: "TAX_UPDATE",
+  ADDRESS_UPDATE: "ADDRESS_UPDATE",
 } as const;
+
+// Export the type derived from the const object
+export type ChangeRequestType = typeof ChangeRequestType[keyof typeof ChangeRequestType];
 
 export const ChangeRequestStatus = {
   SUBMITTED: "SUBMITTED",

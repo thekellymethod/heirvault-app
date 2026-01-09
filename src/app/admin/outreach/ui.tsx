@@ -92,8 +92,9 @@ export default function OutreachConsole() {
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
       setResult(`Sent: ${data.sentCount} (failed: ${data.failedCount})`);
-    } catch (e: any) {
-      setResult(e?.message ?? "Send failed");
+    } catch (e: unknown) {
+      const errorMessage = e instanceof Error ? e.message : "Send failed";
+      setResult(errorMessage);
     } finally {
       setSending(false);
     }
@@ -123,8 +124,9 @@ export default function OutreachConsole() {
         `Sent: ${data.sentCount} (failed: ${data.failedCount})` +
           (data.failed?.length ? `\nFailed: ${data.failed.join(", ")}` : "")
       );
-    } catch (e: any) {
-      setResult(e?.message ?? "Bulk send failed");
+    } catch (e: unknown) {
+      const errorMessage = e instanceof Error ? e.message : "Bulk send failed";
+      setResult(errorMessage);
     } finally {
       setSending(false);
     }

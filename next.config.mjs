@@ -1,14 +1,21 @@
 import { withSentryConfig } from "@sentry/nextjs";
+import { fileURLToPath } from "url";
+import path from "path";
+
+// ESM-safe __dirname equivalent
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Pin Turbopack root to prevent picking wrong workspace
+  turbopack: {
+    root: __dirname,
+  },
   experimental: {
     serverActions: {
       bodySizeLimit: "2mb",
     },
-  },
-  turbopack: {
-    root: process.cwd(),
   },
   images: {
     remotePatterns: [],
@@ -32,7 +39,7 @@ const nextConfig = {
       `style-src 'self' 'unsafe-inline' https://*.clerk.accounts.dev https://*.clerk.com`,
       `img-src 'self' data: blob: https:`,
       `font-src 'self' data: https://*.clerk.accounts.dev https://*.clerk.com`,
-      `connect-src 'self' https://*.clerk.accounts.dev https://*.clerk.com https://*.supabase.co https://api.openai.com https://*.sentry.io`,
+      `connect-src 'self' https: wss: https://*.clerk.accounts.dev https://*.clerk.com https://*.supabase.co https://api.openai.com https://*.sentry.io`,
       `frame-src 'self' https://*.clerk.accounts.dev https://*.clerk.com`,
       `worker-src 'self' blob:`,
       `child-src 'self' blob: https://*.clerk.accounts.dev https://*.clerk.com`,

@@ -2,6 +2,8 @@ import { currentUser } from "@clerk/nextjs/server";
 import { HttpError } from "@/lib/errors";
 import { isRole, Role } from "@/lib/roles";
 
+// Note: This file has a different AppUser type for legacy compatibility
+// The canonical AppUser is in ./auth/types.ts
 export type AppUser = {
   id: string,
   email: string | null;

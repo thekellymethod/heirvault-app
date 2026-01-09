@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/utils/clerk'
 import { createInvite } from '@/lib/utils/invites'
-import { sendClientInviteEmail } from '@/lib/email'
+import { sendClientInviteEmail } from '@/lib/email/notifications'
 import { getCurrentUserWithOrg } from '@/lib/authz'
 
 export async function POST(request: NextRequest) {

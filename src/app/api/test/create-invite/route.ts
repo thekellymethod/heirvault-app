@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     // Generate a unique token
     const TEST_TOKEN = `TEST-${randomBytes(12).toString("hex").toUpperCase()}`;
 
-    const { findMany: findManyClients, findMany: findManyInvites, findUnique: findUniqueClient, create: createClient, create: createInvite } = await import("@/lib/db");
+    const { findMany: findManyClients, findMany: findManyInvites, findUnique: findUniqueClient, create: createDbRecord, create: createInvite } = await import("@/lib/db");
     const { randomUUID: cryptoRandomUUID } = await import("crypto");
     
     // Check if a client with this email already exists and has an active invite
@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
     if (!client) {
       const clientId = cryptoRandomUUID();
       const now = new Date().toISOString();
-      client = await createClient("clients", {
+      client = await createDbRecord("clients", {
         id: clientId,
         firstName: TEST_CLIENT_NAME.firstName,
         lastName: TEST_CLIENT_NAME.lastName,

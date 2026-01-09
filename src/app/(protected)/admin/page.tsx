@@ -13,18 +13,31 @@ import { auth } from "@clerk/nextjs/server";
  * Exit criteria: You can reconstruct "who did what when" for any record.
  */
 export default async function AdminPage() {
+  let admin;
   try {
-    const admin = await requireAdmin();
-    return <AdminDashboard admin={admin} />;
+    admin = await requireAdmin();
   } catch (error) {
-    // Log the error for debugging
+    // Log the error for debugging with proper serialization
+    function toErrString(e: unknown): string {
+      if (e instanceof Error) {
+        return `${e.name}: ${e.message}\n${e.stack ?? ""}`;
+      }
+      try {
+        return JSON.stringify(e, null, 2);
+      } catch {
+        return String(e);
+      }
+    }
+    
     const errorStatus = error instanceof Error && "status" in error ? (error as { status: number }).status : null;
     const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorDetails = toErrString(error);
     
-    console.error("[AdminPage] Error in requireAdmin:", {
+    console.error("[AdminPage] Error in requireAdmin:", errorDetails);
+    console.error("[AdminPage] Error details:", {
       message: errorMessage,
       status: errorStatus,
-      stack: error instanceof Error ? error.stack : undefined,
+      fullError: errorDetails,
     });
     
     // Check if user is authenticated at all
@@ -54,4 +67,7 @@ export default async function AdminPage() {
       redirect("/admin/sign-in?error=auth_failed");
     }
   }
+  
+  // Render JSX outside of try/catch
+  return <AdminDashboard admin={admin} />;
 }

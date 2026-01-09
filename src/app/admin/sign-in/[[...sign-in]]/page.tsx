@@ -2,6 +2,7 @@
 
 import { SignIn, SignOutButton, useAuth } from "@clerk/nextjs";
 import { Logo } from "@/components/Logo";
+import Link from "next/link";
 import { useEffect, useState, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Shield, AlertCircle, ArrowLeft, LogOut } from "lucide-react";
@@ -19,13 +20,18 @@ export default function AdminSignInPage() {
   useEffect(() => {
     const errorParam = searchParams.get("error");
     if (errorParam === "auth_failed") {
-      setAdminCheckError("Authentication failed. There may be a database error. Please try signing out and signing in again.");
-      setShowSignInForm(false);
-      hasCheckedRef.current = true; // Prevent auto-check
+      // Use setTimeout to avoid synchronous setState in effect
+      setTimeout(() => {
+        setAdminCheckError("Authentication failed. There may be a database error. Please try signing out and signing in again.");
+        setShowSignInForm(false);
+        hasCheckedRef.current = true; // Prevent auto-check
+      }, 0);
     } else if (errorParam === "not_admin") {
-      setAdminCheckError("This account does not have administrator privileges. Check the diagnostic page for details.");
-      setShowSignInForm(false);
-      hasCheckedRef.current = true; // Prevent auto-check
+      setTimeout(() => {
+        setAdminCheckError("This account does not have administrator privileges. Check the diagnostic page for details.");
+        setShowSignInForm(false);
+        hasCheckedRef.current = true; // Prevent auto-check
+      }, 0);
     }
   }, [searchParams]);
 
@@ -38,7 +44,10 @@ export default function AdminSignInPage() {
 
     if (isLoaded && isSignedIn) {
       hasCheckedRef.current = true; // Mark as checked to prevent loops
-      setIsCheckingAdmin(true);
+      // Use setTimeout to avoid synchronous setState in effect
+      setTimeout(() => {
+        setIsCheckingAdmin(true);
+      }, 0);
       // Check if user is admin
       fetch("/api/debug/whoami")
         .then((res) => {
@@ -172,7 +181,7 @@ export default function AdminSignInPage() {
             {isSignedIn && adminCheckError && (
               <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                 <p className="text-xs text-yellow-700 font-medium">
-                  ⚠️ You're signed in with a non-admin account. Sign out below to use a different account (including social login).
+                  ⚠️ You&apos;re signed in with a non-admin account. Sign out below to use a different account (including social login).
                 </p>
               </div>
             )}
@@ -243,21 +252,21 @@ export default function AdminSignInPage() {
             <p className="text-xs text-slate-600 mb-2">
               Not an administrator?
             </p>
-            <a
+            <Link
               href="/attorney/sign-in"
               className="inline-flex items-center gap-2 text-sm text-slate-700 hover:text-slate-900 font-medium transition"
             >
               <ArrowLeft className="h-4 w-4" />
               Go to Attorney Sign In
-            </a>
+            </Link>
           </div>
           
-          <a
+          <Link
             href="/"
             className="inline-block text-xs text-slate-500 hover:text-slate-700 transition"
           >
             ← Back to Home
-          </a>
+          </Link>
         </div>
       </div>
     </div>

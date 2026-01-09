@@ -1,7 +1,56 @@
+// src/app/api/policy-intake/submit/route.ts
 import { NextRequest, NextResponse } from "next/server";
-;
+import { randomUUID } from "crypto";
 
 export const runtime = "nodejs";
+
+type ClientData = {
+  firstName?: string | null;
+  lastName?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  dateOfBirth?: string | null; // ISO date string from form input
+};
+
+type PolicyData = {
+  policyNumber?: string | null;
+  policyType?: string | null;
+  insurerName?: string | null;
+};
+
+type IntakeBody = {
+  clientData?: ClientData;
+  policyData?: PolicyData;
+  raw?: unknown;
+};
+
+// IMPORTANT: Your queryRaw<T>() appears to already return T[].
+// So the generic MUST be the *row type*, not an array type.
+// i.e. queryRaw<Row>(...) -> Promise<Row[]>
+
+type ClientIdRow = { id: string };
+
+type InsurerRow = { id: string; name: string | null };
+
+type PolicyRow = {
+  id: string;
+  clientId: string;
+  policy_number: string | null;
+  policy_type: string | null;
+  insurer_id: string | null;
+  carrier_name_raw: string | null;
+  createdAt: Date;
+};
+
+type ClientRow = {
+  id: string;
+  firstName: string | null;
+  lastName: string | null;
+  email: string | null;
+  phone: string | null;
+  dateOfBirth: Date | null;
+  createdAt: Date;
+};
 
 type ReceiptRow = {
   id: string;
@@ -11,176 +60,301 @@ type ReceiptRow = {
   createdAt: Date;
 };
 
-type SubmissionRow = {
-  submitted_data: string | null;
-  createdAt: Date;
+type SubmissionRow = { id: string; submitted_data: string | null; createdAt: Date };
+
+const norm = (v: unknown): string | null => {
+  if (typeof v !== "string") return null;
+  const s = v.trim();
+  return s.length ? s : null;
 };
 
-type ClientRow = {
-  firstName: string | null;
-  lastName: string | null;
-  email: string | null;
+const safeISODate = (v: unknown): Date | null => {
+  const s = norm(v);
+  if (!s) return null;
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? null : d;
 };
 
-type PolicyRow = {
-  policy_number: string | null;
-  policy_type: string | null;
-  insurer_id: string | null;
-  carrier_name_raw: string | null;
-};
-
-type InsurerRow = {
-  name: string | null;
-};
-
-export async function GET(req: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
-    // Get receiptId from query parameter
-    const { searchParams } = new URL(req.url);
-    const receiptId = searchParams.get("receiptId");
-    
-    if (!receiptId) {
-      return NextResponse.json({ error: "receiptId query parameter is required" }, { status: 400 });
+    const body = (await req.json()) as IntakeBody;
+
+    const clientData: ClientData = body?.clientData ?? {};
+    const policyData: PolicyData = body?.policyData ?? {};
+
+    const firstName = norm(clientData.firstName) ?? "";
+    const lastName = norm(clientData.lastName) ?? "";
+    const email = norm(clientData.email);
+    const phone = norm(clientData.phone);
+    const dateOfBirth = safeISODate(clientData.dateOfBirth);
+
+    const policyNumber = norm(policyData.policyNumber);
+    const policyType = norm(policyData.policyType);
+    const insurerNameInput = norm(policyData.insurerName);
+
+    if (!email) {
+      return NextResponse.json({ error: "Email is required" }, { status: 400 });
     }
 
-    // 1) receipts
     const { queryRaw } = await import("@/lib/db");
-    const receipts = await queryRaw<ReceiptRow[]>(
+
+    // ------------------------------------------------------------
+    // 1) Find-or-create client (by email)
+    // ------------------------------------------------------------
+    const existingClients = await queryRaw<ClientIdRow>(
       `
-      SELECT id, receipt_number, "clientId", submission_id, "createdAt"
-      FROM receipts
-      WHERE receipt_number = $1
+      SELECT id
+      FROM clients
+      WHERE LOWER(email) = LOWER($1)
       LIMIT 1
       `,
-      [receiptId]
+      [email]
     );
 
-    if (!receipts || receipts.length === 0) {
-      return NextResponse.json({ error: "Receipt not found" }, { status: 404 });
-    }
+    const existingClient = existingClients?.[0] ?? null;
+    let clientId: string;
 
-    const receipt = receipts[0];
+    if (!existingClient?.id) {
+      const newClientId = randomUUID();
 
-    // 2) submissions (optional, but lets us prefer the originally submitted JSON)
-    let submissionData: unknown = null;
-    if (receipt.submission_id) {
-      const subs = await queryRaw<SubmissionRow[]>(
+      await queryRaw(
         `
-        SELECT submitted_data, "createdAt"
-        FROM submissions
-        WHERE id = $1
-        LIMIT 1
+        INSERT INTO clients (
+          id,
+          "firstName",
+          "lastName",
+          email,
+          phone,
+          "dateOfBirth",
+          "createdAt",
+          "updatedAt"
+        )
+        VALUES ($1,$2,$3,$4,$5,$6,NOW(),NOW())
         `,
-        [receipt.submission_id]
+        [newClientId, firstName || null, lastName || null, email, phone, dateOfBirth]
       );
 
-      if (subs && subs.length > 0 && subs[0].submitted_data) {
-        try {
-          submissionData = JSON.parse(subs[0].submitted_data);
-        } catch {
-          submissionData = null;
-        }
+      clientId = newClientId;
+    } else {
+      clientId = existingClient.id;
+
+      // keep record fresh (optional)
+      await queryRaw(
+        `
+        UPDATE clients
+        SET
+          "firstName" = COALESCE(NULLIF($2,''), "firstName"),
+          "lastName"  = COALESCE(NULLIF($3,''), "lastName"),
+          phone       = COALESCE($4, phone),
+          "dateOfBirth" = COALESCE($5, "dateOfBirth"),
+          "updatedAt" = NOW()
+        WHERE id = $1
+        `,
+        [clientId, firstName, lastName, phone, dateOfBirth]
+      );
+    }
+
+    // ------------------------------------------------------------
+    // 2) Resolve insurer (optional)
+    // ------------------------------------------------------------
+    let insurerId: string | null = null;
+    let carrierNameRaw: string | null = null;
+
+    if (insurerNameInput) {
+      const insurers = await queryRaw<InsurerRow>(
+        `
+        SELECT id, name
+        FROM insurers
+        WHERE LOWER(name) = LOWER($1)
+        LIMIT 1
+        `,
+        [insurerNameInput]
+      );
+
+      const insurer = insurers?.[0] ?? null;
+
+      if (insurer?.id) {
+        insurerId = insurer.id;
+      } else {
+        // “lazy insurers” mode: don't create insurer rows automatically
+        carrierNameRaw = insurerNameInput;
       }
     }
 
-    // Helper to safely pluck from unknown JSON (no `any`)
-    const pickObj = (v: unknown): Record<string, unknown> | null =>
-      typeof v === "object" && v !== null ? (v as Record<string, unknown>) : null;
+    // ------------------------------------------------------------
+    // 3) Create policy row (optional)
+    // ------------------------------------------------------------
+    let policyId: string | null = null;
 
-    const submissionObj = pickObj(submissionData);
-    const submissionClientData = pickObj(submissionObj?.clientData);
-    const submissionPolicyData = pickObj(submissionObj?.policyData);
+    if (policyNumber || policyType || insurerId || carrierNameRaw) {
+      policyId = randomUUID();
 
-    // 3) client
-    const clients = await queryRaw<ClientRow[]>(
+      await queryRaw(
+        `
+        INSERT INTO policies (
+          id,
+          "clientId",
+          policy_number,
+          policy_type,
+          insurer_id,
+          carrier_name_raw,
+          "createdAt",
+          "updatedAt"
+        )
+        VALUES ($1,$2,$3,$4,$5,$6,NOW(),NOW())
+        `,
+        [policyId, clientId, policyNumber, policyType, insurerId, carrierNameRaw]
+      );
+    }
+
+    // ------------------------------------------------------------
+    // 4) Store submission payload
+    // ------------------------------------------------------------
+    const submissionId = randomUUID();
+
+    const submittedPayload = {
+      clientData: {
+        firstName: firstName || null,
+        lastName: lastName || null,
+        email,
+        phone,
+        dateOfBirth: dateOfBirth ? dateOfBirth.toISOString() : null,
+      },
+      policyData: {
+        policyNumber,
+        policyType,
+        insurerName: insurerNameInput,
+      },
+      raw: body?.raw ?? body ?? null,
+      clientId,
+      policyId,
+      submittedAt: new Date().toISOString(),
+    };
+
+    await queryRaw(
       `
-      SELECT "firstName", "lastName", email
+      INSERT INTO submissions (
+        id,
+        submitted_data,
+        "createdAt"
+      )
+      VALUES ($1,$2,NOW())
+      `,
+      [submissionId, JSON.stringify(submittedPayload)]
+    );
+
+    // ------------------------------------------------------------
+    // 5) Create receipt
+    // ------------------------------------------------------------
+    const receiptRowId = randomUUID();
+    const receiptNumber = `REC-${clientId}-${Date.now()}`;
+
+    await queryRaw(
+      `
+      INSERT INTO receipts (
+        id,
+        receipt_number,
+        "clientId",
+        submission_id,
+        "createdAt"
+      )
+      VALUES ($1,$2,$3,$4,NOW())
+      `,
+      [receiptRowId, receiptNumber, clientId, submissionId]
+    );
+
+    // ------------------------------------------------------------
+    // 6) Fetch created records for response (arrays -> single rows)
+    // ------------------------------------------------------------
+    const receipts = await queryRaw<ReceiptRow>(
+      `
+      SELECT id, receipt_number, "clientId", submission_id, "createdAt"
+      FROM receipts
+      WHERE id = $1
+      LIMIT 1
+      `,
+      [receiptRowId]
+    );
+    const receipt = receipts?.[0] ?? null;
+
+    const clients = await queryRaw<ClientRow>(
+      `
+      SELECT id, "firstName", "lastName", email, phone, "dateOfBirth", "createdAt"
       FROM clients
       WHERE id = $1
       LIMIT 1
       `,
-      [receipt.clientId]
+      [clientId]
     );
+    const client = clients?.[0] ?? null;
 
-    const clientRow = clients?.[0] ?? null;
-
-    // Choose submission clientData first (if present), else DB
-    const firstName =
-      (typeof submissionClientData?.firstName === "string" && submissionClientData.firstName) ||
-      clientRow?.firstName ||
-      "";
-
-    const lastName =
-      (typeof submissionClientData?.lastName === "string" && submissionClientData.lastName) ||
-      clientRow?.lastName ||
-      "";
-
-    const email =
-      (typeof submissionClientData?.email === "string" && submissionClientData.email) ||
-      clientRow?.email ||
-      null;
-
-    // 4) latest policy for this client (at or before receipt time is usually "cleaner")
-    const policies = await queryRaw<PolicyRow[]>(
-      `
-      SELECT policy_number, policy_type, insurer_id, carrier_name_raw
-      FROM policies
-      WHERE "clientId" = $1
-        AND "createdAt" <= $2
-      ORDER BY "createdAt" DESC
-      LIMIT 1
-      `,
-      [receipt.clientId, receipt.createdAt]
-    );
-
-    const policyRow = policies?.[0] ?? null;
-
-    // Prefer submission policyData fields if present
-    const policyNumber =
-      (typeof submissionPolicyData?.policyNumber === "string" && submissionPolicyData.policyNumber) ||
-      policyRow?.policy_number ||
-      null;
-
-    const policyType =
-      (typeof submissionPolicyData?.policyType === "string" && submissionPolicyData.policyType) ||
-      policyRow?.policy_type ||
-      null;
-
-    // 5) insurer name
-    let insurerName: string | null =
-      (typeof submissionPolicyData?.insurerName === "string" && submissionPolicyData.insurerName) ||
-      null;
-
-    if (!insurerName) {
-      if (policyRow?.insurer_id) {
-        const insurers = await queryRaw<InsurerRow[]>(
+    const policies = policyId
+      ? await queryRaw<PolicyRow>(
           `
-          SELECT name
-          FROM insurers
+          SELECT
+            id,
+            "clientId" as "clientId",
+            policy_number,
+            policy_type,
+            insurer_id,
+            carrier_name_raw,
+            "createdAt"
+          FROM policies
           WHERE id = $1
           LIMIT 1
           `,
-          [policyRow.insurer_id]
-        );
-        insurerName = insurers?.[0]?.name ?? null;
-      } else if (policyRow?.carrier_name_raw) {
-        insurerName = policyRow.carrier_name_raw;
-      }
+          [policyId]
+        )
+      : [];
+    const policy = policies?.[0] ?? null;
+
+    // ------------------------------------------------------------
+    // 7) Final insurerName for response
+    // ------------------------------------------------------------
+    let insurerName: string | null = insurerNameInput ?? null;
+
+    if (!insurerName && policy?.insurer_id) {
+      const insurers = await queryRaw<InsurerRow>(
+        `
+        SELECT id, name
+        FROM insurers
+        WHERE id = $1
+        LIMIT 1
+        `,
+        [policy.insurer_id]
+      );
+      insurerName = insurers?.[0]?.name ?? null;
+    }
+
+    if (!insurerName && policy?.carrier_name_raw) {
+      insurerName = policy.carrier_name_raw;
     }
 
     return NextResponse.json({
       success: true,
-      receiptId: receipt.receipt_number,
-      submittedAt: receipt.createdAt.toISOString(),
-      decedentName: `${firstName} ${lastName}`.trim() || null,
-      email,
-      policyNumber,
-      policyType,
-      insurerName,
+      receiptId: receipt?.receipt_number ?? receiptNumber,
+      submittedAt: (receipt?.createdAt ?? new Date()).toISOString(),
+      client: {
+        id: clientId,
+        firstName: client?.firstName ?? firstName ?? null,
+        lastName: client?.lastName ?? lastName ?? null,
+        email: client?.email ?? email,
+        phone: client?.phone ?? phone,
+        dateOfBirth: (client?.dateOfBirth ?? dateOfBirth)?.toISOString?.() ?? null,
+      },
+      policy: policy
+        ? {
+            id: policy.id,
+            policyNumber: policy.policy_number,
+            policyType: policy.policy_type,
+            insurerName,
+          }
+        : null,
+      submissionId,
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Unknown error";
-    console.error("Error fetching policy-intake receipt:", message);
-    return NextResponse.json({ error: "Failed to fetch receipt" }, { status: 500 });
+    console.error("policy-intake submit error:", message);
+    return NextResponse.json({ error: "Failed to submit intake" }, { status: 500 });
   }
 }

@@ -13,7 +13,7 @@ const testClients = [
 async function populateInvites(baseUrl: string) {
   const invites: Array<{ token: string, email: string, name: string, url: string }> = [];
 
-    const { findMany: findManyClients, findUnique: findUniqueInvite, create: createClient, create: createInvite } = await import("@/lib/db");
+    const { findMany: findManyClients, findUnique: findUniqueInvite, create: createDbRecord, create: createInvite } = await import("@/lib/db");
     
   for (const clientData of testClients) {
     // Find or create client
@@ -27,7 +27,7 @@ async function populateInvites(baseUrl: string) {
     if (!client) {
       const clientId = randomUUID();
       const now = new Date().toISOString();
-      client = await createClient("clients", {
+      client = await createDbRecord("clients", {
         id: clientId,
         firstName: clientData.firstName,
         lastName: clientData.lastName,

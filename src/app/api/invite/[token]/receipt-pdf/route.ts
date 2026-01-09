@@ -114,7 +114,7 @@ export async function GET(
     let policies: ReceiptPolicy[] = [];
     try {
       const { queryRaw } = await import("@/lib/db");
-      const policiesResult = await queryRaw<PolicyRow[]>(`
+      const policiesResult = await queryRaw<PolicyRow>(`
         SELECT
           p.id,
           p.policy_number,

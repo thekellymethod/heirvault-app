@@ -372,7 +372,7 @@ export function ClientBallotPDF({ ballotData }: ClientBallotPDFProps) {
         {ballotData.updateUrl && (
           <View style={styles.qrSection}>
             {ballotData.qrCodeDataUrl ? (
-              <Image src={ballotData.qrCodeDataUrl} style={styles.qrCode} alt="QR Code" />
+              <Image src={ballotData.qrCodeDataUrl} style={styles.qrCode} />
             ) : (
               <View style={[styles.qrCode, { backgroundColor: "#E5E7EB" }]}>
                 <Text style={{ textAlign: "center", paddingTop: 30, fontSize: 7 }}>

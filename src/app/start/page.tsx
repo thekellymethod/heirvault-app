@@ -72,7 +72,7 @@ export default function StartFreePage() {
             </div>
 
             <p className="mt-3 text-xs text-white/50">
-              No credit card required to start. You can enable billing when you're ready.
+              No credit card required to start. You can enable billing when you&apos;re ready.
             </p>
 
             {/* What you get */}
@@ -120,7 +120,7 @@ export default function StartFreePage() {
                 <div className="flex gap-3">
                   <StepBadge>3</StepBadge>
                   <div>
-                    <div className="text-white/90 font-medium">Enable billing when you're ready</div>
+                    <div className="text-white/90 font-medium">Enable billing when you&apos;re ready</div>
                     <div className="text-white/60">
                       Billing unlocks ongoing active registries beyond the included amount.
                     </div>
@@ -201,7 +201,7 @@ export default function StartFreePage() {
                 <li className="flex gap-2"><Dot /> Action logging for key events</li>
               </ul>
               <p className="mt-3 text-xs italic text-white/50">
-                Security isn't a marketing claim—it's built into the architecture.
+                Security isn&apos;t a marketing claim—it&apos;s built into the architecture.
               </p>
             </div>
           </aside>
@@ -213,7 +213,7 @@ export default function StartFreePage() {
             Stop losing time chasing life insurance policies.
           </h2>
           <p className="mt-2 text-sm text-white/70">
-            Build a registry that shows exactly what exists—and what doesn't.
+            Build a registry that shows exactly what exists—and what doesn&apos;t.
           </p>
           <div className="mt-6 flex justify-center">
             <Link

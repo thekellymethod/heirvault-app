@@ -24,6 +24,15 @@ export default function UploadPage() {
   const inviteToken = sp.get("token");
   const changeToken = sp.get("changeToken");
 
+  // Existing invite/change token flow
+  const modeRaw: Mode | null = inviteToken ? "INVITE" : changeToken ? "CHANGE" : null;
+  const token = inviteToken ?? changeToken ?? "";
+
+  // Hooks must be called unconditionally - before any early returns
+  const [valid, setValid] = useState<boolean | null>(null);
+  const [displayName, setDisplayName] = useState<string>("Policyholder");
+  const [err, setErr] = useState<string | null>(null);
+
   // Payment-based upload flow
   if (sessionId) {
     return (
@@ -39,24 +48,16 @@ export default function UploadPage() {
     );
   }
 
-  // Existing invite/change token flow
-  const mode: Mode | null = inviteToken ? "INVITE" : changeToken ? "CHANGE" : null;
-  const token = inviteToken ?? changeToken ?? "";
-
-  const [valid, setValid] = useState<boolean | null>(null);
-  const [displayName, setDisplayName] = useState<string>("Policyholder");
-  const [err, setErr] = useState<string | null>(null);
-
   useEffect(() => {
     (async () => {
-      if (!mode) {
+      if (!modeRaw) {
         setValid(false);
         setErr("Missing secure link token.");
         return;
       }
       try {
         setErr(null);
-        const url = mode === "INVITE" ? "/api/public/invite/validate" : "/api/public/change-request/validate";
+        const url = modeRaw === "INVITE" ? "/api/public/invite/validate" : "/api/public/change-request/validate";
         const r = await postJson(url, { token });
         setValid(!!r.valid);
         if (r.displayName) setDisplayName(r.displayName);
@@ -66,10 +67,14 @@ export default function UploadPage() {
         setErr(error?.message ?? "Invalid link.");
       }
     })();
-  }, [mode, token]);
+  }, [modeRaw, token]);
 
   if (valid === null) return <div className="p-6">Loading…</div>;
   if (!valid) return <div className="p-6 text-red-600">{err ?? "Invalid link."}</div>;
+  if (!modeRaw) return <div className="p-6 text-red-600">Invalid mode.</div>;
+
+  // TypeScript now knows modeRaw is not null
+  const mode = modeRaw as Mode;
 
   return (
     <div className="p-6 space-y-4 max-w-2xl mx-auto">

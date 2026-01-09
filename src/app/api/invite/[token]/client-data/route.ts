@@ -101,21 +101,23 @@ export async function GET(
     if (isInviteWithClient(invite)) {
       response.email = invite.client.email ?? "";
       response.phone = invite.client.phone ?? "";
-      response.address.street = invite.client.addressLine1 ?? "";
-      response.address.city = invite.client.city ?? "";
-      response.address.state = invite.client.state ?? "";
-      response.address.zipCode = invite.client.postalCode ?? "";
+      // Address fields may not exist on client type - use optional chaining
+      const clientWithAddress = invite.client as ClientData;
+      response.address.street = clientWithAddress.addressLine1 ?? "";
+      response.address.city = clientWithAddress.city ?? "";
+      response.address.state = clientWithAddress.state ?? "";
+      response.address.zipCode = clientWithAddress.postalCode ?? "";
 
       // Try to use preloaded arrays if present
-      const prePolicies = invite.client.policies ?? [];
-      const preBeneficiaries = invite.client.beneficiaries ?? [];
+      const prePolicies = clientWithAddress.policies ?? [];
+      const preBeneficiaries = clientWithAddress.beneficiaries ?? [];
 
       // If not present, fetch them via SQL
       if (prePolicies.length === 0 || preBeneficiaries.length === 0) {
         try {
           const { queryRaw } = await import("@/lib/db");
           const [policiesResult, beneficiariesResult] = await Promise.all([
-            queryRaw<PolicyRow[]>(`
+            queryRaw<PolicyRow>(`
               SELECT
                 p.id,
                 p.policy_number,
@@ -125,7 +127,7 @@ export async function GET(
               INNER JOIN insurers i ON i.id = p.insurer_id
               WHERE p."clientId" = $1
             `, [invite.clientId]),
-            queryRaw<BeneficiaryRow[]>(`
+            queryRaw<BeneficiaryRow>(`
               SELECT
                 b.id,
                 b."firstName",
@@ -142,14 +144,14 @@ export async function GET(
             `, [invite.clientId]),
           ]);
 
-          response.policies = (policiesResult ?? []).map((p) => ({
+          response.policies = (policiesResult ?? []).map((p: PolicyRow) => ({
             id: p.id,
             policyNumber: p.policy_number,
             insurerName: p.insurer_name,
             policyType: p.policy_type,
           }));
 
-          response.beneficiaries = (beneficiariesResult ?? []).map((b) => ({
+          response.beneficiaries = (beneficiariesResult ?? []).map((b: BeneficiaryRow) => ({
             id: b.id,
             firstName: b.firstName,
             lastName: b.lastName,

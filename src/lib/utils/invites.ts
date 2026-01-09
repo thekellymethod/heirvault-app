@@ -149,7 +149,7 @@ export async function acceptInvite(token: string, userId: string) {
     updatedAt?: string;
   };
 
-  const { findMany: findManyClients, create: createClient, update: updateClientRecord } = await import("@/lib/db");
+  const { findMany: findManyClients, create: createDbRecord, update: updateClientRecord } = await import("@/lib/db");
   const existingClients = await findManyClients<ClientRecord>("clients", {
     where: { email: invite.clientEmail },
     limit: 1,
@@ -166,7 +166,7 @@ export async function acceptInvite(token: string, userId: string) {
   if (!existingClients || existingClients.length === 0) {
     // Create client record
     const clientId = randomUUID();
-    const newClient = await createClient<ClientRecord>("clients", {
+    const newClient = await createDbRecord<ClientRecord>("clients", {
       id: clientId,
       email: invite.clientEmail,
       firstName: user.firstName || '',

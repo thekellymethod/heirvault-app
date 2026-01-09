@@ -19,8 +19,9 @@ export default function BillingForm() {
       if (!res.ok) throw new Error(await res.text());
       const { url } = await res.json();
       window.location.href = url;
-    } catch (e: any) {
-      alert(e?.message ?? "Checkout failed");
+    } catch (e: unknown) {
+      const errorMessage = e instanceof Error ? e.message : "Checkout failed";
+      alert(errorMessage);
       setLoading(false);
     }
   }

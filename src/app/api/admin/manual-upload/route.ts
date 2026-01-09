@@ -151,7 +151,7 @@ export async function POST(req: NextRequest) {
           );
         }
 
-        const { findMany: findManyClients, create: createClient } = await import("@/lib/db");
+        const { findMany: findManyClients, create: createDbRecord } = await import("@/lib/db");
         
         // Check if client already exists
         const existingClients = await findManyClients("clients", {
@@ -171,7 +171,7 @@ export async function POST(req: NextRequest) {
         const now = new Date().toISOString();
 
         // Create client
-        const client = await createClient("clients", {
+        const client = await createDbRecord("clients", {
           id: clientId,
           email,
           firstName: firstName,

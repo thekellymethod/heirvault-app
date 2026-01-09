@@ -172,7 +172,7 @@ export function InvitePDF({
         {qrCodeDataUrl && (
           <View style={styles.qrSection}>
             <Text style={styles.sectionTitle}>Option 1: Scan QR Code</Text>
-            <Image src={qrCodeDataUrl} style={styles.qrCode} alt="QR Code" />
+              <Image src={qrCodeDataUrl} style={styles.qrCode} />
             <Text style={styles.paragraph}>
               Scan this QR code with your phone camera to access the upload portal.
             </Text>

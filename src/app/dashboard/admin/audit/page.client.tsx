@@ -2,6 +2,8 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 
 async function postJson(url: string, body: Record<string, unknown>) {
   const res = await fetch(url, {
@@ -72,9 +74,28 @@ export default function AuditClient() {
   };
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="text-2xl font-semibold">Audit Explorer (Admin)</div>
-      {err && <div className="text-red-600">{err}</div>}
+    <div className="space-y-6">
+      {/* Red Banner */}
+      <div className="bg-red-600 text-white px-6 py-4 border-b border-red-700">
+        <div className="flex items-center gap-2">
+          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+          </svg>
+          <p className="font-semibold">Admin Audit Trail - Sensitive Information</p>
+        </div>
+      </div>
+      
+      <div className="p-6 space-y-6">
+        {/* Back Button */}
+        <div className="mb-4">
+          <Link href="/admin" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-300 hover:bg-slate-50 transition-colors text-slate-700">
+            <ArrowLeft className="h-4 w-4" />
+            Back to Admin Dashboard
+          </Link>
+        </div>
+        
+        <div className="text-2xl font-semibold">Audit Explorer (Admin)</div>
+        {err && <div className="text-red-600">{err}</div>}
 
       <div className="rounded-2xl border p-5 space-y-3">
         <div className="font-semibold">Audit Logs</div>

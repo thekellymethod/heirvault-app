@@ -28,8 +28,9 @@ export function FileList({ orgId, registryId }: { orgId: string; registryId: str
         }
         const j = await r.json();
         setFiles(j.files || []);
-      } catch (e: any) {
-        setErr(e?.message || "Failed to load files.");
+      } catch (e: unknown) {
+        const errorMessage = e instanceof Error ? e.message : "Failed to load files.";
+        setErr(errorMessage);
       } finally {
         setLoading(false);
       }
@@ -50,8 +51,9 @@ export function FileList({ orgId, registryId }: { orgId: string; registryId: str
       }
       const j = await r.json();
       window.open(j.signedUrl, "_blank", "noopener,noreferrer");
-    } catch (e: any) {
-      setErr(e?.message || "Failed to open file.");
+    } catch (e: unknown) {
+      const errorMessage = e instanceof Error ? e.message : "Failed to open file.";
+      setErr(errorMessage);
     }
   }
 

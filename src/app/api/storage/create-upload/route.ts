@@ -78,7 +78,7 @@ export async function POST(req: Request) {
     } as Record<string, unknown>);
 
     // Signed upload URL (10 minutes)
-    // @ts-ignore - createSignedUploadUrl may not be in types but exists in runtime
+    // @ts-expect-error - createSignedUploadUrl may not be in types but exists in runtime
     const { data, error } = await supabaseAdmin.storage.from(bucket).createSignedUploadUrl(path);
 
     if (error || !data?.signedUrl) {

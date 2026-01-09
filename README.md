@@ -364,21 +364,24 @@ ADMIN_EMAILS="admin@example.com,another-admin@example.com"
 
 ## 🚢 Deployment
 
-See `DEPLOYMENT.md` for detailed deployment instructions.
+See `DEPLOYMENT_REPORT.md` for detailed deployment instructions and `PREDEPLOY_CHECKLIST.md` for a reusable pre-deployment checklist.
 
 ### Quick Deploy Checklist
 
-1. ✅ Set up PostgreSQL database
-2. ✅ Configure environment variables
-3. ✅ Run Prisma migrations: `npm run db:migrate`
-4. ✅ Build the application: `npm run build`
-5. ✅ Deploy to your hosting platform (Vercel, Railway, etc.)
+1. ✅ Set up Supabase project and database
+2. ✅ Configure environment variables (see `.env.example`)
+3. ✅ Apply Supabase migrations: `supabase db push` or via Dashboard
+4. ✅ Create storage buckets in Supabase Dashboard
+5. ✅ Build the application: `npm run build`
+6. ✅ Deploy to your hosting platform (Vercel recommended)
 
 ### Important Notes
 
-- **Database Migrations**: Use `npm run db:migrate` for production migrations
-- **Schema Management**: Schema is defined in `prisma/schema.prisma` using Prisma ORM
-- **Development**: Use `npm run db:push` to sync schema changes during development
+- **Database Migrations**: Use `supabase db push` for production migrations (or apply via Supabase Dashboard)
+- **Schema Management**: Migrations are in `supabase/migrations/` directory
+- **Storage Buckets**: Create required buckets (`heirvault-files`, etc.) in Supabase Dashboard → Storage
+- **Environment Variables**: All required variables are validated by `src/lib/env.ts`
+- **Health Check**: Verify deployment with `/api/health` endpoint
 
 ## 📚 Documentation
 

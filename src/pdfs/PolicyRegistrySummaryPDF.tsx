@@ -195,7 +195,7 @@ export function PolicyRegistrySummaryPDF({ input }: { input: PolicyRegistrySumma
           </View>
 
           {input.policies.map((p, idx) => (
-            <View key={idx} style={[styles.row, idx % 2 === 1 ? styles.rowAlt : null]}>
+            <View key={idx} style={[styles.row, idx % 2 === 1 ? styles.rowAlt : undefined]}>
               <Text style={[styles.td, styles.cCarrier]}>{p.carrier}</Text>
               <Text style={[styles.td, styles.cPolicy]}>{p.policyNumberMasked}</Text>
               <Text style={[styles.td, styles.cInsured]}>{p.insured}</Text>

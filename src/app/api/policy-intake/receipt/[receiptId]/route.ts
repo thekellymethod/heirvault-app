@@ -1,7 +1,10 @@
+// src/app/api/policy-intake/receipt/[receiptId]/route.ts
 import { NextRequest, NextResponse } from "next/server";
-;
 
 export const runtime = "nodejs";
+
+// NOTE: queryRaw<Row>() returns Row[] (NOT Row[][]).
+// So the generic must be the ROW TYPE, not Row[].
 
 type ReceiptRow = {
   id: string;
@@ -45,9 +48,16 @@ export async function GET(
     const { receiptId } = await params;
 
     const { queryRaw } = await import("@/lib/db");
-    const receipts = await queryRaw<ReceiptRow[]>(
+
+    // 1) Receipt
+    const receipts = await queryRaw<ReceiptRow>(
       `
-      SELECT id, receipt_number, "clientId" as "clientId", submission_id, "createdAt"
+      SELECT
+        id,
+        receipt_number,
+        "clientId" as "clientId",
+        submission_id,
+        "createdAt"
       FROM receipts
       WHERE receipt_number = $1
       LIMIT 1
@@ -55,16 +65,17 @@ export async function GET(
       [receiptId]
     );
 
-    if (!receipts || receipts.length === 0) {
+    const receipt = receipts?.[0] ?? null;
+
+    if (!receipt) {
       return NextResponse.json({ error: "Receipt not found" }, { status: 404 });
     }
 
-    const receipt = receipts[0];
-
-    // Submission (optional)
+    // 2) Submission (optional)
     let submissionObj: Record<string, unknown> | null = null;
+
     if (receipt.submission_id) {
-      const subs = await queryRaw<SubmissionRow[]>(
+      const subs = await queryRaw<SubmissionRow>(
         `
         SELECT submitted_data, "createdAt"
         FROM submissions
@@ -87,8 +98,8 @@ export async function GET(
     const submissionClientData = asRecord(submissionObj?.clientData);
     const submissionPolicyData = asRecord(submissionObj?.policyData);
 
-    // Client from DB
-    const clients = await queryRaw<ClientRow[]>(
+    // 3) Client
+    const clients = await queryRaw<ClientRow>(
       `
       SELECT "firstName", "lastName", email
       FROM clients
@@ -115,8 +126,8 @@ export async function GET(
       clientRow?.email ||
       null;
 
-    // Policy at/before receipt time (keeps it historically consistent)
-    const policies = await queryRaw<PolicyRow[]>(
+    // 4) Policy at/before receipt time (historically consistent)
+    const policies = await queryRaw<PolicyRow>(
       `
       SELECT policy_number, policy_type, insurer_id, carrier_name_raw, "createdAt"
       FROM policies
@@ -140,13 +151,14 @@ export async function GET(
       policyRow?.policy_type ||
       null;
 
+    // 5) Insurer name
     let insurerName: string | null =
       (typeof submissionPolicyData?.insurerName === "string" && submissionPolicyData.insurerName) ||
       null;
 
     if (!insurerName) {
       if (policyRow?.insurer_id) {
-        const insurers = await queryRaw<InsurerRow[]>(
+        const insurers = await queryRaw<InsurerRow>(
           `
           SELECT name
           FROM insurers

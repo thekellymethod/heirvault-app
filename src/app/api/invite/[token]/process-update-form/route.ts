@@ -5,7 +5,7 @@ import { decodePassportForm } from "@/lib/ocr-form-decoder";
 import { uploadDocument } from "@/lib/storage";
 import { renderToStream } from "@react-pdf/renderer";
 import { ClientReceiptPDF } from "@/pdfs/ClientReceiptPDF";
-import { sendClientReceiptEmail, sendAttorneyNotificationEmail } from "@/lib/email";
+import { sendClientReceiptEmail, sendAttorneyNotificationEmail } from "@/lib/email/notifications";
 import { AuditAction } from "@/lib/db/enums";
 import { getOrCreateTestInvite } from "@/lib/test-invites";
 import { lookupClientInvite } from "@/lib/invite-lookup";
@@ -160,7 +160,7 @@ export async function POST(
     // 4) Archive uploaded file (best-effort)
     let archivedDocument: { id: string } | null = null;
     try {
-      const { storagePath } = await uploadDocument({
+      const uploaded = await uploadDocument({
         fileBuffer: await file.arrayBuffer(),
         filename: file.name,
         contentType: file.type,
@@ -173,7 +173,7 @@ export async function POST(
         fileName: file.name,
         fileType: file.type,
         fileSize: file.size,
-        filePath: storagePath,
+        filePath: uploaded.key,
         mimeType: file.type,
         uploadedVia: "update-form",
         extractedData: toInputJson(decodedData),

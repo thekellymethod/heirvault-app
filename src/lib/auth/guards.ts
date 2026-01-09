@@ -11,6 +11,37 @@ export class HttpError extends Error {
   }
 }
 
+/**
+ * Helper to describe errors for logging - prevents [object Object] in logs
+ */
+export function describeError(e: unknown): {
+  type: string;
+  name?: string;
+  message?: string;
+  stack?: string;
+  value?: unknown;
+} {
+  if (e instanceof Error) {
+    return {
+      type: "Error",
+      name: e.name,
+      message: e.message,
+      stack: e.stack,
+    };
+  }
+  try {
+    return {
+      type: typeof e,
+      value: JSON.parse(JSON.stringify(e)),
+    };
+  } catch {
+    return {
+      type: typeof e,
+      value: String(e),
+    };
+  }
+}
+
 export async function requireAuth() {
   const user = await getOrCreateAppUser();
   if (!user) throw new HttpError(401, "Not authenticated.");
@@ -28,49 +59,79 @@ export async function requireAuth() {
  * @throws HttpError(403) if user is not an admin
  */
 export async function requireAdmin() {
-  // First check Clerk public metadata (authoritative source)
-  const clerkUser = await currentUser();
-  if (!clerkUser) {
-    throw new HttpError(401, "Not authenticated.");
-  }
+  try {
+    // First check Clerk public metadata (authoritative source)
+    const clerkUser = await currentUser();
+    if (!clerkUser) {
+      throw new HttpError(401, "Not authenticated.");
+    }
 
-  // Check Clerk public metadata first (primary source of truth)
-  // Handle both "role" and "user.role" formats for backward compatibility
-  const publicMetadata = (clerkUser.publicMetadata || {}) as Record<string, unknown>;
-  const clerkRole = (publicMetadata.role || (publicMetadata as Record<string, unknown>)["user.role"] || null) as string | null;
-  const isAdminInClerk = clerkRole === "admin";
-  
-  if (isAdminInClerk) {
-    // User is admin via Clerk metadata - return the database user
-    const user = await requireAuth();
-    return user;
-  }
-
-  // Fallback: Check database roles and ADMIN_EMAILS (backward compatibility)
-  const user = await requireAuth();
-  
-  // Check if user has ADMIN role in database
-  if (user.roles.includes("ADMIN")) {
-    return user;
-  }
-
-  // Check if email is in ADMIN_EMAILS env var (backward compatibility)
-  if (user.email) {
-    const email = user.email.toLowerCase();
-    const bootstrapAdminEmail = process.env.BOOTSTRAP_ADMIN_EMAIL?.toLowerCase().trim();
-    const adminEmails = process.env.ADMIN_EMAILS?.split(",").map((e) => e.trim().toLowerCase()).filter(Boolean) || [];
+    // Check Clerk public metadata first (primary source of truth)
+    // Handle both "role" and "user.role" formats for backward compatibility
+    const publicMetadata = (clerkUser.publicMetadata || {}) as Record<string, unknown>;
+    const clerkRole = (publicMetadata.role || (publicMetadata as Record<string, unknown>)["user.role"] || null) as string | null;
+    const isAdminInClerk = clerkRole === "admin";
     
-    const isAdminByEmail = 
-      (bootstrapAdminEmail && email === bootstrapAdminEmail) ||
-      adminEmails.includes(email);
-    
-    if (isAdminByEmail) {
+    if (isAdminInClerk) {
+      // User is admin via Clerk metadata - return the database user
+      const user = await requireAuth();
       return user;
     }
-  }
 
-  // Not an admin via any method
-  throw new HttpError(403, "Admin access required.");
+    // Fallback: Check database roles and ADMIN_EMAILS (backward compatibility)
+    const user = await requireAuth();
+    
+    // Check if user has ADMIN role in database
+    if (user.roles.includes("ADMIN")) {
+      return user;
+    }
+
+    // Check if email is in ADMIN_EMAILS env var (backward compatibility)
+    if (user.email) {
+      const email = user.email.toLowerCase();
+      const bootstrapAdminEmail = process.env.BOOTSTRAP_ADMIN_EMAIL?.toLowerCase().trim();
+      const adminEmails = process.env.ADMIN_EMAILS?.split(",").map((e) => e.trim().toLowerCase()).filter(Boolean) || [];
+      
+      const isAdminByEmail = 
+        (bootstrapAdminEmail && email === bootstrapAdminEmail) ||
+        adminEmails.includes(email);
+      
+      if (isAdminByEmail) {
+        return user;
+      }
+    }
+
+    // Not an admin via any method
+    throw new HttpError(403, "Admin access required.");
+  } catch (error) {
+    // Re-throw HttpError as-is (it's already properly formatted)
+    if (error instanceof HttpError) {
+      console.error("[requireAdmin] HttpError thrown:", describeError(error));
+      throw error;
+    }
+    
+    // For other errors (database errors, etc.), log with full details
+    const errorInfo = describeError(error);
+    console.error("[requireAdmin] Unexpected error:", errorInfo);
+    
+    // Check if it's a PostgREST/database schema error
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorCode = (error as any)?.code;
+    
+    // PostgREST errors have specific codes (PGRST204 = column not found)
+    if (errorCode === "PGRST204" || errorMessage.includes("Could not find") || errorMessage.includes("column") || errorMessage.includes("schema cache")) {
+      console.error("[requireAdmin] Database schema error - likely column name mismatch (camelCase vs snake_case)");
+      throw new HttpError(500, `Database schema error: ${errorMessage}. This is likely a column name mismatch. Check that you're using snake_case for database columns (e.g., updated_at not updatedAt).`);
+    }
+    
+    // If it's a database/user creation error, return 500 with helpful message
+    if (errorMessage.includes("database") || errorMessage.includes("create") || errorMessage.includes("insert") || errorMessage.includes("DB") || errorMessage.includes("PostgREST")) {
+      throw new HttpError(500, `Database error during authentication: ${errorMessage}`);
+    }
+    
+    // For other unexpected errors, return 500
+    throw new HttpError(500, `Authentication error: ${errorMessage}`);
+  }
 }
 
 export async function requireVerifiedAttorney() {

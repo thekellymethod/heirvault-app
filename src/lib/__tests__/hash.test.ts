@@ -52,7 +52,8 @@ describe("Hash Functions", () => {
     });
 
     it("should hash an ArrayBuffer correctly", async () => {
-      const arrayBuffer = new TextEncoder().encode("hello world");
+      const uint8Array = new TextEncoder().encode("hello world");
+      const arrayBuffer = uint8Array.buffer.slice(uint8Array.byteOffset, uint8Array.byteOffset + uint8Array.byteLength);
       const result = await sha256Buffer(arrayBuffer);
       expect(result).toBe("b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9");
     });

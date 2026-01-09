@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
     } | null = null;
 
     try {
-        const { queryRaw, create: createClient, findUnique: findUniqueClient } = await import("@/lib/db");
+        const { queryRaw, create: createDbRecord, findUnique: findUniqueClient } = await import("@/lib/db");
         const { randomUUID } = await import("crypto");
         
         const clientResult = await queryRaw<{
@@ -67,12 +67,12 @@ export async function POST(req: NextRequest) {
     // Create client if they don't exist
     if (!client) {
       try {
-        const { create: createClient, findUnique: findUniqueClient } = await import("@/lib/db");
+        const { create: createDbRecord, findUnique: findUniqueClient } = await import("@/lib/db");
         const { randomUUID } = await import("crypto");
         // Insert client and get the ID
         const clientId = randomUUID();
         const now = new Date().toISOString();
-        await createClient("clients", {
+        await createDbRecord("clients", {
           id: clientId,
           email: normalizedEmail,
           firstName,

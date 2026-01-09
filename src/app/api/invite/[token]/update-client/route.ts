@@ -7,9 +7,25 @@ import { getOrCreateTestInvite } from "@/lib/test-invites";
 import { lookupClientInvite } from "@/lib/invite-lookup";
 import { renderToStream } from "@react-pdf/renderer";
 import { ClientReceiptPDF } from "@/pdfs/ClientReceiptPDF";
-import { sendClientReceiptEmail, sendAttorneyNotificationEmail } from "@/lib/email";
+import { sendClientReceiptEmail, sendAttorneyNotificationEmail } from "@/lib/email/notifications";
 
 export const runtime = "nodejs";
+
+// Helper functions to normalize queryRaw results
+function asRows<T>(res: unknown): T[] {
+  if (!res) return [];
+  if (Array.isArray(res)) return res as T[];
+  if (typeof res === "object" && res !== null && "rows" in res) {
+    const rows = (res as { rows: unknown }).rows;
+    return Array.isArray(rows) ? (rows as T[]) : [];
+  }
+  return [];
+}
+
+function first<T>(res: unknown): T | null {
+  const rows = asRows<T>(res);
+  return rows.length ? rows[0] : null;
+}
 
 export async function POST(
   req: NextRequest,
@@ -32,7 +48,7 @@ export async function POST(
       );
     }
 
-    const isValid = verifyConfirmationCode(token, confirmationCode, confirmationMethod);
+    const isValid = await verifyConfirmationCode(token, confirmationCode, confirmationMethod);
     if (!isValid) {
       return NextResponse.json(
         { error: "Invalid or expired confirmation code" },
@@ -110,11 +126,12 @@ export async function POST(
         const { deleteRecord, create: createPolicy } = await import("@/lib/db");
         
         // Delete existing policies
-        const existingPolicies = await queryRaw<Array<{ id: string }>>(`
+        const existingPoliciesRes = await queryRaw<Array<{ id: string }>>(`
           SELECT id FROM policies WHERE "clientId" = $1
         `, [clientId]);
         
-        for (const existing of existingPolicies || []) {
+        const existingPolicies = asRows<{ id: string }>(existingPoliciesRes);
+        for (const existing of existingPolicies) {
           await deleteRecord("policies", { id: existing.id });
         }
 
@@ -126,12 +143,13 @@ export async function POST(
             let carrierNameRaw: string | null = null;
             
             try {
-              const insurerResult = await queryRaw<Array<{ id: string }>>(`
+              const insurerRes = await queryRaw<Array<{ id: string }>>(`
                 SELECT id FROM insurers WHERE LOWER(name) = LOWER($1) LIMIT 1
               `, [policy.insurerName]);
               
-              if (insurerResult && insurerResult.length > 0) {
-                insurerId = insurerResult[0].id;
+              const insurerRow = first<{ id: string }>(insurerRes);
+              if (insurerRow) {
+                insurerId = insurerRow.id;
               } else {
                 // Insurer not found - store raw name instead (lazy insurers)
                 carrierNameRaw = policy.insurerName;
@@ -170,11 +188,12 @@ export async function POST(
         const { deleteRecord, create: createBeneficiary } = await import("@/lib/db");
         
         // Delete existing beneficiaries
-        const existingBeneficiaries = await queryRaw<Array<{ id: string }>>(`
+        const existingBeneficiariesRes = await queryRaw<Array<{ id: string }>>(`
           SELECT id FROM beneficiaries WHERE "clientId" = $1
         `, [clientId]);
         
-        for (const existing of existingBeneficiaries || []) {
+        const existingBeneficiaries = asRows<{ id: string }>(existingBeneficiariesRes);
+        for (const existing of existingBeneficiaries) {
           await deleteRecord("beneficiaries", { id: existing.id });
         }
 
@@ -237,7 +256,7 @@ export async function POST(
       lastName: string | null;
     } | null = null;
     try {
-      const accessResult = await queryRaw<Array<{
+      const accessRes = await queryRaw<Array<{
         attorney_id: string,
         attorney_email: string,
         attorney_firstName: string | null;
@@ -272,8 +291,22 @@ export async function POST(
         LIMIT 1
       `, [clientId]);
       
-      if (accessResult && accessResult.length > 0) {
-        const row = accessResult[0];
+      const row = first<{
+        attorney_id: string,
+        attorney_email: string,
+        attorney_firstName: string | null;
+        attorney_lastName: string | null;
+        org_id: string,
+        org_name: string,
+        org_address_line1: string | null;
+        org_address_line2: string | null;
+        org_city: string | null;
+        org_state: string | null;
+        org_postal_code: string | null;
+        org_phone: string | null;
+      }>(accessRes);
+      
+      if (row) {
         attorney = {
           id: row.attorney_id,
           email: row.attorney_email,
@@ -318,7 +351,7 @@ export async function POST(
       }>;
     } | null = null;
     try {
-      const [clientResult, policiesResult] = await Promise.all([
+      const [clientRes, policiesRes] = await Promise.all([
         queryRaw<Array<{
           id: string,
           firstName: string,
@@ -355,8 +388,27 @@ export async function POST(
         `, [clientId]),
       ]);
       
-      if (clientResult && clientResult.length > 0) {
-        const clientRow = clientResult[0];
+      const clientRow = first<{
+        id: string,
+        firstName: string,
+        lastName: string,
+        email: string,
+        phone: string | null;
+        dateOfBirth: Date | null;
+        createdAt: Date;
+      }>(clientRes);
+      
+      const policyRows = asRows<{
+        id: string,
+        policy_number: string | null;
+        policy_type: string | null;
+        carrier_name_raw: string | null;
+        insurer_name: string | null;
+        insurer_contact_phone: string | null;
+        insurer_contact_email: string | null;
+      }>(policiesRes);
+      
+      if (clientRow) {
         updatedClient = {
           id: clientRow.id,
           firstName: clientRow.firstName,
@@ -365,7 +417,7 @@ export async function POST(
           phone: clientRow.phone,
           dateOfBirth: clientRow.dateOfBirth,
           createdAt: clientRow.createdAt,
-          policies: (policiesResult || []).map(p => ({
+          policies: policyRows.map(p => ({
             id: p.id,
             policyNumber: p.policy_number,
             policyType: p.policy_type,

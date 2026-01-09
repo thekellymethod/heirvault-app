@@ -1,5 +1,6 @@
 import { type AppUser } from "@/lib/auth/CurrentUser";
-import { logAccess, type AccessLogAction } from "@/lib/db";
+import { logAccess } from "@/lib/audit";
+import type { AccessLogAction } from "@/lib/db";
 
 /**
  * Audit & Receipts Library
@@ -25,8 +26,8 @@ export async function logAccessWithUser(
   metadata?: Record<string, unknown>
 ): Promise<void> {
   await logAccess({
-    registry_id: registryId,
-    user_id: user.id,
+    registryId,
+    userId: user.id,
     action,
     metadata: metadata || undefined,
   });
@@ -43,8 +44,8 @@ export async function logSystemAccess(
   metadata?: Record<string, unknown>
 ): Promise<void> {
   await logAccess({
-    registry_id: registryId,
-    user_id: null,
+    registryId,
+    userId: null,
     action,
     metadata: metadata || undefined,
   });

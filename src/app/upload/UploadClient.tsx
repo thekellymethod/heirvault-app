@@ -27,9 +27,10 @@ export default function UploadClient({ sessionId }: { sessionId: string }) {
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
       setFiles(data.files ?? []);
-    } catch (e: any) {
+    } catch (e: unknown) {
       // don't hard-fail UI for list
-      console.error(e?.message ?? e);
+      const errorMessage = e instanceof Error ? e.message : String(e);
+      console.error(errorMessage);
     } finally {
       setLoadingFiles(false);
     }
@@ -48,8 +49,9 @@ export default function UploadClient({ sessionId }: { sessionId: string }) {
         setRegistryId(data.registryId);
         setReady(true);
         await loadFiles(data.registryId);
-      } catch (e: any) {
-        setError(e?.message ?? "Unable to verify payment session.");
+      } catch (e: unknown) {
+        const errorMessage = e instanceof Error ? e.message : "Unable to verify payment session.";
+        setError(errorMessage);
       }
     })();
   }, [sessionId]);

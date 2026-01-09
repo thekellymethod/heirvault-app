@@ -2,6 +2,7 @@
 
 import { SignIn, useAuth } from "@clerk/nextjs";
 import { Logo } from "@/components/Logo";
+import Link from "next/link";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Scale, ArrowLeft } from "lucide-react";

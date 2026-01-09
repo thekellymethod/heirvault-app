@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:webpack": "next dev --no-turbopack",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
@@ -15,7 +16,16 @@
     "test:coverage": "vitest --coverage",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "test:all": "npm run test && npm run test:e2e"
+    "test:all": "npm run test && npm run test:e2e",
+    "clean": "rm -rf .next node_modules/.cache",
+    "clean:next": "rm -rf .next",
+    "validate:env": "tsx -e \"import('./src/lib/env.js').then(m => { m.validateEnv(); console.log('✅ Environment variables valid'); })\"",
+    "db:types": "supabase gen types typescript --local > src/types/supabase.ts || echo 'Supabase CLI not configured. Run: npm install -g supabase'",
+    "db:types:remote": "supabase gen types typescript --project-id $SUPABASE_PROJECT_REF > src/types/supabase.ts || echo 'Set SUPABASE_PROJECT_REF and SUPABASE_ACCESS_TOKEN'",
+    "db:diff": "supabase db diff",
+    "db:push": "supabase db push",
+    "db:reset": "supabase db reset",
+    "db:migrate": "supabase migration up"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.958.0",

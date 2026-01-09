@@ -54,9 +54,9 @@ export default function RootLayout({
   return (
     <ClerkProvider 
       publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY} 
-      signInUrl="/sign-in"
-      signUpUrl="/sign-up"
-      signUpFallbackRedirectUrl="/dashboard"
+      signInUrl="/attorney/sign-in"
+      signUpUrl="/attorney/sign-up"
+      signUpFallbackRedirectUrl="/onboarding"
       signInFallbackRedirectUrl="/dashboard"
     >
       <html lang="en" className={`${inter.variable} ${playfair.variable}`}>
