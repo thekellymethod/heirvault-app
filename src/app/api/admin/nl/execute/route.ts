@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth/guards";
-import { COMMAND_MAP } from "@/lib/admin/console/commands";
-;
+import { COMMAND_MAP, type Actor } from "@/lib/admin/console/commands";
 import { randomUUID } from "crypto";
 
 export const runtime = "nodejs";
@@ -68,7 +67,15 @@ export async function POST(req: Request) {
   }
 
   try {
-    const result = await def.handler({ actor }, args);
+    // Normalize actor to ensure email is never undefined (convert to null)
+    const actorForHandler: Actor = {
+      id: actor.id,
+      clerkId: actor.clerkId,
+      email: actor.email ?? null,
+      roles: actor.roles,
+    };
+    
+    const result = await def.handler({ actor: actorForHandler }, args);
     return NextResponse.json({ ...result, meta: { auditId } }, { status: result.ok ? 200 : 400 });
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : "Unknown error";
