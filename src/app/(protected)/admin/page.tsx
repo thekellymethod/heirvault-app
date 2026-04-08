@@ -3,6 +3,8 @@ import { AdminDashboard } from "./_components/AdminDashboard";
 import { redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
 
+export const dynamic = "force-dynamic";
+
 /**
  * Administration Page
  * Protected route - requires admin authentication

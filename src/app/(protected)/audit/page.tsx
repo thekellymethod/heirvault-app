@@ -3,6 +3,8 @@ import { canViewAudit } from "@/lib/permissions";
 import { redirect } from "next/navigation";
 import { AuditView } from "./_components/AuditView";
 
+export const dynamic = "force-dynamic";
+
 interface Props {
   searchParams: Promise<{
     action?: string,

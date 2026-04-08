@@ -11,7 +11,7 @@ export async function GET(_: NextRequest, ctx: { params: Promise<{ id: string }>
   try {
     const { id } = await ctx.params;
     const accessResult = await requireRegistryAccess(id);
-    const registry = accessResult.registry as { id: string; orgId: string };
+    const registry = accessResult.registry as { id: string; org_id: string };
 
     const { findUnique: findUniqueRegistry, findMany: findManyPolicies } = await import("@/lib/db");
     
@@ -73,7 +73,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     const { id } = await ctx.params;
     const accessResult = await requireRegistryAccess(id);
     const userId = accessResult.userId;
-    const registry = accessResult.registry as { id: string; orgId: string };
+    const registry = accessResult.registry as { id: string; org_id: string };
     const body = await req.json().catch(() => null);
     const action = String(body?.action ?? "").trim(); // "archive" | "restore" | "rename"
     const name = String(body?.name ?? "").trim();
@@ -97,7 +97,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
         action: "registry_archive",
         metadata: {
           registryId: registry.id,
-          orgId: registry.orgId,
+          orgId: registry.org_id,
         },
       });
       return NextResponse.json({ ok: true });
@@ -114,7 +114,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
         action: "registry_restore",
         metadata: {
           registryId: registry.id,
-          orgId: registry.orgId,
+          orgId: registry.org_id,
         },
       });
       return NextResponse.json({ ok: true });
@@ -136,7 +136,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
         action: "registry_rename",
         metadata: {
           registryId: registry.id,
-          orgId: registry.orgId,
+          orgId: registry.org_id,
           name,
         },
       });

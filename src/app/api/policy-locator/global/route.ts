@@ -105,8 +105,8 @@ export async function GET(req: NextRequest) {
         // Fetch insurers for policies
         const policiesWithInsurers = await Promise.all(
           policies.map(async (policy) => {
-            const insurer = policy.insurerId 
-              ? await findManyInsurers("insurers", { where: { id: policy.insurerId }, limit: 1 })
+            const insurer = policy.insurer_id 
+              ? await findManyInsurers("insurers", { where: { id: policy.insurer_id }, limit: 1 })
               : null;
             
             // Fetch policy beneficiaries

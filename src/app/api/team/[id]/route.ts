@@ -21,7 +21,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
     const currentMembers = await findManyMembers("org_members", {
       where: {
         userId: user.id,
-        organizationId: orgMember.organizationId,
+        organizationId: orgMember.organization_id,
       },
       limit: 1,
     });
@@ -46,14 +46,14 @@ export async function PUT(req: NextRequest, { params }: Params) {
     }
 
     // Get the member being updated
-    const memberToUpdate = await findUniqueMember<{ id: string; organizationId: string; role: string }>("org_members", { id });
+    const memberToUpdate = await findUniqueMember<{ id: string; organization_id: string; role: string }>("org_members", { id });
 
     if (!memberToUpdate) {
       return NextResponse.json({ error: "Member not found" }, { status: 404 });
     }
 
     // Ensure member is in the same org
-    if (memberToUpdate.organizationId !== orgMember.organizationId) {
+    if (memberToUpdate.organization_id !== orgMember.organization_id) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -61,7 +61,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
     if (memberToUpdate.role === "OWNER" && role !== "OWNER") {
       const ownerCount = await countMembers("org_members", {
         where: {
-          organizationId: orgMember.organizationId,
+          organizationId: orgMember.organization_id,
           role: "OWNER",
         },
       });

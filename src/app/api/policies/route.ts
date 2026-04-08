@@ -6,7 +6,7 @@ export const runtime = "nodejs";
 
 type RegistryRecord = {
   id: string;
-  orgId: string;
+  org_id: string;
   [key: string]: unknown;
 };
 
@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
     const policyId = uuid();
     const policy = await createDb("policies", {
       id: policyId,
-      orgId: registryTyped.orgId,
+      orgId: registryTyped.org_id,
       registryId: registryTyped.id,
       carrier: body?.carrier?.trim() || null,
       policyNumber: body?.policyNumber?.trim() || null,
@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
       userId: userId,
       action: "policy_create",
       metadata: {
-        orgId: registryTyped.orgId,
+        orgId: registryTyped.org_id,
         registryId: registryTyped.id,
         targetType: "policy",
         targetId: (policy as { id: string }).id,

@@ -1,7 +1,7 @@
 // src/app/upload/page.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import UploadClient from "./UploadClient";
 
@@ -19,6 +19,14 @@ async function postJson(url: string, body: Record<string, unknown>) {
 }
 
 export default function UploadPage() {
+  return (
+    <Suspense fallback={<div className="p-6">Loading...</div>}>
+      <UploadPageInner />
+    </Suspense>
+  );
+}
+
+function UploadPageInner() {
   const sp = useSearchParams();
   const sessionId = sp.get("session_id");
   const inviteToken = sp.get("token");
@@ -69,7 +77,7 @@ export default function UploadPage() {
     })();
   }, [modeRaw, token]);
 
-  if (valid === null) return <div className="p-6">Loading…</div>;
+  if (valid === null) return <div className="p-6">Loading...</div>;
   if (!valid) return <div className="p-6 text-red-600">{err ?? "Invalid link."}</div>;
   if (!modeRaw) return <div className="p-6 text-red-600">Invalid mode.</div>;
 

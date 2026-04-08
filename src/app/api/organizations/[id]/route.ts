@@ -17,7 +17,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
     type OrgMemberRecord = {
       id: string;
       userId: string;
-      organizationId: string;
+      organization_id: string;
     };
     
     const memberships = await findManyMembers<OrgMemberRecord>("org_members", {
@@ -32,7 +32,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
     const orgMember = memberships[0];
 
     // Verify user is a member of this organization
-    if (orgMember.organizationId !== id) {
+    if (orgMember.organization_id !== id) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
@@ -109,7 +109,7 @@ export async function DELETE(req: NextRequest, { params }: Params) {
     type OrgMemberRecord = {
       id: string;
       userId: string;
-      organizationId: string;
+      organization_id: string;
       role: string;
     };
     
@@ -125,7 +125,7 @@ export async function DELETE(req: NextRequest, { params }: Params) {
     const orgMember = memberships[0];
 
     // Verify user is a member of this organization
-    if (orgMember.organizationId !== id) {
+    if (orgMember.organization_id !== id) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 

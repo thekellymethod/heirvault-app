@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
     type OrgMemberRecord = {
       id: string;
       userId: string;
-      organizationId: string;
+      organization_id: string;
     };
     
     type AccessRecord = {
@@ -120,7 +120,7 @@ export async function POST(req: NextRequest) {
           where: {
             attorneyId: invite.invitedByUserId,
             clientId: invite.clientId,
-            organizationId: orgMember.organizationId,
+            organizationId: orgMember.organization_id,
           },
           limit: 1,
         });
@@ -132,7 +132,7 @@ export async function POST(req: NextRequest) {
             id: randomUUID(),
             attorneyId: invite.invitedByUserId,
             clientId: invite.clientId,
-            organizationId: orgMember.organizationId,
+            organizationId: orgMember.organization_id,
             isActive: true,
             createdAt: now.toISOString(),
             updatedAt: now.toISOString(),

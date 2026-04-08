@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
     type OrgMemberRecord = {
       id: string;
       userId: string;
-      organizationId: string;
+      organization_id: string;
     };
     
     const memberships = await findManyMembers<OrgMemberRecord>("org_members", {
@@ -66,7 +66,7 @@ export async function GET(req: NextRequest) {
     `;
     
     const params: Array<string | Date> = [
-      orgMember.organizationId,
+      orgMember.organization_id,
       `%${firstName}%`,
       `%${lastName}%`,
     ];
@@ -118,7 +118,7 @@ export async function GET(req: NextRequest) {
         action: "POLICY_SEARCH_PERFORMED",
         message: `Policy search: ${firstName} ${lastName}${dateOfBirth ? ` (DOB: ${dateOfBirth})` : ""}${policyNumber ? ` | Policy #: ${policyNumber}` : ""} | Results: ${results.length} policy(ies)`,
         userId: principal.dbUserId,
-        orgId: orgMember.organizationId,
+        orgId: orgMember.organization_id,
         createdAt: new Date().toISOString(),
       } as any);
     } catch (auditError) {

@@ -12,7 +12,7 @@ export async function GET(_: NextRequest, ctx: { params: Promise<{ id: string }>
   try {
     const { id } = await ctx.params;
     const accessResult = await requireRegistryAccess(id);
-    const registry = accessResult.registry as { id: string; orgId: string };
+    const registry = accessResult.registry as { id: string; org_id: string };
 
     const { findUnique: findUniqueRegistry, findUnique: findUniqueOrg, findMany: findManyPolicies } = await import("@/lib/db");
     

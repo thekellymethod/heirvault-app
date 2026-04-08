@@ -25,7 +25,7 @@ export async function assertCanCreateClient() {
     WHERE o.id = $1
     GROUP BY o.id, o.billing_plan
     LIMIT 1`,
-    [orgMember.organizationId]
+    [orgMember.organization_id]
   );
 
   if (!orgResult || orgResult.length === 0) {

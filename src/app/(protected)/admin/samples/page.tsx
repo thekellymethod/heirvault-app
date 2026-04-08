@@ -3,6 +3,7 @@ import { requireAdmin } from "@/lib/auth/guards";
 import SamplePDFsClient from "./SamplePDFsClient";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export default async function SamplePDFsPage() {
   // Require admin authentication

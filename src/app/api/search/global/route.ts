@@ -174,7 +174,7 @@ export async function GET(req: Request) {
         action: "GLOBAL_POLICY_SEARCH_PERFORMED",
         message: `Global database search (all clients): "${q}" | Results: ${clients.length} client(s), ${policies.length} policy(ies)`,
         userId: user.id,
-        orgId: orgMember?.organizationId ?? null,
+        orgId: orgMember?.organization_id ?? null,
         createdAt: new Date().toISOString(),
       } as Record<string, unknown>);
     } catch (auditError: unknown) {

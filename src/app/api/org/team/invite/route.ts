@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
     type OrgMemberRecord = {
       id: string;
       userId: string;
-      organizationId: string;
+      organization_id: string;
       role: string;
     };
     
@@ -34,10 +34,10 @@ export async function POST(req: NextRequest) {
     const { email, role, organizationId: requestedOrgId } = body;
     
     // Use organizationId from request if provided, otherwise use user's org
-    const organizationId = requestedOrgId || orgMember.organizationId;
+    const organizationId = requestedOrgId || orgMember.organization_id;
     
     // Verify user has permission to invite to this organization
-    if (organizationId !== orgMember.organizationId) {
+    if (organizationId !== orgMember.organization_id) {
       // Check if user is owner of the requested organization
       const requesterMemberships = await findManyMembers<OrgMemberRecord>("org_members", {
         where: { userId: principal.dbUserId, organizationId, role: "OWNER" },

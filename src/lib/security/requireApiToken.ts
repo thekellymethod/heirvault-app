@@ -138,7 +138,7 @@ export async function getActorFromRequest(
 
     return {
       id: tokenRecord.createdById,
-      email: tokenRecord.createdBy.email,
+      email: tokenRecord.createdBy.email ?? "",
       roles: ["ADMIN"], // Synthetic admin role for token-based auth
     };
   }
@@ -149,7 +149,7 @@ export async function getActorFromRequest(
   const user = await requireAdmin();
   return {
     id: user.id,
-    email: user.email,
+    email: user.email ?? "",
     roles: user.roles,
     clerkId: user.clerkId,
   };

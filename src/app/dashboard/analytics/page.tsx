@@ -49,8 +49,7 @@ export default async function AnalyticsPage() {
   const { user, orgMember } = await getCurrentUserWithOrg();
   if (!user) redirect("/dashboard");
 
-  // ✅ OrgMemberRecord has organizationId, not organizations
-  const orgId = orgMember?.organizationId ?? null;
+  const orgId = orgMember?.organization_id ?? null;
 
   let clientCount = 0;
   let policyCount = 0;
