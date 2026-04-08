@@ -66,6 +66,26 @@ const CAMEL_CASE_COLUMNS: Record<string, string[]> = {
   documents: ['createdAt'], // documents.createdAt is camelCase
 };
 
+/** Last path segment, lowercased — matches CAMEL_CASE_COLUMNS keys even if caller passes `Users` or `public.users`. */
+function tableKeyForRules(table: string): string {
+  const part = table.trim().split(".").pop() ?? table.trim();
+  return part.toLowerCase();
+}
+
+/**
+ * DB column is quoted "clerkId". PostgREST must never see clerk_id on users (PGRST204).
+ * Call after any key conversion as a safety net for filters and PATCH bodies.
+ */
+function normalizeUsersClerkIdKeys(row: Record<string, unknown>, table: string): Record<string, unknown> {
+  if (tableKeyForRules(table) !== "users") return row;
+  if (!Object.prototype.hasOwnProperty.call(row, "clerk_id")) return row;
+  const { clerk_id, ...rest } = row;
+  if (Object.prototype.hasOwnProperty.call(rest, "clerkId")) {
+    return rest;
+  }
+  return { ...rest, clerkId: clerk_id };
+}
+
 /**
  * Convert a where clause object from camelCase to snake_case keys
  * This allows code to use camelCase while database uses snake_case
@@ -75,21 +95,27 @@ const CAMEL_CASE_COLUMNS: Record<string, string[]> = {
  */
 function convertWhereToSnakeCase(where: Record<string, unknown>, table: string): Record<string, unknown> {
   const converted: Record<string, unknown> = {};
-  const knownCamelCase = CAMEL_CASE_COLUMNS[table] || [];
-  
-  for (const [key, value] of Object.entries(where)) {
-    // If key is already snake_case, keep it as-is
-    if (key.includes('_')) {
-      converted[key] = value;
+  const tk = tableKeyForRules(table);
+  const knownCamelCase = CAMEL_CASE_COLUMNS[tk] || [];
+
+  for (const [rawKey, value] of Object.entries(where)) {
+    let key = rawKey;
+    // Column in DB is "clerkId"; never send clerk_id (would hit the snake_case branch below and pass through wrongly if key were clerk_id from a spread)
+    if (tk === "users" && key === "clerk_id") {
+      key = "clerkId";
     }
-    // If key is in the known camelCase list for this table, keep it as camelCase
-    else if (knownCamelCase.includes(key)) {
+
+    if (key.includes("_")) {
       converted[key] = value;
-    }
-    // Otherwise, convert camelCase to snake_case
-    else {
+    } else if (knownCamelCase.includes(key)) {
+      converted[key] = value;
+    } else {
       const snakeKey = camelToSnake(key);
-      converted[snakeKey] = value;
+      if (tk === "users" && snakeKey === "clerk_id") {
+        converted.clerkId = value;
+      } else {
+        converted[snakeKey] = value;
+      }
     }
   }
   return converted;
@@ -130,7 +156,8 @@ export async function findUnique<T>(
 
   // Convert camelCase keys to snake_case for database columns
   // Pass table name to check for known camelCase columns
-  const snakeWhere = convertWhereToSnakeCase(where, table);
+  let snakeWhere = convertWhereToSnakeCase(where, table);
+  snakeWhere = normalizeUsersClerkIdKeys(snakeWhere, table);
   for (const [key, value] of Object.entries(snakeWhere)) {
     query = query.eq(key, value);
   }
@@ -161,9 +188,8 @@ export async function findMany<T>(
   let query = supabaseAdmin.from(table).select("*");
 
   if (options?.where) {
-    // Convert camelCase keys to snake_case for database columns
-    // Pass table name to check for known camelCase columns
-    const snakeWhere = convertWhereToSnakeCase(options.where, table);
+    let snakeWhere = convertWhereToSnakeCase(options.where, table);
+    snakeWhere = normalizeUsersClerkIdKeys(snakeWhere, table);
     for (const [key, value] of Object.entries(snakeWhere)) {
       query = query.eq(key, value);
     }
@@ -338,26 +364,28 @@ export async function create<T>(table: string, data: Partial<T>): Promise<T> {
   }
   
   // Convert all keys to snake_case, but preserve known camelCase columns
-  const knownCamelCase = CAMEL_CASE_COLUMNS[table] || [];
-  for (const [key, value] of Object.entries(insertData)) {
-    // If key is already snake_case, keep it
-    if (key.includes('_')) {
-      snakeInsertData[key] = value;
+  const tkIns = tableKeyForRules(table);
+  const knownCamelCase = CAMEL_CASE_COLUMNS[tkIns] || [];
+  for (const [rawKey, value] of Object.entries(insertData)) {
+    let key = rawKey;
+    if (tkIns === "users" && key === "clerk_id") {
+      key = "clerkId";
     }
-    // If key is in the known camelCase list for this table, keep it as camelCase
-    else if (knownCamelCase.includes(key)) {
+    if (key.includes("_")) {
       snakeInsertData[key] = value;
-    }
-    // Otherwise, convert camelCase to snake_case
-    else {
+    } else if (knownCamelCase.includes(key)) {
+      snakeInsertData[key] = value;
+    } else {
       const snakeKey = camelToSnake(key);
-      snakeInsertData[snakeKey] = value;
+      snakeInsertData[tkIns === "users" && snakeKey === "clerk_id" ? "clerkId" : snakeKey] = value;
     }
   }
-  
+
+  const insertPayload = normalizeUsersClerkIdKeys(snakeInsertData, table);
+
   const { data: result, error } = await supabaseAdmin
     .from(table)
-    .insert(snakeInsertData)
+    .insert(insertPayload)
     .select()
     .single();
 
@@ -419,24 +447,34 @@ export async function update<T>(
   where: Record<string, unknown>,
   data: Partial<T>
 ): Promise<T> {
-  // Convert all camelCase keys to snake_case for database columns
+  // Match create(): preserve known camelCase DB columns (e.g. users."clerkId")
   const updateData = { ...data } as Record<string, unknown>;
   const snakeUpdateData: Record<string, unknown> = {};
-  
-  for (const [key, value] of Object.entries(updateData)) {
-    const snakeKey = key.includes('_') ? key : camelToSnake(key);
-    snakeUpdateData[snakeKey] = value;
-  }
-  
-  // Supabase pattern: update() first, then chain filters
-  let query = supabaseAdmin
-    .from(table)
-    .update(snakeUpdateData)
-    .select();
+  const tk = tableKeyForRules(table);
+  const knownCamelCase = CAMEL_CASE_COLUMNS[tk] || [];
 
-  // Convert where clause keys to snake_case
-  // Pass table name to check for known camelCase columns
-  const snakeWhere = convertWhereToSnakeCase(where, table);
+  for (const [rawKey, value] of Object.entries(updateData)) {
+    let key = rawKey;
+    if (tk === "users" && key === "clerk_id") {
+      key = "clerkId";
+    }
+    if (key.includes("_")) {
+      snakeUpdateData[key] = value;
+    } else if (knownCamelCase.includes(key)) {
+      snakeUpdateData[key] = value;
+    } else {
+      const sk = camelToSnake(key);
+      snakeUpdateData[tk === "users" && sk === "clerk_id" ? "clerkId" : sk] = value;
+    }
+  }
+
+  const patch = normalizeUsersClerkIdKeys(snakeUpdateData, table);
+
+  // Supabase pattern: update() first, then chain filters
+  let query = supabaseAdmin.from(table).update(patch).select();
+
+  let snakeWhere = convertWhereToSnakeCase(where, table);
+  snakeWhere = normalizeUsersClerkIdKeys(snakeWhere, table);
   for (const [key, value] of Object.entries(snakeWhere)) {
     query = (query as any).eq(key, value);
   }
@@ -457,9 +495,8 @@ export async function deleteRecord<T>(
 ): Promise<T> {
   let query = supabaseAdmin.from(table).delete().select();
 
-  // Convert where clause keys to snake_case
-  // Pass table name to check for known camelCase columns
-  const snakeWhere = convertWhereToSnakeCase(where, table);
+  let snakeWhere = convertWhereToSnakeCase(where, table);
+  snakeWhere = normalizeUsersClerkIdKeys(snakeWhere, table);
   for (const [key, value] of Object.entries(snakeWhere)) {
     query = query.eq(key, value);
   }
@@ -483,7 +520,8 @@ export async function count(
   if (where) {
     // Convert where clause keys to snake_case
     // Pass table name to check for known camelCase columns
-    const snakeWhere = convertWhereToSnakeCase(where, table);
+    let snakeWhere = convertWhereToSnakeCase(where, table);
+    snakeWhere = normalizeUsersClerkIdKeys(snakeWhere, table);
     for (const [key, value] of Object.entries(snakeWhere)) {
       if (value === null || value === undefined) {
         query = query.is(key, null);
@@ -515,12 +553,9 @@ export async function transaction<T>(
 }
 
 /**
- * Execute raw SQL query using RPC
- * Note: Requires a Postgres function to be created in Supabase
+ * Execute raw SQL via RPC `exec_raw_sql` (not created by default — add in SQL or avoid this helper).
  */
 export async function queryRaw<T = unknown>(sql: string, params?: unknown[]): Promise<T[]> {
-  // For raw SQL, we need to use Supabase's RPC or create a function
-  // This is a placeholder - actual implementation depends on your setup
   const { data, error } = await supabaseAdmin.rpc('exec_raw_sql', {
     sql_query: sql,
     sql_params: params || [],

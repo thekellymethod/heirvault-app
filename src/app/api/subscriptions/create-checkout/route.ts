@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import { getCurrentUserWithOrg } from "@/lib/authz";
-;
 
 export async function POST(req: NextRequest) {
   try {

@@ -1,6 +1,5 @@
 import "server-only";
 import { currentUser } from "@clerk/nextjs/server";
-;
 import { getOrCreateAppUser } from "@/lib/auth/CurrentUser";
 
 export class HttpError extends Error {
@@ -11,34 +10,112 @@ export class HttpError extends Error {
   }
 }
 
-/**
- * Helper to describe errors for logging - prevents [object Object] in logs
- */
-export function describeError(e: unknown): {
+export type DescribedError = {
+  summary: string;
   type: string;
   name?: string;
   message?: string;
   stack?: string;
+  details?: string;
+  hint?: string;
+  code?: string;
   value?: unknown;
-} {
+  keys?: string[];
+};
+
+/**
+ * Helper to describe errors for logging - prevents [object Object] and bare `{}` in Next dev overlay
+ */
+export function describeError(e: unknown): DescribedError {
   if (e instanceof Error) {
+    const summary = [e.name, e.message].filter(Boolean).join(": ") || "Error";
     return {
+      summary,
       type: "Error",
       name: e.name,
       message: e.message,
       stack: e.stack,
     };
   }
+  if (e && typeof e === "object") {
+    const o = e as Record<string, unknown>;
+    const msg = o.message;
+    const details = o.details;
+    const hint = o.hint;
+    const code = o.code;
+    if (
+      typeof msg === "string" ||
+      typeof details === "string" ||
+      typeof code === "string"
+    ) {
+      const summary = [
+        typeof code === "string" && code ? code : null,
+        typeof msg === "string" ? msg : null,
+        typeof details === "string" ? details.split("\n")[0]?.slice(0, 240) : null,
+      ]
+        .filter(Boolean)
+        .join(" — ");
+      return {
+        summary: summary || "PostgREST/Supabase error (empty message)",
+        type: "PostgrestError",
+        name: typeof o.name === "string" ? o.name : undefined,
+        message: typeof msg === "string" ? msg : undefined,
+        details: typeof details === "string" ? details : undefined,
+        hint: typeof hint === "string" ? hint : undefined,
+        code: typeof code === "string" ? code : undefined,
+      };
+    }
+    try {
+      const value = JSON.parse(JSON.stringify(e)) as unknown;
+      if (value && typeof value === "object" && Object.keys(value as object).length > 0) {
+        const summary = JSON.stringify(value);
+        return { summary, type: typeof e, value };
+      }
+    } catch {
+      /* fall through */
+    }
+    const picked: Record<string, unknown> = {};
+    for (const k of Object.getOwnPropertyNames(o)) {
+      const v = o[k];
+      if (
+        typeof v === "string" ||
+        typeof v === "number" ||
+        typeof v === "boolean" ||
+        v == null
+      ) {
+        picked[k] = v;
+      }
+    }
+    if (Object.keys(picked).length > 0) {
+      const summary = JSON.stringify(picked);
+      return { summary, type: "object", value: picked };
+    }
+
+    const keys = [
+      ...new Set([...Object.keys(o), ...Object.getOwnPropertyNames(o)]),
+    ];
+    const ctor = (o as { constructor?: { name?: string } }).constructor?.name;
+    const summary =
+      keys.length > 0
+        ? `non-serializable object (${ctor ?? "Object"}), keys: ${keys.join(", ")}`
+        : `empty object (${ctor ?? "Object"})`;
+    return {
+      summary,
+      type: "object",
+      keys,
+      value: keys.length ? { note: "use keys + getters; JSON.stringify was {}" } : {},
+    };
+  }
   try {
-    return {
-      type: typeof e,
-      value: JSON.parse(JSON.stringify(e)),
-    };
+    const value = JSON.parse(JSON.stringify(e));
+    const summary =
+      value !== undefined && value !== null && typeof value === "object"
+        ? JSON.stringify(value)
+        : String(value);
+    return { summary, type: typeof e, value };
   } catch {
-    return {
-      type: typeof e,
-      value: String(e),
-    };
+    const summary = String(e);
+    return { summary, type: typeof e, value: summary };
   }
 }
 
@@ -112,16 +189,61 @@ export async function requireAdmin() {
     
     // For other errors (database errors, etc.), log with full details
     const errorInfo = describeError(error);
-    console.error("[requireAdmin] Unexpected error:", errorInfo);
+    console.warn(
+      "[requireAdmin] Unexpected error:",
+      errorInfo.summary,
+      errorInfo
+    );
+    
+    // Extract error message - handle both Error instances and error objects
+    let errorMessage: string;
+    let errorCode: string | undefined;
+    let errorDetails: string | undefined;
+    
+    if (error instanceof Error) {
+      errorMessage = error.message;
+      errorCode = (error as any)?.code;
+    } else if (error && typeof error === "object") {
+      // Handle error objects (like Supabase errors)
+      const err = error as Record<string, unknown>;
+      errorMessage = (err.message as string) || (err.details as string) || String(error);
+      errorCode = err.code as string | undefined;
+      errorDetails = err.details as string | undefined;
+      
+      // If we have details, prefer that over message
+      if (errorDetails && typeof errorDetails === "string") {
+        errorMessage = errorDetails;
+      }
+    } else {
+      errorMessage = String(error);
+    }
+    
+    // Check for network/DNS errors
+    if (
+      errorMessage.includes("ENOTFOUND") ||
+      errorMessage.includes("getaddrinfo") ||
+      errorMessage.includes("fetch failed") ||
+      errorMessage.includes("ECONNREFUSED") ||
+      errorMessage.includes("ETIMEDOUT") ||
+      errorCode === "ENOTFOUND"
+    ) {
+      console.error("[requireAdmin] Network/DNS error detected - cannot reach Supabase");
+      throw new HttpError(
+        503,
+        `Service unavailable: Cannot connect to database. Please check your network connection and ensure NEXT_PUBLIC_SUPABASE_URL is correctly configured. Error: ${errorMessage}`
+      );
+    }
     
     // Check if it's a PostgREST/database schema error
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    const errorCode = (error as any)?.code;
-    
-    // PostgREST errors have specific codes (PGRST204 = column not found)
     if (errorCode === "PGRST204" || errorMessage.includes("Could not find") || errorMessage.includes("column") || errorMessage.includes("schema cache")) {
-      console.error("[requireAdmin] Database schema error - likely column name mismatch (camelCase vs snake_case)");
-      throw new HttpError(500, `Database schema error: ${errorMessage}. This is likely a column name mismatch. Check that you're using snake_case for database columns (e.g., updated_at not updatedAt).`);
+      const clerkHint = errorMessage.includes("clerk_id")
+        ? " The users table uses the quoted column \"clerkId\" (not clerk_id). Ensure DB helpers send clerkId."
+        : "";
+      console.warn("[requireAdmin] PostgREST schema/column error:", errorMessage, clerkHint);
+      throw new HttpError(
+        500,
+        `Database schema error: ${errorMessage}.${clerkHint}`
+      );
     }
     
     // If it's a database/user creation error, return 500 with helpful message
@@ -129,7 +251,7 @@ export async function requireAdmin() {
       throw new HttpError(500, `Database error during authentication: ${errorMessage}`);
     }
     
-    // For other unexpected errors, return 500
+    // For other unexpected errors, return 500 with the actual error message
     throw new HttpError(500, `Authentication error: ${errorMessage}`);
   }
 }

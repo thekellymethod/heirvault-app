@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-;
 import { getCurrentUser } from "@/lib/utils/clerk";
 import { randomUUID } from "crypto";
 

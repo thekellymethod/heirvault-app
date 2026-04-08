@@ -33,74 +33,59 @@ export default async function OrgSettingsPage() {
       updatedAt: Date;
     };
   } | null = null;
-  
-  try {
-    // Use queryRaw from db library (Supabase-based)
-    const { queryRaw } = await import("@/lib/db");
-    const rawResult = await queryRaw<{
-      organization_id: string
-      org_name: string
-      org_role: string
-      org_slug: string
-      org_address_line1: string | null
-      org_address_line2: string | null
-      org_city: string | null
-      org_state: string | null
-      org_postal_code: string | null
-      org_country: string | null
-      org_phone: string | null
-      org_logo_url: string | null
-      org_createdAt: Date
-      org_updated_at: Date
-    }>(`
-      SELECT 
-        om.organization_id,
-        o.name as org_name,
-        om.role as org_role,
-        o.slug as org_slug,
-        o.address_line1 as org_address_line1,
-        o.address_line2 as org_address_line2,
-        o.city as org_city,
-        o.state as org_state,
-        o.postal_code as org_postal_code,
-        o.country as org_country,
-        o.phone as org_phone,
-        o.logo_url as org_logo_url,
-        o.createdAt as org_createdAt,
-        o.updated_at as org_updated_at
-      FROM org_members om
-      INNER JOIN organizations o ON o.id = om.organization_id
-      WHERE om.user_id = $1
-      LIMIT 1
-    `, [currentUser.id])
-    
-    if (rawResult && rawResult.length > 0) {
-      const row = rawResult[0]
+
+  // Use findMany/findUnique — queryRaw() calls RPC exec_raw_sql, which is not installed on default Supabase projects.
+  const { findMany, findUnique } = await import("@/lib/db");
+  type OrgMemberRow = {
+    organization_id: string;
+    role: string;
+  };
+  const members = await findMany<OrgMemberRow>("org_members", {
+    where: { userId: currentUser.id },
+    limit: 1,
+  });
+  const member = members[0] ?? null;
+
+  if (member) {
+    type OrgRow = {
+      id: string;
+      name: string;
+      slug: string;
+      address_line1: string | null;
+      address_line2: string | null;
+      city: string | null;
+      state: string | null;
+      postal_code: string | null;
+      country: string | null;
+      phone: string | null;
+      logo_url: string | null;
+      created_at: string;
+      updated_at: string;
+    };
+    const org = await findUnique<OrgRow>("organizations", {
+      id: member.organization_id,
+    });
+    if (org) {
       orgMember = {
-        organizationId: row.organization_id,
-        role: row.org_role,
+        organizationId: member.organization_id,
+        role: member.role,
         organizations: {
-          id: row.organization_id,
-          name: row.org_name,
-          slug: row.org_slug,
-          addressLine1: row.org_address_line1,
-          addressLine2: row.org_address_line2,
-          city: row.org_city,
-          state: row.org_state,
-          postalCode: row.org_postal_code,
-          country: row.org_country,
-          phone: row.org_phone,
-          logoUrl: row.org_logo_url,
-          createdAt: row.org_createdAt,
-          updatedAt: row.org_updated_at,
+          id: org.id,
+          name: org.name,
+          slug: org.slug,
+          addressLine1: org.address_line1,
+          addressLine2: org.address_line2,
+          city: org.city,
+          state: org.state,
+          postalCode: org.postal_code,
+          country: org.country,
+          phone: org.phone,
+          logoUrl: org.logo_url,
+          createdAt: new Date(org.created_at),
+          updatedAt: new Date(org.updated_at),
         },
-      }
+      };
     }
-  } catch (sqlError: unknown) {
-    const sqlErrorMessage = sqlError instanceof Error ? sqlError.message : "Unknown error";
-    console.error("Org settings page: Raw SQL failed:", sqlErrorMessage);
-    // If query fails, redirect to dashboard
-    redirect("/dashboard")
   }
 
   if (!user) redirect("/dashboard")

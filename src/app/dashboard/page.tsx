@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { isAdmin } from "@/lib/admin";
 import { getDb } from "@/lib/db";
+import { describeError } from "@/lib/auth/guards";
 
 export default async function DashboardPage() {
   const { getToken, userId } = await auth();
@@ -35,7 +36,9 @@ export default async function DashboardPage() {
       orgMemberKeys: member ? Object.keys(member) : [],
     });
   } catch (err) {
-    console.error("[ADMIN DASH DEBUG] Error getting org context:", err);
+    const d = describeError(err);
+    // Single string + warn: avoids Next overlay turning a sparse object into "{}" and spamming errors
+    console.warn(`[ADMIN DASH DEBUG] Error getting org context: ${d.summary}`, d);
   }
   
   let data: unknown[] = [];

@@ -1,6 +1,5 @@
 // src/lib/permissions/guard.ts
 import { auth } from "@clerk/nextjs/server";
-;
 import { UserRole } from "@/lib/db/enums";
 
 export class HttpError extends Error {

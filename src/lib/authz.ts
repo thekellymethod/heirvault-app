@@ -57,16 +57,21 @@ export async function requireRegistryAccess(registryId: string) {
 // Get current user with organization context
 export async function getCurrentUserWithOrg() {
   const userId = await requireUserId();
-  const { findUnique } = await import("@/lib/db");
+  const { findUnique, findMany } = await import("@/lib/db");
   
   // Database has clerkId (camelCase) - it's in the known camelCase list, so it won't be converted
   type UserRecord = { id: string; clerkId: string; email: string };
   const user = await findUnique<UserRecord>("users", { clerkId: userId });
   if (!user) throw new Error("UNAUTHENTICATED");
   
-  // Database uses snake_case: user_id, organization_id
+  // Database uses snake_case: user_id, organization_id.
+  // Users may have multiple memberships; findUnique uses .single() and throws if >1 row.
   type OrgMemberRecord = { id: string; user_id: string; organization_id: string; role: string };
-  const member = await findUnique<OrgMemberRecord>("org_members", { userId: user.id });
+  const members = await findMany<OrgMemberRecord>("org_members", {
+    where: { userId: user.id },
+    limit: 1,
+  });
+  const member = members[0] ?? null;
   if (!member) {
     return { user, org: null, role: null, orgMember: null };
   }

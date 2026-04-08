@@ -1,5 +1,6 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
+import { describeError } from "@/lib/auth/guards";
 
 type Role = "attorney";
 
@@ -100,77 +101,13 @@ export async function getCurrentUser(): Promise<DbUser | null> {
       barNumber: user.barNumber,
     };
   } catch (error: unknown) {
-    // Minimal, safe error logging that won't throw
+    // One structured warn — avoids Next.js dev overlay treating each console.error line as a separate error
     try {
-      // Extract error info safely
-      let errName: string | undefined;
-      let errMessage: string | undefined;
-      let errStack: string | undefined;
-      let cause: Record<string, unknown> | undefined;
-
-      if (error && typeof error === "object") {
-        const err = error as Record<string, unknown>;
-        errName = typeof err.name === "string" ? err.name : undefined;
-        errMessage = typeof err.message === "string" ? err.message : undefined;
-        errStack = typeof err.stack === "string" ? err.stack : undefined;
-
-        // Try to find nested cause
-        cause =
-          (err.cause as Record<string, unknown> | undefined) ??
-          (err.error as Record<string, unknown> | undefined) ??
-          (err.originalError as Record<string, unknown> | undefined) ??
-          (err.original as Record<string, unknown> | undefined) ??
-          (err.driverError as Record<string, unknown> | undefined) ??
-          (err.clientError as Record<string, unknown> | undefined);
-      }
-
-      // Log using both stderr and console.error for maximum visibility
-      const log = (msg: string) => {
-        try {
-          process.stderr.write(msg + "\n");
-        } catch {
-          // Fallback if stderr fails
-        }
-        try {
-          // Also use console.error as fallback - it might work in some environments
-          if (typeof console !== "undefined" && console.error) {
-            console.error(msg);
-          }
-        } catch {
-          // Ignore if console.error fails
-        }
-      };
-
-      log("==================================================================================");
-      log("getCurrentUser: DATABASE ERROR DETECTED");
-      log("==================================================================================");
-      log(`Error name: ${errName ?? "unknown"}`);
-      log(`Error message: ${errMessage ?? "unknown"}`);
-      if (errStack) {
-        log(`Stack: ${errStack.substring(0, 500)}`);
-      }
-
-      if (cause) {
-        log("==================================================================================");
-        log("DB CAUSE (THE REAL POSTGRES ERROR):");
-        log("==================================================================================");
-        log(`  name: ${typeof cause.name === "string" ? cause.name : "N/A"}`);
-        log(`  message: ${typeof cause.message === "string" ? cause.message : "N/A"}`);
-        log(`  code: ${cause.code ?? "N/A"}`);
-        log(`  detail: ${cause.detail ?? "N/A"}`);
-        log(`  hint: ${cause.hint ?? "N/A"}`);
-        log(`  constraint: ${cause.constraint ?? "N/A"}`);
-        log(`  table: ${cause.table ?? "N/A"}`);
-        log(`  column: ${cause.column ?? "N/A"}`);
-        log(`  schema: ${cause.schema ?? "N/A"}`);
-        log(`  routine: ${cause.routine ?? "N/A"}`);
-      } else {
-        log("==================================================================================");
-        log("No nested cause found - error details unavailable");
-        log("==================================================================================");
+      if (process.env.NODE_ENV === "development") {
+        console.warn("[getCurrentUser] DB error, returning null:", describeError(error));
       }
     } catch {
-      // If even error logging fails, just return null silently
+      // ignore logging failures
     }
 
     return null;
