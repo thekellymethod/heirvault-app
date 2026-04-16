@@ -11,9 +11,8 @@
 -- - Improves performance if policies are ever enforced
 -- - Follows best practices for RLS policy design
 --
--- The key optimization: Replace `auth.uid()` with `(SELECT auth.uid()::text)` 
--- This caches the auth function result instead of re-evaluating for each row.
--- NOTE: All ID columns in this schema are TEXT (not UUID), so we cast auth.uid() to text.
+-- The key optimization: wrap `auth.uid()` in `(SELECT auth.uid())` so it is not re-evaluated per row.
+-- Compare to uuid columns (e.g. org_members.user_id, users.id) using auth.uid() as uuid, not ::text.
 
 -- ============================================================================
 -- ORGANIZATIONS TABLE
@@ -45,14 +44,14 @@ CREATE POLICY "organizations_select_optimized" ON organizations
     EXISTS (
       SELECT 1 FROM org_members om
       WHERE om.organization_id = organizations.id
-      AND om.user_id = (SELECT auth.uid()::text)
+      AND om.user_id = (SELECT auth.uid())
     )
     OR
     -- Allow if user is owner
     EXISTS (
       SELECT 1 FROM org_members om
       WHERE om.organization_id = organizations.id
-      AND om.user_id = (SELECT auth.uid()::text)
+      AND om.user_id = (SELECT auth.uid())
       AND om.role = 'OWNER'
     )
   );
@@ -73,7 +72,7 @@ CREATE POLICY "organizations_update_optimized" ON organizations
     EXISTS (
       SELECT 1 FROM org_members om
       WHERE om.organization_id = organizations.id
-      AND om.user_id = (SELECT auth.uid()::text)
+      AND om.user_id = (SELECT auth.uid())
       AND om.role = 'OWNER'
     )
   )
@@ -81,7 +80,7 @@ CREATE POLICY "organizations_update_optimized" ON organizations
     EXISTS (
       SELECT 1 FROM org_members om
       WHERE om.organization_id = organizations.id
-      AND om.user_id = (SELECT auth.uid()::text)
+      AND om.user_id = (SELECT auth.uid())
       AND om.role = 'OWNER'
     )
   );
@@ -93,7 +92,7 @@ CREATE POLICY "organizations_delete_optimized" ON organizations
     EXISTS (
       SELECT 1 FROM org_members om
       WHERE om.organization_id = organizations.id
-      AND om.user_id = (SELECT auth.uid()::text)
+      AND om.user_id = (SELECT auth.uid())
       AND om.role = 'OWNER'
     )
   );
@@ -119,14 +118,14 @@ CREATE POLICY "org_members_select_optimized" ON org_members
     EXISTS (
       SELECT 1 FROM org_members om2
       WHERE om2.organization_id = org_members.organization_id
-      AND om2.user_id = (SELECT auth.uid()::text)
+      AND om2.user_id = (SELECT auth.uid())
     )
     OR
     -- Owners can see all members
     EXISTS (
       SELECT 1 FROM org_members om2
       WHERE om2.organization_id = org_members.organization_id
-      AND om2.user_id = (SELECT auth.uid()::text)
+      AND om2.user_id = (SELECT auth.uid())
       AND om2.role = 'OWNER'
     )
   );
@@ -138,7 +137,7 @@ CREATE POLICY "org_members_insert_optimized" ON org_members
     EXISTS (
       SELECT 1 FROM org_members om2
       WHERE om2.organization_id = org_members.organization_id
-      AND om2.user_id = (SELECT auth.uid()::text)
+      AND om2.user_id = (SELECT auth.uid())
       AND om2.role = 'OWNER'
     )
   );
@@ -149,7 +148,7 @@ CREATE POLICY "org_members_update_optimized" ON org_members
     EXISTS (
       SELECT 1 FROM org_members om2
       WHERE om2.organization_id = org_members.organization_id
-      AND om2.user_id = (SELECT auth.uid()::text)
+      AND om2.user_id = (SELECT auth.uid())
       AND om2.role = 'OWNER'
     )
   )
@@ -157,7 +156,7 @@ CREATE POLICY "org_members_update_optimized" ON org_members
     EXISTS (
       SELECT 1 FROM org_members om2
       WHERE om2.organization_id = org_members.organization_id
-      AND om2.user_id = (SELECT auth.uid()::text)
+      AND om2.user_id = (SELECT auth.uid())
       AND om2.role = 'OWNER'
     )
   );
@@ -168,7 +167,7 @@ CREATE POLICY "org_members_delete_optimized" ON org_members
     EXISTS (
       SELECT 1 FROM org_members om2
       WHERE om2.organization_id = org_members.organization_id
-      AND om2.user_id = (SELECT auth.uid()::text)
+      AND om2.user_id = (SELECT auth.uid())
       AND om2.role = 'OWNER'
     )
   );
@@ -202,7 +201,7 @@ CREATE POLICY "clients_select_optimized" ON clients
       SELECT 1 FROM org_members om
       JOIN clients c ON c.org_id = om.organization_id
       WHERE c.id = clients.id
-      AND om.user_id = (SELECT auth.uid()::text)
+      AND om.user_id = (SELECT auth.uid())
     )
     OR
     -- Owners can see all clients
@@ -210,7 +209,7 @@ CREATE POLICY "clients_select_optimized" ON clients
       SELECT 1 FROM org_members om
       JOIN clients c ON c.org_id = om.organization_id
       WHERE c.id = clients.id
-      AND om.user_id = (SELECT auth.uid()::text)
+      AND om.user_id = (SELECT auth.uid())
       AND om.role = 'OWNER'
     )
   );
@@ -222,7 +221,7 @@ CREATE POLICY "clients_insert_optimized" ON clients
     EXISTS (
       SELECT 1 FROM org_members om
       WHERE om.organization_id = clients.org_id
-      AND om.user_id = (SELECT auth.uid()::text)
+      AND om.user_id = (SELECT auth.uid())
     )
   );
 
@@ -233,14 +232,14 @@ CREATE POLICY "clients_update_optimized" ON clients
     EXISTS (
       SELECT 1 FROM org_members om
       WHERE om.organization_id = clients.org_id
-      AND om.user_id = (SELECT auth.uid()::text)
+      AND om.user_id = (SELECT auth.uid())
     )
   )
   WITH CHECK (
     EXISTS (
       SELECT 1 FROM org_members om
       WHERE om.organization_id = clients.org_id
-      AND om.user_id = (SELECT auth.uid()::text)
+      AND om.user_id = (SELECT auth.uid())
     )
   );
 
@@ -251,7 +250,7 @@ CREATE POLICY "clients_delete_optimized" ON clients
     EXISTS (
       SELECT 1 FROM org_members om
       WHERE om.organization_id = clients.org_id
-      AND om.user_id = (SELECT auth.uid()::text)
+      AND om.user_id = (SELECT auth.uid())
       AND om.role = 'OWNER'
     )
   );
@@ -280,7 +279,7 @@ CREATE POLICY "policies_select_optimized" ON policies
       SELECT 1 FROM clients c
       JOIN org_members om ON om.organization_id = c.org_id
       WHERE c.id = policies.client_id
-      AND om.user_id = (SELECT auth.uid()::text)
+      AND om.user_id = (SELECT auth.uid())
     )
   );
 
@@ -292,7 +291,7 @@ CREATE POLICY "policies_insert_optimized" ON policies
       SELECT 1 FROM clients c
       JOIN org_members om ON om.organization_id = c.org_id
       WHERE c.id = policies.client_id
-      AND om.user_id = (SELECT auth.uid()::text)
+      AND om.user_id = (SELECT auth.uid())
     )
   );
 
@@ -304,7 +303,7 @@ CREATE POLICY "policies_update_optimized" ON policies
       SELECT 1 FROM clients c
       JOIN org_members om ON om.organization_id = c.org_id
       WHERE c.id = policies.client_id
-      AND om.user_id = (SELECT auth.uid()::text)
+      AND om.user_id = (SELECT auth.uid())
     )
   )
   WITH CHECK (
@@ -312,7 +311,7 @@ CREATE POLICY "policies_update_optimized" ON policies
       SELECT 1 FROM clients c
       JOIN org_members om ON om.organization_id = c.org_id
       WHERE c.id = policies.client_id
-      AND om.user_id = (SELECT auth.uid()::text)
+      AND om.user_id = (SELECT auth.uid())
     )
   );
 
@@ -324,7 +323,7 @@ CREATE POLICY "policies_delete_optimized" ON policies
       SELECT 1 FROM clients c
       JOIN org_members om ON om.organization_id = c.org_id
       WHERE c.id = policies.client_id
-      AND om.user_id = (SELECT auth.uid()::text)
+      AND om.user_id = (SELECT auth.uid())
       AND om.role = 'OWNER'
     )
   );
@@ -353,7 +352,7 @@ CREATE POLICY "documents_select_optimized" ON documents
       SELECT 1 FROM clients c
       JOIN org_members om ON om.organization_id = c.org_id
       WHERE c.id = documents.client_id
-      AND om.user_id = (SELECT auth.uid()::text)
+      AND om.user_id = (SELECT auth.uid())
     )
   );
 
@@ -365,7 +364,7 @@ CREATE POLICY "documents_insert_optimized" ON documents
       SELECT 1 FROM clients c
       JOIN org_members om ON om.organization_id = c.org_id
       WHERE c.id = documents.client_id
-      AND om.user_id = (SELECT auth.uid()::text)
+      AND om.user_id = (SELECT auth.uid())
     )
   );
 
@@ -377,7 +376,7 @@ CREATE POLICY "documents_update_optimized" ON documents
       SELECT 1 FROM clients c
       JOIN org_members om ON om.organization_id = c.org_id
       WHERE c.id = documents.client_id
-      AND om.user_id = (SELECT auth.uid()::text)
+      AND om.user_id = (SELECT auth.uid())
     )
   )
   WITH CHECK (
@@ -385,7 +384,7 @@ CREATE POLICY "documents_update_optimized" ON documents
       SELECT 1 FROM clients c
       JOIN org_members om ON om.organization_id = c.org_id
       WHERE c.id = documents.client_id
-      AND om.user_id = (SELECT auth.uid()::text)
+      AND om.user_id = (SELECT auth.uid())
     )
   );
 
@@ -402,12 +401,12 @@ CREATE POLICY "users_select_optimized" ON users
   FOR SELECT
   USING (
     -- Users can read their own record
-    id = (SELECT auth.uid()::text)
+    id = (SELECT auth.uid())
     OR
     -- Admins can read all users (if you have an admin check function)
     EXISTS (
       SELECT 1 FROM users u2
-      WHERE u2.id = (SELECT auth.uid()::text)
+      WHERE u2.id = (SELECT auth.uid())
       AND 'ADMIN' = ANY(u2.roles)
     )
   );
@@ -426,7 +425,7 @@ CREATE POLICY "org_invites_manage_optimized" ON org_invites
     EXISTS (
       SELECT 1 FROM org_members om
       WHERE om.organization_id = org_invites.org_id
-      AND om.user_id = (SELECT auth.uid()::text)
+      AND om.user_id = (SELECT auth.uid())
       AND om.role = 'OWNER'
     )
   )
@@ -434,7 +433,7 @@ CREATE POLICY "org_invites_manage_optimized" ON org_invites
     EXISTS (
       SELECT 1 FROM org_members om
       WHERE om.organization_id = org_invites.org_id
-      AND om.user_id = (SELECT auth.uid()::text)
+      AND om.user_id = (SELECT auth.uid())
       AND om.role = 'OWNER'
     )
   );
