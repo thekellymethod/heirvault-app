@@ -1,4 +1,5 @@
 import { logAuditEvent } from '@/lib/audit'
+import { getIndependentPolicyholderOrgId } from "@/lib/independentPolicyholderOrg";
 import crypto from 'crypto'
 import { randomUUID } from 'crypto'
 
@@ -168,6 +169,7 @@ export async function acceptInvite(token: string, userId: string) {
     const clientId = randomUUID();
     const newClient = await createDbRecord<ClientRecord>("clients", {
       id: clientId,
+      orgId: invite.organizationId || getIndependentPolicyholderOrgId(),
       email: invite.clientEmail,
       firstName: user.firstName || '',
       lastName: user.lastName || '',

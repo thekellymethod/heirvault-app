@@ -62,11 +62,11 @@ export function GlobalSearch() {
   }
 
   return (
-    <div className="relative w-full max-w-sm">
-      <div className="flex items-center gap-2">
+    <div className="relative w-full min-w-0 max-w-md">
+      <div className="flex min-w-0 items-center gap-2">
         <input
-          placeholder="Search your clients or policies..."
-          className="flex-1 rounded-xl border border-slateui-200 bg-white px-3 py-2 text-sm text-ink-900 placeholder-slateui-400 focus:outline-none focus:ring-2 focus:border-gold-400 focus:ring-gold-400/20"
+          placeholder="Clients & policies…"
+          className="min-w-0 flex-1 rounded-xl border border-slateui-200 bg-white px-3 py-2 text-sm text-ink-900 placeholder-slateui-400 focus:outline-none focus:ring-2 focus:border-gold-400 focus:ring-gold-400/20"
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />

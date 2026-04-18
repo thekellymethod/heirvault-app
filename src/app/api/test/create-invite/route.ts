@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-;
 import { randomBytes } from "crypto";
+import { getIndependentPolicyholderOrgId } from "@/lib/independentPolicyholderOrg";
 
 /**
  * API endpoint to create a test invitation code
@@ -87,6 +87,7 @@ export async function POST(req: NextRequest) {
       const now = new Date().toISOString();
       client = await createDbRecord("clients", {
         id: clientId,
+        orgId: getIndependentPolicyholderOrgId(),
         firstName: TEST_CLIENT_NAME.firstName,
         lastName: TEST_CLIENT_NAME.lastName,
         email: TEST_EMAIL,

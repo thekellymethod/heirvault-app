@@ -30,7 +30,7 @@ A secure, private registry where attorneys can manage client life insurance poli
 ## 🛠️ Tech Stack
 
 - **Framework**: Next.js 16 (App Router)
-- **Database**: PostgreSQL with Prisma ORM
+- **Database**: PostgreSQL (Supabase) with SQL migrations and typed access via `@/lib/db`
 - **Storage**: Supabase Storage (for document storage)
 - **Authentication**: Clerk (attorney-only)
 - **Styling**: Tailwind CSS 4
@@ -66,13 +66,9 @@ cd heir-vault
 npm install
 ```
 
-3. **Set up Database**:
-   - Create a PostgreSQL database
-   - Run Prisma migrations:
-   ```bash
-   npm run db:migrate
-   ```
-   - Or push schema directly (development):
+3. **Set up database**:
+   - Create a Supabase project (or any Postgres) and set `DATABASE_URL` / Supabase keys in `.env.local`.
+   - Apply SQL migrations:
    ```bash
    npm run db:push
    ```
@@ -195,10 +191,9 @@ src/
 │   └── attorney/                     # Attorney onboarding
 ├── lib/
 │   ├── db/
-│   │   ├── index.ts                  # Prisma database client exports
+│   │   ├── index.ts                  # DB exports (Supabase helpers)
 │   │   ├── enums.ts                  # Database enums
 │   │   └── registry.ts               # Registry database functions
-│   ├── db.ts                         # Database client export
 │   ├── utils/
 │   │   └── clerk.ts                  # Clerk utilities & auth
 │   ├── auth.ts                       # Authentication (Clerk)
@@ -246,7 +241,7 @@ src/
 - **Address Fields**: Separate address fields for clients, beneficiaries, and attorneys
 - **Composite Indexes**: Optimized for name/DOB and address searches
 
-See `prisma/schema.prisma` for the complete Prisma schema.
+See `supabase/migrations/` for the authoritative schema.
 
 ## 🔐 Security & Data Protection
 
@@ -277,7 +272,7 @@ See `prisma/schema.prisma` for the complete Prisma schema.
 - **Users**: CREATE, READ, UPDATE (DELETE via Clerk)
 - **Organizations**: CREATE, READ, UPDATE
 
-All operations use **Prisma ORM** for type-safe database access.
+Server-side data access uses **Supabase** (Postgres) via `@/lib/db` and `@/lib/supabaseAdmin`.
 
 ## 🎫 Client Invitation System
 
@@ -364,34 +359,17 @@ ADMIN_EMAILS="admin@example.com,another-admin@example.com"
 
 ## 🚢 Deployment
 
-See `DEPLOYMENT_REPORT.md` for detailed deployment instructions and `PREDEPLOY_CHECKLIST.md` for a reusable pre-deployment checklist.
+### Quick deploy checklist
 
-### Quick Deploy Checklist
+1. Set up a Supabase project and Postgres database.
+2. Configure environment variables (see `.env.local` / `.env` and `src/lib/env.ts` validation).
+3. Apply migrations: `npm run db:push` (or `supabase db push` with the CLI linked to the project).
+4. Ensure required Storage buckets exist in the Supabase dashboard (see migrations that create buckets).
+5. Build: `npm run build`, then deploy (e.g. Vercel).
 
-1. ✅ Set up Supabase project and database
-2. ✅ Configure environment variables (see `.env.example`)
-3. ✅ Apply Supabase migrations: `supabase db push` or via Dashboard
-4. ✅ Create storage buckets in Supabase Dashboard
-5. ✅ Build the application: `npm run build`
-6. ✅ Deploy to your hosting platform (Vercel recommended)
+### Product / integration notes
 
-### Important Notes
-
-- **Database Migrations**: Use `supabase db push` for production migrations (or apply via Supabase Dashboard)
-- **Schema Management**: Migrations are in `supabase/migrations/` directory
-- **Storage Buckets**: Create required buckets (`heirvault-files`, etc.) in Supabase Dashboard → Storage
-- **Environment Variables**: All required variables are validated by `src/lib/env.ts`
-- **Health Check**: Verify deployment with `/api/health` endpoint
-
-## 📚 Documentation
-
-- **`DEPLOYMENT.md`**: Deployment instructions
-- **`DEPLOYMENT_CHECKLIST.md`**: Deployment checklist
-- **`DATABASE_SEPARATION.md`**: Database architecture and conflict prevention
-- **`SYSTEM_VERIFICATION.md`**: Complete system verification report
-- **`ADMIN_COMPLIANCE.md`**: Admin access control and compliance page documentation
-- **`REGISTRY_DATABASE.md`**: Registry system architecture and database schema
-- **`PHASE_0_FOUNDATION.md` through `PHASE_6_AUDIT_ADMIN.md`**: Implementation phase documentation
+- Policy document storage (private bucket, RLS, API helpers): `docs/INTEGRATION_POLICY_DOCUMENT_STORAGE.md`.
 
 ## 🔄 Recent Updates
 
@@ -410,10 +388,8 @@ See `DEPLOYMENT_REPORT.md` for detailed deployment instructions and `PREDEPLOY_C
 - **HttpError Integration**: All compliance routes use `HttpError` for consistent error handling
 
 ### Database
-- Using Prisma ORM for type-safe database access
-- Schema is defined in `prisma/schema.prisma`
-- All database queries use Prisma Client
-- Added Supabase integration for document storage and registry tables
+- Schema changes live in `supabase/migrations/`.
+- Application code uses the Supabase service role and helpers in `src/lib/db` for server-side access.
 
 ### Authentication Flow
 - Fixed dashboard layout to properly check organization membership
@@ -426,7 +402,7 @@ See `DEPLOYMENT_REPORT.md` for detailed deployment instructions and `PREDEPLOY_C
 
 ```bash
 npm run dev          # Start development server
-npm run build        # Build for production (includes Prisma Client generation)
+npm run build        # Build for production
 npm run start        # Start production server
 npm run lint         # Run ESLint
 ```
@@ -434,32 +410,24 @@ npm run lint         # Run ESLint
 ### Database Management
 
 ```bash
-npm run db:generate           # Generate Prisma Client
-npm run db:migrate            # Run database migrations
-npm run db:push               # Push schema changes (development)
-npm run db:studio             # Open Prisma Studio (database GUI)
-npm run db:status             # Check migration status
-npm run db:deploy             # Deploy migrations (production)
+npm run db:types              # Generate TypeScript types from Supabase (when CLI is configured)
+npm run db:push               # Apply Supabase migrations to the linked database
+npm run db:reset              # Reset local Supabase (destructive)
+npm run db:diff               # Generate a migration diff (Supabase CLI)
+npm run db:migrate            # Run `supabase migration up` (CLI)
 ```
 
 ## 🐛 Troubleshooting
 
 ### Common Issues
 
-1. **Database Connection Errors**: Verify `DATABASE_URL` in `.env.local`
-2. **Schema Mismatches**: Check `prisma/schema.prisma` matches database
-3. **Build Errors**: Clear `.next` folder and rebuild: `Remove-Item -Recurse -Force .next && npm run build`
-4. **Migration Errors**: Run `npm run db:push` to sync schema during development
+1. **Database connection errors**: Verify `DATABASE_URL` and Supabase env vars in `.env.local`.
+2. **Schema mismatches**: Compare remote DB to `supabase/migrations/` and run `npm run db:push` when safe.
+3. **Build errors**: Clear `.next` and rebuild (`npm run clean:next` then `npm run build`).
 
-### Error Handling
+### Error handling
 
-The system uses **Prisma ORM** for type-safe database access. If you encounter database errors:
-
-1. Check database connection
-2. Verify schema matches database: `npm run db:push`
-3. Regenerate Prisma Client: `npm run db:generate`
-4. Check error logs for specific issues
-5. Use Prisma Studio to inspect database: `npm run db:studio`
+If database errors persist, confirm migrations applied, then inspect Supabase logs / SQL editor; regenerate types with `npm run db:types` when the schema changes.
 
 ## 🎯 Roadmap
 
@@ -476,7 +444,7 @@ The system uses **Prisma ORM** for type-safe database access. If you encounter d
 - [x] Confirmation codes
 - [x] Audit logging
 - [x] Database separation and conflict prevention
-- [x] Prisma ORM integration for type-safe database access
+- [x] Supabase Postgres + SQL migrations
 - [x] Fixed dashboard routing and authentication flow
 - [x] Public policy intake system (no account required)
 - [x] QR token-based update system

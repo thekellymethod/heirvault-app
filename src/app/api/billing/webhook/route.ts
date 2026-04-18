@@ -4,6 +4,7 @@ import { stripe } from "@/lib/stripe";
 ;
 import Stripe from "stripe";
 import crypto from "crypto";
+import { organizationIdFromMemberRow } from "@/lib/org/membershipRow";
 
 export const runtime = "nodejs";
 
@@ -99,11 +100,13 @@ export async function POST(req: Request) {
             });
 
             if (members && members.length > 0) {
-              const membership = members[0] as { organizationId: string };
-              await updateOrg("organizations", { id: membership.organizationId }, {
-                stripeCustomerId: customerId,
-                updatedAt: new Date().toISOString(),
-              } as Record<string, unknown>);
+              const oid = organizationIdFromMemberRow(members[0] as Record<string, unknown>);
+              if (oid) {
+                await updateOrg("organizations", { id: oid }, {
+                  stripeCustomerId: customerId,
+                  updatedAt: new Date().toISOString(),
+                } as Record<string, unknown>);
+              }
             }
           }
         }
@@ -152,16 +155,16 @@ export async function POST(req: Request) {
                 });
 
                 if (members && members.length > 0) {
-                  const membership = members[0] as { organizationId: string };
-                  // Link customer to organization
-                  await updateOrg("organizations", { id: membership.organizationId }, {
-                    stripeCustomerId: customerId,
-                    updatedAt: new Date().toISOString(),
-                  } as Record<string, unknown>);
+                  const oid = organizationIdFromMemberRow(members[0] as Record<string, unknown>);
+                  if (oid) {
+                    await updateOrg("organizations", { id: oid }, {
+                      stripeCustomerId: customerId,
+                      updatedAt: new Date().toISOString(),
+                    } as Record<string, unknown>);
 
-                  // Reload org
-                  const reloaded = await findUniqueOrg<OrgRecord>("organizations", { id: membership.organizationId });
-                  org = reloaded;
+                    const reloaded = await findUniqueOrg<OrgRecord>("organizations", { id: oid });
+                    org = reloaded;
+                  }
                 }
               }
             }
@@ -317,20 +320,22 @@ export async function POST(req: Request) {
             });
 
             if (members && members.length > 0) {
-              const membership = members[0] as { organizationId: string };
-              await updateOrg("organizations", { id: membership.organizationId }, {
-                stripeCustomerId: customerId,
-                updatedAt: new Date().toISOString(),
-              } as Record<string, unknown>);
+              const oid = organizationIdFromMemberRow(members[0] as Record<string, unknown>);
+              if (oid) {
+                await updateOrg("organizations", { id: oid }, {
+                  stripeCustomerId: customerId,
+                  updatedAt: new Date().toISOString(),
+                } as Record<string, unknown>);
 
-              const reloaded = await db
-                .from("organizations")
-                .select("*")
-                .eq("id", membership.organizationId)
-                .limit(1)
-                .single();
-              
-              org = reloaded.data as OrgRecord | null;
+                const reloaded = await db
+                  .from("organizations")
+                  .select("*")
+                  .eq("id", oid)
+                  .limit(1)
+                  .single();
+
+                org = reloaded.data as OrgRecord | null;
+              }
             }
           }
         }
@@ -382,21 +387,22 @@ export async function POST(req: Request) {
             });
 
             if (members && members.length > 0) {
-              const membership = members[0] as { organizationId: string };
-              // Link customer to organization if not already linked
-              await updateOrg("organizations", { id: membership.organizationId }, {
-                stripeCustomerId: customerId,
-                updatedAt: new Date().toISOString(),
-              } as Record<string, unknown>);
+              const oid = organizationIdFromMemberRow(members[0] as Record<string, unknown>);
+              if (oid) {
+                await updateOrg("organizations", { id: oid }, {
+                  stripeCustomerId: customerId,
+                  updatedAt: new Date().toISOString(),
+                } as Record<string, unknown>);
 
-              const reloaded = await db
-                .from("organizations")
-                .select("id")
-                .eq("id", membership.organizationId)
-                .limit(1)
-                .single();
-              
-              org = reloaded.data as OrgRecord | null;
+                const reloaded = await db
+                  .from("organizations")
+                  .select("id")
+                  .eq("id", oid)
+                  .limit(1)
+                  .single();
+
+                org = reloaded.data as OrgRecord | null;
+              }
             }
           }
         }

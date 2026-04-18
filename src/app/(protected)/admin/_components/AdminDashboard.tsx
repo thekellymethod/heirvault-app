@@ -315,7 +315,7 @@ export function AdminDashboard({ admin: _admin }: AdminDashboardProps) {
                   : "border-transparent text-slateui-500 hover:text-slateui-700 hover:border-slateui-300"
               }`}
             >
-              Manual Upload
+              Manual records
             </button>
           </nav>
           </div>

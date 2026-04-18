@@ -4,6 +4,7 @@ import { requireAuthPrincipal, requireRole } from "@/lib/permissions/guard";
 import { requireOrgAccess } from "@/lib/permissions/orgAccess";
 import { UserRole } from "@/lib/db/enums";
 import { ArtifactType } from "@/lib/db/enums";
+import { organizationIdFromMemberRow } from "@/lib/org/membershipRow";
 
 export async function GET() {
   return withRouteGuard(async () => {
@@ -28,7 +29,11 @@ export async function GET() {
     }
 
     const membership = members[0];
-    await requireOrgAccess(principal, membership.organizationId);
+    const orgId = organizationIdFromMemberRow(membership as Record<string, unknown>);
+    if (!orgId) {
+      return { ok: false, error: "No organization" };
+    }
+    await requireOrgAccess(principal, orgId);
 
     type ArtifactRecord = {
       id: string;
@@ -40,7 +45,7 @@ export async function GET() {
     
     const invoices = await findManyArtifacts<ArtifactRecord>("artifacts", {
       where: {
-        orgId: membership.organizationId,
+        orgId,
         type: ArtifactType.BILLING_INVOICE_PDF,
       },
       orderBy: { column: "createdAt", ascending: false },

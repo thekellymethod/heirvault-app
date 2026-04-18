@@ -1,10 +1,10 @@
 // src/app/api/public/upload/route.ts
 import { NextResponse } from "next/server";
-;
 import { hashToken } from "@/lib/invites";
+import { loadPendingClientInviteWithClient } from "@/lib/invites/clientInviteGate";
 import { putObject } from "@/lib/storage";
 import { auditLog } from "@/lib/audit";
-import { ClientInviteStatus, DocumentClassificationStatus, DocumentSensitivity } from "@/lib/db/enums";
+import { DocumentClassificationStatus, DocumentSensitivity } from "@/lib/db/enums";
 import { getDocumentCategory } from "@/lib/documents/taxonomy";
 // import { rateLimit, clientIp } from "@/lib/security/rateLimit";
 // import { validateUpload } from "@/lib/security/uploads";
@@ -49,32 +49,14 @@ export async function POST(req: Request) {
   if (!(file instanceof File)) return NextResponse.json({ error: "Missing file" }, { status: 400 });
 
   const tokenHash = hashToken(token);
-  const { findUnique: findUniqueInvite, findUnique: findUniqueClient, create: createDb } = await import("@/lib/db");
-  
-  type InviteRecord = {
-    id: string;
-    tokenHash: string;
-    status: string;
-    expiresAt: string | Date;
-    submissionCount: number;
-    maxSubmissions: number;
-    clientId: string;
-  };
-  
-  type ClientRecord = {
-    id: string;
-    orgId: string | null;
-  };
-  
-  const invite = await findUniqueInvite<InviteRecord>("client_invites", { tokenHash });
-  if (!invite || invite.status !== ClientInviteStatus.PENDING) return NextResponse.json({ error: "Invite invalid" }, { status: 403 });
-  const expiresAt = typeof invite.expiresAt === 'string' ? new Date(invite.expiresAt) : invite.expiresAt;
-  if (expiresAt.getTime() < Date.now()) return NextResponse.json({ error: "Invite expired" }, { status: 403 });
-  if (invite.submissionCount >= invite.maxSubmissions) return NextResponse.json({ error: "Invite used" }, { status: 403 });
-  
-  // Fetch client separately
-  const client = await findUniqueClient<ClientRecord>("clients", { id: invite.clientId });
-  if (!client) return NextResponse.json({ error: "Client not found" }, { status: 404 });
+  const gate = await loadPendingClientInviteWithClient(tokenHash);
+  if (!gate.ok) {
+    return NextResponse.json({ error: gate.error }, { status: gate.status });
+  }
+  const { invite, client } = gate;
+
+  const { create: createDb } = await import("@/lib/db");
+  const orgId = client.orgId ?? client.organizationId ?? null;
 
   const docType = parseDocType(docTypeRaw);
   const c = classify(docType);
@@ -85,7 +67,7 @@ export async function POST(req: Request) {
     docType,
     file.name,
     "/api/public/upload",
-    client.orgId || null,
+    orgId,
     invite.clientId,
     null // Public upload, no user ID
   );

@@ -52,17 +52,21 @@ export const TierFeatures = {
  * This allows backward compatibility while transitioning to tier-based system
  */
 export function getTierFromBillingPlan(plan: string): TierType {
+  const p = (plan || "").trim().toUpperCase();
   // Legacy mapping - existing plans map to BASE tier initially
-  // Users must accept contracts to unlock higher tiers
-  switch (plan) {
+  // Users must accept contracts to unlock higher tiers (except platform admin org — see getEffectiveTier)
+  switch (p) {
     case "ENTERPRISE":
-      return Tier.FIRM_WIDE; // Enterprise maps to Firm-Wide
+    case "ADMIN":
+    case "PLATFORM":
+    case "PLATFORM_ENTERPRISE":
+      return Tier.FIRM_WIDE;
     case "SMALL_FIRM":
     case "SOLO":
-      return Tier.ACTIVE_ESTATE; // Paid plans map to Active Estate
+      return Tier.ACTIVE_ESTATE;
     case "FREE":
     default:
-      return Tier.BASE; // Free maps to Base
+      return Tier.BASE;
   }
 }
 

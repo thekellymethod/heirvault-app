@@ -1,13 +1,13 @@
 // src/app/api/public/intake/submit/route.ts
 import { NextResponse } from "next/server";
-;
 import { hashToken } from "@/lib/invites";
+import { loadPendingClientInviteWithClient } from "@/lib/invites/clientInviteGate";
 import { auditLog } from "@/lib/audit";
 import { makeReceiptNumber } from "@/lib/security";
 import { makeReceiptPdf } from "@/lib/pdf/receipt";
 import { putObject } from "@/lib/storage";
 import { sendEmail } from "@/lib/email";
-import { ClientInviteStatus, DocumentClassificationStatus } from "@/lib/db/enums";
+import { DocumentClassificationStatus } from "@/lib/db/enums";
 import { bandFromScore } from "@/lib/confidence";
 import { intakeRules, requiredDocTypesForInvite } from "@/lib/rules/requiredDocs";
 import { rateLimit, getClientIp } from "@/lib/security/rateLimit";
@@ -42,36 +42,17 @@ export async function POST(req: Request) {
   if (!token || typeof token !== "string") return NextResponse.json({ error: "Invalid token" }, { status: 400 });
 
   const tokenHash = hashToken(token);
-  const { findUnique: findUniqueInvite, findUnique: findUniqueClient, findMany: findManyPolicies, getDb } = await import("@/lib/db");
-  
-  type InviteRecord = {
-    id: string;
-    tokenHash: string;
-    status: string;
-    expiresAt: string | Date;
-    submissionCount: number;
-    maxSubmissions: number;
-    clientId: string;
-    createdAt: string;
-  };
-  
-  type ClientRecord = {
-    id: string;
-    firstName: string | null;
-    lastName: string | null;
-    email: string | null;
-  };
-  
-  const invite = await findUniqueInvite<InviteRecord>("client_invites", { tokenHash });
+  const gate = await loadPendingClientInviteWithClient(tokenHash);
+  if (!gate.ok) {
+    return NextResponse.json({ error: gate.error }, { status: gate.status });
+  }
+  const { invite, client } = gate;
 
-  if (!invite || invite.status !== ClientInviteStatus.PENDING) return NextResponse.json({ error: "Invite invalid" }, { status: 403 });
-  const expiresAt = typeof invite.expiresAt === 'string' ? new Date(invite.expiresAt) : invite.expiresAt;
-  if (expiresAt.getTime() < Date.now()) return NextResponse.json({ error: "Invite expired" }, { status: 403 });
-  if (invite.submissionCount >= invite.maxSubmissions) return NextResponse.json({ error: "Invite used" }, { status: 403 });
+  if (!invite.createdAt) {
+    return NextResponse.json({ error: "Invite misconfigured" }, { status: 500 });
+  }
 
-  // Fetch client separately
-  const client = await findUniqueClient<ClientRecord>("clients", { id: invite.clientId });
-  if (!client) return NextResponse.json({ error: "Client not found" }, { status: 404 });
+  const { findMany: findManyPolicies, getDb } = await import("@/lib/db");
 
   // Get documents for this invite
   const db = getDb();

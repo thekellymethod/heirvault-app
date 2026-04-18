@@ -1,536 +1,468 @@
 "use client";
 
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { Logo } from "@/components/Logo";
 import { Footer } from "@/components/Footer";
-import { Shield } from "lucide-react";
+import {
+  DarkGridPattern,
+  HeroRegistryIllustration,
+  ShieldRingOnDark,
+  WorkflowStripOnDark,
+} from "@/components/landing/LandingGraphics";
+
+/** Static surfaces (proof, pricing, registry cards) */
+const cardStatic = "rounded-xl border border-white/[0.06] bg-hv-surface";
+const cardInteractive = "rounded-xl border border-white/[0.06] bg-hv-surface transition-colors duration-200 hover:border-white/[0.09]";
+
+function PrimaryCta({ href, children, className = "" }: { href: string; children: ReactNode; className?: string }) {
+  return (
+    <Link href={href} className={`btn-primary text-sm font-semibold ${className}`}>
+      {children}
+    </Link>
+  );
+}
+
+function SecondaryCta({ href, children, className = "" }: { href: string; children: ReactNode; className?: string }) {
+  return (
+    <Link
+      href={href}
+      className={`inline-flex items-center justify-center rounded-xl border border-white/[0.06] bg-transparent px-6 py-3 text-sm font-medium text-hv-text-secondary transition-colors duration-200 hover:border-white/[0.1] hover:bg-white/[0.04] hover:text-hv-text ${className}`}
+    >
+      {children}
+    </Link>
+  );
+}
 
 export default function HomePage() {
   return (
-    <main className="min-h-screen bg-[#070B14] text-white">
-      {/* Background */}
-      <div className="pointer-events-none fixed inset-0 -z-10">
-        <div className="absolute inset-0 bg-[radial-gradient(1200px_700px_at_20%_10%,rgba(200,148,45,0.15),transparent_60%),radial-gradient(900px_600px_at_80%_20%,rgba(26,42,69,0.18),transparent_55%),radial-gradient(900px_700px_at_50%_90%,rgba(11,18,32,0.25),transparent_60%)]" />
-        <div className="absolute inset-0 opacity-50 [background-image:linear-gradient(to_right,rgba(255,255,255,0.06)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.06)_1px,transparent_1px)] [background-size:56px_56px]" />
-      </div>
+    <main className="min-h-screen bg-hv-bg text-hv-text antialiased">
+      <div className="pointer-events-none fixed inset-0 -z-10 hv-hero-bg" />
+      <div
+        className="pointer-events-none fixed inset-0 -z-10 opacity-[0.14] [background-image:linear-gradient(to_right,rgba(255,255,255,0.028)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.028)_1px,transparent_1px)] [background-size:64px_64px]"
+        aria-hidden
+      />
 
-      {/* Top Nav */}
-      <header className="sticky top-0 z-20 border-b border-white/10 bg-[#070B14]/75 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4">
-          <Link href="/" className="flex items-center gap-3">
-            <Logo size="xl" variant="icon-only" />
-            <div className="leading-tight">
-              <div className="text-sm font-semibold tracking-wide" style={{ color: "#E1B75A", fontFamily: "'Playfair Display', Georgia, serif" }}>HeirVault</div>
-              <div className="text-xs text-white/60">Life Insurance Policy Registry</div>
-            </div>
-          </Link>
+      <header className="sticky top-0 z-20 border-b border-white/[0.06] bg-hv-bg/90 backdrop-blur-md">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-6 px-6 py-4">
+        <Link href="/" className="flex items-center gap-3">
+          <Logo 
+            size="sm" 
+            colorMode="light" 
+            variant="default"
+            showTagline={true}
+            className="flex-row" 
+          />
+        </Link>
 
-          <nav className="hidden items-center gap-6 text-sm text-white/80 md:flex">
-            <a href="#how" className="hover:text-[#E1B75A] transition">How it works</a>
-            <a href="#pricing" className="hover:text-[#E1B75A] transition">Pricing</a>
-            <a href="#security" className="hover:text-[#E1B75A] transition">Security</a>
+          <nav className="hidden items-center gap-8 text-[13px] font-medium text-hv-text-secondary md:flex">
+            <a href="#how" className="transition hover:text-hv-text">
+              How it works
+            </a>
+            <a href="#proof" className="transition hover:text-hv-text">
+              Sample output
+            </a>
+            <a href="#pricing" className="transition hover:text-hv-text">
+              Pricing
+            </a>
+            <a href="#security" className="transition hover:text-hv-text">
+              Security
+            </a>
           </nav>
 
-          <div className="flex items-center gap-3">
-            <Link
-              href="/admin/sign-in"
-              className="hidden rounded-xl border border-red-500/30 bg-red-600/10 px-3 py-2 text-xs font-semibold text-red-400 hover:border-red-500/50 hover:bg-red-600/20 transition md:inline-flex items-center gap-1.5"
-              title="Administrator Sign In"
-            >
-              <Shield className="h-3.5 w-3.5" />
-              Admin
-            </Link>
+          <div className="flex shrink-0 items-center gap-3">
             <Link
               href="/attorney/sign-in"
-              className="hidden rounded-xl border border-white/15 px-4 py-2 text-sm text-white/85 hover:border-[#E1B75A]/50 hover:text-[#E1B75A] transition md:inline-flex"
+              className="hidden rounded-xl border border-white/[0.06] px-4 py-2 text-sm text-hv-text-secondary transition-colors hover:border-white/[0.1] hover:bg-white/[0.04] md:inline-flex"
             >
               Log in
             </Link>
-            <Link
-              href="/start"
-              className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-[#C8942D] via-[#D4A84A] to-[#E1B75A] px-4 py-2 text-sm font-semibold text-[#0B1220] shadow-[0_0_0_1px_rgba(0,0,0,0.12),0_20px_50px_rgba(200,148,45,0.22)] hover:brightness-110 transition"
-            >
+            <PrimaryCta href="/start" className="!px-4 !py-2">
               Start free
-            </Link>
+            </PrimaryCta>
           </div>
         </div>
       </header>
 
-      {/* Hero */}
-      <section className="mx-auto max-w-6xl px-5 pb-16 pt-14 md:pt-20">
-        <div className="mx-auto max-w-3xl text-center">
-          <div className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/5 px-3 py-1 text-xs text-white/75 mb-6">
-            <span className="h-2 w-2 rounded-full bg-[#EAB308]" />
-            Designed for probate attorneys, estate administrators, and firm staff
+      <div className="border-b border-white/[0.06] bg-hv-bg-soft/20">
+        <p className="mx-auto max-w-3xl px-6 py-1.5 text-[11px] leading-snug text-hv-text-muted md:text-center">
+          <span className="text-hv-text-secondary">Attorneys, administrators, firm staff.</span>{" "}
+          <span className="text-hv-text-muted">Policyholders:</span>{" "}
+          <Link href="/submit-policy" className="font-medium text-hv-accent underline-offset-2 hover:underline">
+            Submit documents
+          </Link>
+          <span className="text-hv-text-muted"> · receipt · no sign-in · firm access requires account</span>
+        </p>
+      </div>
+
+      {/* Hero — extra vertical air vs body sections */}
+      <section className="relative overflow-hidden px-6 pb-28 pt-24 md:pb-36 md:pt-32">
+        <div className="relative z-10 mx-auto grid max-w-6xl items-center gap-14 lg:grid-cols-[minmax(0,1fr)_minmax(260px,380px)] lg:gap-16">
+          <div className="text-left">
+            <h1 className="hv-hero-title max-w-[20ch]">
+              A life insurance policy registry built for estates and probate.
+            </h1>
+            <p className="mt-7 max-w-lg hv-body">
+              Track, verify, and document policies per estate—without carrier chase.
+            </p>
+            <div className="mt-12 flex flex-wrap items-center gap-3">
+              <PrimaryCta href="/start">Create your first policy registry</PrimaryCta>
+              <SecondaryCta href="#how">See how it works</SecondaryCta>
+            </div>
+            <p className="mt-5 max-w-sm text-[12px] leading-snug text-hv-text-muted">
+              Structured records · audit-ready
+            </p>
           </div>
 
-          <h1 className="text-4xl font-semibold leading-tight tracking-tight md:text-5xl lg:text-6xl" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
-            A life insurance policy registry built for estates and probate.
-          </h1>
-
-          <p className="mt-5 text-lg leading-relaxed text-white/75 max-w-2xl mx-auto">
-            Track, verify, and document life insurance policies per estate—without chasing PDFs, emails, or unanswered calls.
-          </p>
-
-            <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-              <Link
-                href="/start"
-                className="inline-flex items-center justify-center rounded-xl bg-[#EAB308] px-6 py-3 text-sm font-semibold text-black shadow-[0_0_0_1px_rgba(0,0,0,0.25),0_20px_55px_rgba(234,179,8,0.16)] hover:brightness-105 transition"
-              >
-                Create your first policy registry
-              </Link>
-              <Link
-                href="#how"
-                className="inline-flex items-center justify-center rounded-xl border border-white/15 bg-white/5 px-6 py-3 text-sm font-semibold text-white/90 hover:border-[#E1B75A]/50 hover:bg-white/8 transition"
-              >
-                See how it works
-              </Link>
+          <div className="mx-auto w-full max-w-[340px] shrink-0 lg:mx-0">
+            <div className={`${cardStatic} bg-hv-surface/85 p-5 md:p-6`}>
+              <HeroRegistryIllustration className="mx-auto h-auto w-full max-w-[280px] opacity-[0.88]" />
+              <p className="mt-4 text-center text-[11px] leading-snug text-hv-text-muted">
+                Registry view — structured and auditable
+              </p>
             </div>
+          </div>
         </div>
       </section>
 
-      {/* Problem Section */}
-      <section className="mx-auto max-w-6xl px-5 py-14">
-        <div className="rounded-3xl border border-white/10 bg-white/5 p-8 md:p-12">
-          <h2 className="text-2xl font-semibold tracking-tight mb-4" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
-            Why HeirVault exists
-          </h2>
-          <p className="text-lg text-white/80 mb-6">
-            Life insurance policies are often:
-          </p>
-          <ul className="space-y-3 text-white/75 mb-8">
-            <li className="flex gap-3">
-              <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-[#EAB308]" />
-              <span>partially known,</span>
-            </li>
-            <li className="flex gap-3">
-              <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-[#EAB308]" />
-              <span>undocumented,</span>
-            </li>
-            <li className="flex gap-3">
-              <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-[#EAB308]" />
-              <span>scattered across inboxes and folders,</span>
-            </li>
-            <li className="flex gap-3">
-              <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-[#EAB308]" />
-              <span>or discovered too late.</span>
-            </li>
+      <div className="relative h-8 w-full overflow-hidden border-t border-white/[0.06] bg-hv-bg">
+        <WorkflowStripOnDark className="absolute bottom-0 left-1/2 h-7 w-[min(880px,92%)] -translate-x-1/2 opacity-[0.32]" />
+      </div>
+
+      <section className="relative border-t border-white/[0.06] bg-hv-bg-soft hv-section-y">
+        <DarkGridPattern className="pointer-events-none absolute -right-16 top-0 h-[min(100%,480px)] w-[min(52%,380px)] opacity-[0.12]" />
+        <div className="relative z-10 mx-auto max-w-6xl px-6">
+          <h2 className="hv-h2 max-w-[40rem]">Why HeirVault exists</h2>
+          <p className="mt-6 max-w-[36rem] hv-body text-hv-text-secondary">Life insurance policies are often:</p>
+          <ul className="mt-4 max-w-[38rem] space-y-2 text-left text-[15px] leading-relaxed text-hv-text-secondary">
+            <ListItem>partially known,</ListItem>
+            <ListItem>undocumented,</ListItem>
+            <ListItem>scattered across inboxes and folders,</ListItem>
+            <ListItem>or discovered too late.</ListItem>
           </ul>
-          <p className="text-white/70 mb-4">
-            Firms waste time chasing carriers. Families don&apos;t know what exists. Policy proof gets buried in document clutter.
+          <p className="mt-7 max-w-[40rem] hv-body">
+            Firms lose time to carrier chase. Families lack a single view. Proof is buried in clutter.
           </p>
-          <div className="rounded-2xl border border-[#EAB308]/30 bg-[#EAB308]/10 p-6">
-            <p className="text-white/90 font-semibold">
-              <strong className="text-[#EAB308]">HeirVault solves one specific problem:</strong>
-              <br />
-              Knowing <strong>what policies exist</strong>, <strong>what&apos;s verified</strong>, and <strong>what&apos;s missing</strong>—per estate.
+          <aside className="mt-8 max-w-[36rem] border-l border-hv-accent/40 pl-4">
+            <p className="text-left text-[15px] leading-relaxed text-hv-text">
+              <span className="font-medium text-hv-accent">HeirVault answers one question:</span> what exists, what is
+              verified, and what is missing—<strong className="font-semibold text-hv-text">per estate</strong>.
             </p>
-          </div>
+          </aside>
         </div>
       </section>
 
-      {/* Core Positioning - Registry First */}
-      <section className="mx-auto max-w-6xl px-5 py-14">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-semibold tracking-tight mb-4" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
-            A structured policy registry — per estate
-          </h2>
-          <p className="text-lg text-white/75 max-w-3xl mx-auto">
-            HeirVault is not a generic document vault. It is a <strong className="text-[#EAB308]">policy-first registry</strong> that treats life insurance like a tracked asset.
+      <section className="relative border-t border-white/[0.06] bg-hv-bg hv-section-y">
+        <div className="mx-auto max-w-6xl px-6">
+          <h2 className="hv-h2 max-w-[36rem] text-left">A structured policy registry — per estate</h2>
+          <p className="mt-6 max-w-[36rem] text-left hv-body">
+            HeirVault is not a document vault. It is a{" "}
+            <strong className="font-semibold text-hv-accent">policy-first registry</strong> that treats life insurance as a
+            tracked matter record.
           </p>
-        </div>
 
-        <div className="grid gap-6 md:grid-cols-2">
-          <div className="rounded-3xl border border-white/10 bg-white/5 p-8">
-            <h3 className="text-xl font-semibold mb-4" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
-              Each estate gets a clear, auditable registry:
-            </h3>
-            <ul className="space-y-3 text-white/75">
-              <li className="flex gap-3">
-                <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-[#1A2A45]" />
-                <span>Carrier</span>
-              </li>
-              <li className="flex gap-3">
-                <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-[#1A2A45]" />
-                <span>Policy number</span>
-              </li>
-              <li className="flex gap-3">
-                <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-[#1A2A45]" />
-                <span>Insured party</span>
-              </li>
-              <li className="flex gap-3">
-                <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-[#1A2A45]" />
-                <span>Beneficiaries</span>
-              </li>
-              <li className="flex gap-3">
-                <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-[#1A2A45]" />
-                <span>Status (unknown, requested, verified, resolved)</span>
-              </li>
-              <li className="flex gap-3">
-                <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-[#1A2A45]" />
-                <span>Supporting documents</span>
-              </li>
-            </ul>
-          </div>
-
-          <div className="rounded-3xl border border-[#EAB308]/20 bg-[#EAB308]/5 p-8">
-            <div className="text-2xl font-semibold mb-4 text-[#EAB308]" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
-              No guessing. No hunting. No ambiguity.
-            </div>
-            <p className="text-white/80">
-              The registry remains the center of gravity. Everything else—documents, uploads, exports—serves the registry.
-            </p>
+          <div className="mt-10 grid gap-4 md:grid-cols-2 md:items-stretch md:gap-6">
+            <SurfaceCard className="flex min-h-0 flex-col p-6 md:p-7">
+              <h3 className="hv-h3 mb-4">Each estate gets an auditable registry</h3>
+              <ul className="space-y-2 text-left text-sm leading-relaxed text-hv-text-secondary">
+                <ListItemMuted>Carrier</ListItemMuted>
+                <ListItemMuted>Policy number</ListItemMuted>
+                <ListItemMuted>Insured party</ListItemMuted>
+                <ListItemMuted>Beneficiaries</ListItemMuted>
+                <ListItemMuted>Status (unknown, requested, verified, resolved)</ListItemMuted>
+                <ListItemMuted>Documents</ListItemMuted>
+              </ul>
+            </SurfaceCard>
+            <SurfaceCard className="flex min-h-0 flex-col p-6 md:p-7">
+              <h3 className="hv-h3 mb-4 text-hv-text">One system of record</h3>
+              <p className="text-left text-sm leading-relaxed text-hv-text-secondary">
+                The registry stays the center of gravity. Documents, uploads, and exports support the policy record—not the
+                reverse.
+              </p>
+            </SurfaceCard>
           </div>
         </div>
       </section>
 
-      {/* How It Works */}
-      <section id="how" className="mx-auto max-w-6xl px-5 py-14">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-semibold tracking-tight mb-4" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
-            How it works
-          </h2>
-          <p className="text-lg text-white/75">
-            This workflow repeats cleanly for every estate.
-          </p>
-        </div>
+      <section id="how" className="relative border-t border-white/[0.06] bg-hv-bg-soft hv-section-y">
+        <DarkGridPattern className="pointer-events-none absolute -left-8 bottom-0 h-64 w-1/2 max-w-sm opacity-[0.1]" />
+        <div className="relative z-10 mx-auto max-w-6xl px-6">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-hv-text-muted">Workflow</p>
+          <h2 className="hv-h2 mt-3 text-left">How it works</h2>
+          <p className="mt-4 max-w-xl text-left hv-body">The same sequence applies to every estate.</p>
 
-        <div className="grid gap-6 md:grid-cols-4">
-          <Step 
-            n="01" 
-            title="Create an estate registry" 
-            desc="Open a registry for an estate and log known or suspected policies." 
-          />
-          <Step 
-            n="02" 
-            title="Track verification status" 
-            desc="Mark policies as requested, verified, paid, or denied as documentation arrives." 
-          />
-          <Step 
-            n="03" 
-            title="Collect proof" 
-            desc="Attach policy documents and correspondence directly to the policy record." 
-          />
-          <Step 
-            n="04" 
-            title="Export a clean summary" 
-            desc="Generate a Policy Registry Summary PDF for filings, clients, or internal review." 
-          />
+          <div className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <Step n="01" title="Create an estate registry" desc="Open a registry and log known or suspected policies." />
+            <Step n="02" title="Track verification status" desc="Update status as responses and documents arrive." />
+            <Step n="03" title="Collect proof" desc="Attach documents to the policy record." />
+            <Step n="04" title="Export a summary" desc="Generate a Policy Registry Summary PDF." />
+          </div>
         </div>
       </section>
 
-      {/* Supporting Features */}
-      <section className="mx-auto max-w-6xl px-5 py-14">
-        <div className="grid gap-8 md:grid-cols-3">
+      <section className="relative border-t border-white/[0.06] bg-hv-bg-muted hv-section-y">
+        <div className="mx-auto grid max-w-6xl gap-4 px-6 md:grid-cols-3 md:gap-6">
           <Feature
             title="Secure document vault"
-            desc="Policy documents need a home. Files are tied to specific policies, accessed via time-limited links, and logged for accountability. The registry remains the center of gravity."
-            accent="blue"
+            desc="Files attach to policies with time-limited access and logging. The registry remains authoritative."
           />
           <Feature
             title="Client upload links"
-            desc="When families have documents, send them a secure upload request. No accounts to manage. No shared inboxes. Files land on the correct policy record automatically."
-            accent="gold"
+            desc="Request documents without accounts. Uploads land on the correct policy record."
           />
           <Feature
             title="Policy Registry Summary"
-            desc="Generate a clean, structured summary showing all known policies, current verification status, and attached documentation. This is the document firms wish they already had."
-            accent="gold"
+            desc="Structured PDF of policies, status, and attachments."
           />
         </div>
       </section>
 
-      {/* Sample PDF Preview */}
-      <section className="mx-auto max-w-6xl px-5 py-14">
-        <div className="rounded-3xl border border-white/10 bg-white/5 p-8 md:p-12">
-          <div className="text-center mb-8">
-            <h2 className="text-2xl font-semibold tracking-tight mb-3" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
-              See what you get
-            </h2>
-            <p className="text-white/75 max-w-2xl mx-auto">
-              This is the Policy Registry Summary PDF your firm generates for each estate. Clean, structured, and ready to circulate or file.
-            </p>
-          </div>
+      <section id="proof" className="relative border-t border-white/[0.06] bg-hv-bg-soft hv-section-y">
+        <div className="relative z-10 mx-auto max-w-6xl px-6">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-hv-text-muted">Deliverable</p>
+          <h2 className="hv-h2 mt-3 max-w-2xl text-left">See what you get</h2>
+          <p className="mt-4 max-w-xl text-left hv-body">
+            Policy Registry Summary PDF per estate—for filings, review, or client communication.
+          </p>
 
-          <div className="relative max-w-4xl mx-auto">
-            <div className="absolute -inset-1 rounded-3xl bg-gradient-to-r from-[#EAB308]/20 via-[#1A2A45]/20 to-[#111C33]/20 blur-2xl" />
-            <div className="relative rounded-3xl border border-white/10 bg-white/5 p-6 md:p-8">
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <div className="text-lg font-semibold text-white/90 mb-1">Sample Policy Registry Summary</div>
-                  <div className="text-sm text-white/60">Redacted sample showing structure and format</div>
-                </div>
-                <span className="rounded-full border border-[#EAB308]/35 bg-[#EAB308]/15 px-3 py-1 text-xs text-[#FDE68A]">
-                  SAMPLE
-                </span>
+          <div className={`mt-10 ${cardStatic} bg-hv-surface/90 p-8 md:p-10`}>
+            <div className="flex flex-col gap-3 border-b border-white/[0.06] pb-6 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+              <div>
+                <div className="font-display text-xl font-medium tracking-tight text-hv-text">Sample Policy Registry Summary</div>
+                <div className="mt-1.5 hv-small">Redacted example — structure and format only</div>
               </div>
-
-              <div className="rounded-2xl border border-white/10 bg-[#070B14]/80 p-6 mb-6">
-                <div className="space-y-3 text-sm text-white/75">
-                  <div className="flex items-center justify-between">
-                    <span className="text-white/60">Estate / Matter:</span>
-                    <span className="font-medium">Sample Estate of J. Doe</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-white/60">Prepared for:</span>
-                    <span className="font-medium">Sample Firm, PLLC</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-white/60">Policies listed:</span>
-                    <span className="font-medium">3 (1 verified, 2 pending)</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-white/60">Format:</span>
-                    <span className="font-medium">2-page PDF with registry table & notes</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-                <a
-                  href="/api/policy-registry-summary/sample"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center rounded-xl bg-[#EAB308] px-6 py-3 text-sm font-semibold text-black shadow-[0_0_0_1px_rgba(0,0,0,0.25),0_20px_55px_rgba(234,179,8,0.18)] hover:brightness-105 transition w-full sm:w-auto"
-                >
-                  View Sample PDF
-                </a>
-                <a
-                  href="/api/policy-registry-summary/sample"
-                  download
-                  className="inline-flex items-center justify-center rounded-xl border border-white/15 bg-white/5 px-6 py-3 text-sm font-semibold text-white/90 hover:border-[#E1B75A]/50 hover:bg-white/8 transition w-full sm:w-auto"
-                >
-                  Download Sample
-                </a>
-              </div>
-
-              <p className="mt-6 text-xs text-white/55 text-center">
-                This is the document firms wish they already had. Generated from your registry in seconds.
-              </p>
+              <span className="inline-flex w-fit shrink-0 rounded border border-white/[0.06] bg-hv-bg/70 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-hv-text-muted">
+                Sample
+              </span>
             </div>
+
+            <div className="mt-6 rounded-lg bg-hv-bg/50 p-5 text-sm text-hv-text-secondary md:p-6">
+              <Row label="Estate / matter:" value="Sample Estate of J. Doe" />
+              <Row label="Prepared for:" value="Sample Firm, PLLC" />
+              <Row label="Policies listed:" value="3 (1 verified, 2 pending)" />
+              <Row label="Format:" value="2-page PDF with registry table and notes" />
+            </div>
+
+            <div className="mt-6 flex flex-col gap-2.5 sm:flex-row sm:items-stretch sm:gap-3">
+              <a
+                href="/api/policy-registry-summary/sample"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-primary inline-flex flex-1 items-center justify-center text-sm sm:flex-none sm:min-w-[168px]"
+              >
+                View sample PDF
+              </a>
+              <a
+                href="/api/policy-registry-summary/sample"
+                download
+                className="inline-flex flex-1 items-center justify-center rounded-xl border border-white/[0.06] px-6 py-3 text-sm font-medium text-hv-text transition-colors hover:border-white/[0.1] hover:bg-white/[0.04] sm:flex-none"
+              >
+                Download
+              </a>
+            </div>
+            <p className="mt-5 text-left text-[11px] text-hv-text-muted">Generated from your registry.</p>
           </div>
         </div>
       </section>
 
-      {/* Pricing */}
-      <section id="pricing" className="mx-auto max-w-6xl px-5 py-14">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-semibold tracking-tight mb-4" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
-            Simple pricing based on estates, not seats
-          </h2>
-        </div>
+      <section id="pricing" className="relative border-t border-white/[0.06] bg-hv-bg hv-section-y">
+        <DarkGridPattern className="pointer-events-none absolute right-0 top-20 h-80 w-1/2 max-w-md opacity-[0.08]" />
+        <div className="relative z-10 mx-auto max-w-6xl px-6">
+          <h2 className="hv-h2 text-left">Pricing</h2>
+          <p className="mt-4 max-w-xl text-left hv-body">Active estates drive cost—not seat count.</p>
 
-        <div className="max-w-4xl mx-auto">
-          <div className="rounded-3xl border border-[#EAB308]/35 bg-white/5 p-8 md:p-12 shadow-[0_0_0_1px_rgba(234,179,8,0.16),0_40px_120px_rgba(234,179,8,0.10)]">
-            <div className="flex items-baseline gap-3 mb-2">
-              <span className="text-5xl font-semibold tracking-tight">$39</span>
-              <span className="text-xl text-white/70">/ month per firm</span>
+          <div className={`mx-auto mt-10 max-w-3xl ${cardStatic} p-6 shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset] md:p-10`}>
+            <div className="flex flex-col gap-4 border-b border-white/[0.06] pb-8 md:flex-row md:items-end md:justify-between">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-hv-text-muted">Registry base plan</p>
+                <div className="mt-2 flex flex-wrap items-baseline gap-2">
+                  <span className="font-display text-5xl font-semibold tracking-tight text-hv-text md:text-6xl">$39</span>
+                  <span className="text-lg text-hv-text-secondary">/ month · per firm</span>
+                </div>
+              </div>
+              <p className="mt-2 text-sm text-hv-text-muted"> Typical firm: 3–10 active estates tracked simultaneously
+              </p>
+              <p className="max-w-xs text-sm leading-snug text-hv-text-secondary md:text-right">
+                Core workflow for small firms. Scale with add-ons.
+              </p>
             </div>
-            <div className="text-lg font-semibold mb-8 text-[#EAB308]">Registry Base</div>
 
-            <div className="mb-8">
-              <p className="text-white/80 mb-6">Includes:</p>
-              <ul className="space-y-3 text-white/75">
-                <li className="flex gap-3">
-                  <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-[#EAB308]" />
-                  <span>Up to <strong>5 active policy registries</strong> (estates)</span>
-                </li>
-                <li className="flex gap-3">
-                  <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-[#EAB308]" />
-                  <span>Unlimited policies per registry</span>
-                </li>
-                <li className="flex gap-3">
-                  <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-[#EAB308]" />
-                  <span>Unlimited policy-attached documents</span>
-                </li>
-                <li className="flex gap-3">
-                  <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-[#EAB308]" />
-                  <span>Policy status tracking</span>
-                </li>
-                <li className="flex gap-3">
-                  <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-[#EAB308]" />
-                  <span>Policy Registry Summary export (PDF)</span>
-                </li>
-                <li className="flex gap-3">
-                  <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-[#EAB308]" />
-                  <span>Client upload link per registry</span>
-                </li>
-                <li className="flex gap-3">
-                  <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-[#EAB308]" />
-                  <span>1 admin + 2 staff users</span>
-                </li>
-                <li className="flex gap-3">
-                  <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-[#EAB308]" />
-                  <span>Secure, time-limited file access</span>
-                </li>
-                <li className="flex gap-3">
-                  <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-[#EAB308]" />
-                  <span>Audit logging for uploads and exports</span>
-                </li>
+            <div className="py-8">
+              <p className="mb-4 text-[11px] font-semibold uppercase tracking-[0.18em] text-hv-text-muted">Included</p>
+              <ul className="grid gap-x-10 gap-y-2.5 text-left text-sm leading-snug text-hv-text-secondary md:grid-cols-2">
+                <PricingItem>
+                  Up to <strong className="font-medium text-hv-text">5 active registries</strong> (estates)
+                </PricingItem>
+                <PricingItem>Unlimited policies per registry</PricingItem>
+                <PricingItem>Unlimited policy-attached documents</PricingItem>
+                <PricingItem>Status tracking</PricingItem>
+                <PricingItem>Registry Summary PDF export</PricingItem>
+                <PricingItem>Client upload link per registry</PricingItem>
+                <PricingItem>1 admin + 2 staff users</PricingItem>
+                <PricingItem>Time-limited file access</PricingItem>
+                <PricingItem className="md:col-span-2">Audit logging for uploads and exports</PricingItem>
               </ul>
             </div>
 
-            <div className="border-t border-white/10 pt-8 space-y-4">
-              <div className="flex items-baseline justify-between">
-                <span className="text-white/80">Additional active registries</span>
-                <span className="text-xl font-semibold">$8 per registry / month</span>
+            <div className="border-t border-white/[0.06] pt-8">
+              <p className="mb-4 text-[11px] font-semibold uppercase tracking-[0.18em] text-hv-text-muted">Add-ons</p>
+              <div className="flex flex-col gap-0.5 border-b border-white/[0.06] py-3 sm:flex-row sm:items-baseline sm:justify-between">
+                <span className="text-hv-text-secondary">Additional active registries</span>
+                <span className="font-display text-lg font-semibold tabular-nums text-hv-text">$8 / registry / mo</span>
               </div>
-              <p className="text-sm text-white/60">Closed estates can be archived and kept read-only.</p>
-
-              <div className="flex items-baseline justify-between pt-4 border-t border-white/10">
-                <span className="text-white/80">Additional users</span>
-                <span className="text-xl font-semibold">$10 per user / month</span>
+              <p className="hv-small py-2">Closed estates may be archived read-only.</p>
+              <div className="flex flex-col gap-0.5 py-3 sm:flex-row sm:items-baseline sm:justify-between">
+                <span className="text-hv-text-secondary">Additional users</span>
+                <span className="font-display text-lg font-semibold tabular-nums text-hv-text">$10 / user / mo</span>
               </div>
             </div>
 
-            <div className="mt-8 pt-8 border-t border-white/10">
-              <p className="text-sm text-white/60 mb-6">
-                <strong className="text-white/80">No storage limits. No long-term contracts. No surprise fees.</strong>
+            <div className="mt-8 border-t border-white/[0.06] pt-8">
+              <p className="mb-5 max-w-md text-sm leading-snug text-hv-text-secondary">
+                Predictable fees. No long-term commitments.
               </p>
-              <Link
-                href="/start"
-                className="inline-flex w-full items-center justify-center rounded-xl bg-[#EAB308] px-6 py-3 text-sm font-semibold text-black shadow-[0_0_0_1px_rgba(0,0,0,0.25),0_20px_55px_rgba(234,179,8,0.18)] hover:brightness-105 transition"
-              >
+              <PrimaryCta href="/start" className="w-full justify-center sm:w-auto">
                 Create your first registry
-              </Link>
+              </PrimaryCta>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Security */}
-      <section id="security" className="mx-auto max-w-6xl px-5 py-14">
-        <div className="rounded-3xl border border-white/10 bg-white/5 p-8 md:p-12">
-          <h2 className="text-2xl font-semibold tracking-tight mb-4" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
-            Security & Trust
-          </h2>
-          <p className="text-lg text-white/80 mb-6">
-            HeirVault is designed for professional responsibility:
-          </p>
-          <ul className="space-y-3 text-white/75 mb-6">
-            <li className="flex gap-3">
-              <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-[#1A2A45]" />
-              <span>Firm-level tenant isolation</span>
-            </li>
-            <li className="flex gap-3">
-              <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-[#1A2A45]" />
-              <span>Role-based access controls</span>
-            </li>
-            <li className="flex gap-3">
-              <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-[#1A2A45]" />
-              <span>Time-limited file access</span>
-            </li>
-            <li className="flex gap-3">
-              <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-[#1A2A45]" />
-              <span>Action logging for key events</span>
-            </li>
-          </ul>
-          <p className="text-white/70 italic">
-            Security isn&apos;t a marketing claim—it&apos;s built into the architecture.
+      <section id="security" className="border-t border-white/[0.06] bg-hv-bg-soft hv-section-y">
+        <div className="mx-auto max-w-6xl px-6">
+          <div className="flex max-w-4xl flex-col gap-8 md:flex-row md:items-start md:gap-12">
+            <div className="min-w-0 flex-1">
+              <h2 className="hv-h2">Security and trust</h2>
+              <p className="mt-5 max-w-[40rem] hv-body">Built for professional responsibility.</p>
+              <ul className="mt-5 max-w-[38rem] space-y-2 text-left text-sm leading-relaxed text-hv-text-secondary">
+                <ListItemMuted>Firm-level tenant isolation</ListItemMuted>
+                <ListItemMuted>Role-based access</ListItemMuted>
+                <ListItemMuted>Time-limited file access</ListItemMuted>
+                <ListItemMuted>Action logging for key events</ListItemMuted>
+              </ul>
+              <p className="mt-7 text-sm italic leading-relaxed text-hv-text-muted">
+                Security is structural: access boundaries and traceability first.
+              </p>
+            </div>
+            <div className="mx-auto shrink-0 opacity-[0.65] md:mx-0 md:pt-0.5">
+              <ShieldRingOnDark className="h-20 w-20 md:h-24 md:w-24" />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="relative overflow-hidden border-t border-white/[0.06] bg-hv-bg hv-section-y">
+        <DarkGridPattern className="pointer-events-none absolute inset-0 opacity-[0.06]" />
+        <div className="relative z-10 mx-auto max-w-6xl px-6">
+          <h2 className="hv-h2 text-left">Who it&apos;s for</h2>
+          <p className="mt-3 max-w-xl text-left text-[15px] leading-relaxed text-hv-text-secondary">Built for:</p>
+          <div className="mt-8 grid gap-8 md:grid-cols-3 md:gap-10">
+            <div className="text-left">
+              <p className="font-display text-[15px] font-medium text-hv-text">Probate and estate attorneys</p>
+              <p className="mt-2 text-sm leading-relaxed text-hv-text-secondary">
+                Matter-centric records with a defensible trail.
+              </p>
+            </div>
+            <div className="text-left">
+              <p className="font-display text-[15px] font-medium text-hv-text">Estate administration</p>
+              <p className="mt-2 text-sm leading-relaxed text-hv-text-secondary">
+                One registry per estate—not scattered records.
+              </p>
+            </div>
+            <div className="text-left">
+              <p className="font-display text-[15px] font-medium text-hv-text">Firm staff</p>
+              <p className="mt-2 text-sm leading-relaxed text-hv-text-secondary">
+                Verified, pending, and unknown—without inbox search.
+              </p>
+            </div>
+          </div>
+          <p className="mt-10 max-w-xl text-left text-sm text-hv-text-muted">
+            When policy visibility is a recurring problem, HeirVault fits.
           </p>
         </div>
       </section>
 
-      {/* Who It's For */}
-      <section className="mx-auto max-w-6xl px-5 py-14">
-        <div className="rounded-3xl border border-white/10 bg-white/5 p-8 md:p-12 text-center">
-          <h2 className="text-2xl font-semibold tracking-tight mb-4" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
-            Who it&apos;s for
-          </h2>
-          <p className="text-lg text-white/80 mb-6">
-            HeirVault is built for:
-          </p>
-          <ul className="space-y-3 text-white/75 max-w-2xl mx-auto">
-            <li className="flex gap-3 justify-center">
-              <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-[#EAB308]" />
-              <span>Probate and estate attorneys</span>
-            </li>
-            <li className="flex gap-3 justify-center">
-              <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-[#EAB308]" />
-              <span>Estate administration professionals</span>
-            </li>
-            <li className="flex gap-3 justify-center">
-              <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-[#EAB308]" />
-              <span>Firm staff responsible for policy discovery and documentation</span>
-            </li>
-          </ul>
-          <p className="mt-6 text-white/70">
-            If policy tracking is a recurring problem, HeirVault fits.
-          </p>
-        </div>
-      </section>
-
-      {/* Final CTA */}
-      <section className="mx-auto max-w-6xl px-5 pb-20 pt-6">
-        <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-white/5 p-10 md:p-12">
-          <div className="absolute -right-24 -top-24 h-80 w-80 rounded-full bg-[#EAB308]/15 blur-3xl" />
-          <div className="absolute -left-24 -bottom-24 h-80 w-80 rounded-full bg-[#1A2A45]/18 blur-3xl" />
-
-          <div className="relative text-center">
-            <h3 className="text-3xl font-semibold tracking-tight mb-4" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
-              Stop losing time chasing life insurance policies.
+      <section className="border-t border-white/[0.06] bg-hv-bg px-6 py-24 md:py-32">
+        <div
+          className={`hv-cta-ambience relative mx-auto max-w-3xl overflow-hidden rounded-xl border border-white/[0.06] bg-gradient-to-b from-hv-surface to-hv-bg px-8 py-14 text-center md:px-12 md:py-16`}
+        >
+          <WorkflowStripOnDark className="pointer-events-none absolute left-1/2 top-4 h-8 w-[min(720px,88%)] -translate-x-1/2 opacity-[0.24]" />
+          <div className="relative mx-auto max-w-lg pt-6">
+            <h3 className="font-display text-2xl font-semibold tracking-tight text-hv-text md:text-[1.75rem] md:leading-snug">
+              Stop losing time to unstructured policy information.
             </h3>
-            <p className="text-lg text-white/75 mb-8 max-w-2xl mx-auto">
-              Build a registry that shows exactly what exists—and what doesn't.
+            <p className="mt-5 text-base leading-relaxed text-hv-text-secondary">
+              A registry that shows what exists—and what remains.
             </p>
-
-            <div className="flex flex-wrap items-center justify-center gap-3">
-              <Link
-                href="/start"
-                className="inline-flex items-center justify-center rounded-xl bg-[#EAB308] px-6 py-3 text-sm font-semibold text-black shadow-[0_0_0_1px_rgba(0,0,0,0.25),0_20px_55px_rgba(234,179,8,0.18)] hover:brightness-105 transition"
-              >
-                Create your first policy registry
-              </Link>
+            <div className="mt-8 flex justify-center">
+              <PrimaryCta href="/start">Create your first policy registry</PrimaryCta>
             </div>
-
-            <p className="mt-6 text-sm text-white/60">
-              No credit card required for initial access.
-            </p>
+            <p className="mt-5 text-sm text-hv-text-muted">No credit card required for initial access.</p>
           </div>
         </div>
       </section>
 
-      {/* Footer */}
       <Footer />
     </main>
   );
 }
 
-/* ----------------------------- UI Components ----------------------------- */
+function SurfaceCard({ children, className = "" }: { children: ReactNode; className?: string }) {
+  return <div className={`${cardStatic} ${className}`}>{children}</div>;
+}
 
-function Step({ n, title, desc }: { n: string; title: string; desc: string }) {
+function ListItem({ children }: { children: ReactNode }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
-      <div className="text-xs font-semibold text-[#FDE68A] mb-3">{n}</div>
-      <div className="text-lg font-semibold text-white/90 mb-2">{title}</div>
-      <div className="text-sm text-white/65 leading-relaxed">{desc}</div>
+    <li className="flex gap-3 pl-0.5">
+      <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-hv-text-muted" aria-hidden />
+      <span>{children}</span>
+    </li>
+  );
+}
+
+function ListItemMuted({ children }: { children: ReactNode }) {
+  return (
+    <li className="flex gap-3">
+      <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-white/22" aria-hidden />
+      <span>{children}</span>
+    </li>
+  );
+}
+
+function PricingItem({ children, className = "" }: { children: ReactNode; className?: string }) {
+  return (
+    <li className={`flex gap-2.5 ${className}`}>
+      <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-hv-text-muted" aria-hidden />
+      <span>{children}</span>
+    </li>
+  );
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex flex-col justify-between gap-0.5 border-b border-white/[0.06] py-2.5 last:border-0 sm:flex-row sm:items-baseline sm:gap-6">
+      <span className="shrink-0 text-[13px] text-hv-text-muted">{label}</span>
+      <span className="font-medium text-hv-text sm:text-right">{value}</span>
     </div>
   );
 }
 
-function Feature({
-  title,
-  desc,
-  accent,
-}: {
-  title: string;
-  desc: string;
-  accent: "gold" | "blue";
-}) {
-  const ring =
-    accent === "gold"
-      ? "shadow-[0_0_0_1px_rgba(234,179,8,0.22),0_30px_90px_rgba(234,179,8,0.10)]"
-      : "shadow-[0_0_0_1px_rgba(26,42,69,0.22),0_30px_90px_rgba(26,42,69,0.10)]";
-
-  const dot = accent === "gold" ? "bg-[#EAB308]" : "bg-[#1A2A45]";
-
+function Step({ n, title, desc }: { n: string; title: string; desc: string }) {
   return (
-    <div className={`rounded-3xl border border-white/10 bg-white/5 p-6 ${ring}`}>
-      <div className="flex items-center gap-2 mb-3">
-        <span className={`h-2 w-2 rounded-full ${dot}`} />
-        <div className="text-lg font-semibold tracking-tight" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>{title}</div>
-      </div>
-      <p className="text-sm leading-relaxed text-white/70">{desc}</p>
+    <div className={`${cardInteractive} p-3 md:p-3.5`}>
+      <div className="mb-2 text-[10px] font-medium tabular-nums tracking-[0.14em] text-hv-text-muted">{n}</div>
+      <div className="font-display text-[15px] font-medium leading-snug text-hv-text">{title}</div>
+      <div className="mt-1 text-[13px] leading-snug text-hv-text-secondary">{desc}</div>
+    </div>
+  );
+}
+
+function Feature({ title, desc }: { title: string; desc: string }) {
+  return (
+    <div className={`${cardInteractive} p-5`}>
+      <h3 className="font-display text-[15px] font-medium leading-snug text-hv-text">{title}</h3>
+      <p className="mt-2.5 text-left text-[13px] leading-relaxed text-hv-text-secondary">{desc}</p>
     </div>
   );
 }

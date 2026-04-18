@@ -2,7 +2,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useAdminStatus } from "./useAdminStatus";
 
 type Org = {
   active?: boolean;
@@ -12,7 +11,6 @@ type Org = {
 export function useOrgBilling() {
   const [org, setOrg] = useState<Org | null>(null);
   const [loading, setLoading] = useState(true);
-  const { isAdmin, loading: adminLoading } = useAdminStatus();
 
   useEffect(() => {
     let cancelled = false;
@@ -30,9 +28,9 @@ export function useOrgBilling() {
     return () => { cancelled = true; };
   }, []);
 
-  // Admin override: admins always have active billing
-  const isActive = isAdmin || !!org?.active;
+  // Only the org's billing flag counts — admins see the same banner so they can open /dashboard/billing
+  const isActive = !!org?.active;
 
-  return { org, loading: loading || adminLoading, isActive };
+  return { org, loading, isActive };
 }
 

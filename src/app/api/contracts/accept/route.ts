@@ -5,6 +5,7 @@ import { requireAuthPrincipal } from "@/lib/permissions/guard";
 import { recordContractAcceptance } from "@/lib/contracts/acceptance";
 import { Tier } from "@/lib/tiers";
 import { headers } from "next/headers";
+import { organizationIdFromMemberRow } from "@/lib/org/membershipRow";
 
 export async function POST(req: NextRequest) {
   try {
@@ -41,8 +42,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const membership = memberships[0] as { organizationId: string };
-    const org = await findUniqueOrg<{ id: string; jurisdiction: string | null }>("organizations", { id: membership.organizationId });
+    const organizationId = organizationIdFromMemberRow(
+      memberships[0] as Record<string, unknown>
+    );
+    if (!organizationId) {
+      return NextResponse.json(
+        { error: "No organization found. Please complete onboarding first." },
+        { status: 403 }
+      );
+    }
+
+    const org = await findUniqueOrg<{ id: string; jurisdiction: string | null }>(
+      "organizations",
+      { id: organizationId }
+    );
     
     if (!org) {
       return NextResponse.json(

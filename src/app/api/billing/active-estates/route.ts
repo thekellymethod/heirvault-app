@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuthPrincipal } from "@/lib/permissions/guard";
 ;
 import { getActiveEstateCount } from "@/lib/billing/active-estates";
+import { organizationIdFromMemberRow } from "@/lib/org/membershipRow";
 
 /**
  * GET /api/billing/active-estates
@@ -34,7 +35,15 @@ export async function GET(_req: NextRequest) {
       );
     }
 
-    const orgId = memberships[0].organizationId;
+    const orgId = organizationIdFromMemberRow(
+      memberships[0] as Record<string, unknown>
+    );
+    if (!orgId) {
+      return NextResponse.json(
+        { error: "No organization found" },
+        { status: 403 }
+      );
+    }
 
     // Get active estate count
     const count = await getActiveEstateCount(orgId);

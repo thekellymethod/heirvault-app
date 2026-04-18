@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireUserId } from "@/lib/authz";
+import { organizationIdFromMemberRow } from "@/lib/org/membershipRow";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -36,7 +37,10 @@ export async function GET() {
     // Fetch organizations for each member
     const orgs = await Promise.all(
       (members || []).map(async (m) => {
-        const org = await findUniqueOrg<OrgRecord>("organizations", { id: m.organizationId });
+        const oid = organizationIdFromMemberRow(m as Record<string, unknown>);
+        const org = oid
+          ? await findUniqueOrg<OrgRecord>("organizations", { id: oid })
+          : null;
         return {
           member: m,
           org: org || null,

@@ -1,4 +1,4 @@
-;
+import { getIndependentPolicyholderOrgId } from "@/lib/independentPolicyholderOrg";
 
 /**
  * Test code prefix - any code starting with this will be auto-created
@@ -140,6 +140,7 @@ export async function getOrCreateTestInvite(token: string) {
     const clientId = randomUUID();
     const newClient = await createDb("clients", {
       id: clientId,
+      orgId: getIndependentPolicyholderOrgId(),
       email: clientInfo.email,
       firstName: clientInfo.firstName,
       lastName: clientInfo.lastName,

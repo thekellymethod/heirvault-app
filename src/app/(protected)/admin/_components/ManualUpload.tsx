@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { UserPlus, Users, UserCheck, AlertCircle, CheckCircle } from "lucide-react";
+
+type OrgOption = { id: string; name: string };
 
 type UploadType = "attorney" | "client" | "beneficiary";
 
@@ -12,6 +14,29 @@ export function ManualUpload() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [organizations, setOrganizations] = useState<OrgOption[]>([]);
+  const [orgsLoading, setOrgsLoading] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setOrgsLoading(true);
+      try {
+        const res = await fetch("/api/admin/organizations-list");
+        const json = (await res.json().catch(() => null)) as { organizations?: OrgOption[] } | null;
+        if (!cancelled && res.ok && json?.organizations) {
+          setOrganizations(json.organizations);
+        }
+      } catch {
+        /* ignore */
+      } finally {
+        if (!cancelled) setOrgsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Attorney form fields
   const [attorneyData, setAttorneyData] = useState({
@@ -24,8 +49,9 @@ export function ManualUpload() {
     licenseState: "",
   });
 
-  // Client form fields
+  // Client form fields (policy holder = `clients` row; assign to a firm)
   const [clientData, setClientData] = useState({
+    orgId: "",
     email: "",
     firstName: "",
     lastName: "",
@@ -78,7 +104,13 @@ export function ManualUpload() {
         body: JSON.stringify({ type: uploadType, data }),
       });
 
-      const result = await res.json();
+      const raw = await res.text();
+      let result: { error?: string; message?: string } = {};
+      try {
+        result = raw ? (JSON.parse(raw) as { error?: string; message?: string }) : {};
+      } catch {
+        throw new Error(raw || "Invalid response from server");
+      }
 
       if (!res.ok) {
         throw new Error(result.error || "Failed to create record");
@@ -99,6 +131,7 @@ export function ManualUpload() {
         });
       } else if (uploadType === "client") {
         setClientData({
+          orgId: "",
           email: "",
           firstName: "",
           lastName: "",
@@ -137,9 +170,19 @@ export function ManualUpload() {
 
   return (
     <div className="space-y-6">
+      <div className="card p-5 bg-slateui-50 border-slateui-200">
+        <p className="text-sm text-ink-800 leading-relaxed">
+          <span className="font-medium text-ink-900">Manual records</span> lets platform admins enter{" "}
+          <strong>attorney account</strong> details (user + bar profile) and{" "}
+          <strong>policy holder</strong> details (a <code className="text-xs bg-white px-1 py-0.5 rounded border">clients</code>{" "}
+          row under a firm). This is <strong>not</strong> a document upload: use intake or policy storage elsewhere for
+          PDFs.
+        </p>
+      </div>
+
       {/* Type Selector */}
       <div className="card p-6">
-        <h2 className="text-xl font-semibold text-ink-900 mb-4">Select Record Type</h2>
+        <h2 className="text-xl font-semibold text-ink-900 mb-4">What are you creating?</h2>
         <div className="grid grid-cols-3 gap-4">
           <button
             onClick={() => {
@@ -154,8 +197,8 @@ export function ManualUpload() {
             }`}
           >
             <UserPlus className="h-8 w-8 mx-auto mb-2 text-gold-600" />
-            <div className="font-medium text-ink-900">Attorney</div>
-            <div className="text-xs text-slateui-600 mt-1">Add new attorney</div>
+            <div className="font-medium text-ink-900">Attorney account</div>
+            <div className="text-xs text-slateui-600 mt-1">User + attorney profile (placeholder Clerk id until they sign in)</div>
           </button>
           <button
             onClick={() => {
@@ -170,8 +213,8 @@ export function ManualUpload() {
             }`}
           >
             <Users className="h-8 w-8 mx-auto mb-2 text-blue-600" />
-            <div className="font-medium text-ink-900">Client</div>
-            <div className="text-xs text-slateui-600 mt-1">Add policy holder</div>
+            <div className="font-medium text-ink-900">Policy holder</div>
+            <div className="text-xs text-slateui-600 mt-1">Client / estate record under a firm</div>
           </button>
           <button
             onClick={() => {
@@ -214,7 +257,12 @@ export function ManualUpload() {
       {/* Attorney Form */}
       {uploadType === "attorney" && (
         <form onSubmit={handleSubmit} className="card p-6 space-y-4">
-          <h3 className="text-lg font-semibold text-ink-900 mb-4">Attorney Information</h3>
+          <h3 className="text-lg font-semibold text-ink-900 mb-1">Attorney account information</h3>
+          <p className="text-sm text-slateui-600 mb-4">
+            Creates a <code className="text-xs bg-slateui-100 px-1 rounded">users</code> row with role attorney and an{" "}
+            <code className="text-xs bg-slateui-100 px-1 rounded">attorney_profiles</code> row. Link to Clerk when they
+            first sign in with this email (coordinate with your onboarding process).
+          </p>
           
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -300,9 +348,36 @@ export function ManualUpload() {
       {/* Client Form */}
       {uploadType === "client" && (
         <form onSubmit={handleSubmit} className="card p-6 space-y-4">
-          <h3 className="text-lg font-semibold text-ink-900 mb-4">Client (Policy Holder) Information</h3>
-          
+          <h3 className="text-lg font-semibold text-ink-900 mb-1">Policy holder information</h3>
+          <p className="text-sm text-slateui-600 mb-4">
+            Creates a <code className="text-xs bg-slateui-100 px-1 rounded">clients</code> row (insured / estate). In the
+            database this is the same entity as &quot;client&quot;; product language may say policy holder or estate.
+            You must assign a <strong>firm</strong> so org-scoped features and RLS-style checks work.
+          </p>
+
           <div className="grid grid-cols-2 gap-4">
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-ink-900 mb-1">
+                Firm (organization) <span className="text-red-500">*</span>
+              </label>
+              <select
+                required
+                value={clientData.orgId}
+                disabled={orgsLoading}
+                onChange={(e) => setClientData({ ...clientData, orgId: e.target.value })}
+                className="w-full h-10 rounded-md border border-slateui-300 bg-white px-3 text-sm text-ink-900 focus:outline-none focus:ring-2 focus:ring-gold-500/30 focus:border-gold-500"
+              >
+                <option value="">{orgsLoading ? "Loading firms…" : "Select firm"}</option>
+                {organizations.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.name}
+                  </option>
+                ))}
+              </select>
+              {organizations.length === 0 && !orgsLoading && (
+                <p className="text-xs text-amber-700 mt-1">No organizations returned. Check admin API access.</p>
+              )}
+            </div>
             <div>
               <label className="block text-sm font-medium text-ink-900 mb-1">
                 Email <span className="text-red-500">*</span>
@@ -406,7 +481,7 @@ export function ManualUpload() {
 
           <div className="flex justify-end pt-4">
             <Button type="submit" disabled={loading} className="btn-primary">
-              {loading ? "Creating..." : "Create Client"}
+              {loading ? "Creating..." : "Create policy holder"}
             </Button>
           </div>
         </form>

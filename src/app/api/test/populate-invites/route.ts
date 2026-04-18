@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-;
 import { randomUUID } from "crypto";
+import { getIndependentPolicyholderOrgId } from "@/lib/independentPolicyholderOrg";
 
 const testClients = [
   { email: "test1@example.com", firstName: "John", lastName: "Doe", token: "TEST-CODE-001" },
@@ -29,6 +29,7 @@ async function populateInvites(baseUrl: string) {
       const now = new Date().toISOString();
       client = await createDbRecord("clients", {
         id: clientId,
+        orgId: getIndependentPolicyholderOrgId(),
         firstName: clientData.firstName,
         lastName: clientData.lastName,
         email: clientData.email,

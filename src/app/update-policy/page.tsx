@@ -1,8 +1,8 @@
 // src/app/update-policy/page.tsx
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,13 +10,14 @@ import { QrCode, FileText, AlertCircle, Camera } from "lucide-react";
 import { QRScanner } from "@/components/QRScanner";
 
 type LookupReceiptResponse =
-  | { token: string }
+  | { kind: "invite"; token: string; next_path: string }
+  | { kind: "policy_receipt"; receipt_token: string; next_path: string }
   | { error: string };
 
 function isLookupReceiptResponse(value: unknown): value is LookupReceiptResponse {
   if (!value || typeof value !== "object") return false;
   const v = value as Record<string, unknown>;
-  const hasToken = typeof v.token === "string";
+  const hasToken = typeof v.token === "string" || typeof v.receipt_token === "string";
   const hasError = typeof v.error === "string";
   return hasToken || hasError;
 }
@@ -29,12 +30,18 @@ function getErrorMessage(err: unknown): string {
 
 export default function UpdatePolicyPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [method, setMethod] = useState<"receipt" | "qr" | null>(null);
   const [receiptId, setReceiptId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
+
+  useEffect(() => {
+    const receipt = searchParams.get("receipt");
+    if (receipt) setReceiptId(receipt);
+  }, [searchParams]);
 
   const handleReceiptSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -54,11 +61,12 @@ export default function UpdatePolicyPage() {
         throw new Error(msg);
       }
 
-      if (!("token" in json) || !json.token) {
-        throw new Error("Receipt lookup succeeded but token is missing");
+      if ("next_path" in json && typeof json.next_path === "string" && json.next_path) {
+        router.push(json.next_path);
+        return;
       }
 
-      router.push(`/invite/${json.token}/update`);
+      throw new Error("Receipt lookup succeeded but destination is missing");
     } catch (err: unknown) {
       setError(getErrorMessage(err) || "Failed to lookup receipt");
     } finally {
@@ -70,13 +78,18 @@ export default function UpdatePolicyPage() {
     setShowScanner(false);
     setError(null);
 
-    // QR may be full URL or raw token. Try both.
+    // QR may be a submit-policy receipt URL, invite URL, or raw invite token.
+    const policyReceiptMatch = scannedData.match(/\/submit-policy\/receipt\/([0-9a-f-]{36})/i);
     const urlMatch = scannedData.match(/\/invite\/([^\/\?]+)/);
     const rawTokenMatch = scannedData.match(/^[a-f0-9]{48,}$/i);
 
+    const policyReceipt = policyReceiptMatch?.[1] ?? null;
     const token = urlMatch?.[1] ?? rawTokenMatch?.[0] ?? null;
 
-    if (token) {
+    if (policyReceipt) {
+      setReceiptId(policyReceipt);
+      setMethod("receipt");
+    } else if (token) {
       router.push(`/invite/${token}/update`);
     } else {
       setError("Invalid QR code. Please scan a valid HeirVault receipt QR code.");
@@ -165,7 +178,7 @@ export default function UpdatePolicyPage() {
                   type="text"
                   value={receiptId}
                   onChange={(e) => setReceiptId(e.target.value)}
-                  placeholder="REC-1234567890-1234567890"
+                  placeholder="REC-... or submit-policy receipt UUID"
                   required
                   className="input"
                 />

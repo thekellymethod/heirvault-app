@@ -12,8 +12,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen bg-paper-50">
       {/* Sidebar */}
       <aside className="hidden w-64 border-r lg:block shadow-sm" style={{ borderColor: "#D9E2EE", backgroundColor: "#FFFFFF" }}>
-        <div className="flex h-16 items-center gap-3 border-b px-6 bg-paper-50" style={{ borderColor: "#D9E2EE" }}>
-          <Logo size="xl" showTagline={false} className="flex-row" href="/dashboard" />
+        <div className="flex min-h-14 items-center border-b px-4 py-3 bg-paper-50" style={{ borderColor: "#D9E2EE" }}>
+          <Logo size="xs" showTagline={false} className="flex-row min-w-0" href="/dashboard" />
         </div>
         <div className="p-4">
           <SidebarNav />
@@ -29,15 +29,14 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
         {/* Header */}
         <header className="sticky top-0 z-10 border-b bg-paper-50/95 backdrop-blur shadow-sm" style={{ borderColor: "#D9E2EE" }}>
-          <div className="flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center gap-4">
-              {/* Mobile menu button - can be added later */}
-              <div className="lg:hidden">
-                <Logo size="xl" showTagline={false} className="flex-row" href="/dashboard" />
+          <div className="flex min-h-14 items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="min-w-0 lg:hidden">
+                <Logo size="sm" showTagline={false} className="flex-row min-w-0" href="/dashboard" />
               </div>
             </div>
-            <div className="flex items-center gap-4">
-              <div className="hidden sm:block">
+            <div className="flex min-w-0 flex-1 items-center justify-end gap-3 sm:gap-4">
+              <div className="hidden min-w-0 max-w-md flex-1 sm:block">
                 <GlobalSearch />
               </div>
               <UserButton afterSignOutUrl="/sign-in" />

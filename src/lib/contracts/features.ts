@@ -9,6 +9,7 @@
 import { Tier, TierFeatures, type TierType, getTierFromBillingPlan, hasFeatureAccess } from "@/lib/tiers";
 import { hasAcceptedContract } from "./acceptance";
 import { HttpError } from "@/lib/permissions/guard";
+import { isPlatformAdminUnrestrictedOrg } from "@/lib/org/platformAdminOrg";
 
 /**
  * Get effective tier for an organization
@@ -20,17 +21,27 @@ export async function getEffectiveTier(organizationId: string): Promise<TierType
   
   type OrganizationRecord = {
     id: string;
-    billingPlan: string;
+    name?: string | null;
+    slug?: string | null;
+    billingPlan?: string | null;
+    billing_plan?: string | null;
   };
-  
+
   const org = await findUnique<OrganizationRecord>("organizations", { id: organizationId });
 
   if (!org) {
     throw new HttpError(404, "Organization not found");
   }
 
+  if (isPlatformAdminUnrestrictedOrg(org)) {
+    return Tier.FIRM_WIDE;
+  }
+
+  const planRaw = org.billingPlan ?? org.billing_plan ?? "FREE";
+  const plan = String(planRaw);
+
   // Map billing plan to tier
-  const tier = getTierFromBillingPlan(org.billingPlan as "FREE" | "SOLO" | "SMALL_FIRM" | "ENTERPRISE");
+  const tier = getTierFromBillingPlan(plan);
 
   // Check contract acceptance for each tier level
   // Start from highest tier and work down

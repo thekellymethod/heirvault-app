@@ -10,6 +10,7 @@ import { AuditAction } from "@/lib/db/enums";
 import { getOrCreateTestInvite } from "@/lib/test-invites";
 import { lookupClientInvite } from "@/lib/invite-lookup";
 import { randomUUID } from "crypto";
+import { organizationIdFromMemberRow } from "@/lib/org/membershipRow";
 
 export const runtime = "nodejs";
 
@@ -299,11 +300,15 @@ export async function POST(
         });
         
         if (orgMembers && orgMembers.length > 0) {
-          const orgId = (orgMembers[0] as any).organizationId;
-          const orgs = await findManyOrgs("organizations", {
+          const orgId = organizationIdFromMemberRow(
+            orgMembers[0] as Record<string, unknown>
+          );
+          const orgs = orgId
+            ? await findManyOrgs("organizations", {
             where: { id: orgId },
             limit: 1,
-          });
+          })
+            : [];
           organization = orgs && orgs.length > 0 ? orgs[0] : null;
         }
       }

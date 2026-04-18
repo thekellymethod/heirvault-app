@@ -31,7 +31,9 @@ const nextConfig = {
     // - 'unsafe-inline' is required for Next.js inline scripts (__NEXT_DATA__, hydration)
     //   Next.js requires inline scripts unless using middleware with nonces or experimental SRI
     // - Clerk CDN must be allowed for script-src to load Clerk.js
-    const scriptSrc = "'self' 'unsafe-eval' 'unsafe-inline' https://*.clerk.accounts.dev https://*.clerk.com";
+    // - Cloudflare Turnstile (challenges.cloudflare.com): Clerk bot protection / CAPTCHA — required or sign-in CAPTCHA fails to load
+    const turnstile = "https://challenges.cloudflare.com";
+    const scriptSrc = `'self' 'unsafe-eval' 'unsafe-inline' https://*.clerk.accounts.dev https://*.clerk.com ${turnstile}`;
 
     const csp = [
       `default-src 'self'`,
@@ -39,10 +41,10 @@ const nextConfig = {
       `style-src 'self' 'unsafe-inline' https://*.clerk.accounts.dev https://*.clerk.com`,
       `img-src 'self' data: blob: https:`,
       `font-src 'self' data: https://*.clerk.accounts.dev https://*.clerk.com`,
-      `connect-src 'self' https: wss: https://*.clerk.accounts.dev https://*.clerk.com https://*.supabase.co https://api.openai.com https://*.sentry.io`,
-      `frame-src 'self' https://*.clerk.accounts.dev https://*.clerk.com`,
+      `connect-src 'self' https: wss: https://*.clerk.accounts.dev https://*.clerk.com https://*.supabase.co https://api.openai.com https://*.sentry.io ${turnstile}`,
+      `frame-src 'self' https://*.clerk.accounts.dev https://*.clerk.com ${turnstile}`,
       `worker-src 'self' blob:`,
-      `child-src 'self' blob: https://*.clerk.accounts.dev https://*.clerk.com`,
+      `child-src 'self' blob: https://*.clerk.accounts.dev https://*.clerk.com ${turnstile}`,
       `object-src 'none'`,
       `base-uri 'self'`,
       `form-action 'self'`,

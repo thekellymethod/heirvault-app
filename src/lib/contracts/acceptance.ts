@@ -63,13 +63,13 @@ export async function hasAcceptedContract(
   const { getDb } = await import("@/lib/db");
   const db = getDb();
   
-  // Find by composite key (organizationId, tier, contractVersion)
+  // PostgREST column names are snake_case (matches DB migration)
   const { data: acceptances } = await db
     .from("contract_acceptances")
     .select("*")
-    .eq("organizationId", organizationId)
+    .eq("organization_id", organizationId)
     .eq("tier", tier)
-    .eq("contractVersion", contractVersion)
+    .eq("contract_version", contractVersion)
     .limit(1);
 
   return acceptances !== null && acceptances.length > 0;

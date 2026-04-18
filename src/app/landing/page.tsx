@@ -4,12 +4,20 @@ import Link from "next/link";
 import Image from "next/image";
 import { Footer } from "@/components/Footer";
 import { Logo } from "@/components/Logo";
+import {
+  CornerOrnaments,
+  DocumentStackGraphic,
+  GridPaperPattern,
+  HeroRegistryIllustration,
+  ShieldRingGraphic,
+  WorkflowStripGraphic,
+} from "@/components/landing/LandingGraphics";
 
 export default function LandingPage() {
   return (
-    <main className="min-h-screen bg-paper-50 text-slateui-800 overflow-x-hidden">
+    <main className="min-h-screen overflow-x-hidden bg-paper-50 text-slateui-800">
       {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-slateui-200 bg-paper-50/85 backdrop-blur">
+      <header className="sticky top-0 z-50 border-b border-slateui-200/80 bg-white/90 backdrop-blur-md">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 py-2 sm:py-3">
           <div className="flex items-center justify-between gap-6">
             <Logo size="xl" showTagline={false} className="flex-row gap-2" />
@@ -51,6 +59,17 @@ export default function LandingPage() {
           </div>
         </div>
       </header>
+
+      <div className="border-b border-slateui-200 bg-paper-100/80">
+        <p className="mx-auto max-w-5xl px-4 py-2.5 text-center text-xs leading-snug text-slateui-600 sm:text-sm">
+          <span className="font-medium text-ink-900">Policyholders:</span>{" "}
+          <Link href="/submit-policy" className="text-gold-700 underline-offset-2 hover:underline">
+            Submit policy documents without an account
+          </Link>
+          {" "}
+          (upload + receipt). Attorneys and firms use sign-in for search and firm tools.
+        </p>
+      </div>
 
       {/* Hero */}
       <section id="home" className="relative overflow-hidden bg-hero-radial">
@@ -117,17 +136,13 @@ export default function LandingPage() {
 
             {/* Visual */}
             <div className="relative order-1 md:order-2">
-              {/* Family Image - Layered with vault */}
-              <div className="mb-6 rounded-3xl border border-gold-500/30 bg-white/10 shadow-lift backdrop-blur overflow-hidden relative z-10">
-                <div className="relative aspect-[4/3] w-full">
-                  <div className="absolute inset-0 bg-gradient-to-br from-gold-500/20 via-blue-500/10 to-ink-950/40" />
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="text-center p-8">
-                      <div className="text-6xl mb-4">👨‍👩‍👧‍👦</div>
-                      <p className="text-paper-100/80 text-sm font-medium">Protecting Your Legacy</p>
-                    </div>
-                  </div>
-                  <div className="absolute inset-0 bg-gradient-to-t from-ink-950/30 to-transparent" />
+              <div className="relative z-10 mb-6 overflow-hidden rounded-3xl border border-white/15 bg-gradient-to-br from-white/12 via-white/5 to-transparent shadow-[0_24px_60px_rgba(0,0,0,0.25)] backdrop-blur-md">
+                <div className="relative aspect-[4/3] w-full px-4 py-6 sm:px-6 sm:py-8">
+                  <div className="absolute inset-0 bg-gradient-to-br from-gold-500/10 via-transparent to-ink-950/30" />
+                  <HeroRegistryIllustration className="relative z-[1] mx-auto h-full max-h-[min(260px,42vw)] w-full max-w-md" />
+                  <p className="relative z-[1] mt-4 text-center text-sm font-medium text-paper-100/85">
+                    Policy registry view — structured, auditable, firm-ready
+                  </p>
                 </div>
               </div>
 
@@ -168,9 +183,20 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Bridge: dark hero → light content */}
+      <div className="relative h-28 w-full overflow-hidden bg-gradient-to-b from-ink-950 via-paper-100/30 to-white">
+        <WorkflowStripGraphic className="absolute bottom-2 left-1/2 h-16 w-[min(1100px,96%)] -translate-x-1/2 text-ink-900" />
+      </div>
+
       {/* How It Works */}
-      <section id="how-it-works" className="bg-paper-50 py-16 md:py-20">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6">
+      <section
+        id="how-it-works"
+        className="relative overflow-hidden bg-gradient-to-b from-white via-paper-50 to-white py-16 md:py-24"
+      >
+        <GridPaperPattern className="pointer-events-none absolute -right-8 top-0 h-[420px] w-[55%] max-w-xl opacity-50 md:opacity-70" />
+        <DocumentStackGraphic className="pointer-events-none absolute -left-4 bottom-8 hidden h-36 w-44 opacity-80 lg:block" />
+
+        <div className="relative mx-auto max-w-7xl px-4 sm:px-6">
           <div className="text-center">
             <h2 className="font-display text-3xl md:text-4xl text-ink-900">
               How HeirVault Works
@@ -217,20 +243,31 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Why Choose */}
-      <section className="bg-paper-50 py-16 md:py-20">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          <div className="text-center">
-            <h2 className="font-display text-3xl md:text-4xl text-ink-900">Why Choose HeirVault?</h2>
-            <p className="mt-4 text-base md:text-lg text-slateui-600 max-w-2xl mx-auto">
-              Built for practical outcomes: fewer delays, cleaner records, and a workflow professionals can trust.
-            </p>
+      {/* Why Choose — #resources for nav */}
+      <section
+        id="resources"
+        className="relative overflow-hidden bg-gradient-to-br from-white via-paper-50 to-[#f3efe6] py-16 md:py-24"
+      >
+        <CornerOrnaments className="pointer-events-none absolute -right-16 -top-24 h-64 w-96 opacity-90 md:h-80 md:w-[28rem]" />
+        <div className="pointer-events-none absolute inset-y-0 left-0 w-1/3 max-w-sm bg-gradient-to-r from-white to-transparent" />
+
+        <div className="relative mx-auto max-w-7xl px-4 sm:px-6">
+          <div className="mx-auto mb-12 grid max-w-5xl items-center gap-10 md:grid-cols-[1fr_auto] md:gap-14">
+            <div className="text-center md:text-left">
+              <h2 className="font-display text-3xl md:text-4xl text-ink-900">Why Choose HeirVault?</h2>
+              <p className="mt-4 text-base md:text-lg text-slateui-600 md:max-w-xl">
+                Built for practical outcomes: fewer delays, cleaner records, and a workflow professionals can trust.
+              </p>
+            </div>
+            <div className="mx-auto flex justify-center md:mx-0 md:justify-end">
+              <ShieldRingGraphic className="h-36 w-36 shrink-0 opacity-95 drop-shadow-sm md:h-44 md:w-44" />
+            </div>
           </div>
 
-          <div className="mt-12 grid gap-6 md:grid-cols-3">
+          <div className="grid gap-6 md:grid-cols-3">
             <div className="card p-8 transition hover:-translate-y-1 hover:shadow-lift">
               <div className="flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-paper-100 border border-slateui-200">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-slateui-200 bg-paper-100">
                   <Image src="/service-hv.png" alt="Service" width={30} height={30} />
                 </div>
                 <h3 className="font-display text-xl text-ink-900">Comprehensive Service</h3>
@@ -242,7 +279,7 @@ export default function LandingPage() {
 
             <div className="card p-8 transition hover:-translate-y-1 hover:shadow-lift">
               <div className="flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-paper-100 border border-slateui-200">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-slateui-200 bg-paper-100">
                   <Image src="/trust-hv.png" alt="Trust" width={30} height={30} />
                 </div>
                 <h3 className="font-display text-xl text-ink-900">Secure & Trusted</h3>
@@ -254,7 +291,7 @@ export default function LandingPage() {
 
             <div className="card p-8 transition hover:-translate-y-1 hover:shadow-lift">
               <div className="flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-paper-100 border border-slateui-200">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-slateui-200 bg-paper-100">
                   <Image src="/world-hv.png" alt="Nationwide" width={30} height={30} />
                 </div>
                 <h3 className="font-display text-xl text-ink-900">Nationwide Coverage</h3>
@@ -265,7 +302,7 @@ export default function LandingPage() {
             </div>
           </div>
 
-          <div className="mt-12 flex flex-col sm:flex-row gap-4 justify-center">
+          <div className="mt-12 flex flex-col justify-center gap-4 sm:flex-row">
             <Link href="/attorney/sign-up" className="btn-primary px-8 py-3 text-base">
               For Attorneys
             </Link>
@@ -277,8 +314,12 @@ export default function LandingPage() {
       </section>
 
       {/* FAQ Section */}
-      <section id="faq" className="bg-paper-50 py-16 md:py-20">
-        <div className="mx-auto max-w-4xl px-4 sm:px-6">
+      <section
+        id="faq"
+        className="relative overflow-hidden bg-gradient-to-b from-paper-50 via-white to-paper-50 py-16 md:py-24"
+      >
+        <GridPaperPattern className="pointer-events-none absolute inset-0 opacity-[0.35]" />
+        <div className="relative z-10 mx-auto max-w-4xl px-4 sm:px-6">
           <div className="text-center">
             <h2 className="font-display text-3xl md:text-4xl text-ink-900">Frequently Asked Questions</h2>
             <p className="mt-4 text-base md:text-lg text-slateui-600">
@@ -358,8 +399,13 @@ export default function LandingPage() {
       </section>
 
       {/* Contact Section */}
-      <section id="contact" className="bg-paper-100 py-16 md:py-20">
-        <div className="mx-auto max-w-4xl px-4 sm:px-6 text-center">
+      <section
+        id="contact"
+        className="relative overflow-hidden bg-gradient-to-b from-white via-paper-100 to-[#ebe4d4] py-20 md:py-28"
+      >
+        <DocumentStackGraphic className="pointer-events-none absolute -left-6 bottom-0 h-40 w-48 opacity-40 md:h-48 md:w-56" />
+        <div className="pointer-events-none absolute -right-20 top-1/2 h-72 w-72 -translate-y-1/2 rounded-full bg-gold-500/10 blur-3xl" />
+        <div className="relative z-10 mx-auto max-w-4xl px-4 sm:px-6 text-center">
           <h2 className="font-display text-3xl md:text-4xl text-ink-900">Have More Questions?</h2>
           <p className="mt-4 text-base md:text-lg text-slateui-600">
             Contact us for more information about HeirVault and how it can help your practice.
@@ -371,9 +417,6 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
-
-      {/* Placeholder anchor for nav */}
-      <div id="resources" className="sr-only" />
 
       <Footer />
     </main>

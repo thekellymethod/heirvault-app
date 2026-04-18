@@ -131,6 +131,7 @@ export async function POST(req: NextRequest) {
 
       case "client": {
         const {
+          orgId,
           email,
           firstName,
           lastName,
@@ -144,15 +145,20 @@ export async function POST(req: NextRequest) {
           country,
         } = data;
 
-        if (!email || !firstName || !lastName) {
+        if (!orgId || !email || !firstName || !lastName) {
           return NextResponse.json(
-            { error: "Email, firstName, and lastName are required for clients" },
+            { error: "Firm (organization), email, firstName, and lastName are required for policy holders" },
             { status: 400 }
           );
         }
 
-        const { findMany: findManyClients, create: createDbRecord } = await import("@/lib/db");
-        
+        const { findMany: findManyClients, findUnique: findUniqueOrg, create: createDbRecord } = await import("@/lib/db");
+
+        const org = await findUniqueOrg("organizations", { id: orgId });
+        if (!org) {
+          return NextResponse.json({ error: "Organization not found" }, { status: 404 });
+        }
+
         // Check if client already exists
         const existingClients = await findManyClients("clients", {
           where: { email },
@@ -173,6 +179,7 @@ export async function POST(req: NextRequest) {
         // Create client
         const client = await createDbRecord("clients", {
           id: clientId,
+          orgId,
           email,
           firstName: firstName,
           lastName: lastName,
@@ -196,7 +203,15 @@ export async function POST(req: NextRequest) {
         await logAuditEvent({
           userId: admin.id,
           action: "CLIENT_CREATED",
-          metadata: { email, firstName, lastName, createdBy: admin.id, resourceId: client.id },
+          metadata: {
+            email,
+            firstName,
+            lastName,
+            orgId,
+            createdBy: admin.id,
+            resourceId: client.id,
+            manuallyCreated: true,
+          },
         });
 
         return NextResponse.json({

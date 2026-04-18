@@ -1,5 +1,6 @@
 // src/lib/authz.ts
 import { auth } from "@clerk/nextjs/server";
+import { HttpError } from "@/lib/permissions/guard";
 // Prisma removed - database access needs to be implemented
 
 export async function requireUserId() {
@@ -26,6 +27,21 @@ export async function requireOrgMember(orgId: string) {
   });
   if (!member) throw new Error("FORBIDDEN");
   return { userId, role: member.role };
+}
+
+/** Same as {@link requireOrgMember} but throws {@link HttpError} for HTTP handlers. */
+export async function requireOrgMemberHttp(orgId: string): Promise<void> {
+  try {
+    await requireOrgMember(orgId);
+  } catch (e) {
+    if (e instanceof Error && e.message === "UNAUTHENTICATED") {
+      throw new HttpError(401, "Unauthorized");
+    }
+    if (e instanceof Error && e.message === "FORBIDDEN") {
+      throw new HttpError(403, "Forbidden");
+    }
+    throw e;
+  }
 }
 
 export async function requireRegistryAccess(registryId: string) {

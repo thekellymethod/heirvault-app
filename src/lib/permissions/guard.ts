@@ -17,6 +17,11 @@ export type AppPrincipal = {
   roles: string[]; // Keep for backward compatibility
 };
 
+/** Maps app principal roles to audit log actor type for staff actions. */
+export function auditActorTypeFromPrincipal(principal: Pick<AppPrincipal, "roles">): "ADMIN" | "ATTORNEY" {
+  return principal.roles.includes("ADMIN") ? "ADMIN" : "ATTORNEY";
+}
+
 type UserRecord = {
   id: string;
   clerkId: string;

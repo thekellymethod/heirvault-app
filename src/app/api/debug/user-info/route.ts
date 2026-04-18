@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { getCurrentUser } from "@/lib/utils/clerk";
+import { organizationIdFromMemberRow } from "@/lib/org/membershipRow";
 
 export async function GET(_req: NextRequest) {
   // Only allow in development
@@ -28,8 +29,12 @@ export async function GET(_req: NextRequest) {
           limit: 1,
         });
         if (memberships && memberships.length > 0) {
-          const membership = memberships[0] as { organizationId: string };
-          const org = await findUniqueOrg<{ id: string; name: string }>("organizations", { id: membership.organizationId });
+          const oid = organizationIdFromMemberRow(
+            memberships[0] as Record<string, unknown>
+          );
+          const org = oid
+            ? await findUniqueOrg<{ id: string; name: string }>("organizations", { id: oid })
+            : null;
           userWithOrg = {
             id: user.id,
             orgMemberships: org ? [{

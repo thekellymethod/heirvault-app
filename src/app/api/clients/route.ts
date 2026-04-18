@@ -7,6 +7,7 @@ import { getOrgContext } from "@/lib/org/getOrgContext";
 import { requireRegistryActive } from "@/lib/billing/requireRegistryActive";
 import { UserRole } from "@/lib/db/enums";
 import { randomUUID } from "crypto";
+import { organizationIdFromMemberRow } from "@/lib/org/membershipRow";
 
 export const runtime = "nodejs";
 
@@ -131,8 +132,15 @@ export async function POST(req: NextRequest) {
     };
     
     const membership = memberships[0] as OrgMember;
+    const orgId = organizationIdFromMemberRow(membership as Record<string, unknown>);
+    if (!orgId) {
+      return NextResponse.json(
+        { error: "No organization found" },
+        { status: 400 }
+      );
+    }
     const orgs = await findManyDb("organizations", {
-      where: { id: membership.organizationId },
+      where: { id: orgId },
       limit: 1,
     });
 

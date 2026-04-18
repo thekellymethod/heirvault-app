@@ -1,6 +1,7 @@
 // src/app/api/policy-intake/submit/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
+import { getIndependentPolicyholderOrgId } from "@/lib/independentPolicyholderOrg";
 
 export const runtime = "nodejs";
 
@@ -114,6 +115,8 @@ export async function POST(req: NextRequest) {
     const existingClient = existingClients?.[0] ?? null;
     let clientId: string;
 
+    const independentOrgId = getIndependentPolicyholderOrgId();
+
     if (!existingClient?.id) {
       const newClientId = randomUUID();
 
@@ -121,6 +124,7 @@ export async function POST(req: NextRequest) {
         `
         INSERT INTO clients (
           id,
+          org_id,
           "firstName",
           "lastName",
           email,
@@ -129,9 +133,9 @@ export async function POST(req: NextRequest) {
           "createdAt",
           "updatedAt"
         )
-        VALUES ($1,$2,$3,$4,$5,$6,NOW(),NOW())
+        VALUES ($1,$2,$3,$4,$5,$6,$7,NOW(),NOW())
         `,
-        [newClientId, firstName || null, lastName || null, email, phone, dateOfBirth]
+        [newClientId, independentOrgId, firstName || null, lastName || null, email, phone, dateOfBirth]
       );
 
       clientId = newClientId;
@@ -143,6 +147,7 @@ export async function POST(req: NextRequest) {
         `
         UPDATE clients
         SET
+          org_id = COALESCE(org_id, $6::uuid),
           "firstName" = COALESCE(NULLIF($2,''), "firstName"),
           "lastName"  = COALESCE(NULLIF($3,''), "lastName"),
           phone       = COALESCE($4, phone),
@@ -150,7 +155,7 @@ export async function POST(req: NextRequest) {
           "updatedAt" = NOW()
         WHERE id = $1
         `,
-        [clientId, firstName, lastName, phone, dateOfBirth]
+        [clientId, firstName, lastName, phone, dateOfBirth, independentOrgId]
       );
     }
 

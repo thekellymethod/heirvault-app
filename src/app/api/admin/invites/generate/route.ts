@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 ;
 import { requireAdmin } from "@/lib/auth/guards";
+import { getIndependentPolicyholderOrgId } from "@/lib/independentPolicyholderOrg";
 import { logAuditEvent } from "@/lib/audit";
 import { AuditAction } from "@/lib/db/enums";
 import { randomBytes, randomUUID } from "crypto";
@@ -74,6 +75,7 @@ export async function POST(req: NextRequest) {
         const now = new Date().toISOString();
         await createDbRecord("clients", {
           id: clientId,
+          orgId: getIndependentPolicyholderOrgId(),
           email: normalizedEmail,
           firstName,
           lastName,

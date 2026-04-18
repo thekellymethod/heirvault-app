@@ -4,6 +4,7 @@ import { requireAuthPrincipal } from "@/lib/permissions/guard";
 ;
 import { withRouteGuard } from "@/lib/permissions/route";
 import { isAdminUser } from "@/lib/auth/admin-bypass";
+import { organizationIdFromMemberRow } from "@/lib/org/membershipRow";
 
 export async function GET() {
   return withRouteGuard(async () => {
@@ -30,7 +31,8 @@ export async function GET() {
 
         if (memberships && memberships.length > 0) {
           const membership = memberships[0];
-          const org = await findUniqueOrg("organizations", { id: membership.organizationId });
+          const oid = organizationIdFromMemberRow(membership as Record<string, unknown>);
+          const org = oid ? await findUniqueOrg("organizations", { id: oid }) : null;
           
           if (org) {
             const o = org as any;
@@ -87,7 +89,11 @@ export async function GET() {
     }
 
     const membership = memberships[0];
-    const org = await findUniqueOrg("organizations", { id: membership.organizationId });
+    const oid = organizationIdFromMemberRow(membership as Record<string, unknown>);
+    if (!oid) {
+      return NextResponse.json({ error: "No organization" }, { status: 400 });
+    }
+    const org = await findUniqueOrg("organizations", { id: oid });
     
     if (!org) {
       return NextResponse.json({ error: "Organization not found" }, { status: 400 });
